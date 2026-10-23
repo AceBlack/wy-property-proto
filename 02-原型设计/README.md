@@ -18,6 +18,33 @@
 
 ---
 
+## 〇、在线访问（2026-10-23 部署）
+
+| 用途 | 地址 |
+|---|---|
+| **GitHub Pages（主要）** | https://aceblack.github.io/wy-property-proto/ |
+| 源码仓库 | https://github.com/AceBlack/wy-property-proto |
+| 临时分享链接 | https://wy-property-proto.app.workbuddy.host/?sharecode=BQKJE4TFGX |
+
+- **无需登录、无需安装**，浏览器直接打开即可给团队演示；建议用 Chrome / Edge，页面按 1280px 最小宽度设计。
+- 页面用的是 **hash 路由**（`#/a/houses` 这种），GitHub Pages 上深链可直接访问、刷新不 404。
+- 写操作（新增 / 编辑 / 审批 / 抵扣等）**都是内存态，刷新即还原**——演示时如需重来，直接刷新页面。
+
+**本地运行**：
+
+```bash
+cd 03-原型
+npm install
+npm run dev        # 开发，http://localhost:5173
+npm run build      # 构建到 dist/
+npx vite preview   # 预览构建产物，http://localhost:5186
+```
+
+**GitHub Pages 更新方式**：推 `main` 即自动构建发布（`.github/workflows/deploy-pages.yml`）。
+构建时 `base` 由 `GH_PAGES_BASE=/${{ github.event.repository.name }}/` 注入，本地构建仍为 `/`，互不影响。
+
+---
+
 ## 一、产物清单
 
 | 文件 | 类型 | 给谁 | 说明 |
