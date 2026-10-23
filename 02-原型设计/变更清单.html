@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设计规范 v2.2 · 变更清单</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(160deg,#eef0fb,#f5f6fd 45%,#eef8f4);
+  color:#1f2540; font-size:13.5px; line-height:1.6;
+}
+.wrap { max-width:1320px; margin:0 auto; padding:36px 32px 80px; }
+
+.hero .kicker { display:inline-flex; background:linear-gradient(135deg,#5b6cff,#2ed9a3); color:#fff; font-size:12px; padding:5px 16px; border-radius:999px; }
+.hero h1 { font-size:30px; font-weight:700; margin-top:14px; }
+.hero p { color:#6a7390; margin-top:8px; }
+
+.sum { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:24px 0 8px; }
+.sum div { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:16px 20px; }
+.sum .n { font-family:'DIN Alternate',sans-serif; font-size:26px; font-weight:600; }
+.sum .l { font-size:12px; color:#8a94b0; }
+
+.panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:22px 24px; margin-top:16px; }
+.panel h2 { font-size:17px; font-weight:700; margin-bottom:4px; }
+.panel .desc { font-size:12.5px; color:#8a94b0; margin-bottom:16px; }
+
+table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+th { background:#f4f5fc; color:#6a7390; font-weight:500; font-size:11.5px; text-align:left; padding:9px 10px; position:sticky; top:0; }
+th:first-child { border-radius:6px 0 0 6px; }
+th:last-child { border-radius:0 6px 6px 0; }
+td { padding:10px; border-bottom:1px solid #eef0f8; vertical-align:top; }
+tr:hover td { background:#fafbff; }
+.no { font-family:'SF Mono',monospace; color:#b3bad0; white-space:nowrap; }
+th { white-space:nowrap; }
+
+.tag-new, .tag-mod, .tag-del { display:inline-flex; align-items:center; height:18px; padding:0 7px; border-radius:4px; font-size:10px; font-weight:600; white-space:nowrap; }
+.tag-new { background:#e6faf3; color:#1db385; }
+.tag-mod { background:#fff5eb; color:#d97f26; }
+.tag-del { background:#f2f4f8; color:#6e7791; }
+.p0, .p1, .p2 { display:inline-flex; width:20px; height:20px; border-radius:5px; align-items:center; justify-content:center; font-size:10.5px; font-weight:600; }
+.p0 { background:#fff0f0; color:#e04f4f; }
+.p1 { background:#fff5eb; color:#d97f26; }
+.p2 { background:#f2f4f8; color:#6e7791; }
+
+code { font-family:'SF Mono',Menlo,monospace; font-size:11.5px; background:#f4f5fc; border-radius:4px; padding:1px 5px; color:#4653d9; }
+.old { color:#8a94b0; text-decoration:line-through; text-decoration-color:#ffb3b3; }
+.new { color:#1f2540; font-weight:500; }
+.cb { width:14px; height:14px; border:1px solid #c3c9dd; border-radius:4px; display:inline-block; }
+
+.legend { display:flex; gap:18px; font-size:12px; color:#8a94b0; margin-top:12px; flex-wrap:wrap; }
+.foot { text-align:center; color:#a0a8c8; font-size:12px; margin-top:48px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <span class="kicker">CHANGELOG · v2.1 → v2.2</span>
+  <h1>设计规范变更清单</h1>
+  <p>v2.1 共 52 条（新增 34 / 修改 16 / 调整 2）；v2.2 追加 7 条「原型实测回填」。可按编号逐条核对。</p>
+</div>
+
+<div class="sum">
+  <div><div class="n">52</div><div class="l">v2.1 变更条目</div></div>
+  <div><div class="n" style="color:#1db385;">34</div><div class="l">新增（缺失补齐）</div></div>
+  <div><div class="n" style="color:#d97f26;">16</div><div class="l">修改（取值纠偏）</div></div>
+  <div><div class="n" style="color:#6e7791;">2 + 7</div><div class="l">废弃 / v2.2 回填</div></div>
+</div>
+
+<!-- V22 原型实测回填 -->
+<div class="panel" style="border-left:3px solid #5b6cff;">
+  <h2>V22 · 原型实测回填 <span class="tag-mod">v2.2 新增</span></h2>
+  <div class="desc">这 7 条不是补漏，而是把「写得很细但技术上不可执行 / 执行后视觉更差」的标注修正到可落地值。原则仍是「能用变量解决就不写组件覆盖」。</div>
+  <table>
+    <thead><tr><th style="width:52px;">编号</th><th style="width:150px;">对象</th><th style="width:200px;">v2.1 标注</th><th>v2.2 结论</th><th style="width:88px;">类型</th></tr></thead>
+    <tbody>
+      <tr><td class="no">V22-01</td><td>日期面板尺寸</td><td>宽 250 / 格 26 / 圆角 5</td><td>宽 <b>252</b>（7 列 × 36）/ 格 <b>32×32</b> / 圆角 <b>6</b>。EP 面板宽度写死 322 且按列均分，250/26 无解</td><td><span class="tag-mod">改标注</span></td></tr>
+      <tr><td class="no">V22-02</td><td>非本月日期色</td><td>#DFE2FF</td><td><b>#B3BAD0</b>。原值对比度 1.3:1 不可读，提到占位符色 3.1:1</td><td><span class="tag-mod">改取值</span></td></tr>
+      <tr><td class="no">V22-03</td><td>分页页码</td><td>30×30 / 每页 7·20·50</td><td><b>32×32</b> / 每页 <b>20·50·100</b>。对齐 8pt 栅格与 EP 分页变量</td><td><span class="tag-mod">改取值</span></td></tr>
+      <tr><td class="no">V22-04</td><td>图标尺寸</td><td>仅「16px」一处</td><td>新增角色表：按钮 <b>14</b> / 导航 <b>16</b> / KPI <b>20</b> / 缺省页 <b>28</b> / 行内状态 <b>16</b>，对应 <code>--biz-icon-*</code></td><td><span class="tag-new">补齐</span></td></tr>
+      <tr><td class="no">V22-05</td><td>表头字重</td><td>规范 400、示例 500 混用</td><td>统一 <b>400</b>，示例与规范一致</td><td><span class="tag-mod">统一</span></td></tr>
+      <tr><td class="no">V22-06</td><td>KPI 数字</td><td>驾驶舱个别处 22 / 24</td><td>统一 <b>28 / 600 / 行高 36</b>；超 5 万金额自动折万元</td><td><span class="tag-mod">统一</span></td></tr>
+      <tr><td class="no">V22-07</td><td>图标风格</td><td>面性（filled）</td><td>登记为<b>可接受偏差</b>：原型用 EP 线性图标，尺寸/位置/色值照规范执行，换库不改布局</td><td><span class="tag-del">偏差</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- A 全局变量 -->
+<div class="panel">
+  <h2>A. 全局变量 · Tokens</h2>
+  <p class="desc">所有组件共用，改这里等于全局换肤。</p>
+  <table>
+    <tr><th style="width:62px;">编号</th><th style="width:62px;">类型</th><th style="width:140px;">属性</th><th style="width:180px;">原值 v2.0</th><th style="width:220px;">新值 v2.1</th><th style="width:66px;">优先级</th><th>依据</th></tr>
+    <tr><td class="no">A-01</td><td><span class="tag-mod">修改</span></td><td>控件圆角</td><td class="old">8px</td><td class="new"><code>6px</code></td><td><span class="p0">高</span></td><td>截图按钮/输入框实测约 6px，8px 偏圆</td></tr>
+    <tr><td class="no">A-02</td><td><span class="tag-mod">修改</span></td><td>按钮圆角</td><td class="old">999px 胶囊</td><td class="new"><code>6px</code> 矩形</td><td><span class="p0">高</span></td><td>截图按钮为小圆角矩形；胶囊仅用于标签、步骤条、开关</td></tr>
+    <tr><td class="no">A-03</td><td><span class="tag-mod">修改</span></td><td>卡片圆角</td><td class="old">12px</td><td class="new"><code>10px</code></td><td><span class="p1">中</span></td><td>与截图卡片一致，且与表格容器统一</td></tr>
+    <tr><td class="no">A-04</td><td><span class="tag-mod">修改</span></td><td>面板/弹窗圆角</td><td class="old">16px</td><td class="new"><code>12px</code></td><td><span class="p1">中</span></td><td>16px 在小尺寸弹窗上过圆，12px 更稳</td></tr>
+    <tr><td class="no">A-05</td><td><span class="tag-mod">修改</span></td><td>卡片阴影</td><td class="old"><code>0 2px 12px rgba(63,76,158,.07)</code></td><td class="new"><code>0 2px 8px rgba(31,37,64,.05)</code></td><td><span class="p1">中</span></td><td>截图卡片几乎无投影，靠留白分层</td></tr>
+    <tr><td class="no">A-06</td><td><span class="tag-new">新增</span></td><td>浮层阴影</td><td class="old">—</td><td class="new"><code>0 8px 24px rgba(31,37,64,.12)</code></td><td><span class="p0">高</span></td><td>下拉、弹窗、Toast 需要明显高于卡片一级</td></tr>
+    <tr><td class="no">A-07</td><td><span class="tag-mod">修改</span></td><td>主按钮阴影</td><td class="old"><code>rgba(91,108,255,.32)</code></td><td class="new"><code>rgba(91,108,255,.28)</code></td><td><span class="p2">低</span></td><td>截图投影更克制，避免按钮「浮起来」</td></tr>
+    <tr><td class="no">A-08</td><td><span class="tag-new">新增</span></td><td>状态通用变量</td><td class="old">—</td><td class="new"><code>--biz-state-hover-bg / active-bg / selected-bg / disabled-* / readonly-bg</code></td><td><span class="p0">高</span></td><td>统一 9 种交互状态取值，禁止组件各写一套</td></tr>
+    <tr><td class="no">A-09</td><td><span class="tag-new">新增</span></td><td>聚焦环</td><td class="old">—</td><td class="new"><code>--biz-focus-ring: 0 0 0 3px rgba(91,108,255,.14)</code></td><td><span class="p0">高</span></td><td>截图聚焦态有 3px 柔光环，提升键盘可达性</td></tr>
+    <tr><td class="no">A-10</td><td><span class="tag-new">新增</span></td><td>控件高度</td><td class="old">未定义</td><td class="new"><code>--biz-control-h: 40px</code> / sm 32 / lg 44</td><td><span class="p0">高</span></td><td>截图明确标注 40px，是全站尺寸基线</td></tr>
+    <tr><td class="no">A-11</td><td><span class="tag-new">新增</span></td><td>按钮宽度</td><td class="old">未定义</td><td class="new">最小 88 / 表单 100 / 带图标 120</td><td><span class="p0">高</span></td><td>截图标注 100px 与 120px</td></tr>
+    <tr><td class="no">A-12</td><td><span class="tag-new">新增</span></td><td>开关 / 复选尺寸</td><td class="old">未定义</td><td class="new">开关 <code>37×20</code>；复选 <code>16×16</code></td><td><span class="p1">中</span></td><td>截图实测值</td></tr>
+    <tr><td class="no">A-13</td><td><span class="tag-mod">修改</span></td><td>主色 hover / active</td><td class="old">仅 light-3/dark-2</td><td class="new"><code>#4D5EF7</code> / <code>#3F4EE0</code> 显式定义</td><td><span class="p1">中</span></td><td>EP 默认 hover 为 light-3（偏浅），截图为加深</td></tr>
+    <tr><td class="no">A-14</td><td><span class="tag-new">新增</span></td><td>禁用文字色</td><td class="old">仅 placeholder</td><td class="new"><code>--el-text-color-disabled: #C3C9DD</code></td><td><span class="p2">低</span></td><td>禁用与占位必须区分，占位更浅</td></tr>
+    <tr><td class="no">A-15</td><td><span class="tag-new">新增</span></td><td>只读底</td><td class="old">无</td><td class="new"><code>#F7F8FC</code></td><td><span class="p1">中</span></td><td>只读 ≠ 禁用，需要可复制且不显灰字</td></tr>
+    <tr><td class="no">A-16</td><td><span class="tag-new">新增</span></td><td>二级导航色</td><td class="old">无</td><td class="new"><code>--biz-sidebar-2nd-bg: #0C1836</code>，宽 <code>64px</code></td><td><span class="p2">低</span></td><td>截图二级栏比一级深一档，形成层次</td></tr>
+  </table>
+</div>
+
+<!-- B 间距与字阶 -->
+<div class="panel">
+  <h2>B. 间距栅格与字阶</h2>
+  <p class="desc">从「有数值」升级为「有规则」。</p>
+  <table>
+    <tr><th style="width:62px;">编号</th><th style="width:62px;">类型</th><th style="width:140px;">属性</th><th style="width:180px;">原值</th><th style="width:220px;">新值</th><th style="width:66px;">优先级</th><th>依据</th></tr>
+    <tr><td class="no">B-01</td><td><span class="tag-mod">修改</span></td><td>间距基准</td><td class="old">4 基准（16 档）</td><td class="new">8pt 主栅格 + 4pt 半格</td><td><span class="p1">中</span></td><td>截图标注 40/100/120 均为 8 的倍数</td></tr>
+    <tr><td class="no">B-02</td><td><span class="tag-new">新增</span></td><td>模块间距</td><td class="old">未定义</td><td class="new">卡片间 16 / 模块间 24 / 区块间 40</td><td><span class="p1">中</span></td><td>截图模块留白较大，40px 为分区基准</td></tr>
+    <tr><td class="no">B-03</td><td><span class="tag-new">新增</span></td><td>字阶表</td><td class="old">只有 6 档字号，无用途绑定</td><td class="new">20/600、16/600、14/400、13/400、12/400、28/600 六阶，含行高与色值</td><td><span class="p1">中</span></td><td>截图标题恒 600、正文恒 400，无 500 正文</td></tr>
+    <tr><td class="no">B-04</td><td><span class="tag-new">新增</span></td><td>表格正文字号</td><td class="old">跟随 14px</td><td class="new"><code>13px / 400</code></td><td><span class="p2">低</span></td><td>截图表格文字比正文小一号，信息密度更高</td></tr>
+    <tr><td class="no">B-05</td><td><span class="tag-new">新增</span></td><td>图标尺寸</td><td class="old">未定义</td><td class="new"><code>16px</code>，与文字间距 <code>6px</code></td><td><span class="p2">低</span></td><td>截图按钮内图标 16px，基线对齐</td></tr>
+  </table>
+</div>
+
+<!-- C 组件 -->
+<div class="panel">
+  <h2>C. 组件 · 新增状态与变体</h2>
+  <p class="desc">本次主体工作量，补齐截图里出现但 v2.0 未定义的组件。</p>
+  <table>
+    <tr><th style="width:62px;">编号</th><th style="width:62px;">类型</th><th style="width:140px;">组件 / 属性</th><th style="width:180px;">原状态</th><th style="width:220px;">新增内容</th><th style="width:66px;">优先级</th><th>依据</th></tr>
+    <tr><td class="no">C-01</td><td><span class="tag-new">新增</span></td><td>按钮 · 状态</td><td class="old">仅默认 + 禁用</td><td class="new">+ hover / active / loading / 文字按钮 4 类型</td><td><span class="p0">高</span></td><td>截图给出 4 类型 × 4 状态矩阵</td></tr>
+    <tr><td class="no">C-02</td><td><span class="tag-new">新增</span></td><td>按钮 · 尺寸</td><td class="old">仅默认</td><td class="new">sm 32 / 默认 40 / lg 44</td><td><span class="p1">中</span></td><td>表格行内操作用 32，表单底部用 40</td></tr>
+    <tr><td class="no">C-03</td><td><span class="tag-new">新增</span></td><td>按钮 · 查询型</td><td class="old">无</td><td class="new">白底灰边 + 搜索图标，hover 转主色边</td><td><span class="p1">中</span></td><td>截图「查询」按钮独立于主/次按钮</td></tr>
+    <tr><td class="no">C-04</td><td><span class="tag-new">新增</span></td><td>输入框 · hover</td><td class="old">无</td><td class="new">边框 <code>#ADB5FF</code>，无投影</td><td><span class="p0">高</span></td><td>截图六态之一</td></tr>
+    <tr><td class="no">C-05</td><td><span class="tag-new">新增</span></td><td>输入框 · 不可输入</td><td class="old">仅「禁用」</td><td class="new">拆分为禁用（灰字）与只读（正常字可复制）</td><td><span class="p1">中</span></td><td>截图标注「不可输入 / 已有内容」</td></tr>
+    <tr><td class="no">C-06</td><td><span class="tag-new">新增</span></td><td>输入框 · 错误图标</td><td class="old">仅红边</td><td class="new">右侧 16px 红色 ⊗ + 下方说明文字</td><td><span class="p1">中</span></td><td>截图错误框带红色圆点图标，色弱友好</td></tr>
+    <tr><td class="no">C-07</td><td><span class="tag-new">新增</span></td><td>选择器</td><td class="old">无</td><td class="new">触发器 5 态 + 下拉项 4 态（含禁用项）</td><td><span class="p0">高</span></td><td>截图「默认/悬停/展开/选择后」+ 4 个选项</td></tr>
+    <tr><td class="no">C-08</td><td><span class="tag-new">新增</span></td><td>日期选择</td><td class="old">无</td><td class="new">区间双框 4 态 + 日历面板（非本月/hover/选中/区间段）</td><td><span class="p0">高</span></td><td>截图日期组件含完整日历</td></tr>
+    <tr><td class="no">C-09</td><td><span class="tag-new">新增</span></td><td>复选框</td><td class="old">无</td><td class="new">4 态 + 禁用选中态</td><td><span class="p0">高</span></td><td>截图复选框规范区块</td></tr>
+    <tr><td class="no">C-10</td><td><span class="tag-new">新增</span></td><td>单选框</td><td class="old">无</td><td class="new">4 态，圆形 + 内部白点</td><td><span class="p1">中</span></td><td>与复选框成组出现，规范需对齐</td></tr>
+    <tr><td class="no">C-11</td><td><span class="tag-new">新增</span></td><td>开关</td><td class="old">无</td><td class="new">开/关/禁用 3 态，<code>37×20</code></td><td><span class="p1">中</span></td><td>截图开关组件</td></tr>
+    <tr><td class="no">C-12</td><td><span class="tag-new">新增</span></td><td>上传</td><td class="old">无</td><td class="new">4 态：待传 / 失败 / 重新上传 / 上传中</td><td><span class="p0">高</span></td><td>截图「上传图片」四态卡</td></tr>
+    <tr><td class="no">C-13</td><td><span class="tag-new">新增</span></td><td>步骤条</td><td class="old">无</td><td class="new">胶囊分段 + 当前段深主色 + 已完成/未开始/可回跳规则</td><td><span class="p0">高</span></td><td>截图胶囊步骤条</td></tr>
+    <tr><td class="no">C-14</td><td><span class="tag-new">新增</span></td><td>时间线</td><td class="old">无</td><td class="new">轴线 1px + 8px 节点 + 卡片，最新节点实心</td><td><span class="p1">中</span></td><td>截图右侧「进度条」为时间线形态</td></tr>
+    <tr><td class="no">C-15</td><td><span class="tag-new">新增</span></td><td>表格 · hover</td><td class="old">未定义</td><td class="new">整行 <code>#F5F6FF</code></td><td><span class="p1">中</span></td><td>截图列表行有 hover 反馈</td></tr>
+    <tr><td class="no">C-16</td><td><span class="tag-new">新增</span></td><td>表格 · 选中</td><td class="old">未定义</td><td class="new">整行 <code>#EFF0FF</code> + 复选框联动</td><td><span class="p1">中</span></td><td>批量操作场景必需</td></tr>
+    <tr><td class="no">C-17</td><td><span class="tag-new">新增</span></td><td>表格 · 加载/空态</td><td class="old">未定义</td><td class="new">6 行骨架屏（48px 行高）/ 内嵌缺省图 + 主按钮</td><td><span class="p1">中</span></td><td>截图「暂无数据」+ 列表规范</td></tr>
+    <tr><td class="no">C-18</td><td><span class="tag-new">新增</span></td><td>表格 · 操作列</td><td class="old">未定义</td><td class="new">12.5px 文字链接，蓝=查看 绿=编辑 红=删除；超 3 个收「更多」</td><td><span class="p1">中</span></td><td>截图操作列带彩色图标 + 文字</td></tr>
+    <tr><td class="no">C-19</td><td><span class="tag-new">新增</span></td><td>分页</td><td class="old">无</td><td class="new">方块页码 30×30 + 每页条数 + 跳页</td><td><span class="p0">高</span></td><td>截图分页含「共 125 条 / 7 条·页 / 跳至」</td></tr>
+    <tr><td class="no">C-20</td><td><span class="tag-new">新增</span></td><td>轻提示条 Alert</td><td class="old">无</td><td class="new">4 语义（成功/错误/无效/警告）+ 22px 圆图标</td><td><span class="p0">高</span></td><td>截图「预警提示」区块</td></tr>
+    <tr><td class="no">C-21</td><td><span class="tag-new">新增</span></td><td>弹窗式提示 Toast</td><td class="old">无</td><td class="new">图标 + 加粗标题 + 描述 + 关闭，360px / 圆角 10</td><td><span class="p0">高</span></td><td>截图「弹窗提示」三例</td></tr>
+    <tr><td class="no">C-22</td><td><span class="tag-new">新增</span></td><td>Toast 时长</td><td class="old">无</td><td class="new">成功 3s / 失败警告 5s 可手关 / 同屏最多 3 条</td><td><span class="p2">低</span></td><td>避免错误信息一闪而过</td></tr>
+    <tr><td class="no">C-23</td><td><span class="tag-new">新增</span></td><td>缺省页</td><td class="old">仅 el-empty 默认</td><td class="new">三型：无数据 / 无网络 / 无搜索，各配不同动作</td><td><span class="p0">高</span></td><td>截图三个缺省插画</td></tr>
+    <tr><td class="no">C-24</td><td><span class="tag-new">新增</span></td><td>缺省页 · 文案</td><td class="old">无</td><td class="new">8 字内、无情绪词、单一主动作</td><td><span class="p2">低</span></td><td>保持克制，不用「抱歉」</td></tr>
+    <tr><td class="no">C-25</td><td><span class="tag-new">新增</span></td><td>二级导航</td><td class="old">无</td><td class="new">64px 图标栏，底 <code>#0C1836</code>，选中主色块</td><td><span class="p2">低</span></td><td>截图「一级导航 / 二级导航」双栏</td></tr>
+    <tr><td class="no">C-26</td><td><span class="tag-new">新增</span></td><td>三级/四级页签</td><td class="old">无</td><td class="new">三级 13px + 2px 主色短横；四级 12.5px 浅底块</td><td><span class="p2">低</span></td><td>截图「所有客户/我的客户」与四级 tab</td></tr>
+    <tr><td class="no">C-27</td><td><span class="tag-new">新增</span></td><td>导航层数上限</td><td class="old">无</td><td class="new">最多 4 级，超出改为内容区分组</td><td><span class="p2">低</span></td><td>防止侧栏无限嵌套</td></tr>
+  </table>
+</div>
+
+<!-- D 废弃 -->
+<div class="panel">
+  <h2>D. 废弃条目</h2>
+  <p class="desc">形态与参考风格冲突，需要移除。</p>
+  <table>
+    <tr><th style="width:62px;">编号</th><th style="width:62px;">类型</th><th style="width:160px;">条目</th><th style="width:220px;">废弃原因</th><th style="width:220px;">替代方案</th><th style="width:66px;">优先级</th></tr>
+    <tr><td class="no">D-01</td><td><span class="tag-del">废弃</span></td><td>按钮全胶囊形态</td><td>与截图 6px 矩形按钮冲突，胶囊会让后台显得偏 C 端</td><td>圆角 6px；胶囊仅保留给标签/步骤条/开关</td><td><span class="p0">高</span></td></tr>
+    <tr><td class="no">D-02</td><td><span class="tag-del">废弃</span></td><td>卡片 12px + 明显投影</td><td>投影过重会让密集列表页显脏</td><td>10px + <code>.05</code> 极淡散射</td><td><span class="p1">中</span></td></tr>
+  </table>
+</div>
+
+<!-- E 待确认 -->
+<div class="panel">
+  <h2>E. 待你拍板（3 项）</h2>
+  <p class="desc">这三条不影响主体落地，但会改变页面观感，先列出等你决定。</p>
+  <table>
+    <tr><th style="width:62px;">编号</th><th style="width:180px;">议题</th><th>选项</th><th style="width:150px;">我的建议</th></tr>
+    <tr><td class="no">E-01</td><td>主按钮是否保留品牌投影 <span class="tag tag-new" style="margin-left:4px;">已确认</span></td><td>A 保留（更立体，截图有极淡投影） / B 完全去掉（更平）</td><td><b style="color:#2ed9a3;">采纳：</b>保留但降到 <code>.28</code>（已写入 <code>--biz-shadow-primary</code>）</td></tr>
+    <tr><td class="no">E-02</td><td>表格是否启用斑马纹 <span class="tag tag-new" style="margin-left:4px;">已确认</span></td><td>A 不启用仅 hover / B 启用 <code>#FAFBFE</code></td><td><b style="color:#2ed9a3;">采纳：</b>不启用，靠 hover 区分（<code>--table-stripe-bg</code> 置 transparent 兜底）</td></tr>
+    <tr><td class="no">E-03</td><td>驾驶舱 KPI 数字字体 <span class="tag tag-new" style="margin-left:4px;">已确认</span></td><td>A 系统数字（兼容好） / B DIN 风格（更精致但需字体文件）</td><td><b style="color:#2ed9a3;">采纳：</b>先用系统数字（<code>--biz-font-num</code>），DIN 方案另存 <code>--biz-font-num-din</code> 待切</td></tr>
+  </table>
+</div>
+
+<!-- F L4 批量生成记录 -->
+<div class="panel">
+  <h2>F. L4 批量生成记录（17–28 页）</h2>
+  <p class="desc">12 个列表页全部继承 <code>列表页模板</code>：筛选 → 查询 → 真分页 → 详情抽屉；页面零原始数据引用，取数只走 <code>utils/api.js</code>。</p>
+  <table>
+    <tr><th style="width:56px;">页码</th><th style="width:150px;">页面</th><th style="width:110px;">路由</th><th style="width:230px;">取数函数</th><th>列表关键列 / 详情抽屉</th></tr>
+    <tr><td class="no">17</td><td>业主档案</td><td><code>/a/owners</code></td><td><code>queryOwners / getOwnerDetail</code></td><td>业主·手机·类型·房产数·车位·认证；抽屉含名下房产 + 欠费汇总</td></tr>
+    <tr><td class="no">18</td><td>账单查询</td><td><code>/b/bills</code></td><td><code>queryBills / getBillDetail</code></td><td>账期·科目·承载对象·应收/欠费/逾期；抽屉含缴费流水</td></tr>
+    <tr><td class="no">19</td><td>工单列表</td><td><code>/f/workorders</code></td><td><code>queryWorkOrders / getWorkOrder</code></td><td>工单号·标题·类型·状态·超时；详情跳工单详情页</td></tr>
+    <tr><td class="no">20</td><td>设备台账</td><td><code>/d/devices</code></td><td><code>queryDevices / getDeviceDetail</code></td><td>编号·类型·状态·心跳·维保到期；抽屉含关联告警</td></tr>
+    <tr><td class="no">21</td><td>缴费流水</td><td><code>/b/payments</code></td><td><code>queryPayments / getPaymentDetail</code></td><td>流水号·时间·业主/承载对象·金额·方式·渠道·开票；抽屉含对应账单</td></tr>
+    <tr><td class="no">22</td><td>收费科目</td><td><code>/b/fee-items</code></td><td><code>queryFeeItems / getFeeItemDetail</code></td><td>单价·计费方式·周期·账单数·收缴率；抽屉含分项目收缴 + 最近账单</td></tr>
+    <tr><td class="no">23</td><td>巡检计划</td><td><code>/f/inspect-plans</code></td><td><code>queryInspectPlans / getInspectPlanDetail</code></td><td>岗位·周期·模板·生成任务·异常项；抽屉含模板检查项 + 最近任务</td></tr>
+    <tr><td class="no">24</td><td>巡检任务列表</td><td><code>/f/inspect-tasks</code></td><td><code>queryInspectTasks / getInspectTaskDetail</code></td><td>计划·岗位·状态·进度·得分；抽屉含模板 + 已转工单</td></tr>
+    <tr><td class="no">25</td><td>告警中心</td><td><code>/d/alarms</code></td><td><code>queryAlarms / getAlarmDetail</code></td><td>等级·类型·设备·内容·状态·处理人·工单；抽屉含设备信息 + 同设备历史</td></tr>
+    <tr><td class="no">26</td><td>车辆管理</td><td><code>/a/vehicles</code></td><td><code>queryVehicles / getVehicleDetail</code></td><td>车牌·业主·车位·卡号·进出类型·授权；抽屉含绑定车位 + 最近通行</td></tr>
+    <tr><td class="no">27</td><td>通行记录</td><td><code>/d/pass-records</code></td><td><code>queryPassRecords / getPassRecordDetail</code></td><td>时间·车牌·车位·方向·道闸·识别方式·停留·费用；抽屉含车辆 + 同车牌记录</td></tr>
+    <tr><td class="no">28</td><td>房屋台账</td><td><code>/a/houses</code></td><td><code>queryHouseLedger / getHouseDetail</code></td><td>房屋·项目·户型·面积·使用状态·业主·欠费·未结账单；抽屉含账单 + 车位</td></tr>
+  </table>
+  <p class="desc" style="margin:14px 0 6px;"><b>本批新增的 3 条数据层约定（后续页面必须沿用）</b></p>
+  <table>
+    <tr><th style="width:200px;">约定</th><th style="width:300px;">规则</th><th>解决的问题</th></tr>
+    <tr><td><code>subjectLabel(houseId, parkId)</code></td><td>有房屋显示房屋全名；无房屋（车位管理费一类）显示「车位 B1-137」</td><td>4884 条账单里 1344 条只有 <code>parkId</code>，此前列表「房屋」列空白</td></tr>
+    <tr><td><code>between(value, range)</code></td><td>区间筛选统一在数据层做，入参接受 <code>Date</code> 或 <code>YYYY-MM-DD</code>，端点为空即跳过</td><td>日期区间不进页面判断，换真接口时只改 SQL</td></tr>
+    <tr><td>筛选项来源</td><td>下拉一律由 <code>distinct()</code> 从现有数据取值导出（如 <code>payMethodOpts()</code>）</td><td>避免第 4 次出现「字典域写死、数据里没有该值」</td></tr>
+  </table>
+  <p class="desc" style="margin:14px 0 6px;"><b>本批修掉的两处偏差</b></p>
+  <table>
+    <tr><th style="width:200px;">问题</th><th style="width:120px;">影响</th><th>处理</th></tr>
+    <tr><td>列表横向溢出（8 页 + 工单列表）</td><td><span class="p0">高</span></td><td>1440 视口下列表可用宽度实测 <b>1132px</b>；超出的页最多溢出 238px，固定操作列会压住「状态」列。已按 1132 重排列宽预算，实测 12 张表 <code>scrollWidth == clientWidth</code>，零溢出</td></tr>
+    <tr><td><code>.dstat</code> 指标块仅存在于两个页面的 scoped 样式</td><td><span class="p1">中</span></td><td>L4 抽屉复用时无样式，已收归 <code>app.css</code> 全局；此后详情抽屉统一用 <code>.dstat</code></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>G · 信息架构重构：业主档案 / 房屋台账 / 车辆管理 三页（2026-10-22 落地）</h2>
+  <p class="desc">背景：三页原本都是「平铺列表 + 关键字」，用户只能靠搜索精确查找，无法通过层级导航定位。
+  本轮改为 <b>左树定范围 + 中列表出结果 + 右抽屉看对象</b> 的三栏骨架，
+  <b>树只管「范围」、筛选栏只管「属性」，两者 AND</b>，并用 <code>?focus=&lt;type&gt;:&lt;id&gt;&amp;open=1</code> 把三页串起来。</p>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>三页各自的树轴（骨架一致，轴不同）</b></p>
+  <table>
+    <tr><th style="width:110px;">页面</th><th style="width:190px;">树</th><th style="width:90px;">叶子粒度</th><th>关键设计判断</th></tr>
+    <tr><td>房屋台账<br><code>/a/houses</code></td><td>项目 → 楼栋 → 单元</td><td>单元（22 间）</td><td><b>房间不进树</b>：736 个叶子 × 24px ≈ 17,664px 滚动高度。<b>楼层也不进树</b>：每层仅 2 户，176 个节点换 2 行数据不划算 → 改为列表上方 11 格<b>楼层热力条</b>，顺带表达「哪层空置集中」</td></tr>
+    <tr><td>业主档案<br><code>/a/owners</code></td><td>空间轴（同上）<br>权属轴（一人多房 / 车位 / 未认证 / 信用等级）</td><td>单元<br>分组</td><td>默认<b>空间轴</b>：682 位业主中仅 37 位一人多房（5.4%），物业日常问的是「3栋201 是谁」而非「张建国住哪」。空间轴下列表仍以业主为行，但带房号列</td></tr>
+    <tr><td>车位与车辆<br><code>/a/vehicles</code></td><td>项目 → 区域（B1/B2/地面）→ 产权状态</td><td>状态（≈40 个）</td><td><b>以车位为行、车辆为列</b>：车与位严格 1:1（已租 219 + 已售 229 = 448 = 车辆数），闲置 158 个车位过去在界面上完全不可见。车位号同样不进树（640 叶子），改走关键字</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>参考页面的取舍（两张树状图）</b></p>
+  <table>
+    <tr><th style="width:220px;">参考做法</th><th style="width:80px;">结论</th><th>理由</th></tr>
+    <tr><td>左树 + 右表，选中即筛选</td><td>采用</td><td>225 个层级节点用树筛选比平铺少一次认知；点击即出结果，不用再点「查询」</td></tr>
+    <tr><td>树内搜索框</td><td>采用并加强</td><td>除节点名外，附加 <code>houseTreeSearchKeys()</code>：可按业主名 / 房号命中到单元</td></tr>
+    <tr><td>面包屑</td><td>采用</td><td>升级为列表上方「范围条」，每级可点回退，末尾 × 清空</td></tr>
+    <tr><td>房间作为树叶子</td><td>不采用</td><td>见上：736 叶子滚动失控（参考图数据量小才成立）</td></tr>
+    <tr><td>树选中 + 5 个筛选器并列</td><td>改造</td><td>语义重叠；且 1132px 预算被树吃掉 248 后剩 884，收敛为 2–3 个高频筛选</td></tr>
+    <tr><td>13 列宽表 + 操作列</td><td>不采用</td><td>沿用 1132px 教训：本轮三页实测列宽 868px，零溢出</td></tr>
+    <tr><td>树节点右键菜单 / 拖拽改层级</td><td>不采用</td><td>B 级写操作，原型阶段无价值</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>跨页锚点（focus 协议）</b></p>
+  <table>
+    <tr><th style="width:200px;">链路</th><th style="width:150px;">参数</th><th>落地行为</th></tr>
+    <tr><td>房屋 → 业主档案</td><td><code>?focus=owner:OW00005</code></td><td>树展开到该业主房屋所在单元（实测 736 → 22），行高亮</td></tr>
+    <tr><td>房屋 → 车位与车辆</td><td><code>?focus=owner:…</code></td><td>列出该业主名下车位</td></tr>
+    <tr><td>业主 → 房屋台账</td><td><code>?focus=owner:…&amp;open=1</code></td><td>树定位 + 自动开抽屉</td></tr>
+    <tr><td>车位 → 车位与车辆</td><td><code>?focus=park:PK00001</code></td><td>树定位到 项目/区域/产权状态 三级（实测落到 41 条）</td></tr>
+    <tr><td>车辆 → 通行记录</td><td><code>?focus=plate:沪C·WFCSZ</code></td><td>落到关键字过滤（实测 2 条）</td></tr>
+  </table>
+  <p class="desc" style="margin:10px 0 0;">优先级约定：<b>URL focus &gt; 树选中 &gt; 筛选条件</b>；
+  落地用 <code>useFocusLanding()</code>——<b>必须同时 watch query</b>：同一路由内换 focus 时 <code>onMounted</code> 不会重跑，只挂 onMounted 会出现「第二次跳转变脏」。</p>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>本轮新增的数据层约束（后续页面必须沿用）</b></p>
+  <table>
+    <tr><th style="width:220px;">约束</th><th>内容</th></tr>
+    <tr><td>树节点统一带 <code>patch</code></td><td>页面不自行拼筛选条件，只把节点的 <code>patch</code> 写回 query（清范围 → 赋新值 → 查询）</td></tr>
+    <tr><td>虚拟节点与列表同源</td><td>空置 78 / 欠费 / 装修中 42 / 未办证 156 全部基于同一 <code>HOUSE_ROWS</code> 计算，避免树上的数字与列表 total 对不上</td></tr>
+    <tr><td><b>房屋 ↔ 车位无直接外键</b></td><td><code>houses</code> 无 <code>parkIds</code>，<code>parkings</code> 才有 <code>ownerId</code>：房屋侧的车位只能经业主关联，一人多房时无法判定归属哪套。<b>UI 必须标注「经业主关联，非产权归属」</b>，不能靠界面绕过</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>本轮修掉的三处问题</b></p>
+  <table>
+    <tr><th style="width:200px;">问题</th><th style="width:120px;">影响</th><th>处理</th></tr>
+    <tr><td>虚拟节点点击无效果</td><td><span class="p0">高</span></td><td><code>houseVirtualNodes()</code> 漏了 <code>patch</code>，页面 <code>Object.assign(query, node.patch || {})</code> 拿到空对象 → 「空置」点了还是 736。已补齐 patch（实测 736 → 78）</td></tr>
+    <tr><td>同路由内二次跳转状态残留</td><td><span class="p0">高</span></td><td>车辆页先按业主过滤再跳车位时，<code>ownerId</code> 未清 → 结果为 0。落地区改为先写 BLANK 再赋新值；并用 watch 代替纯 onMounted</td></tr>
+    <tr><td>ep-tree 变量作用域</td><td><span class="p1">中</span></td><td><code>--el-tree-node-content-height</code> 等定义在组件作用域，写 <code>:root</code> 无效（与 table 同一坑）。已在 <code>.spacetree</code> 容器级覆盖</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>验证</b></p>
+  <table>
+    <tr><th style="width:200px;">项</th><th>结果</th></tr>
+    <tr><td>vite build</td><td>✓ 4.8s</td></tr>
+    <tr><td>28 页无头巡检</td><td>零控制台错误，三页 drawer 均 ok</td></tr>
+    <tr><td>树交互</td><td>项目 736→352；楼栋 →44 且楼层条出现（11 格）；楼层 →4；空置虚拟节点 →78；清除范围 →736；关键字 0101 →72</td></tr>
+    <tr><td>双轴切换</td><td>权属轴节点（一人多房 37 / 有车位 369 / 无车位 313 / 未认证 0 / 信用等级）正常；点空间轴「翡翠城」→ 329 位业主（352 套房屋去重后）</td></tr>
+    <tr><td>车位树</td><td>全量 640；闲置 158；已绑定 448；30 天内到期 28</td></tr>
+    <tr><td>六条 focus 链路</td><td>全部落地正确（含同路由内二次跳转 47 条 + 抽屉自动打开）</td></tr>
+    <tr><td>表格宽度</td><td>三页 868 / 868 / 868，零溢出</td></tr>
+  </table>
+</div>
+
+<!-- H 页面合并 -->
+<div class="panel">
+  <h2>H. 页面合并：车位车牌绑定 → 车位与车辆（07 → 26）</h2>
+  <p class="desc">两页的主表都落在 <code>parkings</code>（车位），差异是各自只露出一半能力：07 有换绑但只能靠下拉筛，26 有树但没有写操作。
+  合并为单页后菜单由 6 项降为 5 项，页面总数 28 → 27（07 保留为历史截图）。</p>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>合并依据（数据核实）</b></p>
+  <table>
+    <tr><th style="width:180px;">事实</th><th>数值</th></tr>
+    <tr><td>字段重叠</td><td>两页 8 列中 6 列完全一致（车位号 / 状态 / 车牌 / 绑定 / 业主 / 管理费到期）</td></tr>
+    <tr><td><b>KPI 口径冲突</b></td><td>07 的「未绑定/闲置」按 <code>bindStatus</code> = <b>192</b>；26 的「闲置」按 <code>status</code> = <b>158</b>。两者是不同维度：<b>192 = 闲置 158 + 不可用 34</b>，并列两个菜单项会对同一概念报两个数</td></tr>
+    <tr><td>车 ↔ 位关系</td><td>已绑定 448 = 车辆数 448，<code>parkings.ownerId</code> 与 <code>vehicles.ownerId</code> 零差异 → 严格 1:1，没有独立「车辆视图」可看</td></tr>
+    <tr><td>入站引用</td><td><code>/a/parking</code> 全项目仅 1 处（<code>TplBoard.vue</code> 的「车位到期」风险条目）；<code>/a/vehicles</code> 有 2 处（房屋台账 / 业主档案抽屉），是跨页跳转的汇点</td></tr>
+    <tr><td><b>数据缺陷（本轮顺带修）</b></td><td><code>parkNo</code> 项目内唯一、<b>跨项目重复</b>（640 条只有 300 个唯一值，"B1-001" 在 P01/P02/P03 都有）→ 列表车位号下加副行「项目 · 区域」，否则搜 "B1-001" 出 3 行分不清</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>字段与操作归并</b></p>
+  <table>
+    <tr><th style="width:230px;">项</th><th style="width:120px;">原归属</th><th>合并后</th></tr>
+    <tr><td>车位号 / 区域 / 类型 / 状态 / 车牌 / 绑定 / 业主 / 管理费到期</td><td>两页都有</td><td>保留；区域压进车位号副行「项目 · 区域」，不占列宽</td></tr>
+    <tr><td>授权状态 · 车辆类型筛选</td><td>仅 26</td><td>保留（授权 4 值含待审核 17 / 黑名单 14；类型 小型车 393 · 新能源 55）</td></tr>
+    <tr><td>项目筛选（下拉）</td><td>仅 07</td><td><b>删除</b>，并入 26 的左树（项目 → 区域 → 产权状态）</td></tr>
+    <tr><td>换绑弹窗（新车牌 / 车主 / 原因 / 生效时间 / 凭证）</td><td>仅 07</td><td>保留，移入抽屉 footer 主按钮；闲置车位文案变「绑定车辆」，另加「解除绑定」次要按钮与解绑原因</td></tr>
+    <tr><td>换绑记录时间线</td><td>仅 07</td><td>保留为抽屉内独立区块，提交后即时插入「等待厂商回执」一条</td></tr>
+    <tr><td>常驻右栏详情</td><td>仅 07</td><td><b>弃用</b>改抽屉：常驻面板把列表挤到约 700px 只能放 5–6 列，抽屉下列表 868px 放 8 列，且与房屋 / 业主两页骨架一致</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>调整清单</b></p>
+  <table>
+    <tr><th style="width:86px;">类型</th><th style="width:230px;">项</th><th>处置</th></tr>
+    <tr><td>路由</td><td><code>/a/parking</code></td><td>移入 <code>pages.js</code> 的 <code>LEGACY</code>，重定向到 <code>/a/vehicles</code></td></tr>
+    <tr><td>重定向</td><td><code>router/index.js</code></td><td>LEGACY 由字符串 redirect 改为<b>函数式 redirect 并透传 query</b>，旧链接上的 <code>?focus=</code> 仍能落地</td></tr>
+    <tr><td>页面</td><td><code>views/a/ParkingBind.vue</code></td><td>删除（功能并入 <code>VehicleList.vue</code>）</td></tr>
+    <tr><td>菜单</td><td>A 域 6 → 5 项</td><td>删除「车位车牌绑定」，保留「车位与车辆」</td></tr>
+    <tr><td>接口</td><td><code>queryParkings</code> / <code>vehicleOfPlate</code></td><td>删除（仅 07 使用，被 <code>queryParkingVehicles</code> / <code>getParkingDetail</code> 覆盖）</td></tr>
+    <tr><td>接口</td><td><code>parkingBindSummary</code> + <code>parkingVehicleSummary</code></td><td>合并为 <code>parkingSummary()</code>，同时返回 <code>bound / unbound / idle / disabled / expiring</code>，页面只展示 4 格并在下方标注口径</td></tr>
+    <tr><td>接口</td><td><code>getParkingDetail</code></td><td>扩展：<code>passes</code> 改为「车牌优先、parkId 兜底」；新增 <code>bindLogs</code>（<code>parkingBindLogs()</code> 派生）</td></tr>
+    <tr><td>接口</td><td><code>parkBindStatusOpts / parkCategoryOpts</code></td><td>新增，供筛选与详情取字典</td></tr>
+    <tr><td>跳转</td><td><code>TplBoard.vue</code>「车位到期」</td><td>改为 <code>/a/vehicles?vf=expiring</code>，落地自动选中「30 天内到期」虚拟节点（实测 28 条），避免跳过去还要自己筛</td></tr>
+    <tr><td>权限</td><td>—</td><td>原型无权限系统，本轮无变化。<b>需记入待办</b>：未来启用权限时，<code>parking:bind</code>（换绑/解绑）必须与 <code>parking:view</code>（查看台账）拆成两个权限点——两类使用者不同（资产客服 / 车场岗），这是合并唯一要付的代价</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>验证</b></p>
+  <table>
+    <tr><th style="width:230px;">项</th><th>结果</th></tr>
+    <tr><td>vite build</td><td>✓ 4.7s</td></tr>
+    <tr><td>28 个 URL 巡检</td><td>零控制台错误（含 <code>/a/parking</code> 旧链接）</td></tr>
+    <tr><td>旧链接</td><td><code>/a/parking</code> → hash 落到 <code>#/a/vehicles</code>；<code>?focus=park:PK00001&amp;open=1</code> 参数保留并自动开抽屉</td></tr>
+    <tr><td>KPI 口径</td><td>640 / 448 / 158 / 28，下方标注「未绑定 192、不可用 34」</td></tr>
+    <tr><td>树</td><td>翡翠城 280 → B1 130 → 已租 41；<code>?vf=expiring</code> → 28</td></tr>
+    <tr><td>换绑</td><td>B1-001 浙B·JK3YA → 川A·TEST9：列表与抽屉同步更新，提示「等待厂商回执」，时间线插入新记录</td></tr>
+    <tr><td>解绑</td><td>B1-002 川B·BA07D → 空：绑定状态转「闲置」，车牌列显示「—」，旧「绑定 X」记录被撤</td></tr>
+    <tr><td>闲置车位绑定</td><td>B1-005（未绑定）→ 绑定车辆 → 川A·NEW01：列表、抽屉、时间线三处一致</td></tr>
+    <tr><td>宽度 / 视口</td><td>表格 868 / 868 零溢出；筛选栏单行（4 项 864 &lt; 868）；分页溢出 160px，与业主档案 161px 持平（既有滚动模式）</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>I. L4 收尾：租户 / 合同 / 公告 / 品质检查记录（29–32 页）</h2>
+  <p class="desc">补齐「数据早已存在、但没有页面承载」的四个实体：<code>tenants</code>（160 条）此前只在房屋抽屉里露一行，
+  <code>contracts</code> / <code>notices</code> / <code>qualityChecks</code> 则完全没有入口；品质另有「评分卡」执行页却无结果台账。
+  页面总数 27 → 31，菜单 27 → 31 项，全部沿用 26 页确认的三栏骨架（248 左树 + 范围条 + 单行筛选 + 8–9 列表格 + 详情抽屉）。</p>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>页面与树轴（同一骨架，只换树轴数据）</b></p>
+  <table>
+    <tr><th style="width:150px;">页面</th><th style="width:150px;">路由</th><th style="width:190px;">树轴</th><th>常用视图（虚拟节点）</th></tr>
+    <tr><td><b>29 租户管理</b></td><td><code>/a/tenants</code></td><td>项目 → 楼栋 → 单元</td><td>90 天内到期 16 · 一年以上长租 146 · 未实名 55 · 未录入人脸 80</td></tr>
+    <tr><td><b>30 合同管理</b></td><td><code>/c/contracts</code></td><td><b>合同类型 → 子类型</b>（非空间树）</td><td>90 天内到期 7 · 已到期 28 · 待审批/草稿 1 · 大额 ≥30 万 12 · 集团级 14</td></tr>
+    <tr><td><b>31 公告通知</b></td><td><code>/c/notices</code></td><td>公告类型 → 项目</td><td>已发布 68 · 草稿/待审 13 · 已过期 23 · 置顶 10 · 触达 &lt;60% 8</td></tr>
+    <tr><td><b>32 品质检查记录</b></td><td><code>/f/quality-records</code></td><td>项目 → 区域</td><td>整改中 5 · 已超时 12 · 待复核 29 · 不合格/一票否决 19 · 近 30 天 43</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>四个口径决策（都是「同一实体两页会打架」的地方，先定后画）</b></p>
+  <table>
+    <tr><th style="width:150px;">决策</th><th style="width:150px;">结论</th><th>理由</th></tr>
+    <tr><td>租户以什么为行</td><td><b>租约</b>，不是人</td><td>一人可租多套；房屋与在租租约是 1:1，按人聚合会让「哪套房到期」看不见。房屋 / 业主字段全部由 <code>houses</code> 同源派生，与 /a/houses 口径一致</td></tr>
+    <tr><td>五类合同要不要分页</td><td><b>统一台账 + 类型作树轴</b></td><td>五类共用同一套状态机（待审批 → 待生效 → 履行中 → 即将到期 → 已到期/已终止），差异只在类型、子类型与关联对象（房屋/车位/员工），拆五页会出现五套状态口径</td></tr>
+    <tr><td>公告的核心指标</td><td><b>触达率</b>（已读/覆盖），非发布数</td><td>发布只是动作，未触达等于没发。列表把「已读/覆盖户数」放进触达列副行，&lt;60% 标红并单独出虚拟节点，便于补推</td></tr>
+    <tr><td>32 与既有 /f/quality 的关系</td><td><b>不合并</b>：一个执行、一个台账</td><td>15 页是现场评分卡（检查项、扣分档位、一票否决的<b>录入过程</b>）；32 页是<b>结果与整改闭环</b>（查出什么、改没改完、要不要复查）。共用评分档位字典，页面职责不重叠</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>数据与代码改动</b></p>
+  <table>
+    <tr><th style="width:230px;">项</th><th>改动</th></tr>
+    <tr><td><code>seed_dataset.py</code></td><td>新增 <code>contracts 85 / notices 106 / qualityChecks 90</code> 三张表，使用<b>独立随机流 SEED+31</b> 纯增量生成；重跑后既有 22 张 mock 表 <b>md5 全部未变</b>（已逐表校验）</td></tr>
+    <tr><td><code>utils/api.js</code></td><td>四组同构服务：<code>tenantTree/queryTenants/tenantSummary/getTenantDetail</code>、<code>contract*</code>、<code>notice*</code>、<code>quality*</code>；新增 <code>communityOpts()</code>、<code>focusExtra()</code>（四实体跨页锚点）；租户补 <code>faceRegistered / ownerId</code> 两个筛选条件</td></tr>
+    <tr><td><code>composables/useFocus.js</code></td><td><code>resolve()</code> 统一解析：老实体走 <code>focusLocation</code>，新四类走 <code>focusExtra</code>，页面侧 <code>useFocusLanding</code> 调用方式不变</td></tr>
+    <tr><td><code>utils/dict.js</code></td><td>新增 4 个状态域：<code>contract</code>（履行中/待生效/即将到期/已到期/待审批/草稿/已终止）、<code>notice</code>、<code>quality</code>（已闭环/整改中/待复核/已超时）、<code>grade</code>（优秀/良好/合格/不合格）、<code>lease</code>（生效中/即将到期/已到期）</td></tr>
+    <tr><td><code>styles/app.css</code></td><td>筛选栏两行兜底规则：<code>.el-form-item{flex:0 0 auto}</code> + 标签 <code>nowrap</code>——空间不足时整项换行，而不是把「关键字」拆成两行（影响所有筛选栏，实测既有页面无位移）</td></tr>
+    <tr><td>到期窗口</td><td>租约提醒由 30 天改为 <b>90 天</b>：数据集里租期多为 1–3 年，30 天窗口长期为 0，提醒形同虚设；90 天与合同到期同口径</td></tr>
+  </table>
+
+  <p class="desc" style="margin:14px 0 6px;"><b>验证（1440×900 · 无头 Chrome）</b></p>
+  <table>
+    <tr><th style="width:230px;">项</th><th>结果</th></tr>
+    <tr><td>vite build</td><td>✓ 5.5s，四个新页各自独立分包（Tenant 16.1k / Contract 14.9k / Notice 13.6k / QualityRecord 14.8k）</td></tr>
+    <tr><td>4 个 URL 巡检</td><td>零控制台错误（含抽屉打开态）</td></tr>
+    <tr><td>列宽 / 溢出</td><td>租户 860 · 合同 848 · 公告 864 · 品质 856，均 ≤868，零横向溢出</td></tr>
+    <tr><td>筛选栏</td><td>单行（品质 4 项为最紧，72+72+80+132 + 4×48 标签 + 查询/重置，实测不换行）</td></tr>
+    <tr><td>抽屉</td><td>四页均含 KPI 4 格 + 分区描述 + 子表/时间线 + 关联跳转；租户带欠费账单、合同带关联对象、公告带触达时间线、品质带整改项</td></tr>
+    <tr><td>跨页锚点</td><td><code>?focus=tenant:TN00001&amp;open=1</code> 等四类锚点可落到对应树节点并自动开抽屉（已接 <code>focusExtra</code>）</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>J. 平铺列表页升级三栏骨架（18 / 19 / 21 / 27）</h2>
+  <p class="desc">原计划把 9 个平铺列表页统一升级为 26 页确认的三栏骨架。核对每张表的空间归属字段后收窄为 <b>4 页</b>——
+  左树的价值取决于实体能落到多深：只能落到项目级的实体，树只有 3 个叶子，升级等于把项目下拉框从左搬到左。</p>
+
+  <table>
+    <tr><th style="width:110px;">页面</th><th style="width:132px;">树轴</th><th style="width:150px;">无空间归属的兜底分支</th><th>升级理由（判断依据均为实测数据）</th></tr>
+    <tr><td><b>27 通行记录</b><br><code>/d/pass-records</code></td><td>项目 → 车库区域</td><td>—（道闸走筛选）</td>
+      <td>道闸 5 个取值跨三个项目复用，「南门」在每个项目都存在，进树会产生同名重复叶子。流水经 <code>parkId</code> 反查车位才能得到车库归属，与 26 页车位台账同源。<b>人工放行 79 条</b>单列虚拟节点——人工抬杆是对账舞弊点</td></tr>
+    <tr><td><b>21 缴费流水</b><br><code>/b/payments</code></td><td>项目 → 楼栋 → 单元</td><td>「车位收费（无楼栋）」</td>
+      <td>1110 笔车位管理费（占 27.8%）没有 <code>houseId</code>，上溯不到楼栋；不挂分支这部分流水在树里会凭空消失。<b>现金收款 458 笔</b>单列，现金是收银对账重点</td></tr>
+    <tr><td><b>18 账单查询</b><br><code>/b/bills</code></td><td>项目 → 楼栋 → 单元</td><td>「车位账单（无楼栋）」</td>
+      <td>催缴的第一诉求是「按楼栋找出谁没交」；<b>有欠费 898 张、已逾期 255 张</b>进树即可见。与缴费流水共用同一套 <code>HOUSE_SPACE</code> 派生，两页数字可直接对账</td></tr>
+    <tr><td><b>19 工单列表</b><br><code>/f/workorders</code></td><td>项目 → 楼栋 → 单元</td><td>「公共 / 非入户工单」</td>
+      <td>150 单里只有 <b>31 单带房屋</b>（入户维修），其余是公共区域维修 / 投诉 / 咨询 / 报事；不挂分支 119 单会消失。<b>已超时 62 单、待派单 13 单</b>单列</td></tr>
+  </table>
+
+  <table style="margin-top:12px;">
+    <tr><th style="width:170px;">放弃升级（5 页）</th><th>判断依据</th></tr>
+    <tr><td>20 设备台账 / 25 告警中心</td><td><code>devices</code> / <code>alarms</code> 只有 <code>communityId</code>，左树仅 3 个项目叶子，升级等于把下拉框搬到左侧</td></tr>
+    <tr><td>23 巡检计划 / 24 巡检任务</td><td>同上只有 <code>communityId</code>；且计划是周期配置、任务是执行流水，使用者从不按空间维度找</td></tr>
+    <tr><td>22 收费科目</td><td>10 条字典型数据，无任何空间字段</td></tr>
+  </table>
+
+  <h3 style="margin-top:18px;">本轮实测出的四个问题（均已修）</h3>
+  <table>
+    <tr><th style="width:130px;">问题</th><th style="width:190px;">现象</th><th style="width:170px;">根因</th><th>修法</th></tr>
+    <tr><td><b>units 未导入</b></td><td>全站白屏，<code>ReferenceError: units is not defined</code></td><td><code>api.js</code> 新增 <code>UNIT_OF</code> 时用了 <code>units</code>，但 import 列表漏了它。<b>build 不报错</b>，只在运行期炸</td><td>import 补 <code>units</code>。这条同时暴露：<code>npm run build</code> 通过不等于页面能跑，必须实际打开</td></tr>
+    <tr><td><b>虚拟节点不生效</b></td><td>点「人工放行」列表仍显示全部 384 条</td><td><code>queryPassRecords</code> 只加了 <code>zone</code> 过滤，漏了 <code>PASS_VF</code> 判定</td><td>补 <code>const vf = PASS_VF[filters.vf]</code> 并接入 filter 链；复测 8 个节点计数与列表数逐一相等</td></tr>
+    <tr><td><b>KPI 显示 0</b></td><td>「人工放行 0 次」「现金收款 0 笔」，但虚拟节点显示 79 / 458</td><td><code>groupCount()</code> 返回 <code>[{name, value}]</code> 数组，页面误用 <code>byChannel['人工']</code> 当对象取键</td><td>新增 <code>manualCount</code> / <code>cashCount</code> 显式字段，与虚拟节点同源</td></tr>
+    <tr><td><b>排序不稳定</b></td><td>账单首屏清一色车位账单</td><td><code>sort</code> 对同账期返回 <code>-1</code> 而非 <code>0</code>，破坏稳定排序，把种子里的房屋/车位混排打乱</td><td>同值返回 0；首屏恢复房屋账单为主</td></tr>
+  </table>
+
+  <table style="margin-top:12px;">
+    <tr><th style="width:200px;">验收项</th><th>实测</th></tr>
+    <tr><td>控制台</td><td>4 个 URL + 4 个抽屉打开态，零 console 错误；回归 17 / 26 / 28 / 09 / 11 五页零错误</td></tr>
+    <tr><td>表格宽度</td><td>19 页 846 / 21 页 794 / 18 页 804 / 27 页 834，均 ≤ 868，<code>scrollWidth</code> 无溢出</td></tr>
+    <tr><td>筛选栏</td><td>四页实测高度 40px（单行）。时间范围从筛选栏移入工具栏，是压到单行的关键</td></tr>
+    <tr><td>树 / 虚拟节点</td><td>每页 3 个项目根节点 + 4 个虚拟节点；「车位收费」「车位账单」「公共」分支各 3 个（每项目一个）</td></tr>
+    <tr><td>跨页锚点</td><td><code>pass:</code> / <code>pay:</code> / <code>bill:</code> / <code>wo:</code> 四类均落到对应树节点 + 行高亮 + 自动开抽屉。流水与账单因数据量大，落地时附带关键字锁定，否则高亮行可能不在第一页</td></tr>
+    <tr><td>新增互跳</td><td>账单 ↔ 缴费流水（<code>bill:</code> 锚点）、通行 → 车位与车辆（<code>park:</code>）、账单/工单 → 房屋台账（<code>house:</code>）</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>K. E 域上线：组织与权限（/e/org）</h2>
+  <p class="desc">E 域从立项起就挂 <code>status:'todo'</code>，唯一原因是三层模型（组织树 / 角色矩阵 / 数据权限）没定，先画必返工。
+  2026-10-22 拍板：<b>单页三 Tab</b> + <b>纯 RBAC</b> + <b>项目级数据权限五档</b>。本节点只记录落地口径。</p>
+
+  <h3>K.1 三个模型决策</h3>
+  <table>
+    <tr><th style="width:130px;">决策</th><th style="width:150px;">选定</th><th style="width:170px;">被否方案</th><th>理由</th></tr>
+    <tr><td><b>页面形态</b></td><td>单页三 Tab</td><td>拆两页 / 单表 + 弹窗</td>
+      <td>拆页会让角色页失去左树（角色没有空间归属，只能平铺）；弹窗里展不开 45 个权限位，只能演示不能评审</td></tr>
+    <tr><td><b>授权模型</b></td><td>纯 RBAC：人 → 角色 → 权限</td><td>RBAC + 用户级例外 / 用户直接授权</td>
+      <td>改权限即改角色，一次影响同岗位全员；不建 <code>userPermission</code> 例外表，避免出现「说不清谁给了他这个权限」</td></tr>
+    <tr><td><b>数据权限</b></td><td>项目级五档</td><td>项目 + 楼栋 / 项目 + 业务域</td>
+      <td>全站 33 个页面的取数口径都是 <code>communityId</code>，加楼栋级要让所有 query 同步改；业务域是正交维度，展示会变成二维矩阵</td></tr>
+  </table>
+
+  <h3>K.2 页面结构：一个骨架，三套左树</h3>
+  <table>
+    <tr><th style="width:90px;">Tab</th><th style="width:210px;">左侧树</th><th style="width:110px;">主表列数</th><th style="width:96px;">列宽合计</th><th>核心问题</th></tr>
+    <tr><td><b>成员</b></td><td>集团 → 中心/项目 → 部门 → 班组（4 层）</td><td>9 列</td><td>850</td><td>这个组织下有谁、什么角色、能看到哪些数据；抽屉给档案 + 权限概览 + 合同</td></tr>
+    <tr><td><b>角色权限</b></td><td>集团级 / 项目级 → 角色</td><td>8 列</td><td>812</td><td>这个角色能操作什么；抽屉是 45 个权限位按 6 个域展开的矩阵</td></tr>
+    <tr><td><b>数据权限</b></td><td>五档范围 → 角色</td><td>6 列</td><td>868</td><td>谁能看到哪些项目，影响多少人在表里直接可读</td></tr>
+  </table>
+  <p class="desc" style="margin-top:8px;">左树随 Tab 切换而不是全部堆在一起——三套树的语义完全不同（空间 / 层级 / 范围），硬塞进一棵树只会让人找不到东西。</p>
+
+  <h3>K.3 角色矩阵（11 个角色 / 45 个权限位 / 120 人）</h3>
+  <table>
+    <tr><th style="width:130px;">角色</th><th style="width:74px;">层级</th><th style="width:90px;">数据范围</th><th style="width:66px;">人数</th><th style="width:84px;">权限位</th><th>为什么这么设</th></tr>
+    <tr><td>集团总经理 R-GM</td><td>集团</td><td>全部项目</td><td>1</td><td>45 / 45</td><td>全量；项目部同名岗位不计入，否则 7 人都能看全部项目</td></tr>
+    <tr><td>项目经理 R-PM</td><td>项目</td><td>本项目</td><td>14</td><td>29 / 45</td><td>A 域可编辑、F 域可派单，但员工档案 / 工资 / 组织权限 0 项</td></tr>
+    <tr><td>客服主管 R-CS</td><td>项目</td><td>本项目</td><td>16</td><td>14 / 45</td><td>业主关系 + 工单 + 公告，不碰钱</td></tr>
+    <tr><td>收银员 R-CHG</td><td>项目</td><td>本项目</td><td>8</td><td>9 / 45</td><td>可收款开票，账单金额只读——收费与改账分离</td></tr>
+    <tr><td>财务专员 R-FIN</td><td>集团</td><td>全部项目</td><td>16</td><td>10 / 45</td><td>B 域全权 + 合同/工资只读</td></tr>
+    <tr><td>工程维修 R-ENG</td><td>项目</td><td><b>仅本人</b></td><td>16</td><td>10 / 45</td><td>只看派给自己的单，同班组其他人的也看不到</td></tr>
+    <tr><td>品质督导 R-QS</td><td>集团</td><td><b>指定项目</b></td><td>8</td><td>12 / 45</td><td>白名单只开翡翠城 + 星光天地，新增项目不自动进入</td></tr>
+    <tr><td>人事专员 R-HR</td><td>集团</td><td>全部项目</td><td>8</td><td>8 / 45</td><td>人事 / 工资 / 合同 + 组织权限，是唯一能改角色的角色</td></tr>
+    <tr><td>安保班长 R-SEC</td><td>项目</td><td><b>本部门</b></td><td>16</td><td>7 / 45</td><td>范围收在本班组；通行记录可核对人工抬杆</td></tr>
+    <tr><td>环境保洁 R-CLN</td><td>项目</td><td>本项目</td><td>17</td><td>7 / 45</td><td>环境类巡检与工单，不含收费与业主档案</td></tr>
+    <tr><td>只读观察员 R-VIEW</td><td>集团</td><td>全部项目</td><td>0</td><td>25 / 45</td><td>全部 view 无 edit，供外部审计；0 人是真实状态</td></tr>
+  </table>
+  <p class="desc" style="margin-top:8px;">五档口径全部有真实角色承载：全部项目 4 个 / 指定项目 1 个 / 本项目 4 个 / 本部门 1 个 / 仅本人 1 个。没有「设了但没人用」的档位。</p>
+
+  <h3>K.4 数据零扰动的两个做法</h3>
+  <table>
+    <tr><th style="width:180px;">问题</th><th>做法</th></tr>
+    <tr><td>组织树只有 3 层 9 个节点，展不开</td>
+      <td><code>orgs</code> 用独立流 SEED+41 <b>只追加</b> 12 个班组（3 个项目部 × 客服/工程/安保/环境），原 9 条逐字未变；其余 25 张表 md5 校验通过</td></tr>
+    <tr><td>员工表没有 roleId 与班组字段</td>
+      <td>不改既有 120 条员工数据，改由<b>岗位反推</b>：<code>position → roleId</code>（<code>roles.positions</code> 反查）、<code>orgId + position → 班组</code>。原型阶段这样最省，正式版应在员工表上落 <code>roleId / teamId</code></td></tr>
+  </table>
+
+  <h3>K.5 本轮修掉的三个问题</h3>
+  <table>
+    <tr><th style="width:140px;">问题</th><th style="width:200px;">现象</th><th>根因与修法</th></tr>
+    <tr><td><b>角色映射误判</b></td><td>第一页 20 行全是「集团总经理 · 全部项目」，7 个人都能看全集团</td>
+      <td>数据里项目部也挂「总经理」岗位（6 人）。纯岗位映射不区分组织层级 → 改为「项目部总经理按项目经理计」，集团总经理只剩总部 1 人</td></tr>
+    <tr><td><b>树只剩一个根</b></td><td>进页面左树只有一个折叠的「嘉合物业服务集团」，看不到结构</td>
+      <td>el-tree 默认折叠，单根等于把三层结构藏起来 → 根改为「集团的下级」，进页面直接看到 4 个一级组织；虚拟节点首位补「全部成员」作为回到全量的入口</td></tr>
+    <tr><td><b>筛选栏两行</b></td><td>Tab1 筛选栏 92px，把「关键字」挤到第二行</td>
+      <td>5 个筛选项 + 按钮合计 900px &gt; 868px 主区 → 去掉「用工类型」（表里也没这列），降到 4 项后 40px 单行</td></tr>
+  </table>
+
+  <h3>K.6 验收</h3>
+  <table>
+    <tr><th style="width:200px;">验收项</th><th>实测</th></tr>
+    <tr><td>控制台</td><td>3 个 Tab + 2 个抽屉 + <code>focus=emp</code> / <code>focus=role</code> 锚点，零 console 错误；全站 32 页回归零错误</td></tr>
+    <tr><td>列宽</td><td>850 / 812 / 868，均 ≤868，<code>scrollWidth</code> 零溢出</td></tr>
+    <tr><td>筛选栏</td><td>三个 Tab 均 40px（单行）</td></tr>
+    <tr><td>树与虚拟节点</td><td>点「翡翠城项目部」= 56 人（与树节点计数一致）；「在职」= 105、「仅本人」= 16、Tab2「高权限」= 3、Tab3「受限」= 2，逐个与列表总数相等</td></tr>
+    <tr><td>权限矩阵</td><td>R-PM 抽屉逐项比对：A 域 8 项全开、员工档案 / 工资表 0 项、合计 29/45 与表头一致</td></tr>
+    <tr><td>数据范围</td><td>五档角色人数 4 / 1 / 4 / 1 / 1，合计 11 个角色；五档员工数 31 / 8 / 49 / 16 / 16，合计 120 人</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>L · 装修押金 / 页面级权限守卫 / 下载中心（2026-10-22）</h2>
+  <p class="lead">三项均来自用户确认：① 押金场景只保留<b>装修押金</b>；② 页面级权限守卫按建议方案补实现；③ 导出统一接入<b>下载中心</b>，页面内不再同步生成文件。</p>
+
+  <h3>L.1 押金场景收敛为「装修押金」</h3>
+  <table>
+    <tr><th style="width:150px;">项</th><th>做法</th></tr>
+    <tr><td>口径</td><td>押金只有装修押金一种：<b>租约押金、车位押金一律不存在</b>。<code>TenantForm</code> 的押金字段移除（换成付款周期），租约不再承载押金</td></tr>
+    <tr><td>数据源</td><td><code>seed_dataset.py</code> 追加 SEED+51 独立流，新增 <code>decorationDeposits</code> <b>297 条</b>；既有 28 张表中 25 张 md5 零变化（<code>permissions</code> / <code>roles</code> 为追加，<code>_meta</code> 随规模更新）</td></tr>
+    <tr><td>字段</td><td>押金单号 / 装修申请单号 / 房屋 / 业主 / 收取 / 开工 / 工期截止 / 验收 / 状态 / 扣除 / 扣除原因 / 已退 / 退款日 / 在账 / 逾期天数 / 经办人。金额按面积分档 2000 / 3000 / 5000（商铺统一 5000）</td></tr>
+    <tr><td>状态</td><td>装修中 49 / 已逾期 33 / 已退还 162 / 部分扣除 42 / 已没收 11；时间链强制自洽（缴费 &lt; 开工 &lt; 工期 &lt; 验收 &lt; 退款，且均不晚于今天）</td></tr>
+    <tr><td>报表</td><td>「押金报表」改名<b>装修押金报表</b>并接通（P0）：收 ¥949,000 = 已退 ¥604,300 + 扣除 ¥70,700 + 在账 ¥274,000，四项自洽</td></tr>
+  </table>
+  <p class="note">修掉的两个种子 bug：① 权重未按百分比归一 → 297 笔全是「已退还」；② 验收日可能早于缴费日 → 改为<b>先定状态再反推时间链</b>。</p>
+
+  <h3>L.2 页面级权限守卫</h3>
+  <table>
+    <tr><th style="width:150px;">项</th><th>做法</th></tr>
+    <tr><td>内核</td><td>新增 <code>utils/rbac.js</code>，只依赖 <code>permissions.json</code> / <code>roles.json</code> 两张字典表。<b>不能 import api.js</b>：实测会把 4MB mock 拖进首屏主包（1.2MB → 5.4MB）</td></tr>
+    <tr><td>菜单</td><td><code>AppSidebar</code> 按 <code>canVisit()</code> 过滤：收银员从 34 项降到 12 项</td></tr>
+    <tr><td>直访</td><td><code>router.beforeEach</code> 拦截 → <code>/error/403?from=&amp;need=&amp;role=</code>，403 页显示「当前角色 / 访问页面 / 所需权限（如 F 现场运营 · 工单列表 · 查看）」，并给「去配置权限」「以集团总经理查看」两个出口</td></tr>
+    <tr><td>写权限</td><td><code>/xxx/new</code> 与 <code>/xxx/:id/edit</code> 走<b>操作</b>权限位：只有查看权限的角色进不去表单页</td></tr>
+    <tr><td>角色切换</td><td>顶栏「以某角色查看」11 个角色（集团级 / 项目级分组，显示数据范围与权限位数）；切换后若停在无权限页面，与直访行为一致跳 403</td></tr>
+    <tr><td>权限码</td><td>45 → <b>50</b> 条，补齐此前无权限码的 5 个页面：资产驾驶舱 / 业主 360 / 巡检任务执行 / 报表中心 / 下载中心</td></tr>
+  </table>
+  <p class="note">未做：<b>行级数据过滤</b>（数据范围五档仍只做展示）。这是当初确认的边界，不是遗漏。</p>
+
+  <h3>L.3 下载中心</h3>
+  <table>
+    <tr><th style="width:150px;">项</th><th>做法</th></tr>
+    <tr><td>口径</td><td>页面点「导出」= <b>提交任务</b>，立即返回；生成、下载、重试、删除全在 <code>/e/downloads</code>。文件 24 小时有效</td></tr>
+    <tr><td>任务流</td><td>排队中 → 生成中（进度条）→ 已完成（大小 / 有效期）/ 失败（原因 + 重试）；并发上限 3，超出排队</td></tr>
+    <tr><td>存储</td><td>任务元数据 localStorage（跨刷新保留），文件内容 sessionStorage（超余量降级为「已过期」）</td></tr>
+    <tr><td>改造范围</td><td>19 处导出入口全部改接：12 个列表页 + 报表页（<b>全量</b>导出，非当前页）+ 组织页三 Tab 各自一套列</td></tr>
+    <tr><td>实测</td><td>费用明细表 4,884 条 → 273.7 KB CSV 落盘成功；列表页 20 条 → 1.2 KB；模拟失败 → 重试 → 已完成 744 B；删除后回空态</td></tr>
+  </table>
+  <p class="note">修掉的三个问题：① 失败分支把生成函数删了，导致重试必然再失败；② 任务号刷新后重号；③ 「模拟失败」开关用组件内 ref，离开页面回来与真实状态不同步。</p>
+
+  <h3>L.4 验收</h3>
+  <table>
+    <tr><th style="width:200px;">验收项</th><th>实测</th></tr>
+    <tr><td>构建与巡检</td><td>build 5.1s；<b>45 条 URL 零 console 错误、零白屏</b>；首屏主包 1.23MB（未因守卫膨胀）</td></tr>
+    <tr><td>权限</td><td>集团总经理 34 项菜单；收银员 12 项；直访 <code>/f/workorders</code> 与 <code>/a/houses/new</code> 均被拦并正确标注权限码</td></tr>
+    <tr><td>装修押金</td><td>297 笔，五项合计条自洽；报表列宽合计 868，无横向滚动</td></tr>
+    <tr><td>导出</td><td>提交提示含「下载中心」链接；下载文件名 <code>费用明细表-DL20261022-0001.csv</code>，表头无重复 BOM</td></tr>
+  </table>
+</div>
+
+<div class="legend">
+  <span>优先级：<b class="p0" style="display:inline-flex;">高</b> 影响全局一致性，必须改</span>
+  <span><b class="p1" style="display:inline-flex;">中</b> 影响观感，建议改</span>
+  <span><b class="p2" style="display:inline-flex;">低</b> 细节完善，可后置</span>
+  <span>核对方式：确认 / 驳回 / 改值，直接在编号上批注即可</span>
+</div>
+
+<div class="foot">设计规范 v2.2 变更清单 · 2026-10-22 · 仅本地，未上传 GitHub</div>
+</div>
+</body>
+</html>

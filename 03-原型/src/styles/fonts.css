@@ -1,0 +1,73 @@
+/* ============================================================
+   智慧物业 V2 · 数字/西文字体接入（DIN）
+   ------------------------------------------------------------
+   方案：自备 woff2（首选）+ 系统内置（兜底），两档都失败才回退苹方/雅黑。
+
+   1. 资源来源
+      D-DIN-PRO —— Datto D-DIN（DIN 1451 数字化复刻，Monotype / Charles Nix 设计）
+      的开源衍生版本，SIL Open Font License 1.1（可商用、可嵌入、可再分发）。
+      取自 npm: @sarap422/font-d-din@1.0.6（OFL-1.1），
+      已落地到 src/assets/fonts/D-DINPRO-{400,500,600,700}.woff2（各约 10KB）。
+      许可证原文见 src/assets/fonts/LICENSE-D-DINPRO.txt。
+
+   2. 字重覆盖
+      Regular 400 / Medium 500 / SemiBold 600 / Bold 700 —— 覆盖规范用到的全部字重
+      （正文 400、表格 400、KPI 数字 600、强调数值 600）。
+      未提供的 300/800/900：浏览器按 400/700 就近合成，本项目不使用。
+
+   3. 加载策略
+      font-display: swap —— 字体未就绪时先用回退字体显示，零白屏。
+      unicode-range 限定为「拉丁字母 + 数字 + 标点 + 货币符号」：
+      · 中文永远走苹方/雅黑，不会等 DIN，也不会出现豆腐块；
+      · 页面上没有任何西文/数字时，字体文件不会被下载。
+
+   4. 回退链（按优先级）
+      url(woff2) → local('DIN Alternate')（macOS 自带，仅 Bold）
+                 → local('DIN Next LT Pro')（设计/印前机器常见）
+                 → local('Bahnschrift')（Windows 10+ 自带，含 300~700 多档）
+                 → -apple-system / 'PingFang SC' / 'Microsoft YaHei' / sans-serif
+
+   5. 想换字体只改两处
+      · 本文件的 src: url(...) 与 font-family 名
+      · tokens.css 的 --biz-font-num / --biz-font-family
+   ============================================================ */
+
+@font-face {
+  font-family: 'DIN Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/D-DINPRO-400-Regular.woff2') format('woff2'),
+       local('DIN Alternate'), local('DIN Next LT Pro Regular'), local('Bahnschrift');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2000-206F, U+20A0-20CF, U+2212-2215;
+}
+
+@font-face {
+  font-family: 'DIN Pro';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/D-DINPRO-500-Medium.woff2') format('woff2'),
+       local('DIN Alternate'), local('DIN Next LT Pro Medium'), local('Bahnschrift SemiBold');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2000-206F, U+20A0-20CF, U+2212-2215;
+}
+
+@font-face {
+  font-family: 'DIN Pro';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/D-DINPRO-600-SemiBold.woff2') format('woff2'),
+       local('DIN Alternate'), local('DIN Next LT Pro Demi'), local('Bahnschrift SemiBold');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2000-206F, U+20A0-20CF, U+2212-2215;
+}
+
+@font-face {
+  font-family: 'DIN Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/D-DINPRO-700-Bold.woff2') format('woff2'),
+       local('DIN Alternate Bold'), local('DIN Next LT Pro Bold'), local('Bahnschrift Bold');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2000-206F, U+20A0-20CF, U+2212-2215;
+}

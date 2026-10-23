@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L1 交互骨架与 15 页原型 · v2.2 对齐清单</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'DIN Pro','DIN Alternate',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(160deg,#eef0fb 0%,#f5f6fd 45%,#eef8f4 100%);
+  color:#1f2540; font-size:14px; line-height:1.6; min-width:1240px;
+}
+.wrap { max-width:1320px; margin:0 auto; padding:36px 32px 80px; }
+
+.hero { padding:28px 0 30px; }
+.hero .kicker { display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); color:#fff; font-size:12px; padding:5px 16px; border-radius:999px; }
+.hero h1 { font-size:32px; font-weight:700; margin-top:16px; }
+.hero .sub { color:#8a94b0; font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-top:6px; }
+.hero .meta { margin-top:14px; color:#6a7390; font-size:13px; }
+.hero .meta b { color:#1f2540; }
+
+.toc { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:18px 22px; display:flex; flex-wrap:wrap; gap:8px 20px; font-size:13px; }
+.toc a { color:#4a5168; text-decoration:none; }
+.toc a:hover { color:#5b6cff; }
+.toc .n { color:#b3bad0; font-family:'SF Mono',monospace; font-size:11px; margin-right:4px; }
+
+.sec { margin-top:44px; }
+.sec-head { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+.gem { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); box-shadow:0 3px 8px rgba(91,108,255,.28); flex:none; }
+.sec-head h2 { font-size:21px; font-weight:700; }
+.sec-head .en { font-size:10.5px; color:#a0a8c8; letter-spacing:1.6px; text-transform:uppercase; align-self:flex-end; padding-bottom:3px; }
+.sec-desc { color:#6a7390; font-size:13px; margin-bottom:18px; }
+
+.panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:22px 24px; }
+.panel + .panel { margin-top:14px; }
+.panel h3 { font-size:16px; font-weight:600; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.panel .note { font-size:12.5px; color:#8a94b0; margin-bottom:14px; }
+
+.sum { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:18px; }
+.sum div { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:16px 20px; }
+.sum .n { font-size:26px; font-weight:600; font-variant-numeric:tabular-nums; }
+.sum .l { font-size:12px; color:#8a94b0; }
+
+table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+th { background:#f4f5fc; color:#6a7390; font-weight:400; font-size:11.5px; text-align:left; padding:9px 10px; white-space:nowrap; }
+th:first-child { border-radius:6px 0 0 6px; }
+th:last-child { border-radius:0 6px 6px 0; }
+td { padding:10px; border-bottom:1px solid #eef0f8; vertical-align:top; }
+tr:hover td { background:#fafbff; }
+td.c, th.c { text-align:center; }
+.mono { font-family:'SF Mono',Menlo,monospace; font-size:11.5px; }
+code { font-family:'SF Mono',Menlo,monospace; font-size:11.5px; background:#f4f5fc; border-radius:4px; padding:1px 5px; color:#4653d9; }
+
+.tag-new,.tag-mod,.tag-ok,.tag-diff,.tag-wait { display:inline-flex; align-items:center; height:18px; padding:0 7px; border-radius:4px; font-size:10.5px; font-weight:600; white-space:nowrap; }
+.tag-ok { background:#e6faf3; color:#1db385; }
+.tag-mod { background:#fff5eb; color:#d97f26; }
+.tag-new { background:#eff0ff; color:#5b6cff; }
+.tag-diff { background:#f2f4f8; color:#6e7791; }
+.tag-wait { background:#fff0f0; color:#e04f4f; }
+
+/* 骨架示意 */
+.sk { display:grid; grid-template-columns:220px 1fr; gap:0; border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(31,37,64,.12); height:360px; }
+.sk-side { background:#101f42; padding:16px 0; }
+.sk-side .lg { display:flex; align-items:center; gap:9px; padding:0 16px 16px; }
+.sk-side .lg i { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); }
+.sk-side .lg b { color:#fff; font-size:12.5px; }
+.sk-side .grp { font-size:10px; color:rgba(255,255,255,.34); padding:10px 16px 4px; letter-spacing:.5px; }
+.sk-side .it { height:32px; display:flex; align-items:center; padding:0 16px; font-size:12.5px; color:rgba(255,255,255,.66); }
+.sk-side .it.on { background:rgba(91,108,255,.22); color:#fff; box-shadow:inset 3px 0 0 #5b6cff; }
+.sk-side .it.todo { color:rgba(255,255,255,.3); }
+.sk-main { display:flex; flex-direction:column; background:#f1f2fa; }
+.sk-top { height:52px; background:#fff; box-shadow:0 1px 0 #eef0f8; display:flex; align-items:center; gap:12px; padding:0 20px; font-size:12.5px; color:#4a5168; }
+.sk-top .sp { flex:1; }
+.sk-top .pill { height:26px; padding:0 10px; border-radius:7px; background:#f5f6ff; display:flex; align-items:center; font-size:11.5px; }
+.sk-top .cir { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#5b6cff,#2ed9a3); }
+.sk-crumb { height:34px; display:flex; align-items:center; padding:0 20px; font-size:11.5px; color:#8a94b0; }
+.sk-body { flex:1; padding:0 20px 20px; }
+.sk-card { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:14px; height:100%; }
+.sk-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px; }
+.sk-kpi { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:12px; }
+.sk-kpi .l { font-size:10.5px; color:#8a94b0; }
+.sk-kpi .v { font-size:20px; font-weight:600; margin-top:2px; }
+.sk-lab { position:absolute; font-size:10.5px; color:#5b6cff; background:#eff0ff; border-radius:4px; padding:1px 6px; }
+
+/* 规格条 */
+.spec-row { display:grid; grid-template-columns:120px 1fr; gap:12px; padding:9px 0; border-bottom:1px dashed #eef0f8; font-size:12.5px; }
+.spec-row:last-child { border-bottom:none; }
+.spec-row .k { color:#8a94b0; }
+
+/* 进度条 */
+.bars { display:flex; flex-direction:column; gap:12px; }
+.bar-i { display:grid; grid-template-columns:120px 1fr 54px; gap:12px; align-items:center; font-size:12.5px; }
+.bar-t { height:8px; background:#eff0ff; border-radius:999px; overflow:hidden; }
+.bar-t i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#5b6cff,#2ed9a3); }
+
+.foot { margin-top:44px; text-align:center; font-size:12px; color:#a0a8c8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <span class="kicker">L1 SHELL · 15 PAGES · ALIGNED TO SPEC v2.2</span>
+  <h1>L1 交互骨架与 15 页原型 · 对齐清单</h1>
+  <div class="sub">Skeleton, Navigation, Interaction States</div>
+  <div class="meta">依据 <b>组件规范 v2.2</b> 唯一口径 · 4 模板 + 11 业务页 = <b>15 页</b>（+ 物联驾驶舱为第 16 页，后加）· 全部实测核对，非目测 · 2026-10-22 · 仅本地</div>
+</div>
+
+<div class="sum">
+  <div><div class="n">15<span style="font-size:14px;color:#8a94b0;"> + 1</span></div><div class="l">页面总数（含后加的物联舱）</div></div>
+  <div><div class="n" style="color:#1db385;">23</div><div class="l">本轮逐页核对通过的规范项</div></div>
+  <div><div class="n" style="color:#d97f26;">6</div><div class="l">本轮修掉的偏差</div></div>
+  <div><div class="n" style="color:#1db385;">4</div><div class="l">已拍板并落地的规则</div></div>
+</div>
+
+<div class="toc" style="margin-top:20px;">
+  <a href="#s1"><span class="n">01</span>L1 骨架结构</a>
+  <a href="#s2"><span class="n">02</span>导航路径</a>
+  <a href="#s3"><span class="n">03</span>关键交互状态</a>
+  <a href="#s4"><span class="n">04</span>15 页清单</a>
+  <a href="#s5"><span class="n">05</span>与 v2.2 的差异</a>
+  <a href="#s6"><span class="n">06</span>进度与遗留</a>
+</div>
+
+<!-- ============ 01 骨架 ============ -->
+<div class="sec" id="s1">
+  <div class="sec-head"><div class="gem"></div><h2>L1 骨架结构</h2><span class="en">Shell Layout</span></div>
+  <p class="sec-desc">四段固定：深色侧栏 220（收起 64）→ 顶栏 60 → 面包屑 40 → 内容区（padding 24）。最小宽 1280，低于则横向滚动，不做移动端适配。</p>
+
+  <div class="panel">
+    <div class="sk">
+      <div class="sk-side">
+        <div class="lg"><i></i><b>智慧物业 V2</b></div>
+        <div class="grp">A · 资产</div>
+        <div class="it on">资产驾驶舱</div>
+        <div class="it">业主 360 档案</div>
+        <div class="it">车位车牌绑定</div>
+        <div class="grp">B · 费用</div>
+        <div class="it">费用驾驶舱</div>
+        <div class="it">PC 收银台</div>
+        <div class="grp">E · 平台底座</div>
+        <div class="it todo">组织与权限　规划</div>
+      </div>
+      <div class="sk-main">
+        <div class="sk-top">
+          <span style="font-size:15px;color:#8a94b0;">☰</span>
+          <span class="pill">全部项目 ⌄</span>
+          <span class="sp"></span>
+          <span style="color:#8a94b0;">⌕</span><span style="color:#8a94b0;">◔</span><span style="color:#8a94b0;">⚙</span>
+          <span class="cir"></span><span style="font-size:11.5px;">项目经理 · 管理员</span>
+        </div>
+        <div class="sk-crumb">A · 资产 &nbsp;/&nbsp; <span style="color:#1f2540;">资产驾驶舱</span> &nbsp;·&nbsp; 房 / 车 / 人全景指标与结构分析</div>
+        <div class="sk-body">
+          <div class="sk-row">
+            <div class="sk-kpi"><div class="l">楼栋总数</div><div class="v">16</div></div>
+            <div class="sk-kpi"><div class="l">房屋总数</div><div class="v">736</div></div>
+            <div class="sk-kpi"><div class="l">车位总数</div><div class="v">640</div></div>
+            <div class="sk-kpi"><div class="l">在册人口</div><div class="v">2,377</div></div>
+          </div>
+          <div class="sk-card" style="height:auto;padding:12px 14px;color:#8a94b0;font-size:12px;">内容区：卡片 10px 圆角 / 阴影 .05 / 卡片间距 16 / 内边距 20</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px;">尺寸与职责</h3>
+    <div class="spec-row"><span class="k">侧栏</span><span>宽 <code>220</code>（收起 <code>64</code>），底 <code>#101F42</code>；项高 <code>38</code>、圆角 8、选中态左侧 3px 主色竖条 + <code>rgba(91,108,255,.20)</code> 底</span></div>
+    <div class="spec-row"><span class="k">顶栏</span><span>高 <code>60</code>，白底 + 1px 下分割；左：折叠钮 + 项目切换；右：搜索 / 通知（红点）/ 设置 / 用户</span></div>
+    <div class="spec-row"><span class="k">面包屑</span><span>高 <code>40</code>，格式「域 · 名称 / 页面名」，末级 13px 深色 500，其余 <code>#8A94B0</code>；右侧挂页面一句话口径</span></div>
+    <div class="spec-row"><span class="k">内容区</span><span>padding <code>24</code>，卡片间距 <code>16</code>，页面最小宽 <code>960</code>、骨架最小宽 <code>1280</code></span></div>
+    <div class="spec-row"><span class="k">状态归属</span><span>骨架层只管「我在哪」（路由/菜单/面包屑）、「能去哪」（导航）、「是谁」（项目与用户）；业务状态全部下沉到页面</span></div>
+  </div>
+</div>
+
+<!-- ============ 02 导航 ============ -->
+<div class="sec" id="s2">
+  <div class="sec-head"><div class="gem"></div><h2>导航路径</h2><span class="en">Navigation</span></div>
+  <p class="sec-desc">单一路由源 <code>src/router/pages.js</code>：菜单、面包屑、路由注册、页面标题四处全部由它派生，改一处四处同步。<code>status:'todo'</code> 的页面不注册路由，只在菜单里置灰。</p>
+
+  <div class="panel">
+    <h3>六个域 → 15 页</h3>
+    <table>
+      <thead><tr><th style="width:132px;">域</th><th style="width:64px;">页数</th><th>路径</th><th style="width:250px;">口径</th></tr></thead>
+      <tbody>
+        <tr><td>原型框架</td><td class="c">4</td><td class="mono">/shell/list · form · detail · board</td><td>L2 四类页面模板</td></tr>
+        <tr><td>A · 资产</td><td class="c">3</td><td class="mono">/a/dashboard · owner360 · parking</td><td>人 · 车 · 房</td></tr>
+        <tr><td>B · 费用</td><td class="c">2</td><td class="mono">/b/dashboard · cashier</td><td>应收 → 实收 → 欠费 → 收缴率</td></tr>
+        <tr><td>C · 办公协同</td><td class="c">3</td><td class="mono">/c/workbench · employee · payroll</td><td>后台 · 表单 · 审批流</td></tr>
+        <tr><td>F · 现场运营</td><td class="c">3</td><td class="mono">/f/wo-detail · inspect · quality</td><td>任务驱动 · 移动协同 · 影响服务质量</td></tr>
+        <tr><td>D · 物联</td><td class="c">1</td><td class="mono">/d/dashboard</td><td>门禁 · 车行 · 监控</td></tr>
+        <tr><td>E · 平台底座</td><td class="c">0</td><td class="mono">/e/org（规划中）</td><td>组织 · 权限 · 字典 · 日志</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px;">四条导航规则 <span class="tag-new">本轮固化</span></h3>
+    <div class="spec-row"><span class="k">1 · 域拆分</span><span>C 域拆为「办公协同（后台表单审批流）」与「现场运营（任务驱动·结果影响服务质量）」。原 <code>/c/wo-detail</code>、<code>/c/inspect</code>、<code>/c/quality</code> 保留 302 到 <code>/f/*</code>，旧书签不失效</span></div>
+    <div class="spec-row"><span class="k">2 · 跨页跳转</span><span>一律走命名路径，不写死字符串；本轮修掉工作台 3 个快捷入口残留的 <code>/c/*</code> 旧地址（改 <code>/f/*</code>），避免每次都吃一次重定向</span></div>
+    <div class="spec-row"><span class="k">3 · 深链</span><span>路由缺参数时回落 <code>HOME</code>（<code>/:pathMatch(.*)*</code>），不出现白屏；详情页的「返回」用 <code>$router.back()</code>，不用固定 HOME</span></div>
+    <div class="spec-row"><span class="k">4 · 规划项</span><span><code>status:'todo'</code> 的菜单项不注册路由，点击弹提示「正在建设中 · 功能口径」并停留原页，不产生 404</span></div>
+
+    <h3 style="margin-top:20px;">页面跳转图（关键路径）</h3>
+    <div style="font-size:12.5px;color:#4a5168;line-height:2;background:#f7f8fc;border-radius:8px;padding:14px 16px;margin-top:8px;font-family:'SF Mono',Menlo,monospace;">
+      工作台 ──▶ 新建工单 /f/wo-detail ──▶ 转派 · 完工登记 · 生成账单<br>
+      工作台 ──▶ 巡检任务 /f/inspect ──▶ 异常项 ──▶ 一键转工单 /f/wo-detail<br>
+      费用舱 ──▶ 欠费 TOP10 ──▶ 业主 360 /a/owner360 ──▶ 去收银台 /b/cashier<br>
+      资产舱 ──▶ 风险提示 ──▶ 车位绑定 /a/parking · 业主 360<br>
+      物联舱 ──▶ 告警行 ──▶ 派单 /f/wo-detail
+    </div>
+  </div>
+</div>
+
+<!-- ============ 03 交互状态 ============ -->
+<div class="sec" id="s3">
+  <div class="sec-head"><div class="gem"></div><h2>关键交互状态</h2><span class="en">Interaction States</span></div>
+  <p class="sec-desc">规范要求「状态通过底色 / 边框 / 文字 / 图标四要素表达，且不改变尺寸」。以下为骨架与四类模板的状态矩阵，各业务页继承，不重复定义。</p>
+
+  <div class="panel">
+    <h3>骨架级状态</h3>
+    <table>
+      <thead><tr><th style="width:120px;">对象</th><th style="width:150px;">状态</th><th style="width:230px;">表现</th><th>取值</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="4">侧栏项</td><td>默认</td><td>文字 13.5 <code>rgba(255,255,255,.68)</code></td><td>项高 38、圆角 8</td></tr>
+        <tr><td>hover</td><td>底 <code>rgba(255,255,255,.07)</code>，字转白</td><td>不位移、不变尺寸</td></tr>
+        <tr><td>选中</td><td>底 <code>rgba(91,108,255,.20)</code> + 左侧 3px 主色竖条</td><td>字重 500</td></tr>
+        <tr><td>规划中</td><td>字 <code>rgba(255,255,255,.32)</code>，右侧「规划」胶囊，点击弹提示</td><td>不注册路由</td></tr>
+        <tr><td rowspan="3">顶栏</td><td>折叠</td><td>侧栏 220→64，仅留图标，logo 只留 mark</td><td>过渡 .2s</td></tr>
+        <tr><td>通知有未读</td><td>右上角 14px 红点胶囊，显示条数</td><td><code>--el-color-danger</code></td></tr>
+        <tr><td>项目切换</td><td>浅底胶囊，hover 加深一档</td><td>不打开新页</td></tr>
+        <tr><td rowspan="3">页面级</td><td>加载</td><td>骨架屏 / 图表空态占位，不整页转圈</td><td>避免布局跳动</td></tr>
+        <tr><td>空 / 无结果 / 无权限 / 失败</td><td><code>EmptyState</code> 四型，图标 28@64 圆盒 + 一句说明 + 一个主动作</td><td>动作按钮只在「有出路」时给</td></tr>
+        <tr><td>提示</td><td>轻提示 3s 自动关；危险操作走弹窗二次确认</td><td>同屏最多 3 条堆叠</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>列表 / 表格状态 <span class="tag-new">本轮修</span></h3>
+    <table>
+      <thead><tr><th style="width:150px;">状态</th><th style="width:260px;">表现</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>表头</td><td><code>#F4F5FC</code> 底 / 12px / 字重 400 / 字色 <code>#6A7390</code></td><td>无竖线，仅 1px 横线</td></tr>
+        <tr><td>行高</td><td>主表 <code>48</code>；内嵌表 / 详情子表 <code>40</code>（<code>size="small"</code>）</td><td>固定高度，不随内容高低起伏</td></tr>
+        <tr><td>正文</td><td>13px / 行高 20 / <code>#4A5168</code></td><td>EP 默认 14、small 12，均已拉回 13</td></tr>
+        <tr><td>hover / 选中</td><td>hover <code>#F5F6FF</code>，选中 <code>#EFF0FF</code></td><td>无斑马纹（E-02）</td></tr>
+        <tr><td>多选</td><td>勾选后整行高亮</td><td>EP 只内置单选高亮，用 <code>:has()</code> 补齐</td></tr>
+        <tr><td>操作列</td><td>链接按钮 12.5px，间距 12；详情/编辑主色、删除 danger</td><td>链接按钮不撑高行高</td></tr>
+        <tr><td>分页</td><td>32×32 方块、圆角 6、白底 1px 描边、当前页主色实底</td><td>每页 20/50/100，禁用 <code>background</code> 属性</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>表单 / 反馈状态</h3>
+    <div class="spec-row"><span class="k">六态</span><span>默认 / hover（边框变主色浅调）/ 聚焦（主色边 + 3px 环 <code>rgba(91,108,255,.14)</code>）/ 输入后 / 只读 <code>#F7F8FC</code> 可复制 / 禁用灰底灰字不可复制 / 错误红边 + 红环 + 下方 11.5px 红字</span></div>
+    <div class="spec-row"><span class="k">校验时机</span><span>失焦校验，提交时全量校验并聚焦首个错误项；不在输入过程中报错</span></div>
+    <div class="spec-row"><span class="k">主按钮</span><span>一屏一个实心主按钮（<code>type="primary"</code>）；同一事务的二次确认可用 <code>plain</code> 浅底，不做第二个实心</span></div>
+    <div class="spec-row"><span class="k">危险操作</span><span>删除/作废一律二次确认，按钮用 danger；不提供「撤销 toast」替代确认</span></div>
+    <div class="spec-row"><span class="k">数字字体</span><span>KPI / 金额 / 编号 / 图表轴值统一 DIN（400/500/600/700），中文按字符回落苹方；<code>tabular-nums</code> 保证对齐</span></div>
+  </div>
+</div>
+
+<!-- ============ 04 15 页清单 ============ -->
+<div class="sec" id="s4">
+  <div class="sec-head"><div class="gem"></div><h2>15 页清单与核心内容</h2><span class="en">Page Inventory</span></div>
+  <p class="sec-desc">4 个模板页用来固化「一类页面的形状」，11 个业务页用来验证模板能覆盖真实场景。第 16 页物联驾驶舱为例外追加，同样按 v2.2 对齐。</p>
+
+  <div class="panel">
+    <h3>L2 · 四类页面模板</h3>
+    <table>
+      <thead><tr><th style="width:38px;">#</th><th style="width:130px;">页面</th><th style="width:110px;">路径</th><th>核心内容</th><th style="width:120px;">主要组件</th><th style="width:64px;text-align:center;">状态</th></tr></thead>
+      <tbody>
+        <tr><td class="c">01</td><td>列表页模板</td><td class="mono">/shell/list</td><td>筛选区（项目/用途/使用状态/关键字，2 行内收起）+ 工具栏（新增/导入/导出/列设置）+ 表格（多选、状态胶囊、行内操作、行点击进详情）+ 分页；空态给「清除筛选」动作</td><td>筛选条 / 表格 / 分页 / 空态</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">02</td><td>表单页模板</td><td class="mono">/shell/form</td><td>三段式分组表单（基础/业务/附件）、必填与格式校验、上传、只读回显、底部保存/取消；错误态贴字段下方</td><td>表单 / 上传 / 开关 / 提示条</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">03</td><td>详情页模板</td><td class="mono">/shell/detail</td><td>头部（名称+状态+关键指标+动作）+ 描述列表三段 + 关联账单/工单子表 + 时间线；子表用紧凑 40 行高</td><td>描述列表 / 时间线 / 子表</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">04</td><td>看板页模板</td><td class="mono">/shell/board</td><td>KPI 行 + 四图（构成环 / 趋势线 / 排名条 / 健康度）+ 风险清单（等级色点 + 建议动作）</td><td>KPI / EChart / 风险卡</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>L3 · 十一页业务 <span class="tag-new">含 C/F 域拆分</span></h3>
+    <table>
+      <thead><tr><th style="width:38px;">#</th><th style="width:126px;">页面</th><th style="width:110px;">路径</th><th>核心内容</th><th style="width:96px;">域</th><th style="width:64px;text-align:center;">状态</th></tr></thead>
+      <tbody>
+        <tr><td class="c">05</td><td>资产驾驶舱</td><td class="mono">/a/dashboard</td><td>6 指标（楼栋/房屋/车位/人口/空置率/产权办理率）+ 项目资产概览表 + 房屋用途构成 + 使用状态分布 + 各楼空置率（≥15% 预警）+ 风险提示 5 条</td><td>A 资产</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">06</td><td>业主 360</td><td class="mono">/a/owner360</td><td>一人多房聚合：档案头 + 房屋/车位/车辆 + 账单与欠费拆分 + 报修记录 + 评价；一键去收银台合并缴费</td><td>A 资产</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">07</td><td>车位车牌绑定</td><td class="mono">/a/parking</td><td>车位列表（产权/车牌/到期）+ 右侧详情（产权人、有效期、通行记录）+ 换绑弹窗（车位-车牌-车主三向校验）</td><td>A 资产</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">08</td><td>费用驾驶舱</td><td class="mono">/b/dashboard</td><td>6 指标（应收/实收/收缴率/欠费/欠费户数/年度收缴率）+ 收缴率趋势（7/30/90/180 天可切）+ 应收构成 + 欠费账龄五桶 + 欠费 TOP10 + 项目对比</td><td>B 费用</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">09</td><td>PC 收银台</td><td class="mono">/b/cashier</td><td>业主检索 → 一人多房待收账单（可勾选）→ 结算区（减免/收款方式/备注）→ 确认收款即台账；含交接班与流水入口</td><td>B 费用</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">10</td><td>办公工作台</td><td class="mono">/c/workbench</td><td>六宫格快捷入口 + 今日待办（逾期标红）+ 待我审批 + 考勤打卡 + 团队指标 + 工单效率图</td><td>C 办公</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">11</td><td>员工档案</td><td class="mono">/c/employee</td><td>员工列表（在职/试用/离职）+ 右详情（基本信息 / 合同与到期提醒 / 证照 / 异动记录 / 考勤汇总）</td><td>C 办公</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">12</td><td>工资表</td><td class="mono">/c/payroll</td><td>月度工资表（基本/绩效/加班/补贴/代扣/实发）+ 合计行 + 批量发放 + 发放状态回写；行高 48 主表</td><td>C 办公</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">13</td><td>报修工单详情与派单</td><td class="mono">/f/wo-detail</td><td>五段流转（受理→派单→处理→完工→评价）+ 三种派单模式（指派/抢单/合并）+ 费用明细与「并入下期物业费」+ 时间线</td><td>F 现场</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">14</td><td>巡检任务执行</td><td class="mono">/f/inspect</td><td>任务列表 + 执行清单（拍照 / 定位打卡 / 合格判定）+ 进度环 + 异常项一键转工单 + 巡检小结</td><td>F 现场</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">15</td><td>品质检查评分卡</td><td class="mono">/f/quality</td><td>评分卡 4 类 10 项 + 扣分档位 A/B/C/D + 一票否决 + 实时得分与大号结果 + 整改任务生成</td><td>F 现场</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+        <tr><td class="c">16</td><td>物联驾驶舱 <span class="tag-new">后加</span></td><td class="mono">/d/dashboard</td><td>设备在线率 + 7 日告警趋势 + 告警列表（行内派单）+ 能耗双轴（半年可切）+ 通行统计</td><td>D 物联</td><td class="c"><span class="tag-ok">已对齐</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:10px;">「已对齐」= 逐页实测通过下列 8 项：面板圆角 10/阴影 .05/内距 20、面板标题 16/600、表头 12/400、正文 13/20、行高 48 或紧凑 40、分页 32×32 r6、按钮 40 且实心主按钮 ≤1、输入类 40。</div>
+  </div>
+</div>
+
+<!-- ============ 05 差异 ============ -->
+<div class="sec" id="s5">
+  <div class="sec-head"><div class="gem"></div><h2>与 v2.2 的差异</h2><span class="en">Deviations</span></div>
+  <p class="sec-desc">分三类：本轮已修（改实现）／登记为可接受偏差（改不了或不值得改）／已拍板（规则本身原先没定，现已采纳建议并落地）。</p>
+
+  <div class="panel">
+    <h3>A · 本轮已修 6 项</h3>
+    <table>
+      <thead><tr><th style="width:44px;">#</th><th style="width:150px;">问题</th><th style="width:180px;">修前</th><th>修后</th><th style="width:130px;">范围</th></tr></thead>
+      <tbody>
+        <tr><td class="c">F1</td><td>表格正文字号分裂</td><td>列表模板 14px、员工档案/驾驶舱 12px（EP small 变体）</td><td>统一 <b>13px / 行高 20</b>（Body-S）</td><td>全站表格</td></tr>
+        <tr><td class="c">F2</td><td>主表行高不齐</td><td>48 / 39 / 49 三种，随内容浮动</td><td>主表固定 <b>48</b>、内嵌表固定 <b>40</b></td><td>15 页</td></tr>
+        <tr><td class="c">F3</td><td>实心主按钮超一个</td><td>车位页「查询+换绑车牌」双实心；工单页 3 个；巡检页 2 个</td><td>一屏仅留 1 个实心，二次确认为事务的动作降为 <code>plain</code> 浅底</td><td>4 页</td></tr>
+        <tr><td class="c">F4</td><td>收银台搜索框 44px</td><td><code>size="large"</code> 撑到 44</td><td>回到 40 控件基线</td><td>收银台</td></tr>
+        <tr><td class="c">F5</td><td>工作台快捷入口指向旧路径</td><td><code>/c/wo-detail</code> 等，每次吃一次 302</td><td>直指 <code>/f/*</code></td><td>工作台</td></tr>
+        <tr><td class="c">F6</td><td>页面内联图表色</td><td>账龄/评分档位/轴标签各写一套 hex</td><td>收进 <code>utils/dict.js</code> 的 <code>BUCKETS</code>（expire/aging/alarm/grade），页面零色值</td><td>4 页</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>B · 登记为可接受偏差 3 项</h3>
+    <table>
+      <thead><tr><th style="width:44px;">#</th><th style="width:170px;">偏差</th><th style="width:250px;">为什么不改</th><th>补偿措施</th></tr></thead>
+      <tbody>
+        <tr><td class="c">D1</td><td>无 H1 页面大标题</td><td>规范字阶表有「H1 20/600 页面唯一主标题」，但后台一屏里面包屑 + 卡片标题已足够定位；再加 20px 大标题会把首屏推向下方，与参考图实际的密度不符</td><td>面包屑末级用 13px 深色 500 承担层级标识，页面级描述挂在面包屑右侧</td></tr>
+        <tr><td class="c">D2</td><td>线性图标而非面性</td><td>EP 只有一套线性图标；换面性库要改 15 页全部图标名，收益仅是填充方式</td><td>尺寸/位置/色值按 v2.2 图标角色表锁死，未来换库只换组件不换布局</td></tr>
+        <tr><td class="c">D3</td><td>图表为「主题化 ECharts」</td><td>环形/柱形/渐变的精确形态由 canvas 绘制，无法像 DOM 一样逐像素对齐参考图</td><td>色序、圆角、柱宽、轴色、字号全部收进 <code>echarts-theme.js</code>，页面不写样式</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>C · 已拍板 4 项（建议全部采纳，已落地）</h3>
+    <table>
+      <thead><tr><th style="width:44px;">#</th><th style="width:170px;">规则</th><th style="width:80px;">采纳</th><th style="width:230px;">落地位置</th><th>生效口径</th></tr></thead>
+      <tbody>
+        <tr><td class="c">W1</td><td>顶栏 60 / 侧栏 220 / 项高 38 进规范</td><td style="color:#1db385;font-weight:600;">A</td><td>组件规范 §02 新增「页面骨架」表；<code>tokens.css</code> §8 新增 <code>--layout-sidebar-item-h:38px</code>，<code>app.css</code> 的 <code>.side-item</code> 由硬编码改为引用该变量</td><td>骨架 5 个定值全站唯一来源；页面禁止硬编码骨架尺寸，表格高度一律 <code>calc(100vh - Npx)</code> 推导</td></tr>
+        <tr><td class="c">W2</td><td><code>plain</code> 算次级强调，不算第二主按钮</td><td style="color:#1db385;font-weight:600;">A</td><td>组件规范 §04 按钮「使用规则」新增 2 条（计数口径 / plain 浅底）</td><td>一屏<b>实心</b>主按钮 ≤1；表格行内与弹窗内操作不计入；同一操作区 plain ≤1。工单「确认派单」、巡检「提交」、收银台「交班对账 / 今日流水」按此保留</td></tr>
+        <tr><td class="c">W3</td><td>主表 48、内嵌表 40 写进规范</td><td style="color:#1db385;font-weight:600;">A</td><td>组件规范 §11 表格「行高」行 + §16 落地规则 <code>.el-table</code> 行</td><td>主表（列表页/档案页）<code>--table-row-h:48</code>；内嵌表（详情子表 · 驾驶舱右栏 · 抽屉）用 <code>size="small"</code> → <code>--table-row-h-compact:40</code></td></tr>
+        <tr><td class="c">W4</td><td>E 域「组织与权限」维持规划中</td><td style="color:#1db385;font-weight:600;">B</td><td><code>pages.js</code> 保留 <code>status:'todo'</code> 并写明理由；组件规范 §16 落地规则新增「本批范围」</td><td>不注册路由、菜单置灰 +「规划」胶囊、点击只提示不跳转；本批范围为 A/B/C/D/F 五域 15 页 + 物联驾驶舱</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ 06 进度 ============ -->
+<div class="sec" id="s6">
+  <div class="sec-head"><div class="gem"></div><h2>整体进度与遗留</h2><span class="en">Status</span></div>
+
+  <div class="panel">
+    <h3>分层进度</h3>
+    <div class="bars" style="margin-top:12px;">
+      <div class="bar-i"><span>L0 设计系统</span><span class="bar-t"><i style="width:100%"></i></span><span style="color:#1db385;">100%</span></div>
+      <div class="bar-i"><span>L1 交互骨架</span><span class="bar-t"><i style="width:100%"></i></span><span style="color:#1db385;">100%</span></div>
+      <div class="bar-i"><span>L2 页面模板</span><span class="bar-t"><i style="width:100%"></i></span><span style="color:#1db385;">4 / 4</span></div>
+      <div class="bar-i"><span>L3 核心页</span><span class="bar-t"><i style="width:100%"></i></span><span style="color:#1db385;">11 / 11</span></div>
+      <div class="bar-i"><span>L4 批量生成</span><span class="bar-t"><i style="width:0%"></i></span><span style="color:#8a94b0;">未开始</span></div>
+    </div>
+    <div class="note" style="margin-top:14px;">15 页全部完成并逐页实测；另有物联驾驶舱（第 16 页）同口径对齐。构建产物 <code>✓ 4.4s</code>，16 页控制台零错误。</div>
+  </div>
+
+  <div class="panel">
+    <h3>遗留问题</h3>
+    <table>
+      <thead><tr><th style="width:44px;">#</th><th style="width:190px;">事项</th><th style="width:110px;">影响</th><th>说明与下一步</th></tr></thead>
+      <tbody>
+        <tr><td class="c">R1</td><td>W1–W4 已拍板并落地</td><td>无</td><td>已全部补进 v2.2 并同步 tokens / 页面；本表保留为决策留痕，后续加页直接按此口径执行</td></tr>
+        <tr><td class="c">R2</td><td>mock 全量进包</td><td>首屏 1.88MB chunk</td><td>原型阶段可接受；正式开发改接口分页，届时移除 <code>src/mock</code></td></tr>
+        <tr><td class="c">R3</td><td>交互仅覆盖「看得到」的部分</td><td>演示够用，开发需补</td><td>行内操作、弹窗、上传为静态演示；表单校验、权限、导入导出需真实实现</td></tr>
+        <tr><td class="c">R4</td><td>DIN 仅拉丁子集</td><td>无</td><td>中文走苹方/雅黑，已是预期行为；若后续要全角数字对齐需另配</td></tr>
+        <tr><td class="c">R5</td><td>GitHub 未上传</td><td>无</td><td>全部产物留本地，等指令再推</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="foot">L1 骨架与 15 页原型 · 对齐组件规范 v2.2 · 2026-10-22 · 仅本地，未上传 GitHub</div>
+</div>
+</body>
+</html>

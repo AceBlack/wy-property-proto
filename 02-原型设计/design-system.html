@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧物业 V2 · 设计系统规范（SCRM 风格）</title>
+<style>
+/* ============ 页面自身样式（演示壳） ============ */
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(160deg,#eef0fb 0%,#f4f5fd 40%,#eef7f4 100%);
+  color:#1f2540; font-size:14px; line-height:1.6;
+  min-width:1180px;
+}
+.wrap { max-width:1280px; margin:0 auto; padding:40px 32px 80px; }
+
+/* 顶部 hero */
+.hero { text-align:center; padding:36px 0 44px; }
+.hero-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:linear-gradient(135deg,#5b6cff,#2ed9a3);
+  color:#fff; font-size:13px; font-weight:500;
+  padding:6px 18px; border-radius:999px; margin-bottom:20px;
+}
+.hero h1 { font-size:34px; font-weight:700; letter-spacing:1px; }
+.hero h1 .en { display:block; font-size:13px; font-weight:400; color:#8a94b0; letter-spacing:3px; margin-top:6px; text-transform:uppercase; }
+.hero p { color:#6a7390; margin-top:14px; font-size:14px; }
+.hero .ref-note { font-size:12px; color:#a0a8c8; margin-top:6px; }
+
+/* 章节标题 */
+.sec { margin-top:56px; }
+.sec-head { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+.sec-head .gem {
+  width:26px; height:26px; border-radius:8px; flex:none;
+  background:linear-gradient(135deg,#5b6cff 0%,#2ed9a3 100%);
+  box-shadow:0 4px 10px rgba(91,108,255,.30);
+}
+.sec-head h2 { font-size:22px; font-weight:700; }
+.sec-head .en { font-size:11px; color:#a0a8c8; letter-spacing:2px; text-transform:uppercase; margin-left:2px; align-self:flex-end; padding-bottom:4px; }
+.sec-desc { color:#6a7390; font-size:13px; margin-bottom:24px; }
+
+/* 面板容器 */
+.panel {
+  background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(63,76,158,.07);
+  padding:28px;
+}
+.panel + .panel { margin-top:16px; }
+.panel h3 { font-size:16px; font-weight:600; margin-bottom:16px; }
+.panel h3 .tag-en { font-size:11px; color:#a0a8c8; font-weight:400; margin-left:8px; letter-spacing:1px; }
+
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+
+/* ============ 色板 ============ */
+.color-row { display:flex; gap:12px; flex-wrap:wrap; }
+.swatch { flex:1; min-width:130px; border-radius:12px; overflow:hidden; border:1px solid #eef0f8; }
+.swatch .chip { height:64px; }
+.swatch .meta { padding:10px 12px; background:#fff; }
+.swatch .meta b { display:block; font-size:13px; }
+.swatch .meta span { font-size:11px; color:#8a94b0; font-family:'SF Mono',Menlo,monospace; }
+.swatch.light .meta span { color:#8a94b0; }
+
+/* 渐变演示 */
+.grad-demo { height:96px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; letter-spacing:1px; }
+
+/* ============ 字体排印 ============ */
+.type-row { display:flex; align-items:baseline; gap:24px; padding:12px 0; border-bottom:1px dashed #eef0f8; }
+.type-row:last-child { border-bottom:none; }
+.type-row .label { width:190px; flex:none; font-size:12px; color:#8a94b0; font-family:'SF Mono',Menlo,monospace; }
+.type-row .demo-kpi { font-family:'DIN Alternate',-apple-system,sans-serif; font-size:32px; font-weight:600; }
+.type-row .demo-num { font-family:'SF Mono',Menlo,monospace; font-variant-numeric:tabular-nums; }
+
+/* ============ 按钮 ============ */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:none; cursor:pointer; font-size:14px; border-radius:999px; padding:0 22px; height:38px; transition:.18s; font-family:inherit; }
+.btn-primary { background:#5b6cff; color:#fff; box-shadow:0 4px 12px rgba(91,108,255,.32); }
+.btn-primary:hover { background:#4653d9; }
+.btn-accent { background:#2ed9a3; color:#fff; box-shadow:0 4px 12px rgba(46,217,163,.32); }
+.btn-accent:hover { background:#1db385; }
+.btn-plain { background:#fff; color:#4a5168; border:1px solid #e3e6f2; }
+.btn-plain:hover { color:#5b6cff; border-color:#adb5ff; background:#eff0ff; }
+.btn-text { background:transparent; color:#5b6cff; padding:0 10px; }
+.btn-danger-text { background:transparent; color:#ff6b6b; padding:0 10px; }
+.btn-sm { height:30px; padding:0 16px; font-size:13px; }
+.btn.disabled { opacity:.45; cursor:not-allowed; }
+.btn-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+
+/* ============ 标签 chip ============ */
+.st { display:inline-flex; align-items:center; gap:5px; padding:2px 12px; border-radius:999px; font-size:12px; line-height:20px; white-space:nowrap; }
+.st::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+.st-row { display:flex; gap:10px; flex-wrap:wrap; }
+
+/* ============ KPI 卡 ============ */
+.kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+.kpi-card { background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(63,76,158,.07); padding:16px; }
+.kpi-card .top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.kpi-card .name { font-size:12px; color:#8a94b0; }
+.kpi-card .ico { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; }
+.kpi-card .val { font-family:'DIN Alternate',-apple-system,sans-serif; font-size:26px; font-weight:600; line-height:1.2; }
+.kpi-card .delta { font-size:11px; margin-top:2px; }
+.up { color:#2ed9a3; } .down { color:#ff6b6b; } .flat { color:#8a94b0; }
+
+/* ============ 深色侧栏 mockup ============ */
+.layout-demo { display:flex; border-radius:16px; overflow:hidden; box-shadow:0 8px 28px rgba(31,37,64,.14); min-height:420px; }
+.ld-side { width:220px; flex:none; background:#101f42; color:#97a3c2; padding:18px 0; display:flex; flex-direction:column; }
+.ld-logo { display:flex; align-items:center; gap:10px; padding:0 20px 18px; border-bottom:1px solid rgba(255,255,255,.06); }
+.ld-logo .mark { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; }
+.ld-logo b { color:#fff; font-size:14px; }
+.ld-logo span { display:block; font-size:10px; color:#5a6a94; letter-spacing:1px; }
+.ld-nav { flex:1; padding-top:10px; }
+.ld-item { display:flex; align-items:center; gap:10px; padding:11px 20px; font-size:13px; cursor:default; position:relative; }
+.ld-item .dot { width:6px; height:6px; border-radius:50%; background:#3a4a78; }
+.ld-item.active { color:#fff; background:linear-gradient(90deg,rgba(91,108,255,.38),rgba(91,108,255,.08)); }
+.ld-item.active .dot { background:#2ed9a3; }
+.ld-item.active::before { content:''; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:0 3px 3px 0; background:#2ed9a3; }
+.ld-foot { padding:14px 20px 0; border-top:1px solid rgba(255,255,255,.06); font-size:11px; color:#5a6a94; }
+.ld-main { flex:1; background:linear-gradient(160deg,#f1f2fa,#f4f6fc); padding:20px; overflow:hidden; }
+.ld-topbar { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+.ld-topbar .crumb { font-size:13px; color:#8a94b0; }
+.ld-topbar .crumb b { color:#1f2540; }
+.ld-topbar .spacer { flex:1; }
+.ld-topbar .avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#8a63f2,#4dc9ff); }
+
+/* mini 驾驶舱 */
+.mini-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px; }
+.mini-kpi { background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 2px 8px rgba(63,76,158,.06); }
+.mini-kpi .n { font-size:11px; color:#8a94b0; }
+.mini-kpi .v { font-family:'DIN Alternate',-apple-system; font-size:22px; font-weight:600; }
+.mini-kpi .v i { font-style:normal; font-size:11px; color:#8a94b0; font-family:-apple-system; margin-left:2px; }
+.mini-panels { display:grid; grid-template-columns:1.2fr .8fr; gap:12px; }
+.mini-panel { background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(63,76,158,.06); }
+.mini-panel h4 { font-size:13px; margin-bottom:10px; }
+
+/* CSS 迷你柱状图 */
+.bars { display:flex; align-items:flex-end; gap:10px; height:110px; padding-top:6px; }
+.bars i { flex:1; border-radius:6px 6px 4px 4px; background:linear-gradient(180deg,#8b96ff,#5b6cff); display:block; }
+.bars i.g { background:linear-gradient(180deg,#6ee6bf,#2ed9a3); }
+.bars i.p { background:linear-gradient(180deg,#b08cf5,#8a63f2); }
+
+/* CSS 环形图 */
+.donut { width:120px; height:120px; border-radius:50%; margin:6px auto;
+  background:conic-gradient(#5b6cff 0 37%, #2ed9a3 37% 62%, #ffb05c 62% 78%, #ff7da0 78% 90%, #e3e6f2 90% 100%);
+  position:relative; }
+.donut::after { content:'37%'; position:absolute; inset:26px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-family:'DIN Alternate'; font-weight:600; font-size:20px; color:#1f2540; }
+
+/* CSS 面积折线 */
+.area { height:110px; position:relative; }
+.area svg { width:100%; height:100%; display:block; }
+
+/* 图例 */
+.legend { display:flex; gap:14px; font-size:11px; color:#8a94b0; margin-top:8px; flex-wrap:wrap; }
+.legend b { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; }
+
+/* ============ 表格片段 ============ */
+table.tb { width:100%; border-collapse:collapse; font-size:13px; }
+.tb th { background:#f4f5fc; color:#6a7390; font-weight:500; text-align:left; padding:11px 14px; }
+.tb td { padding:12px 14px; border-bottom:1px solid #eef0f8; }
+.tb tr:hover td { background:#f5f6ff; }
+.tb .num { font-family:'SF Mono',Menlo,monospace; font-variant-numeric:tabular-nums; }
+
+/* ============ 表单 ============ */
+.form-demo { max-width:460px; }
+.f-item { margin-bottom:16px; }
+.f-item label { display:block; font-size:13px; color:#4a5168; margin-bottom:6px; }
+.f-item label em { color:#ff6b6b; font-style:normal; margin-left:2px; }
+.f-input { height:38px; border:1px solid #e3e6f2; border-radius:8px; padding:0 12px; font-size:14px; color:#1f2540; background:#fff; display:flex; align-items:center; justify-content:space-between; }
+.f-input .ph { color:#b3bad0; }
+.f-input.focus { border-color:#5b6cff; box-shadow:0 0 0 3px rgba(91,108,255,.12); }
+.f-err .f-input { border-color:#ff6b6b; }
+.f-err .msg { font-size:12px; color:#ff6b6b; margin-top:4px; }
+
+/* ============ 映射表 ============ */
+.map-table { width:100%; border-collapse:collapse; font-size:13px; }
+.map-table th { background:#f4f5fc; text-align:left; padding:10px 14px; font-weight:500; color:#6a7390; }
+.map-table td { padding:9px 14px; border-bottom:1px solid #eef0f8; }
+.code { font-family:'SF Mono',Menlo,monospace; font-size:12px; background:#f4f5fc; border-radius:6px; padding:2px 8px; color:#4653d9; }
+
+/* 原则卡 */
+.p-card { background:#fff; border-radius:12px; padding:22px; box-shadow:0 2px 12px rgba(63,76,158,.07); border-top:3px solid transparent; }
+.p-card.c1 { border-top-color:#5b6cff; } .p-card.c2 { border-top-color:#2ed9a3; }
+.p-card.c3 { border-top-color:#8a63f2; } .p-card.c4 { border-top-color:#ffb05c; }
+.p-card h4 { font-size:15px; margin-bottom:8px; }
+.p-card p { font-size:12.5px; color:#6a7390; }
+.p-card .no { font-family:'DIN Alternate'; font-size:13px; font-weight:600; color:#c3c9dd; margin-bottom:6px; }
+
+/* do / dont */
+.dd { border-radius:12px; padding:18px; }
+.dd.do { background:#e6faf3; }
+.dd.dont { background:#fff0f0; }
+.dd h4 { font-size:13px; margin-bottom:8px; }
+.dd.do h4 { color:#1db385; } .dd.dont h4 { color:#e04f4f; }
+.dd li { font-size:12.5px; color:#4a5168; margin-left:18px; margin-bottom:4px; }
+
+.foot { text-align:center; color:#a0a8c8; font-size:12px; margin-top:60px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HERO ================= -->
+  <div class="hero">
+    <div class="hero-badge">V2 · SCRM 视觉风格</div>
+    <h1>智慧物业综合管理平台 · 设计系统规范
+      <span class="en">Property Management Design System Guidelines</span>
+    </h1>
+    <p>浅色卡片式 · 靛蓝紫 × 薄荷青双色系 · 深海军蓝侧栏 · 大圆角柔和投影</p>
+    <p class="ref-note">视觉基调参考：站酷 SCRM 客户后台管理系统（灵墨视觉） · 技术栈 Vue 3.4 + Element Plus 2 + ECharts 5</p>
+    <p style="margin-top:16px;font-size:12.5px;color:#6a7390;background:#fff;display:inline-block;padding:8px 18px;border-radius:999px;box-shadow:0 2px 8px rgba(31,37,64,.05);">
+      本文为<b style="color:#1f2540;">设计总纲</b>（变量与原则）　·　组件级状态与尺寸见
+      <a href="组件规范.html" style="color:#5b6cff;text-decoration:none;font-weight:600;">组件规范 v2.2</a>　·　改动明细见
+      <a href="变更清单.html" style="color:#5b6cff;text-decoration:none;font-weight:600;">变更清单</a>
+    </p>
+  </div>
+
+  <!-- ================= 01 设计原则 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>设计原则</h2><span class="en">Principles</span></div>
+    <p class="sec-desc">四条原则贯穿所有页面，优先级自左向右递减。</p>
+    <div class="grid4">
+      <div class="p-card c1"><div class="no">01</div><h4>轻量</h4><p>全新视觉风格，轻量化设计。去掉重边框与重底色，用留白和投影区分层级。</p></div>
+      <div class="p-card c2"><div class="no">02</div><h4>简约</h4><p>卡片式布局，视觉体验简洁明了。一个卡片只回答一个问题。</p></div>
+      <div class="p-card c3"><div class="no">03</div><h4>目标清晰</h4><p>目标传达清晰，流程简化。主操作唯一、主色唯一，次操作一律降级。</p></div>
+      <div class="p-card c4"><div class="no">04</div><h4>提升效率</h4><p>层级清晰，减少认知成本。常用筛选默认填好，高频操作一步直达。</p></div>
+    </div>
+  </div>
+
+  <!-- ================= 02 色彩系统 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>色彩系统</h2><span class="en">Colors</span></div>
+    <p class="sec-desc">主色靛蓝紫负责「交互」，辅色薄荷青负责「强调」，两者通过品牌渐变绑定；语义色只用于状态，不参与装饰。</p>
+
+    <div class="panel">
+      <h3>品牌色<span class="tag-en">Brand</span></h3>
+      <div class="grid3" style="margin-bottom:16px;">
+        <div>
+          <div class="grad-demo" style="background:linear-gradient(135deg,#5b6cff,#2ed9a3);">品牌渐变 · 135°</div>
+          <div style="font-size:12px;color:#8a94b0;margin-top:6px;">用于 Logo、登录页、驾驶舱标题、空态插画。页面内少量点缀。</div>
+        </div>
+        <div>
+          <div class="grad-demo" style="background:linear-gradient(135deg,#101f42,#1c2f5e);">深海军蓝 · 侧栏</div>
+          <div style="font-size:12px;color:#8a94b0;margin-top:6px;">仅用于侧边导航与页头 Logo 区，内容区禁止使用深底。</div>
+        </div>
+        <div>
+          <div class="grad-demo" style="background:linear-gradient(135deg,#eef0fb,#e6f7f1);color:#5b6cff;">页面底色 · 浅紫白</div>
+          <div style="font-size:12px;color:#8a94b0;margin-top:6px;">内容区背景 #F1F2FA，卡片纯白 #FFFFFF，靠投影分层。</div>
+        </div>
+      </div>
+      <div class="color-row">
+        <div class="swatch"><div class="chip" style="background:#5b6cff"></div><div class="meta"><b>主色 · 靛蓝紫</b><span>#5B6CFF / dark #4653D9</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#2ed9a3"></div><div class="meta"><b>辅色 · 薄荷青</b><span>#2ED9A3 / dark #1DB385</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#8a63f2"></div><div class="meta"><b>扩展 · 紫罗兰</b><span>#8A63F2</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#101f42"></div><div class="meta"><b>深色 · 海军蓝</b><span>#101F42</span></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>语义色<span class="tag-en">Semantic</span></h3>
+      <div class="color-row">
+        <div class="swatch light"><div class="chip" style="background:#2ed9a3"></div><div class="meta"><b>成功 Success</b><span>#2ED9A3 · light-9 #E6FAF3</span></div></div>
+        <div class="swatch light"><div class="chip" style="background:#ff9f40"></div><div class="meta"><b>警告 Warning</b><span>#FF9F40 · light-9 #FFF5EB</span></div></div>
+        <div class="swatch light"><div class="chip" style="background:#ff6b6b"></div><div class="meta"><b>危险 Danger</b><span>#FF6B6B · light-9 #FFF0F0</span></div></div>
+        <div class="swatch light"><div class="chip" style="background:#8a94b0"></div><div class="meta"><b>信息 Info</b><span>#8A94B0 · light-9 #F2F4F8</span></div></div>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:16px;">
+        <div class="dd do" style="flex:1;"><h4>✓ 正确用法</h4><ul>
+          <li>指标语义：达标 = 绿 #2ED9A3，未达标 = 红 #FF6B6B（运营指标，非金融行情，不用红涨绿跌）</li>
+          <li>状态标签：light-9 底 + 品牌字色 + 6px 圆点前缀</li>
+          <li>文字颜色只用四档：#1F2540 主文 / #4A5168 常规 / #8A94B0 辅助 / #B3BAD0 占位</li>
+        </ul></div>
+        <div class="dd dont" style="flex:1;"><h4>✕ 禁止</h4><ul>
+          <li>语义色大面积铺底作装饰（整块红色卡片、绿色按钮当主按钮）</li>
+          <li>同一页面出现 3 种以上强调色</li>
+          <li>内容区做深色底（深色仅属于侧栏）</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>业务状态色<span class="tag-en">Business Status</span></h3>
+      <div style="margin-bottom:14px; font-size:12.5px; color:#6a7390;">完整定义见 <span class="code">tokens.css · --biz-*</span>，下面是核心几组的标签形态（light-9 底 + 圆点 + pill 胶囊）：</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px;">
+        <div><b style="font-size:13px;">账单状态</b>
+          <div class="st-row" style="margin-top:8px;">
+            <span class="st" style="background:#e6faf3;color:#1db385;">已缴</span>
+            <span class="st" style="background:#fff5eb;color:#d97f26;">未缴</span>
+            <span class="st" style="background:#eff0ff;color:#4653d9;">部分缴</span>
+            <span class="st" style="background:#fff0f0;color:#e04f4f;">逾期</span>
+            <span class="st" style="background:#f2f4f8;color:#6e7791;">已减免</span>
+            <span class="st" style="background:#f2f4f8;color:#c3c9dd;">已作废</span>
+          </div>
+        </div>
+        <div><b style="font-size:13px;">工单状态</b>
+          <div class="st-row" style="margin-top:8px;">
+            <span class="st" style="background:#fff0f0;color:#e04f4f;">待派单</span>
+            <span class="st" style="background:#fff5eb;color:#d97f26;">已派单</span>
+            <span class="st" style="background:#eff0ff;color:#4653d9;">处理中</span>
+            <span class="st" style="background:#f3efff;color:#7a4fe0;">待确认</span>
+            <span class="st" style="background:#e6faf3;color:#1db385;">已完工</span>
+            <span class="st" style="background:#f2f4f8;color:#6e7791;">已关闭</span>
+          </div>
+        </div>
+        <div><b style="font-size:13px;">房屋 / 设备 / 巡检</b>
+          <div class="st-row" style="margin-top:8px;">
+            <span class="st" style="background:#eff0ff;color:#4653d9;">自住</span>
+            <span class="st" style="background:#e6faf3;color:#1db385;">出租</span>
+            <span class="st" style="background:#fff5eb;color:#d97f26;">空置</span>
+            <span class="st" style="background:#e6faf3;color:#1db385;">在线</span>
+            <span class="st" style="background:#fff0f0;color:#e04f4f;">故障</span>
+            <span class="st" style="background:#f2f4f8;color:#6e7791;">离线</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 03 字体排印 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>字体排印</h2><span class="en">Typography</span></div>
+    <p class="sec-desc">正文 PingFang SC / 系统栈；金额与编号等宽字体防跳动；驾驶舱大数字用 DIN 风格数字字体。</p>
+    <div class="panel">
+      <div class="type-row"><div class="label">页面标题 · 20/600</div><div style="font-size:20px;font-weight:600;">收费总览</div></div>
+      <div class="type-row"><div class="label">卡片标题 · 16/600</div><div style="font-size:16px;font-weight:600;">本月应收构成</div></div>
+      <div class="type-row"><div class="label">正文 · 14/400</div><div style="font-size:14px;color:#4a5168;">业主「张建国」名下 2 处房产、1 个车位，当前欠费合计 ¥2,031.00。</div></div>
+      <div class="type-row"><div class="label">辅助说明 · 13/400</div><div style="font-size:13px;color:#8a94b0;">数据更新于 2026-10-22 00:00，每 5 分钟自动刷新</div></div>
+      <div class="type-row"><div class="label">KPI 大数字 · 28-32/600</div><div class="demo-kpi">¥ 86,432<span style="font-size:12px;color:#8a94b0;font-family:-apple-system;font-weight:400;margin-left:6px;">本月实收</span></div></div>
+      <div class="type-row"><div class="label">金额等宽 · tabular</div><div class="demo-num">¥ 2,031.00 &nbsp; ¥ 3,390.50 &nbsp; ¥ 12,086.00</div></div>
+    </div>
+  </div>
+
+  <!-- ================= 04 布局骨架 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>布局骨架</h2><span class="en">Layout</span></div>
+    <p class="sec-desc">深色窄侧栏 + 浅色宽内容区，是这套风格的骨架。侧栏 220px / 可收起 64px，页头 60px，内容内边距 24px。</p>
+    <div class="layout-demo">
+      <div class="ld-side">
+        <div class="ld-logo">
+          <div class="mark">物</div>
+          <div><b>智慧物业</b><span>PROPERTY OS V2</span></div>
+        </div>
+        <div class="ld-nav">
+          <div class="ld-item active"><span class="dot"></span>驾驶舱</div>
+          <div class="ld-item"><span class="dot"></span>资产 · 人车房</div>
+          <div class="ld-item"><span class="dot"></span>费用 · 物业收费</div>
+          <div class="ld-item"><span class="dot"></span>报事报修</div>
+          <div class="ld-item"><span class="dot"></span>巡检 · 计划任务</div>
+          <div class="ld-item"><span class="dot"></span>物联 · 门禁车场</div>
+          <div class="ld-item"><span class="dot"></span>办公 · 审批考勤</div>
+          <div class="ld-item"><span class="dot"></span>人力资源</div>
+        </div>
+        <div class="ld-foot">演示账号 · 项目经理</div>
+      </div>
+      <div class="ld-main">
+        <div class="ld-topbar">
+          <div class="crumb">驾驶舱 / <b>收费总览</b></div>
+          <div class="spacer"></div>
+          <span class="st" style="background:#e6faf3;color:#1db385;">演示数据</span>
+          <div class="avatar"></div>
+        </div>
+        <div class="mini-kpis">
+          <div class="mini-kpi"><div class="n">本月实收</div><div class="v">¥86,432</div></div>
+          <div class="mini-kpi"><div class="n">收费率</div><div class="v">87.6<i>%</i></div></div>
+          <div class="mini-kpi"><div class="n">欠费户数</div><div class="v">128<i>户</i></div></div>
+          <div class="mini-kpi"><div class="n">逾期账单</div><div class="v">43<i>笔</i></div></div>
+        </div>
+        <div class="mini-panels">
+          <div class="mini-panel">
+            <h4>近 12 个月收缴趋势</h4>
+            <div class="bars">
+              <i style="height:38%"></i><i style="height:55%"></i><i style="height:44%"></i><i class="g" style="height:72%"></i><i style="height:50%"></i><i style="height:62%"></i><i class="p" style="height:80%"></i><i style="height:58%"></i><i class="g" style="height:88%"></i><i style="height:66%"></i><i style="height:52%"></i><i style="height:74%"></i>
+            </div>
+          </div>
+          <div class="mini-panel">
+            <h4>费项构成</h4>
+            <div class="donut"></div>
+            <div class="legend">
+              <span><b style="background:#5b6cff"></b>物业费 37%</span>
+              <span><b style="background:#2ed9a3"></b>车位费 25%</span>
+              <span><b style="background:#ffb05c"></b>水电费 16%</span>
+              <span><b style="background:#ff7da0"></b>其他 12%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:16px;">
+      <div class="panel" style="padding:18px;"><h3 style="font-size:14px;">栅格与间距</h3><div style="font-size:12.5px;color:#6a7390;line-height:2;">
+        4 基准间距：<span class="code">4 / 8 / 12 / 16 / 20 / 24 / 32 / 40</span><br>
+        卡片间距固定 16px；内容区内边距 24px；<br>
+        驾驶舱 KPI 六列、看板三列、表单两列。
+      </div></div>
+      <div class="panel" style="padding:18px;"><h3 style="font-size:14px;">圆角体系</h3><div style="font-size:12.5px;color:#6a7390;line-height:2;">
+        控件（输入/按钮）：<span class="code">6px</span>（v2.1 修正）<br>
+        业务卡片：<span class="code">10px</span> · 面板/弹窗：<span class="code">12px</span><br>
+        标签/步骤条/开关胶囊：<span class="code">999px</span>；按钮<b>不做</b>胶囊
+      </div></div>
+      <div class="panel" style="padding:18px;"><h3 style="font-size:14px;">投影体系</h3><div style="font-size:12.5px;color:#6a7390;line-height:2;">
+        卡片：<span class="code">0 2px 8px rgba(31,37,64,.05)</span><br>
+        hover 抬升：<span class="code">0 6px 18px rgba(63,76,158,.10)</span><br>
+        浮层（下拉/弹窗）：<span class="code">0 8px 24px rgba(31,37,64,.12)</span>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ================= 05 组件库 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>基础组件</h2><span class="en">Components</span></div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>按钮<span class="tag-en">Buttons</span></h3>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <button class="btn btn-primary">新增账单</button>
+          <button class="btn btn-accent">批量催缴</button>
+          <button class="btn btn-plain">导出</button>
+          <button class="btn btn-text">查看详情</button>
+          <button class="btn btn-danger-text">删除</button>
+          <button class="btn btn-primary disabled">停用</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm">小号主按钮</button>
+          <button class="btn btn-plain btn-sm">小号次要</button>
+        </div>
+        <div style="margin-top:16px; font-size:12.5px; color:#6a7390; line-height:2;">
+          · 主按钮每屏最多 1 个，6px 圆角 + 极淡品牌投影<br>
+          · 青绿按钮仅用于「积极批量动作」（催缴、发送通知）<br>
+          · 删除等不可逆操作一律文本按钮 + danger 色
+        </div>
+      </div>
+      <div class="panel">
+        <h3>表单<span class="tag-en">Form</span></h3>
+        <div class="form-demo">
+          <div class="f-item"><label>业主姓名<em>*</em></label><div class="f-input focus"><span>张建国</span><span style="color:#5b6cff;">|</span></div></div>
+          <div class="f-item"><label>联系电话</label><div class="f-input"><span class="ph">请输入 11 位手机号</span></div></div>
+          <div class="f-item f-err"><label>缴费编号</label><div class="f-input"><span class="ph">如 B202610220001</span></div><div class="msg">编号格式不正确，应为 B + 12 位数字</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>KPI 指标卡<span class="tag-en">Metric Cards</span></h3>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="top"><span class="name">今日新增工单</span><div class="ico" style="background:linear-gradient(135deg,#8b96ff,#5b6cff);">✚</div></div><div class="val">12</div><div class="delta up">▲ 3 较昨日</div></div>
+        <div class="kpi-card"><div class="top"><span class="name">待派单</span><div class="ico" style="background:linear-gradient(135deg,#ffb98a,#ff9f40);">!</div></div><div class="val">5</div><div class="delta down">▼ 2 较昨日</div></div>
+        <div class="kpi-card"><div class="top"><span class="name">今日实收</span><div class="ico" style="background:linear-gradient(135deg,#6ee6bf,#2ed9a3);">¥</div></div><div class="val">¥8,640</div><div class="delta up">▲ 12.4%</div></div>
+        <div class="kpi-card"><div class="top"><span class="name">巡检完成率</span><div class="ico" style="background:linear-gradient(135deg,#b08cf5,#8a63f2);">✓</div></div><div class="val">92.5%</div><div class="delta up">达标</div></div>
+        <div class="kpi-card"><div class="top"><span class="name">欠费总额</span><div class="ico" style="background:linear-gradient(135deg,#ff9494,#ff6b6b);">¥</div></div><div class="val">¥5.4万</div><div class="delta down">▲ 6.1%</div></div>
+        <div class="kpi-card"><div class="top"><span class="name">车位数</span><div class="ico" style="background:linear-gradient(135deg,#8a94b0,#6e7791);">P</div></div><div class="val">640</div><div class="delta flat">— 持平</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>表格片段<span class="tag-en">Table</span></h3>
+      <table class="tb">
+        <tr><th>账单编号</th><th>业主</th><th>费项</th><th style="text-align:right;">应收</th><th style="text-align:right;">实收</th><th>状态</th><th>操作</th></tr>
+        <tr><td class="num">B202609010001</td><td>张建国</td><td>物业费 2026-09</td><td class="num" style="text-align:right;">¥1,856.00</td><td class="num" style="text-align:right;">¥0.00</td><td><span class="st" style="background:#fff0f0;color:#e04f4f;">逾期</span></td><td><span style="color:#5b6cff;">催缴</span> · <span style="color:#ff6b6b;">减免</span></td></tr>
+        <tr><td class="num">B202609010002</td><td>李秀兰</td><td>物业费 2026-04~09</td><td class="num" style="text-align:right;">¥3,390.00</td><td class="num" style="text-align:right;">¥0.00</td><td><span class="st" style="background:#fff0f0;color:#e04f4f;">逾期 189 天</span></td><td><span style="color:#5b6cff;">催缴</span> · <span style="color:#ff6b6b;">减免</span></td></tr>
+        <tr><td class="num">B202610010003</td><td>王浩然</td><td>车位管理费 2026-10</td><td class="num" style="text-align:right;">¥420.00</td><td class="num" style="text-align:right;">¥420.00</td><td><span class="st" style="background:#e6faf3;color:#1db385;">已缴</span></td><td><span style="color:#5b6cff;">详情</span></td></tr>
+      </table>
+      <div style="margin-top:12px; font-size:12.5px; color:#6a7390;">
+        金额右对齐 + 等宽字体；状态用胶囊标签；行 hover <span class="code">#F5F6FF</span>；表头底 <span class="code">#F4F5FC</span> 无加粗。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 06 图表规范 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>图表规范</h2><span class="en">Data Viz</span></div>
+    <p class="sec-desc">统一经 <span class="code">echarts.registerTheme('wy')</span> 初始化，页面禁止硬编码颜色。色序 8 个，主序列靛蓝紫打头。</p>
+    <div class="grid3">
+      <div class="panel">
+        <h3>柱状图</h3>
+        <div class="bars">
+          <i style="height:30%"></i><i style="height:62%"></i><i style="height:45%"></i><i class="g" style="height:85%"></i><i style="height:52%"></i><i style="height:70%"></i><i class="p" style="height:90%"></i><i style="height:40%"></i>
+        </div>
+        <div style="font-size:12px;color:#8a94b0;margin-top:10px;">细柱 ≤16px，圆角 8px，纵向渐变填充</div>
+      </div>
+      <div class="panel">
+        <h3>环形图</h3>
+        <div class="donut"></div>
+        <div style="font-size:12px;color:#8a94b0;margin-top:10px;">内 52% 外 72%，扇区圆角 8px，中心放核心占比</div>
+      </div>
+      <div class="panel">
+        <h3>面积折线</h3>
+        <div class="area">
+          <svg viewBox="0 0 260 110" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#5b6cff" stop-opacity=".30"/>
+                <stop offset="1" stop-color="#5b6cff" stop-opacity=".02"/>
+              </linearGradient>
+              <linearGradient id="ag2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2ed9a3" stop-opacity=".30"/>
+                <stop offset="1" stop-color="#2ed9a3" stop-opacity=".02"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,80 C25,70 40,55 65,58 C90,61 105,80 130,72 C155,64 170,35 195,32 C220,29 240,45 260,38 L260,110 L0,110 Z" fill="url(#ag)"/>
+            <path d="M0,80 C25,70 40,55 65,58 C90,61 105,80 130,72 C155,64 170,35 195,32 C220,29 240,45 260,38" fill="none" stroke="#5b6cff" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M0,90 C30,85 50,72 75,74 C100,76 120,60 145,58 C170,56 190,66 215,58 C235,52 250,50 260,52 L260,110 L0,110 Z" fill="url(#ag2)"/>
+            <path d="M0,90 C30,85 50,72 75,74 C100,76 120,60 145,58 C170,56 190,66 215,58 C235,52 250,50 260,52" fill="none" stroke="#2ed9a3" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="font-size:12px;color:#8a94b0;margin-top:10px;">平滑 0.4，空点圆环，双系列紫/青对比</div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <h3>图表色序<span class="tag-en">Palette · 8</span></h3>
+      <div class="color-row">
+        <div class="swatch"><div class="chip" style="background:#5b6cff"></div><div class="meta"><b>C1 主</b><span>#5B6CFF</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#2ed9a3"></div><div class="meta"><b>C2 辅</b><span>#2ED9A3</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#8a63f2"></div><div class="meta"><b>C3</b><span>#8A63F2</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ffb05c"></div><div class="meta"><b>C4</b><span>#FFB05C</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#4dc9ff"></div><div class="meta"><b>C5</b><span>#4DC9FF</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ff7da0"></div><div class="meta"><b>C6</b><span>#FF7DA0</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#3edbc4"></div><div class="meta"><b>C7</b><span>#3EDBC4</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#a0a8c8"></div><div class="meta"><b>C8 灰</b><span>#A0A8C8</span></div></div>
+      </div>
+      <div style="margin-top:14px; font-size:12.5px; color:#6a7390;">
+        热力图用固定分段色阶 <span class="code">heatColor()</span>（跨月可比，不随数据自适应）；指标语义色 <span class="code">metricColor()</span> 达标绿 / 未达标红。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 07 落地规则 ================= -->
+  <div class="sec">
+    <div class="sec-head"><div class="gem"></div><h2>落地规则</h2><span class="en">Implementation</span></div>
+    <p class="sec-desc">Element Plus 变量全覆盖，第三方组件零适配自动跟随新风格。</p>
+    <div class="panel">
+      <table class="map-table">
+        <tr><th>Token 分组</th><th>关键变量</th><th>取值</th><th>说明</th></tr>
+        <tr><td>品牌主色</td><td class="code">--el-color-primary</td><td class="code">#5B6CFF</td><td>含 light-3~9 / dark-2 全套，覆盖 EP 默认蓝</td></tr>
+        <tr><td>品牌辅色</td><td class="code">--biz-accent / --biz-gradient</td><td class="code">#2ED9A3 / 135° 渐变</td><td>积极批量动作 / 达标强调</td></tr>
+        <tr><td>语义色</td><td class="code">--el-color-success 等</td><td class="code">#2ED9A3 / #FF9F40 / #FF6B6B / #8A94B0</td><td>成功=薄荷青，与辅色同源</td></tr>
+        <tr><td>页面背景</td><td class="code">--el-bg-color-page</td><td class="code">#F1F2FA</td><td>浅紫调，不再用纯灰</td></tr>
+        <tr><td>文字四档</td><td class="code">--el-text-color-*</td><td class="code">#1F2540 → #B3BAD0</td><td>偏紫蓝调的中性色</td></tr>
+        <tr><td>圆角</td><td class="code">--el-border-radius-base</td><td class="code">6 / 10 / 12 / 999</td><td>控件 6、卡片 10、面板 12、胶囊 999</td></tr>
+        <tr><td>侧栏</td><td class="code">--biz-sidebar-*</td><td class="code">#101F42 + 选中渐变</td><td>选中项左缘 3px 青绿指示条</td></tr>
+        <tr><td>投影</td><td class="code">--biz-shadow-*</td><td class="code">rgba(31,37,64,.05) / 浮层 .12</td><td>静态极淡，浮层才明显</td></tr>
+        <tr><td>图表</td><td class="code">echarts-theme.js · palette</td><td class="code">C1 #5B6CFF … C8 #A0A8C8</td><td>与 tokens.css --chart-c1..c8 严格一致</td></tr>
+      </table>
+      <div style="margin-top:16px; font-size:12.5px; color:#6a7390; line-height:2;">
+        <b style="color:#1f2540;">引入顺序：</b><span class="code">import 'element-plus/dist/index.css'</span> 之后 <span class="code">import '@/styles/tokens.css'</span>，否则变量覆盖不生效。<br>
+        <b style="color:#1f2540;">改造范围：</b>仅替换 tokens.css + echarts-theme.js 两个文件，页面代码与组件结构零改动即可整体换肤 —— 这也是 L0 设计系统先行的意义。
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">智慧物业 V2 · 设计系统规范（SCRM 风格） · 演示数据仅本地 · 2026-10-22</div>
+</div>
+</body>
+</html>

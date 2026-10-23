@@ -1,0 +1,23 @@
+{
+  "name": "wy-property-proto",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "智慧物业 V2 高保真原型 · Vue3.4 + Vite5 + ElementPlus2 + ECharts5",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "echarts": "^5.5.1",
+    "element-plus": "^2.8.8",
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "vite": "^5.4.10"
+  }
+}

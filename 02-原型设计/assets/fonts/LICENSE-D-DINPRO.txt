@@ -1,0 +1,10 @@
+D-DIN-PRO / D-DIN
+Copyright (c) 2017, Datto Inc. (D-DIN, design: Charles Nix / Monotype)
+D-DIN-PRO: https://github.com/CyberFei/D-DIN-PRO
+
+Licensed under the SIL Open Font License, Version 1.1.
+本字体随原型一同分发，不得单独出售；衍生作品须沿用同一许可证。
+许可证全文：https://scripts.sil.org/OFL
+
+文件来源：npm @sarap422/font-d-din@1.0.6（OFL-1.1）
+已落地字重：400 Regular / 500 Medium / 600 SemiBold / 700 Bold（woff2，拉丁子集）

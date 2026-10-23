@@ -1,0 +1,311 @@
+[
+ {
+  "no": "01",
+  "route": "/shell/list",
+  "title": "列表页模板",
+  "desc": "筛选区 + 工具栏 + 表格 + 分页的标准页型",
+  "file": "01-列表页模板.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "02",
+  "route": "/shell/form",
+  "title": "表单页模板",
+  "desc": "分区表单 + 校验 + 底部操作栏",
+  "file": "02-表单页模板.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "03",
+  "route": "/shell/detail",
+  "title": "详情页模板",
+  "desc": "概要头 + 分区描述 + 子表 + 时间线",
+  "file": "03-详情页模板.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "04",
+  "route": "/shell/board",
+  "title": "看板页模板",
+  "desc": "KPI 行 + 图表栅格 + 排行列表",
+  "file": "04-看板页模板.png",
+  "h": 900,
+  "canvas": 4
+ },
+ {
+  "no": "05",
+  "route": "/a/dashboard",
+  "title": "资产驾驶舱",
+  "desc": "房/车/人全景指标与结构分析",
+  "file": "05-资产驾驶舱.png",
+  "h": 900,
+  "canvas": 5
+ },
+ {
+  "no": "06",
+  "route": "/a/owner360",
+  "title": "业主 360 档案",
+  "desc": "一人多房聚合档案与关联业务",
+  "file": "06-业主360档案.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "07",
+  "route": "/a/parking",
+  "title": "车位车牌绑定（已并入 26）",
+  "desc": "已合并进 /a/vehicles，旧链接重定向",
+  "file": "归档/07-车位车牌绑定（页面已并入26，归档留痕）.png",
+  "h": 900,
+  "canvas": 0,
+  "archived": true
+ },
+ {
+  "no": "08",
+  "route": "/b/dashboard",
+  "title": "费用驾驶舱",
+  "desc": "应收/实收/欠费/收缴率",
+  "file": "08-费用驾驶舱.png",
+  "h": 900,
+  "canvas": 3
+ },
+ {
+  "no": "09",
+  "route": "/b/cashier",
+  "title": "PC 收银台",
+  "desc": "按业主聚合的一人多房合并收费",
+  "file": "09-PC收银台.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "10",
+  "route": "/c/workbench",
+  "title": "办公工作台",
+  "desc": "待办 · 审批 · 考勤 · 公告",
+  "file": "10-办公工作台.png",
+  "h": 900,
+  "canvas": 2
+ },
+ {
+  "no": "11",
+  "route": "/c/employee",
+  "title": "员工档案",
+  "desc": "档案 · 合同 · 证照 · 异动",
+  "file": "11-员工档案.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "12",
+  "route": "/c/payroll",
+  "title": "工资表",
+  "desc": "薪酬构成 · 月度核算 · 发放",
+  "file": "12-工资表.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "13",
+  "route": "/f/wo-detail",
+  "title": "报修工单详情与派单",
+  "desc": "五段流程 · 三种派单模式",
+  "file": "13-报修工单详情与派单.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "14",
+  "route": "/f/inspect",
+  "title": "巡检任务执行",
+  "desc": "三类执行载体 · 异常一键转单",
+  "file": "14-巡检任务执行.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "15",
+  "route": "/f/quality",
+  "title": "品质检查评分卡",
+  "desc": "评分卡 · 扣分档位 · 整改闭环",
+  "file": "15-品质检查评分卡.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "16",
+  "route": "/d/dashboard",
+  "title": "物联驾驶舱（第 16 页 · 后加）",
+  "desc": "设备在线率 · 告警 · 通行",
+  "file": "16-物联驾驶舱.png",
+  "h": 900,
+  "canvas": 4
+ },
+ {
+  "no": "17",
+  "route": "/a/owners",
+  "title": "业主档案",
+  "desc": "业主台账 · 认证 · 名下资产",
+  "file": "17-业主档案.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "18",
+  "route": "/b/bills",
+  "title": "账单查询",
+  "desc": "三栏 · 项目→楼栋→单元 · 催缴视角",
+  "file": "18-账单查询.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "18-账单查询-抽屉.png"
+ },
+ {
+  "no": "19",
+  "route": "/f/workorders",
+  "title": "工单列表",
+  "desc": "三栏 · 项目→楼栋→单元 · 超时与待派单",
+  "file": "19-工单列表.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "19-工单列表-抽屉.png"
+ },
+ {
+  "no": "20",
+  "route": "/d/devices",
+  "title": "设备台账",
+  "desc": "设备档案 · 维保到期 · 关联告警",
+  "file": "20-设备台账.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "21",
+  "route": "/b/payments",
+  "title": "缴费流水",
+  "desc": "三栏 · 项目→楼栋→单元 · 收银对账",
+  "file": "21-缴费流水.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "21-缴费流水-抽屉.png"
+ },
+ {
+  "no": "22",
+  "route": "/b/fee-items",
+  "title": "收费科目",
+  "desc": "科目 · 单价 · 计费方式 · 收缴率",
+  "file": "22-收费科目.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "23",
+  "route": "/f/inspect-plans",
+  "title": "巡检计划",
+  "desc": "周期计划 · 模板 · 生成任务",
+  "file": "23-巡检计划.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "24",
+  "route": "/f/inspect-tasks",
+  "title": "巡检任务列表",
+  "desc": "全量任务 · 异常项 · 转单",
+  "file": "24-巡检任务列表.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "25",
+  "route": "/d/alarms",
+  "title": "告警中心",
+  "desc": "告警等级 · 类型 · 处理 · 转单",
+  "file": "25-告警中心.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "26",
+  "route": "/a/vehicles",
+  "title": "车位与车辆",
+  "desc": "车位台账 · 车辆 · 闲置车位 · 授权",
+  "file": "26-车位与车辆.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "26-车位与车辆-抽屉.png"
+ },
+ {
+  "no": "27",
+  "route": "/d/pass-records",
+  "title": "通行记录",
+  "desc": "三栏 · 项目→车库区域 · 车行对账",
+  "file": "27-通行记录.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "27-通行记录-抽屉.png"
+ },
+ {
+  "no": "28",
+  "route": "/a/houses",
+  "title": "房屋台账",
+  "desc": "房号 · 户型 · 用途 · 欠费",
+  "file": "28-房屋台账.png",
+  "h": 900,
+  "canvas": 0
+ },
+ {
+  "no": "29",
+  "route": "/a/tenants",
+  "title": "租户管理",
+  "desc": "租约 · 实名 · 人脸 · 到期提醒",
+  "file": "29-租户管理.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "29-租户管理-抽屉.png"
+ },
+ {
+  "no": "30",
+  "route": "/c/contracts",
+  "title": "合同管理",
+  "desc": "五类合同统一台账 · 到期 · 审批",
+  "file": "30-合同管理.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "30-合同管理-抽屉.png"
+ },
+ {
+  "no": "31",
+  "route": "/c/notices",
+  "title": "公告通知",
+  "desc": "发布 · 审核 · 触达率 · 补推",
+  "file": "31-公告通知.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "31-公告通知-抽屉.png"
+ },
+ {
+  "no": "32",
+  "route": "/f/quality-records",
+  "title": "品质检查记录",
+  "desc": "检查台账 · 整改闭环 · 复查",
+  "file": "32-品质检查记录.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer": "32-品质检查记录-抽屉.png"
+ },
+ {
+  "no": "33",
+  "route": "/e/org",
+  "title": "组织与权限",
+  "desc": "三栏 · 组织树 + 角色权限矩阵 + 数据权限五档",
+  "file": "33-组织与权限.png",
+  "drawer": "33-组织与权限-抽屉.png",
+  "h": 900,
+  "canvas": 0,
+  "drawer2": "33-组织与权限-角色权限-抽屉.png"
+ }
+]

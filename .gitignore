@@ -1,0 +1,33 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+dist-ssr/
+
+# 本地环境
+.env
+.env.*
+!.env.example
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# WorkBuddy 内部数据
+.workbuddy/
+.wbapp_*.genie
+
+# 独立子仓库（内容已单独托管在 GitHub，避免嵌套仓库）
+01-功能盘点/gh-pages/
+
+# 日志与临时
+*.log
+npm-debug.log*
+yarn-error.log*
+*.local
+.cache/

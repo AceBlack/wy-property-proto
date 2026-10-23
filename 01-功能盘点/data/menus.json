@@ -1,0 +1,1451 @@
+[
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "房屋管理",
+  "href": "/pages/property/room",
+  "mId": "700201904006",
+  "seq": "1",
+  "desc": "房屋管理"
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "业主信息",
+  "href": "/pages/property/listOwner",
+  "mId": "700201904010",
+  "seq": "3",
+  "desc": "业主信息"
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "业主认证",
+  "href": "/pages/property/auditAuthOwner",
+  "mId": "702019122969830026",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "商铺管理",
+  "href": "/pages/property/shops",
+  "mId": "702021011192810256",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "业主账户",
+  "href": "/pages/property/accountManage",
+  "mId": "702021062195680293",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "场地管理",
+  "href": "/pages/property/communitySpaceManage",
+  "mId": "702022093080200002",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "预约订单",
+  "href": "/pages/property/communitySpacePersonManage",
+  "mId": "702022093094080002",
+  "seq": "15",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "场地预约",
+  "href": "/pages/property/reportCommunitySpace",
+  "mId": "702022100457270039",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "开票中心",
+  "href": "/pages/fee/invoiceApply",
+  "mId": "702023100951520002",
+  "seq": "18",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "场地核销",
+  "href": "/pages/property/communitySpaceConfirm",
+  "mId": "702026101316310001",
+  "seq": "14",
+  "desc": "场地预约二维码核销"
+ },
+ {
+  "group": "主菜单",
+  "module": "房产",
+  "name": "开放配置",
+  "href": "/pages/property/communityVenueOpenTime",
+  "mId": "702026101316310002",
+  "seq": "12",
+  "desc": "场馆维度开放时间配置"
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "我的小区",
+  "href": "/pages/common/enterCommunity",
+  "mId": "700201904008",
+  "seq": "1",
+  "desc": "我的小区"
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "小区大屏",
+  "href": "/bigScreen/public.html",
+  "mId": "702020080836480004",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "业务受理",
+  "href": "/pages/property/simplifyAcceptance",
+  "mId": "702020101393980025",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "房屋装修",
+  "href": "/pages/property/roomRenovationManage",
+  "mId": "702021012618140019",
+  "seq": "4",
+  "desc": "房屋装修"
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "产权登记",
+  "href": "/pages/property/propertyRightRegistrationManage",
+  "mId": "702021101132330001",
+  "seq": "7",
+  "desc": "产权登记"
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "视频监控",
+  "href": "/pages/property/videoControl",
+  "mId": "702021101602440031",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "结构图",
+  "href": "/pages/property/roomStructure",
+  "mId": "702022030439900055",
+  "seq": "4",
+  "desc": "结构图"
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "车位结构图",
+  "href": "/pages/property/carStructure",
+  "mId": "702022040524600007",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "放行类型",
+  "href": "/pages/property/itemReleaseTypeManage",
+  "mId": "702023011219050031",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "物品放行",
+  "href": "/pages/property/itemReleaseManage",
+  "mId": "702023011281660035",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "小区",
+  "name": "小区公示",
+  "href": "/pages/community/communityPublicityManage",
+  "mId": "702023040650020360",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "合同查询",
+  "href": "/pages/admin/contractManage",
+  "mId": "702020091785290021",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "合同类型",
+  "href": "/pages/admin/contractTypeManage",
+  "mId": "702020091843810076",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "合同变更",
+  "href": "/pages/admin/contractChangeManage",
+  "mId": "702021033017840295",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "到期合同",
+  "href": "/pages/admin/expirationContractManage",
+  "mId": "702021033149670076",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "起草合同",
+  "href": "/pages/admin/newContractManage",
+  "mId": "702021033187310391",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "合同",
+  "name": "合同甲方",
+  "href": "/pages/admin/contractPartyaManage",
+  "mId": "702021042214040302",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "费用项设置",
+  "href": "/pages/property/feeConfigManage",
+  "mId": "702020013025182995",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "车位收费",
+  "href": "/pages/property/parkingSpaceCreateFee",
+  "mId": "702020013091330005",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "房屋收费",
+  "href": "/pages/property/roomCreateFee",
+  "mId": "702020013097620003",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "退费审核",
+  "href": "/pages/property/returnPayFeeManage",
+  "mId": "702020051167520158",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "欠费催缴",
+  "href": "/pages/fee/oweFeeCallable",
+  "mId": "702020060185630029",
+  "seq": "20",
+  "desc": "费用账单"
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "费用导入",
+  "href": "/pages/property/roomFeeImport",
+  "mId": "702020080856940063",
+  "seq": "15",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "水电抄表",
+  "href": "/pages/property/meterWaterManage",
+  "mId": "702020090602100031",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "楼栋公摊",
+  "href": "/pages/fee/floorShare",
+  "mId": "702020091056030005",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "补打收据",
+  "href": "/pages/property/feeReceipt",
+  "mId": "702020092328187362",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "折扣设置",
+  "href": "/pages/property/feeDiscountManage",
+  "mId": "702020112486110453",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "优惠申请",
+  "href": "/pages/property/applyRoomDiscountManage",
+  "mId": "702020122261200028",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "合同收费",
+  "href": "/pages/property/contractCreateFee",
+  "mId": "702021042365450416",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "取消费用",
+  "href": "/pages/property/payFeeBatch",
+  "mId": "702021092221910392",
+  "seq": "18",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "公摊抄表",
+  "href": "/pages/fee/shareReading",
+  "mId": "702025032638100002",
+  "seq": "14",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "费用",
+  "name": "商铺收费",
+  "href": "/pages/property/shopCreateFee",
+  "mId": "702026041203350072",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "车位信息",
+  "href": "/pages/property/listParkingSpace",
+  "mId": "700201906017",
+  "seq": "2",
+  "desc": "车位信息"
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "停车场管理",
+  "href": "/pages/property/parkingAreaManage",
+  "mId": "702020012324610003",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "在场车辆",
+  "href": "/pages/property/carInManage",
+  "mId": "702020012347420002",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "进场记录",
+  "href": "/pages/property/carInoutManage",
+  "mId": "702020012392410004",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "剩余车位",
+  "href": "/pages/property/remainingParkingSpace",
+  "mId": "702020012891350002",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "业主车辆",
+  "href": "/pages/property/listOwnerCar",
+  "mId": "702020082881680068",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "岗亭管理",
+  "href": "/pages/property/parkingBoxManage",
+  "mId": "702021101828000001",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "车位申请",
+  "href": "/pages/property/parkingSpaceApplyManage",
+  "mId": "702021101880660165",
+  "seq": "14",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "停车",
+  "name": "临时车缴费",
+  "href": "/pages/car/tempCarPayment",
+  "mId": "702024020176720117",
+  "seq": "15",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "报修待办",
+  "href": "/pages/property/repairDispatchManage",
+  "mId": "702019102028670002",
+  "seq": "4",
+  "desc": "报修待办"
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "报修已办",
+  "href": "/pages/property/myRepairDispatchManage",
+  "mId": "702019102073620006",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "报修设置",
+  "href": "/pages/work/repairSetting",
+  "mId": "702020062870390022",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "电话报修",
+  "href": "/pages/property/ownerRepairManage",
+  "mId": "702020062937206287",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "工单池",
+  "href": "/pages/property/repairPoolManage",
+  "mId": "702020063002770076",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "报修回访",
+  "href": "/pages/property/repairReturnVisit",
+  "mId": "702021040628030371",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报修",
+  "name": "强制回单",
+  "href": "/pages/property/repairForceFinishManage",
+  "mId": "702021040635540007",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "费用汇总表",
+  "href": "/pages/property/reportFeeSummary",
+  "mId": "702020101696890106",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "费用明细表",
+  "href": "/pages/property/reportFeeDetail",
+  "mId": "702020101734870342",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "欠费明细表",
+  "href": "/pages/property/reportOweFeeDetail",
+  "mId": "702020101830890435",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "缴费明细表",
+  "href": "/pages/property/reportPayFeeDetail",
+  "mId": "702020102045291211",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "报修汇总表",
+  "href": "/pages/property/reportRepair",
+  "mId": "702021013030300004",
+  "seq": "11",
+  "desc": "报修汇总"
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "未收费房屋",
+  "href": "/pages/property/reportNoFeeRoom",
+  "mId": "702021050428880218",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "押金报表",
+  "href": "/pages/property/reportPayFeeDeposit",
+  "mId": "702021072906100016",
+  "seq": "14",
+  "desc": "押金报表"
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "欠费分析",
+  "href": "/pages/property/reportHuaning",
+  "mId": "702021081328060125",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "报修报表",
+  "href": "/pages/property/commonReport?groupId=102021111007300001",
+  "mId": "702021111283300047",
+  "seq": "14",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "营业报表",
+  "href": "/pages/property/commonReport?groupId=102022022795370086",
+  "mId": "702022022718510025",
+  "seq": "18",
+  "desc": "营业报表"
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "巡检报表",
+  "href": "/pages/property/commonReport?groupId=102022051141350637",
+  "mId": "702022051177100005",
+  "seq": "19",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "报表",
+  "name": "数据统计",
+  "href": "/pages/report/dataReport",
+  "mId": "70202305241318253698000025",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "设备台账",
+  "href": "/pages/property/equipmentAccount",
+  "mId": "702019110862640045",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "物联网同步",
+  "href": "/pages/property/machineTranslateManage",
+  "mId": "702019111070760053",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "开门记录",
+  "href": "/pages/machine/accessControlInout",
+  "mId": "702019112665680008",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "设备位置",
+  "href": "/pages/property/locationManage",
+  "mId": "702020060438590006",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "设备类型",
+  "href": "/pages/property/machineTypeTreeManage",
+  "mId": "702021101575360006",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "检查项",
+  "href": "/pages/property/maintainanceItem",
+  "mId": "702022110668810058",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "保养标准",
+  "href": "/pages/property/maintainanceStandardManage",
+  "mId": "702022110693420023",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "保养计划",
+  "href": "/pages/property/maintainancePlanManage",
+  "mId": "702022110732110005",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "保养明细",
+  "href": "/pages/property/maintainanceTaskDetails",
+  "mId": "702022110814200002",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "保养任务",
+  "href": "/pages/property/maintainanceTaskManage",
+  "mId": "702022110887340104",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "云打印机",
+  "href": "/pages/print/machinePrinterManage",
+  "mId": "702023021744650019",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "设备",
+  "name": "云打印规则",
+  "href": "/pages/print/printerRule",
+  "mId": "702023021764650009",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "发布公告",
+  "href": "/pages/common/noticeManage",
+  "mId": "700201904009",
+  "seq": "3",
+  "desc": "发布公告"
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "访客登记",
+  "href": "/pages/property/visitManage",
+  "mId": "700201908031",
+  "seq": "8",
+  "desc": "访客登记"
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "投诉建议",
+  "href": "/pages/complaint/complaint",
+  "mId": "702019103157610019",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "信息发布",
+  "href": "/pages/property/activitiesManage",
+  "mId": "702020011340130053",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "信息大类",
+  "href": "/pages/property/activitiesTypeManage",
+  "mId": "702020100365590093",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "问卷调研",
+  "href": "/pages/property/questionAnswerManage",
+  "mId": "702021020534720080",
+  "seq": "17",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "问卷题目",
+  "href": "/pages/question/questionTitle",
+  "mId": "702021020740160219",
+  "seq": "16",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "业主反馈",
+  "href": "/pages/property/notepadManage",
+  "mId": "702022081628450530",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "业主投票",
+  "href": "/pages/question/ownerVoting",
+  "mId": "702023071152410028",
+  "seq": "18",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "办公",
+  "name": "投诉类型",
+  "href": "/pages/complaint/complaintType",
+  "mId": "702024022187457512",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检点",
+  "href": "/pages/inspection/inspectionPoint",
+  "mId": "702020021099930008",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检路线",
+  "href": "/pages/inspection/inspectionRoute",
+  "mId": "702020021169910005",
+  "seq": "3",
+  "desc": "巡检路线"
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检计划",
+  "href": "/pages/inspection/inspectionPlan",
+  "mId": "702020021758390053",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检任务",
+  "href": "/pages/inspection/inspectionTask",
+  "mId": "702020021988260017",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检明细",
+  "href": "/pages/property/inspectionTaskDetails",
+  "mId": "702021060567820018",
+  "seq": "6",
+  "desc": "巡检明细"
+ },
+ {
+  "group": "主菜单",
+  "module": "巡检",
+  "name": "巡检项目",
+  "href": "/pages/property/inspectionItemManage",
+  "mId": "702022031546110001",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "采购申请",
+  "href": "/pages/common/purchaseApplyManage",
+  "mId": "700201906022",
+  "seq": "7",
+  "desc": "采购入库"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "物品信息",
+  "href": "/pages/common/resourceStoreManage",
+  "mId": "702019102148640005",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "物品领用",
+  "href": "/pages/common/itemOutManage",
+  "mId": "702019102250410002",
+  "seq": "8",
+  "desc": "物品出库功能入口"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "仓库信息",
+  "href": "/pages/property/storehouseManage",
+  "mId": "702021040741950148",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "调拨申请",
+  "href": "/pages/common/allocationStorehouseManage",
+  "mId": "702021040844660001",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "我的物品",
+  "href": "/pages/common/myResourceStoreManage",
+  "mId": "702021040857880017",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "出入库明细",
+  "href": "/pages/common/purchaseApplyDetailManage",
+  "mId": "702021042286380004",
+  "seq": "9",
+  "desc": "出入库明细"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "供应商",
+  "href": "/pages/property/resourceSupplierManage",
+  "mId": "702021042347360002",
+  "seq": "6",
+  "desc": "物品资源供应商"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "转赠记录",
+  "href": "/pages/common/allocationUserStorehouseManage",
+  "mId": "702021042441610002",
+  "seq": "14",
+  "desc": "物品转赠记录"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "使用记录",
+  "href": "/pages/common/resourceStoreUseRecordManage",
+  "mId": "702021042938870002",
+  "seq": "15",
+  "desc": "个人物品使用记录"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "调拨明细",
+  "href": "/pages/common/allocationStorehouseDetailed",
+  "mId": "702021051115900003",
+  "seq": "11",
+  "desc": "调拨明细"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "物品规格",
+  "href": "/pages/common/resourceStoreSpecificationManage",
+  "mId": "702021051232450003",
+  "seq": "4",
+  "desc": "物品规格"
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "盘点管理",
+  "href": "/pages/property/assetInventoryManage",
+  "mId": "702022092217820001",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "采购",
+  "name": "审批配置",
+  "href": "/pages/resource/resourceAuditFlow",
+  "mId": "702023082499950070",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "优惠券市场",
+  "href": "/pages/scm/couponMarket",
+  "mId": "702022111874840034",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "优惠券",
+  "href": "/pages/scm/couponPropertyPoolManage",
+  "mId": "702022112068930073",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "赠送记录",
+  "href": "/pages/scm/couponPropertyPoolDetail",
+  "mId": "702022112132310036",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "业主优惠券",
+  "href": "/pages/scm/couponPropertyUserManage",
+  "mId": "702022112145680015",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "优惠券使用",
+  "href": "/pages/scm/couponPropertyUserDetail",
+  "mId": "702022112178170025",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "赠送规则",
+  "href": "/pages/scm/couponRule",
+  "mId": "702022112200460044",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "积分标准",
+  "href": "/pages/scm/integralConfigManage",
+  "mId": "702022121159300049",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "积分赠送",
+  "href": "/pages/scm/integralGiftDetailManage",
+  "mId": "702022121209630068",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "小区积分",
+  "href": "/pages/scm/communityIntegral",
+  "mId": "702022121226910071",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "积分规则",
+  "href": "/pages/scm/integralRule",
+  "mId": "702022121288510059",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "优惠",
+  "name": "小区金币",
+  "href": "/pages/scm/gold",
+  "mId": "702024050916130003",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "考勤班组",
+  "href": "/pages/property/attendanceClassesManage",
+  "mId": "702021012255973149",
+  "seq": "4",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "今日考勤",
+  "href": "/pages/property/todayAttendanceManage",
+  "mId": "702021020165340987",
+  "seq": "6",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "月考勤",
+  "href": "/pages/property/monthAttendanceManage",
+  "mId": "702021020295631127",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "考勤记录",
+  "href": "/pages/property/attendanceLogManage",
+  "mId": "702021020311270020",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "流程实例",
+  "href": "/pages/property/oaWorkflowManage",
+  "mId": "702021081622100337",
+  "seq": "1",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "我的流程",
+  "href": "/pages/property/newOaWorkflowManage",
+  "mId": "702021081962210229",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "工作办理",
+  "href": "/pages/property/newOaWorkflowDoing",
+  "mId": "702021090912130223",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "员工考勤",
+  "href": "/pages/property/staffAttendanceManage",
+  "mId": "702022090883410008",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "考勤人员",
+  "href": "/pages/attendance/attendanceClassesStaffManage",
+  "mId": "702023022241710033",
+  "seq": "5",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "工作单类型",
+  "href": "/pages/oa/workType",
+  "mId": "702023122582910010",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "起工作单",
+  "href": "/pages/oa/startWork",
+  "mId": "702023122593400056",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "办工作单",
+  "href": "/pages/oa/doWork",
+  "mId": "702023122687690001",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "抄送我的",
+  "href": "/pages/oa/copyWork",
+  "mId": "702023122782320003",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "工作单池",
+  "href": "/pages/oa/workPool",
+  "mId": "702023122840450003",
+  "seq": "14",
+  "desc": ""
+ },
+ {
+  "group": "主菜单",
+  "module": "OA",
+  "name": "工作单扣款",
+  "href": "/pages/oa/workDeduction",
+  "mId": "702025022504140091",
+  "seq": "15",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "修改密码",
+  "href": "/pages/frame/changeStaffPwd",
+  "mId": "702020020834160003",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "商户信息",
+  "href": "/pages/common/storeInfoManage",
+  "mId": "702020042680040009",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "小程序配置",
+  "href": "/pages/property/smallWeChatManage",
+  "mId": "702020051674530088",
+  "seq": "12",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "流程管理",
+  "href": "/pages/property/workflowManage",
+  "mId": "702020061706340004",
+  "seq": "2",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "公众号",
+  "href": "/pages/property/publicWeChatManage",
+  "mId": "702020061808130043",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "打印配置",
+  "href": "/pages/property/feePrintSpecManage",
+  "mId": "702020092219500733",
+  "seq": "18",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "小区配置",
+  "href": "/pages/property/communitySettingManage",
+  "mId": "702021090752200027",
+  "seq": "1",
+  "desc": "小区配置"
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "收据模板",
+  "href": "/pages/property/feePrintPageManage",
+  "mId": "702021091638030020",
+  "seq": "19",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "下载中心",
+  "href": "/pages/property/downloadTempFile",
+  "mId": "702022101940580022",
+  "seq": "20",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "导入日志",
+  "href": "/pages/property/assetImportLog",
+  "mId": "702023061971270003",
+  "seq": "21",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "操作日志",
+  "href": "/pages/log/operateDataLog",
+  "mId": "702023071634980001",
+  "seq": "14",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "支付二维码",
+  "href": "/pages/fee/payFeeQrcode",
+  "mId": "702023090402440013",
+  "seq": "22",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "系统",
+  "name": "支付配置",
+  "href": "/pages/fee/paymentPool",
+  "mId": "702023102515360126",
+  "seq": "13",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "员工信息",
+  "href": "/pages/frame/staff",
+  "mId": "700201904001",
+  "seq": "2",
+  "desc": "员工信息"
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "组织信息",
+  "href": "/pages/frame/orgManage",
+  "mId": "702019100725620006",
+  "seq": "1",
+  "desc": "组织信息"
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "员工认证",
+  "href": "/pages/property/staffAppAuthManage",
+  "mId": "702020121005490190",
+  "seq": "7",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "角色权限",
+  "href": "/pages/frame/role",
+  "mId": "702022072679280005",
+  "seq": "3",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "数据权限",
+  "href": "/pages/property/dataPrivilegeManage",
+  "mId": "702022090567490003",
+  "seq": "8",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "排班设置",
+  "href": "/pages/property/scheduleClasses",
+  "mId": "702022102928970022",
+  "seq": "10",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "排班表",
+  "href": "/pages/property/scheduleClassesPage",
+  "mId": "702022103129830003",
+  "seq": "11",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "班次设置",
+  "href": "/pages/property/classesManage",
+  "mId": "702022110180840005",
+  "seq": "9",
+  "desc": ""
+ },
+ {
+  "group": "设置",
+  "module": "组织",
+  "name": "员工小区",
+  "href": "/pages/staff/staffCommunity",
+  "mId": "702025031813090037",
+  "seq": "4",
+  "desc": ""
+ }
+]

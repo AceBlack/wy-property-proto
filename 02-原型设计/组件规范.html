@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧物业 V2 · 组件规范 v2.2</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(160deg,#eef0fb 0%,#f5f6fd 45%,#eef8f4 100%);
+  color:#1f2540; font-size:14px; line-height:1.6; min-width:1240px;
+}
+.wrap { max-width:1320px; margin:0 auto; padding:36px 32px 80px; }
+
+/* Hero */
+.hero { padding:28px 0 36px; }
+.hero .kicker { display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); color:#fff; font-size:12px; padding:5px 16px; border-radius:999px; }
+.hero h1 { font-size:32px; font-weight:700; margin-top:16px; }
+.hero .sub { color:#8a94b0; font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-top:6px; }
+.hero .meta { margin-top:14px; color:#6a7390; font-size:13px; }
+.hero .meta b { color:#1f2540; }
+
+/* 目录 */
+.toc { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:18px 22px; display:flex; flex-wrap:wrap; gap:8px 20px; font-size:13px; }
+.toc a { color:#4a5168; text-decoration:none; }
+.toc a:hover { color:#5b6cff; }
+.toc .n { color:#b3bad0; font-family:'SF Mono',monospace; font-size:11px; margin-right:4px; }
+
+/* 章节 */
+.sec { margin-top:52px; }
+.sec-head { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+.gem { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); box-shadow:0 3px 8px rgba(91,108,255,.28); flex:none; }
+.sec-head h2 { font-size:21px; font-weight:700; }
+.sec-head .en { font-size:10.5px; color:#a0a8c8; letter-spacing:1.6px; text-transform:uppercase; align-self:flex-end; padding-bottom:3px; }
+.sec-desc { color:#6a7390; font-size:13px; margin-bottom:20px; }
+
+.panel { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(31,37,64,.05); padding:24px; }
+.panel + .panel { margin-top:14px; }
+.panel h3 { font-size:15px; font-weight:600; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.panel h3 .en { font-size:10.5px; color:#a0a8c8; font-weight:400; letter-spacing:1px; }
+.panel .note { font-size:12.5px; color:#8a94b0; margin-bottom:16px; }
+
+/* 变更徽标 */
+.tag-new, .tag-mod, .tag-p0, .tag-p1, .tag-p2 {
+  display:inline-flex; align-items:center; height:18px; padding:0 7px; border-radius:4px;
+  font-size:10.5px; font-weight:600; letter-spacing:.3px; vertical-align:middle;
+  white-space:nowrap; flex:none;
+}
+.tag-new { background:#e6faf3; color:#1db385; }
+.tag-mod { background:#fff5eb; color:#d97f26; }
+.tag-p0 { background:#fff0f0; color:#e04f4f; }
+.tag-p1 { background:#fff5eb; color:#d97f26; }
+.tag-p2 { background:#f2f4f8; color:#6e7791; }
+
+/* 通用栅格 */
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.g6 { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+
+/* 规格行 */
+.spec-row { display:flex; gap:10px; font-size:12.5px; padding:7px 0; border-bottom:1px dashed #eef0f8; }
+.spec-row:last-child { border-bottom:none; }
+.spec-row .k { width:96px; flex:none; color:#8a94b0; }
+.spec-row .v { color:#4a5168; }
+.spec-row .v code, code.c { font-family:'SF Mono',Menlo,monospace; font-size:11.5px; background:#f4f5fc; border-radius:4px; padding:1px 6px; color:#4653d9; white-space:nowrap; }
+
+/* 按钮 */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:40px; padding:0 20px; font-size:14px; font-family:inherit; border-radius:6px; border:1px solid transparent; cursor:pointer; transition:.16s; white-space:nowrap; }
+.btn-primary { background:#5b6cff; color:#fff; }
+.btn-primary:hover { background:#4d5ef7; }
+.btn-primary:active { background:#3f4ee0; }
+.btn-secondary { background:#fff; color:#5b6cff; border-color:#ced3ff; }
+.btn-secondary:hover { background:#f5f6ff; border-color:#8b96ff; }
+.btn-secondary:active { background:#eff0ff; border-color:#5b6cff; }
+.btn-query { background:#fff; color:#4a5168; border-color:#e3e6f2; }
+.btn-query:hover { color:#5b6cff; border-color:#ced3ff; background:#fafbff; }
+.btn-query:active { background:#eff0ff; border-color:#5b6cff; color:#5b6cff; }
+.btn-text { background:transparent; color:#5b6cff; padding:0 10px; }
+.btn-text:hover { background:#f5f6ff; }
+.btn-disabled, .btn:disabled { background:#f4f5fa !important; color:#c3c9dd !important; border-color:#e9ebf5 !important; cursor:not-allowed; box-shadow:none !important; }
+.btn-plain-disabled { background:#fff !important; color:#c3c9dd !important; border-color:#e9ebf5 !important; }
+.btn-loading { position:relative; color:transparent !important; }
+.btn-loading::after { content:''; position:absolute; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.btn-sm { height:32px; padding:0 14px; font-size:13px; }
+.btn-lg { height:44px; padding:0 24px; }
+.btn-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+/* 状态矩阵 */
+.matrix { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+.matrix th { background:#f4f5fc; color:#6a7390; font-weight:400; text-align:left; padding:9px 12px; font-size:12px; }
+.matrix th:first-child { border-radius:6px 0 0 6px; }
+.matrix th:last-child { border-radius:0 6px 6px 0; }
+.matrix td { padding:11px 12px; border-bottom:1px solid #eef0f8; vertical-align:middle; }
+.matrix td:first-child { color:#4a5168; font-weight:500; }
+
+/* 输入框 */
+.inp { height:40px; border:1px solid #e3e6f2; border-radius:6px; background:#fff; display:flex; align-items:center; padding:0 12px; font-size:14px; color:#1f2540; gap:6px; }
+.inp .ph { color:#b3bad0; }
+.inp .suffix { margin-left:auto; color:#b3bad0; display:flex; align-items:center; }
+.inp.hover { border-color:#adb5ff; }
+.inp.focus { border-color:#5b6cff; box-shadow:0 0 0 3px rgba(91,108,255,.14); }
+.inp.disabled { background:#f7f8fc; border-color:#e9ebf5; color:#c3c9dd; }
+.inp.error { border-color:#ff6b6b; box-shadow:0 0 0 3px rgba(255,107,107,.14); }
+.inp.error .suffix { color:#ff6b6b; }
+.inp .caret { width:1px; height:16px; background:#5b6cff; animation:blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity:0; } }
+.field { margin-bottom:16px; }
+.field .lbl { font-size:12px; color:#8a94b0; margin-bottom:6px; }
+.field .msg { font-size:11.5px; color:#ff6b6b; margin-top:5px; }
+
+/* 复选 / 单选 / 开关 */
+.cbx { width:16px; height:16px; border-radius:4px; border:1px solid #c3c9dd; background:#fff; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+.cbx.hover { border-color:#8b96ff; }
+.cbx.on { background:#5b6cff; border-color:#5b6cff; }
+.cbx.on::after { content:''; width:8px; height:4px; border-left:1.6px solid #fff; border-bottom:1.6px solid #fff; transform:rotate(-45deg) translate(1px,-1px); }
+.cbx.dis { background:#f4f5fa; border-color:#e9ebf5; }
+.cbx.dis.on { background:#dfe2ff; border-color:#dfe2ff; }
+.cbx.dis.on::after { border-color:#fff; }
+.chk { display:flex; align-items:center; gap:8px; font-size:13px; color:#4a5168; margin-bottom:12px; }
+.chk .t.dis { color:#c3c9dd; }
+.sw { width:37px; height:20px; border-radius:999px; background:#e3e6f2; position:relative; flex:none; transition:.2s; }
+.sw::after { content:''; position:absolute; width:16px; height:16px; border-radius:50%; background:#fff; top:2px; left:2px; box-shadow:0 1px 3px rgba(0,0,0,.16); transition:.2s; }
+.sw.on { background:#5b6cff; }
+.sw.on::after { left:19px; }
+.sw.dis { background:#f0f2f9; }
+
+/* 上传卡 */
+.up { width:88px; height:76px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; font-size:11.5px; }
+.up .ic { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.up.idle { background:#f5f6ff; color:#5b6cff; }
+.up.idle .ic { background:#e5e7ff; }
+.up.fail { background:#fff0f0; color:#e04f4f; }
+.up.fail .ic { background:#ffdede; }
+.up.redo { background:#e6faf3; color:#1db385; }
+.up.redo .ic { background:#d0f7e9; }
+.up.ing { background:#f5f6ff; color:#5b6cff; }
+.spin-ring { width:18px; height:18px; border:2px solid #dfe2ff; border-top-color:#5b6cff; border-radius:50%; animation:spin .8s linear infinite; }
+
+/* 步骤条 */
+.steps { display:flex; gap:2px; background:#fff; border-radius:999px; padding:4px; box-shadow:inset 0 0 0 1px #eef0f8; width:fit-content; }
+.steps span { font-size:13px; padding:7px 20px; border-radius:999px; color:#8a94b0; }
+.steps span.cur { background:#3f4ee0; color:#fff; font-weight:500; }
+.steps span.done { color:#5b6cff; }
+
+/* 时间线进度 */
+.tl { position:relative; padding-left:18px; }
+.tl::before { content:''; position:absolute; left:5px; top:6px; bottom:6px; width:1px; background:#eef0f8; }
+.tl .node { position:relative; margin-bottom:14px; }
+.tl .node::before { content:''; position:absolute; left:-16px; top:6px; width:8px; height:8px; border-radius:50%; background:#5b6cff; box-shadow:0 0 0 3px #fff; }
+.tl .node.done::before { background:#dfe2ff; }
+.tl .card { background:#fafbff; border-radius:8px; padding:10px 12px; }
+.tl .card .t { font-size:12.5px; color:#1f2540; }
+.tl .card .d { font-size:11.5px; color:#8a94b0; margin-top:2px; }
+
+/* 表格 */
+.tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.tbl th { background:#f4f5fc; color:#6a7390; font-weight:400; font-size:12px; text-align:left; padding:10px 14px; }
+.tbl th:first-child { border-radius:6px 0 0 6px; }
+.tbl th:last-child { border-radius:0 6px 6px 0; }
+.tbl td { padding:12px 14px; border-bottom:1px solid #eef0f8; color:#4a5168; }
+.tbl tr:hover td { background:#f5f6ff; }
+.tbl tr.sel td { background:#eff0ff; }
+.tbl .num { font-family:'SF Mono',Menlo,monospace; font-variant-numeric:tabular-nums; }
+.ops a { font-size:12.5px; text-decoration:none; }
+.ops { display:flex; gap:14px; }
+.ops .i-follow { color:#5b6cff; } .ops .i-edit { color:#1db385; } .ops .i-del { color:#ff6b6b; }
+
+/* 分页 */
+.pager { display:flex; align-items:center; gap:8px; font-size:13px; color:#6a7390; }
+.pager .total { margin-right:8px; color:#8a94b0; font-size:12.5px; }
+.pg { min-width:32px; height:32px; border-radius:6px; border:1px solid #e3e6f2; background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:13px; color:#4a5168; padding:0 8px; }
+.pg.cur { background:#5b6cff; border-color:#5b6cff; color:#fff; }
+.pg.dis { color:#c3c9dd; }
+.pager select, .pager .jump { height:32px; border:1px solid #e3e6f2; border-radius:6px; font-size:12.5px; color:#4a5168; background:#fff; padding:0 8px; }
+.pager .jump { width:46px; text-align:center; }
+
+/* 提示条 */
+.alert { display:flex; align-items:center; gap:10px; background:#fff; border-radius:8px; padding:12px 16px; box-shadow:0 2px 8px rgba(31,37,64,.05); font-size:13px; }
+.alert .ic { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; flex:none; }
+.alert.ok .ic { background:#2ed9a3; } .alert.err .ic { background:#ff6b6b; } .alert.na .ic { background:#c3c9dd; } .alert.warn .ic { background:#ff9f40; }
+.alert.ok b { color:#1db385; } .alert.err b { color:#e04f4f; } .alert.na b { color:#8a94b0; } .alert.warn b { color:#d97f26; }
+
+/* Toast / 弹窗提示卡 */
+.toast { background:#fff; border-radius:10px; padding:16px 18px; box-shadow:0 8px 24px rgba(31,37,64,.10); display:flex; gap:12px; position:relative; }
+.toast .ic { width:22px; height:22px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; }
+.toast .bd b { display:block; font-size:13.5px; margin-bottom:3px; }
+.toast .bd p { font-size:12px; color:#8a94b0; line-height:1.5; }
+.toast .x { position:absolute; right:14px; top:14px; color:#c3c9dd; font-size:13px; }
+
+/* 缺省页 */
+.empty { text-align:center; padding:26px 10px; }
+.empty .art { width:76px; height:56px; margin:0 auto 12px; border-radius:10px; background:#f5f6fd; display:flex; align-items:center; justify-content:center; font-size:22px; color:#c3c9dd; }
+.empty p { font-size:12.5px; color:#b3bad0; }
+
+/* 选择器下拉 */
+.select-demo { position:relative; width:100%; }
+.sel-box { height:40px; border:1px solid #e3e6f2; border-radius:6px; display:flex; align-items:center; padding:0 12px; font-size:13.5px; color:#b3bad0; }
+.sel-box.focus { border-color:#5b6cff; box-shadow:0 0 0 3px rgba(91,108,255,.14); color:#1f2540; }
+.sel-box .arrow { margin-left:auto; color:#c3c9dd; font-size:10px; }
+.dd-list { margin-top:6px; background:#fff; border-radius:8px; box-shadow:0 8px 24px rgba(31,37,64,.12); padding:6px; }
+.dd-list .it { padding:9px 10px; border-radius:6px; font-size:13px; color:#4a5168; }
+.dd-list .it.hover { background:#f5f6ff; color:#5b6cff; }
+.dd-list .it.on { background:#eff0ff; color:#5b6cff; font-weight:500; }
+
+/* 日历 */
+.cal { background:#fff; border-radius:8px; box-shadow:0 8px 24px rgba(31,37,64,.12); padding:12px; width:252px; }
+.cal .hd { display:flex; justify-content:space-between; align-items:center; font-size:12.5px; margin-bottom:8px; color:#1f2540; }
+.cal .wk, .cal .days { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal .wk span { font-size:11px; color:#b3bad0; text-align:center; padding:4px 0; }
+/* v2.2：格 32×32 / 圆角 6，与原型实测一致 */
+.cal .days span { font-size:13px; text-align:center; height:32px; line-height:32px; border-radius:6px; color:#4a5168; }
+.cal .days span.mute { color:#b3bad0; }
+.cal .days span.on { background:#5b6cff; color:#fff; }
+.cal .days span.hov { background:#eff0ff; color:#5b6cff; }
+
+/* 彩色圆点指标 */
+.legend-row { display:flex; gap:16px; font-size:11.5px; color:#8a94b0; flex-wrap:wrap; }
+.legend-row b { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+
+/* 导航演示 */
+.nav-demo { display:flex; border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(31,37,64,.12); height:400px; }
+.n1 { width:190px; background:#101f42; padding:16px 0; color:#97a3c2; flex:none; }
+.n1 .logo { display:flex; align-items:center; gap:9px; padding:0 16px 14px; }
+.n1 .logo i { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#5b6cff,#2ed9a3); }
+.n1 .logo b { color:#fff; font-size:13px; }
+.n1 .it { padding:9px 16px; font-size:12.5px; display:flex; justify-content:space-between; }
+.n1 .it.on { background:rgba(91,108,255,.26); color:#fff; border-left:3px solid #2ed9a3; padding-left:13px; }
+.n1 .it.sub { padding-left:30px; font-size:12px; color:#7d8bb0; }
+.n1 .it.sub.on { color:#fff; }
+.n2 { width:64px; background:#0c1836; padding:12px 0; display:flex; flex-direction:column; align-items:center; gap:6px; flex:none; }
+.n2 .ic { width:36px; height:36px; border-radius:9px; background:rgba(255,255,255,.05); display:flex; align-items:center; justify-content:center; color:#6c7ba3; font-size:13px; }
+.n2 .ic.on { background:#5b6cff; color:#fff; }
+.n3 { flex:1; background:#fafbff; padding:14px 18px; }
+.n3 .lv3 { display:flex; gap:22px; font-size:13px; color:#8a94b0; border-bottom:1px solid #eef0f8; padding-bottom:10px; }
+.n3 .lv3 b { color:#1f2540; position:relative; }
+.n3 .lv3 b::after { content:''; position:absolute; left:50%; transform:translateX(-50%); bottom:-11px; width:16px; height:2px; border-radius:2px; background:#5b6cff; }
+.n3 .lv4 { display:flex; gap:18px; font-size:12.5px; color:#8a94b0; padding:12px 0 16px; }
+.n3 .lv4 b { color:#5b6cff; background:#eff0ff; padding:3px 10px; border-radius:6px; }
+
+.foot { text-align:center; color:#a0a8c8; font-size:12px; margin-top:56px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <span class="kicker">组件规范 · COMPONENT SPECIFICATION</span>
+  <h1>智慧物业 V2 · 组件规范 v2.2</h1>
+  <div class="sub">Aligned with SCRM Component Specification</div>
+  <div class="meta">基于 4 张站酷组件规范截图完成对标 <b>·</b> 共 <b>19</b> 类组件 <b>·</b> v2.2 修订 <b>7</b> 项（原型实测回填）<b>·</b> 2026-10-22 <b>·</b> 仅本地</div>
+</div>
+
+<div class="panel" style="margin-bottom:20px;border-left:3px solid #5b6cff;">
+  <h3>v2.2 修订说明 <span class="tag-mod">原型实测回填</span></h3>
+  <p class="note">v2.2 不是新增规范，而是把「规范写得很细、但 Element Plus 实现不了/实现后视觉更差」的 7 处口径对齐到可落地值。原则是：<b>能用变量解决的差异全部走变量层，不写组件级覆盖；实在不可执行的标注，改规范而不是改实现。</b></p>
+  <table class="matrix" style="margin-top:10px;">
+    <tr><th style="width:130px;">条目</th><th style="width:210px;">v2.1 标注</th><th>v2.2 修订</th><th style="width:84px;">性质</th></tr>
+    <tr><td>日期面板尺寸</td><td>宽 250px / 格 26px / 圆角 5</td><td>宽 <code class="c">252px</code>（7 列 × 36）/ 格 <code class="c">32×32</code> / 圆角 <code class="c">6</code>。EP 面板宽度写死 322px 且按列均分，250 与 26 不可执行</td><td><span class="tag-mod">改规范</span></td></tr>
+    <tr><td>非本月日期</td><td><code>#DFE2FF</code></td><td><code class="c">#B3BAD0</code>。原值对比度仅 1.3:1，实际不可读</td><td><span class="tag-mod">改规范</span></td></tr>
+    <tr><td>分页页码</td><td>30×30 / 每页 7·20·50</td><td><code class="c">32×32</code> / 每页 <code class="c">20·50·100</code>。对齐 8pt 栅格与 EP 的 <code>--el-pagination-button-width</code></td><td><span class="tag-mod">改规范</span></td></tr>
+    <tr><td>图标尺寸</td><td>只有「16px」一处提及</td><td>按角色定档：按钮 14 / 导航 16 / KPI 20 / 缺省页插画 28，见 02 节图标角色表</td><td><span class="tag-new">补齐</span></td></tr>
+    <tr><td>表头字重</td><td>400（表格节）与文档示例 500 混用</td><td>统一 <code class="c">400</code>，示例与规范一致</td><td><span class="tag-mod">统一</span></td></tr>
+    <tr><td>KPI 数字</td><td>驾驶舱个别处 22 / 24</td><td>统一 <code class="c">28 / 600</code>，行高 36；超 5 万金额自动折万元</td><td><span class="tag-mod">统一</span></td></tr>
+    <tr><td>图标风格</td><td>面性（filled）</td><td>保留面性为目标，但原型统一用 Element Plus 线性图标集，<b>登记为可接受偏差</b>：换图标库不换布局，视觉差异仅限填充方式</td><td><span class="tag-p2">偏差</span></td></tr>
+  </table>
+</div>
+
+<div class="toc">
+  <a href="#a1"><span class="n">01</span>设计特征提炼</a>
+  <a href="#a2"><span class="n">02</span>基础变量</a>
+  <a href="#a3"><span class="n">03</span>多级导航</a>
+  <a href="#a4"><span class="n">04</span>按钮</a>
+  <a href="#a5"><span class="n">05</span>输入框</a>
+  <a href="#a6"><span class="n">06</span>选择器</a>
+  <a href="#a7"><span class="n">07</span>日期选择</a>
+  <a href="#a8"><span class="n">08</span>复选 / 单选 / 开关</a>
+  <a href="#a9"><span class="n">09</span>上传</a>
+  <a href="#a10"><span class="n">10</span>步骤条</a>
+  <a href="#a11"><span class="n">11</span>表格</a>
+  <a href="#a12"><span class="n">12</span>分页</a>
+  <a href="#a13"><span class="n">13</span>提示反馈</a>
+  <a href="#a14"><span class="n">14</span>缺省页</a>
+  <a href="#a15"><span class="n">15</span>状态总表</a>
+  <a href="#a16"><span class="n">16</span>落地规则</a>
+</div>
+
+<!-- ============ 01 设计特征提炼 ============ -->
+<div class="sec" id="a1">
+  <div class="sec-head"><div class="gem"></div><h2>设计特征提炼</h2><span class="en">Pattern Extraction</span></div>
+  <p class="sec-desc">从 4 张截图归纳出的 7 条规律，是后续所有组件取值的依据。</p>
+
+  <div class="panel">
+    <table class="matrix">
+      <tr><th style="width:110px;">特征维度</th><th style="width:250px;">截图表现</th><th>提炼出的规则</th></tr>
+      <tr><td>配色逻辑</td><td>主色靛蓝紫承担全部交互；深藏青只出现在导航；状态色只在图标/文字/小面积底色上出现</td><td>「一个交互色 + 一个强调色 + 四语义色」，语义色禁止大面积铺底；同一屏强调色不超过 2 种</td></tr>
+      <tr><td>圆角层级</td><td>按钮/输入框 6px；卡片与表格容器 10px；标签、步骤条、开关 999px</td><td>三档圆角：控件 6 / 容器 10 / 胶囊 999。按钮<b>不做</b>全胶囊</td></tr>
+      <tr><td>阴影层次</td><td>卡片几乎无可见投影，仅 1-2px 极淡散射；下拉与弹窗才用明显投影</td><td>两级阴影：静态卡片 <code class="c">0 2px 8px rgba(31,37,64,.05)</code>，浮层 <code class="c">0 8px 24px rgba(31,37,64,.12)</code>；不用重投影做装饰</td></tr>
+      <tr><td>字阶字重</td><td>模块标题 16/600；表格与正文 13-14/400；辅助与占位 12/400；数字用 DIN 风格 600</td><td>6 级字阶，标题统一 600，正文一律 400，不使用 500 作为正文</td></tr>
+      <tr><td>间距栅格</td><td>标注 40px、100px、120px 均为 8 的倍数；组件内边距 12/16/20</td><td>8pt 主栅格 + 4pt 半格；模块间距 24/32/40，组件内 12/16/20</td></tr>
+      <tr><td>组件尺寸</td><td>按钮高 40px，宽 100 / 120px；开关 37×20；复选框 16×16</td><td>控件基准高 40px，小号 32、大号 44；按钮最小宽 88px，表单按钮 100px</td></tr>
+      <tr><td>边框分割线</td><td>控件 1px <code class="c">#E3E6F2</code>；表格行、模块分割 1px <code class="c">#EEF0F8</code>；表格无竖线</td><td>两级线：控件边框 vs 内容分割线；表格只保留横向分割，禁止竖线</td></tr>
+      <tr><td>状态表达</td><td>hover 变浅底/边框变亮；active 加深一档；disabled 灰底灰字；错误红边 + 右侧红点图标；加载为旋转环</td><td>状态一律通过「底色 / 边框 / 文字 / 图标」四要素表达，不用动效之外的形态变化（不改变尺寸）</td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>逐条差距与优先级 <span class="tag-p0">高</span> <span class="tag-p1">中</span> <span class="tag-p2">低</span></h3>
+    <p class="note">对照 v2.0 设计系统规范（上一版），按「问题 → 原因 → 优先级」列出 12 条差距。</p>
+    <table class="matrix">
+      <tr><th style="width:52px;">#</th><th style="width:130px;">组件/属性</th><th>问题所在</th><th>原因</th><th style="width:60px;">优先级</th></tr>
+      <tr><td>01</td><td>按钮 / 圆角</td><td>v2.0 用 999px 全胶囊 + 品牌投影</td><td>误把「标签」的胶囊形态套到按钮上；截图按钮是 6px 小圆角矩形，投影极淡</td><td><span class="tag-p0">高</span></td></tr>
+      <tr><td>02</td><td>控件 / 高度</td><td>只定义了表格行高，未定义控件高度</td><td>缺尺寸基线，导致各页面按钮、输入框高度不一</td><td><span class="tag-p0">高</span></td></tr>
+      <tr><td>03</td><td>交互状态</td><td>只有语义色，没有 hover / active / disabled / loading 视觉规则</td><td>状态缺失会让前端各写一套，同一按钮在不同页面观感不一致</td><td><span class="tag-p0">高</span></td></tr>
+      <tr><td>04</td><td>组件覆盖</td><td>缺分页、步骤条、上传、缺省页、提示条、开关、复选/单选、日期选择、二级导航</td><td>v2.0 只做了 5 类基础组件，不足以支撑 15 页原型</td><td><span class="tag-p0">高</span></td></tr>
+      <tr><td>05</td><td>卡片 / 圆角与阴影</td><td>圆角 12px、阴影 <code class="c">.07</code> 偏重</td><td>截图卡片更「平」：10px 圆角 + <code class="c">.05</code> 散射，靠留白分层</td><td><span class="tag-p1">中</span></td></tr>
+      <tr><td>06</td><td>间距 / 栅格</td><td>只有 4 基准，未说明主栅格</td><td>截图为 8pt 栅格；不明确会导致 6/10/14 等非标间距混入</td><td><span class="tag-p1">中</span></td></tr>
+      <tr><td>07</td><td>字阶</td><td>缺 16px 卡片标题级与 12px 辅助级的分工，未规定字重</td><td>标题字重不统一会出现 500/600 混用</td><td><span class="tag-p1">中</span></td></tr>
+      <tr><td>08</td><td>表格</td><td>缺 hover / 选中 / 空态 / 加载态规则</td><td>表格是物业后台最高频组件，状态不全等于不可用</td><td><span class="tag-p1">中</span></td></tr>
+      <tr><td>09</td><td>错误态</td><td>错误只有红边，没有图标</td><td>截图错误输入框右侧有红色感叹圆点，色弱用户靠图标识别</td><td><span class="tag-p1">中</span></td></tr>
+      <tr><td>10</td><td>图标 / 尺寸</td><td>未定义图标尺寸与栅格</td><td>16px 图标与 14px 文字基线对不齐</td><td><span class="tag-p2">低</span></td></tr>
+      <tr><td>11</td><td>边框 / 分割线</td><td>只有一个 border-color</td><td>控件边框与内容分割线需要两档深浅，否则表格过重</td><td><span class="tag-p2">低</span></td></tr>
+      <tr><td>12</td><td>导航</td><td>只有一级侧栏，无二级图标栏与三四级页签</td><td>截图是「一级 220 + 二级 64 + 三级页签 + 四级页签」四层结构</td><td><span class="tag-p2">低</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ 02 基础变量 ============ -->
+<div class="sec" id="a2">
+  <div class="sec-head"><div class="gem"></div><h2>基础变量</h2><span class="en">Tokens</span></div>
+  <p class="sec-desc">全部落入 <code class="c">tokens.css</code>，组件层只引用变量，不写字面值。</p>
+
+  <div class="g3">
+    <div class="panel">
+      <h3>圆角 <span class="tag-mod">修改</span></h3>
+      <div class="spec-row"><span class="k">控件</span><span class="v"><code>6px</code> 输入框 / 按钮 / 下拉项</span></div>
+      <div class="spec-row"><span class="k">容器</span><span class="v"><code>10px</code> 卡片 / 表格容器 <span class="tag-mod">改</span></span></div>
+      <div class="spec-row"><span class="k">面板</span><span class="v"><code>12px</code> 弹窗 / 抽屉</span></div>
+      <div class="spec-row"><span class="k">胶囊</span><span class="v"><code>999px</code> 标签 / 步骤条 / 开关</span></div>
+    </div>
+    <div class="panel">
+      <h3>阴影 <span class="tag-mod">修改</span></h3>
+      <div class="spec-row"><span class="k">卡片</span><span class="v"><code>0 2px 8px rgba(31,37,64,.05)</code></span></div>
+      <div class="spec-row"><span class="k">hover</span><span class="v"><code>0 6px 18px rgba(63,76,158,.10)</code></span></div>
+      <div class="spec-row"><span class="k">浮层</span><span class="v"><code>0 8px 24px rgba(31,37,64,.12)</code></span></div>
+      <div class="spec-row"><span class="k">主按钮</span><span class="v"><code>0 4px 12px rgba(91,108,255,.28)</code></span></div>
+    </div>
+    <div class="panel">
+      <h3>控件尺寸 <span class="tag-new">新增</span></h3>
+      <div class="spec-row"><span class="k">默认高</span><span class="v"><code>40px</code>（截图标注）</span></div>
+      <div class="spec-row"><span class="k">小 / 大</span><span class="v"><code>32px</code> / <code>44px</code></span></div>
+      <div class="spec-row"><span class="k">按钮宽</span><span class="v">最小 <code>88</code>，表单 <code>100</code>，带图标 <code>120</code></span></div>
+      <div class="spec-row"><span class="k">开关 / 复选</span><span class="v"><code>37×20</code> / <code>16×16</code></span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>字阶表 <span class="tag-new">新增</span></h3>
+    <table class="matrix">
+      <tr><th>层级</th><th>字号 / 字重</th><th>行高</th><th>用途</th><th>色值</th></tr>
+      <tr><td>H1 页面标题</td><td>20 / 600</td><td>28</td><td>页面唯一主标题</td><td>#1F2540</td></tr>
+      <tr><td>H2 模块标题</td><td>16 / 600</td><td>24</td><td>卡片、面板标题</td><td>#1F2540</td></tr>
+      <tr><td>Body 正文</td><td>14 / 400</td><td>22</td><td>表单值、正文</td><td>#4A5168</td></tr>
+      <tr><td>Body-S 表格正文</td><td>13 / 400</td><td>20</td><td>表格单元格、列表</td><td>#4A5168</td></tr>
+      <tr><td>Caption 辅助</td><td>12 / 400</td><td>18</td><td>说明、时间、占位</td><td>#8A94B0</td></tr>
+      <tr><td>KPI 数字</td><td>28 / 600</td><td>36</td><td>驾驶舱指标</td><td>#1F2540</td></tr>
+    </table>
+    <div style="margin-top:12px;font-size:12.5px;color:#8a94b0;">依据：截图正文与表格均为 13-14px，模块标题 16px 600，辅助信息 12px；无 500 字重正文。<br>
+    <b>v2.2：</b>KPI 数字统一 <code class="c">28 / 600 / 行高 36</code>，驾驶舱出现 22 / 24 属于偏差需登记；模块标题（面板 h3）由 15 统一回 16。</div>
+  </div>
+
+  <div class="panel">
+    <h3>间距栅格 <span class="tag-mod">调整</span></h3>
+    <div class="g6" style="align-items:end;">
+      <div style="text-align:center;"><div style="height:4px;background:#dfe2ff;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">4 半格</div></div>
+      <div style="text-align:center;"><div style="height:8px;background:#ced3ff;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">8 基准</div></div>
+      <div style="text-align:center;"><div style="height:12px;background:#adb5ff;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">12 组件内</div></div>
+      <div style="text-align:center;"><div style="height:16px;background:#8b96ff;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">16 卡片内</div></div>
+      <div style="text-align:center;"><div style="height:24px;background:#5b6cff;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">24 模块间</div></div>
+      <div style="text-align:center;"><div style="height:40px;background:#3f4ee0;border-radius:2px;"></div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">40 区块间</div></div>
+    </div>
+    <div style="margin-top:14px;font-size:12.5px;color:#8a94b0;">依据：截图标注 40px、100px、120px 全部为 8 的倍数，确立 8pt 主栅格；4px 仅用于图标与文字的贴合间距。</div>
+  </div>
+
+  <div class="panel">
+    <h3>图标角色表 <span class="tag-new">v2.2 新增</span></h3>
+    <p class="note">Element Plus 的 <code class="c">&lt;el-icon&gt;</code> 默认 <code class="c">font-size:1em</code>，会跟随父级字号漂移（同一图标在按钮里 14、表格里 13、KPI 里 28）。因此每个角色显式定死，页面禁止再逐个传 size。</p>
+    <table class="matrix">
+      <tr><th style="width:130px;">角色</th><th style="width:90px;">尺寸</th><th style="width:150px;">容器</th><th>说明 / Token</th></tr>
+      <tr><td>按钮内图标</td><td><code class="c">14px</code></td><td>按钮 40 高</td><td>与按钮正文 14 同号，间距 6px；小按钮 12.5 / 大按钮 16 <code class="c">--biz-icon-btn</code></td></tr>
+      <tr><td>导航项图标</td><td><code class="c">16px</code></td><td>侧栏项 38 高</td><td>一级侧栏与顶栏图标钮统一，选中态只变色不变大小 <code class="c">--biz-icon-nav</code></td></tr>
+      <tr><td>KPI 卡图标</td><td><code class="c">20px</code></td><td>32×32 圆角 9</td><td>右上角色块，白字；色块用主色/辅色/语义色 <code class="c">--biz-icon-kpi</code></td></tr>
+      <tr><td>缺省页插画</td><td><code class="c">28px</code></td><td>64×64 圆形</td><td>透明度 .9，不与正文抢焦点 <code class="c">--biz-icon-empty</code></td></tr>
+      <tr><td>行内状态图标</td><td><code class="c">16px</code></td><td>跟随行高</td><td>时间线、提示条、错误态右侧 ⊗ <code class="c">--biz-icon-state</code></td></tr>
+      <tr><td>图表图例</td><td><code class="c">8×8</code></td><td>—</td><td>不用图标，用色块（<code class="c">itemWidth:8</code>），避免图标风格干扰</td></tr>
+    </table>
+    <div style="margin-top:12px;font-size:12.5px;color:#8a94b0;">
+      <b>已登记的可接受偏差：</b>规范目标为面性（filled）图标，原型采用 Element Plus 线性图标集。
+      差异仅限填充方式，尺寸/位置/色值全部按上表执行；后续替换为面性图标库时，只换图标组件，布局与 Token 零改动。
+    </div>
+
+    <h3 style="margin-top:26px;">页面骨架 <span class="tag-new">v2.2 新增 · 拍板</span></h3>
+    <p class="note">L1 骨架的 5 个定值此前只存在于 <code class="c">tokens.css</code> 的「布局」段，未写进规范。拍板后正式纳入（W1 采纳 A），文档与实现以本表为准，页面禁止再硬编码。</p>
+    <table class="matrix">
+      <tr><th style="width:120px;">部位</th><th style="width:150px;">取值</th><th style="width:190px;">Token</th><th>说明</th></tr>
+      <tr><td>侧栏宽</td><td><code class="c">220px</code></td><td><code class="c">--layout-sidebar-w</code></td><td>折叠态 <code class="c">64px</code>；Logo 区与顶栏同高 60，品牌渐变圆角 8 标识 28×28</td></tr>
+      <tr><td>菜单项高</td><td><code class="c">38px</code></td><td><code class="c">--layout-sidebar-item-h</code></td><td>圆角 8 · 左右内距 10 · 图标 16 · 正文 13.5；组标题 11px 上间距 14；选中态左侧 3px 主色竖条</td></tr>
+      <tr><td>顶栏高</td><td><code class="c">60px</code></td><td><code class="c">--layout-header-h</code></td><td>左折叠钮 + 面包屑承载区；右侧图标钮 32×32，不做二级下拉菜单</td></tr>
+      <tr><td>面包屑高</td><td><code class="c">40px</code></td><td><code class="c">--layout-breadcrumb-h</code></td><td>「域 / 页面」两级，末级不加链接；页面不再重复 H1 大标题</td></tr>
+      <tr><td>内容区</td><td>内距 <code class="c">24</code> · 间距 <code class="c">16</code></td><td><code class="c">--layout-content-pad</code><br><code class="c">--layout-card-gap</code></td><td>最小宽 <code class="c">1280px</code>，低于此宽度横向滚动，不做移动端适配</td></tr>
+    </table>
+    <div style="margin-top:12px;font-size:12.5px;color:#8a94b0;">
+      <b>约束：</b>骨架尺寸全站固定，不随页面变化；滚动只发生在 <code class="c">.app-body</code>，侧栏与顶栏常驻。
+      页面主表高度一律用 <code class="c">max-height: calc(100vh - Npx)</code> 从骨架推导（列表页 −336、档案类 −340），禁止写死像素高度；
+      <b>例外：</b>驾驶舱/面板内与图表等高的表格（费用排行 250、告警列表 300、收银台明细 430）可写固定高度，前提是同排面板等高对齐。
+    </div>
+  </div>
+</div>
+
+<!-- ============ 03 导航 ============ -->
+<div class="sec" id="a3">
+  <div class="sec-head"><div class="gem"></div><h2>多级导航</h2><span class="en">Navigation</span></div>
+  <p class="sec-desc">四层结构：一级 220px 深藏青 → 二级 64px 图标栏 → 三级页签 → 四级页签。<span class="tag-new">新增二级/三级/四级定义</span></p>
+  <div class="panel">
+    <div class="nav-demo">
+      <div class="n1">
+        <div class="logo"><i></i><b>智慧物业</b></div>
+        <div class="it on">驾驶舱 <span>›</span></div>
+        <div class="it">资产管理 <span>›</span></div>
+        <div class="it">费用管理 <span>›</span></div>
+        <div class="it sub">收费总览</div>
+        <div class="it sub on">账单管理</div>
+        <div class="it sub">催缴记录</div>
+        <div class="it">报事报修 <span>›</span></div>
+      </div>
+      <div class="n2">
+        <div class="ic on">▦</div><div class="ic">◫</div><div class="ic">◇</div>
+        <div class="ic">▤</div><div class="ic">◐</div><div class="ic">☰</div>
+      </div>
+      <div class="n3">
+        <div class="lv3"><b>所有账单</b><span>我的账单</span><span>下属项目</span></div>
+        <div class="lv4"><span>概览信息</span><b>收费明细</b><span>缴费记录</span><span>减免记录</span><span>操作日志</span></div>
+        <div style="font-size:12.5px;color:#b3bad0;">内容区 · 背景 #FAFBFF，卡片纯白，内边距 24px</div>
+      </div>
+    </div>
+    <div class="g2" style="margin-top:16px;">
+      <div>
+        <div class="spec-row"><span class="k">一级宽</span><span class="v"><code>220px</code>，底 <code>#101F42</code>，文字 <code>#97A3C2</code></span></div>
+        <div class="spec-row"><span class="k">一级选中</span><span class="v">底 <code>rgba(91,108,255,.26)</code> + 左缘 3px 青绿条 + 白字</span></div>
+        <div class="spec-row"><span class="k">二级宽</span><span class="v"><code>64px</code>，底 <code>#0C1836</code>（比一级深一档），图标 36×36 圆角 9</span></div>
+      </div>
+      <div>
+        <div class="spec-row"><span class="k">三级页签</span><span class="v">13px，选中 <code>#1F2540</code> + 16px 底部 2px 主色短横</span></div>
+        <div class="spec-row"><span class="k">四级页签</span><span class="v">12.5px，选中为主色 6px 圆角浅底块 <code>#EFF0FF</code></span></div>
+        <div class="spec-row"><span class="k">层数上限</span><span class="v">最多 4 级，超出改为主内容区内的分组，不再加栏</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 04 按钮 ============ -->
+<div class="sec" id="a4">
+  <div class="sec-head"><div class="gem"></div><h2>按钮</h2><span class="en">Button</span></div>
+  <p class="sec-desc">4 类型 × 6 状态。<span class="tag-mod">圆角 999→6px</span> <span class="tag-new">新增 6 状态</span> <span class="tag-new">新增尺寸档</span></p>
+
+  <div class="panel">
+    <h3>类型 × 状态矩阵</h3>
+    <p class="note">高度统一 40px；左右内边距 20px；最小宽 88px。</p>
+    <table class="matrix">
+      <tr><th style="width:96px;">状态</th><th>主按钮</th><th>次按钮</th><th>查询按钮</th><th>文字按钮</th></tr>
+      <tr>
+        <td>默认</td>
+        <td><span class="btn btn-primary">主按钮</span></td>
+        <td><span class="btn btn-secondary">次按钮</span></td>
+        <td><span class="btn btn-query">查询</span></td>
+        <td><span class="btn btn-text">文字</span></td>
+      </tr>
+      <tr>
+        <td>悬停 hover</td>
+        <td><span class="btn btn-primary" style="background:#4d5ef7;">主按钮</span></td>
+        <td><span class="btn btn-secondary" style="background:#f5f6ff;border-color:#8b96ff;">次按钮</span></td>
+        <td><span class="btn btn-query" style="color:#5b6cff;border-color:#ced3ff;background:#fafbff;">查询</span></td>
+        <td><span class="btn btn-text" style="background:#f5f6ff;">文字</span></td>
+      </tr>
+      <tr>
+        <td>按下 active</td>
+        <td><span class="btn btn-primary" style="background:#3f4ee0;">主按钮</span></td>
+        <td><span class="btn btn-secondary" style="background:#eff0ff;border-color:#5b6cff;">次按钮</span></td>
+        <td><span class="btn btn-query" style="background:#eff0ff;border-color:#5b6cff;color:#5b6cff;">查询</span></td>
+        <td><span class="btn btn-text" style="background:#eff0ff;">文字</span></td>
+      </tr>
+      <tr>
+        <td>选中 / 持续</td>
+        <td><span class="btn btn-primary" style="background:#3f4ee0;box-shadow:inset 0 0 0 2px #dfe2ff;">主按钮</span></td>
+        <td><span class="btn btn-secondary" style="background:#eff0ff;border-color:#5b6cff;">次按钮</span></td>
+        <td colspan="2" style="color:#8a94b0;font-size:12px;">按钮无「选中」语义，切换类操作请用 <b style="color:#4a5168;">Segmented / Tab</b>，不要给按钮加选中态</td>
+      </tr>
+      <tr>
+        <td>禁用 disabled</td>
+        <td><span class="btn btn-disabled">主按钮</span></td>
+        <td><span class="btn btn-disabled btn-plain-disabled">次按钮</span></td>
+        <td><span class="btn btn-disabled btn-plain-disabled">查询</span></td>
+        <td><span class="btn btn-text" style="color:#c3c9dd;">文字</span></td>
+      </tr>
+      <tr>
+        <td>加载 loading</td>
+        <td><span class="btn btn-primary btn-loading">主按钮</span></td>
+        <td><span class="btn btn-secondary" style="color:#c3c9dd;border-color:#e9ebf5;"><span class="spin-ring" style="width:13px;height:13px;border-color:#dfe2ff;border-top-color:#5b6cff;"></span> 处理中</span></td>
+        <td><span class="btn btn-query" style="color:#c3c9dd;"><span class="spin-ring" style="width:13px;height:13px;"></span> 查询</span></td>
+        <td><span class="btn btn-text" style="color:#c3c9dd;">文字</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="g2">
+    <div class="panel">
+      <h3>尺寸 <span class="tag-new">新增</span></h3>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <span class="btn btn-primary btn-lg">大号 44</span>
+        <span class="btn btn-primary">默认 40</span>
+        <span class="btn btn-primary btn-sm">小号 32</span>
+      </div>
+      <div class="spec-row"><span class="k">大 / 默认 / 小</span><span class="v">44 / 40 / 32，字号 14 / 14 / 13</span></div>
+      <div class="spec-row"><span class="k">内边距</span><span class="v">24 / 20 / 14 px</span></div>
+      <div class="spec-row"><span class="k">带图标</span><span class="v">图标 16px，与文字间距 <code>6px</code>；宽按 <code>120px</code> 对齐</span></div>
+    </div>
+    <div class="panel">
+      <h3>使用规则</h3>
+      <div class="spec-row"><span class="k">主按钮数量</span><span class="v">每屏 1 个，最多不超过 2 个（表单底部「保存 + 取消」中取消用次按钮）</span></div>
+    <div class="spec-row"><span class="k">计数口径 <span class="tag-new">拍板</span></span><span class="v">只统计<b>实心</b>主按钮（<code class="c">type="primary"</code> 且非 <code class="c">plain</code>），≤ 1 个／屏；<b>表格行内操作、弹窗内操作不计入</b>本屏统计</span></div>
+    <div class="spec-row"><span class="k">plain 浅底 <span class="tag-new">拍板</span></span><span class="v">计为<b>次级强调</b>，不算「第二个主按钮」，允许与实心主按钮同屏；同一操作区内 ≤ 1 个。工单页「确认派单」、巡检页「提交」按此执行（W2 采纳 A）</span></div>
+      <div class="spec-row"><span class="k">按钮排序</span><span class="v">主操作在右，次操作在左；破坏性操作最右且用文字按钮</span></div>
+      <div class="spec-row"><span class="k">文案</span><span class="v">2-4 字动词短语，不加「请」；禁用态必须配 tooltip 说明原因</span></div>
+      <div class="spec-row"><span class="k">加载</span><span class="v">保留原宽（不塌缩），文字变透明 + 居中旋转环；超过 3s 追加「处理中…」</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 05 输入框 ============ -->
+<div class="sec" id="a5">
+  <div class="sec-head"><div class="gem"></div><h2>输入框</h2><span class="en">Input</span></div>
+  <p class="sec-desc">6 状态。<span class="tag-new">新增 hover / 不可输入 / 错误图标</span></p>
+  <div class="panel">
+    <div class="g3">
+      <div class="field"><div class="lbl">默认</div><div class="inp"><span class="ph">提示文字</span></div></div>
+      <div class="field"><div class="lbl">悬停</div><div class="inp hover"><span class="ph">提示文字</span></div></div>
+      <div class="field"><div class="lbl">输入时（聚焦）</div><div class="inp focus"><span>文字</span><span class="caret"></span></div></div>
+      <div class="field"><div class="lbl">输入后</div><div class="inp"><span>内容描述文案</span></div></div>
+      <div class="field"><div class="lbl">不可输入 / 禁用</div><div class="inp disabled"><span>已有内容</span></div></div>
+      <div class="field"><div class="lbl">错误</div><div class="inp error"><span>输入有误</span><span class="suffix">⊗</span></div><div class="msg">请输入 11 位手机号</div></div>
+    </div>
+    <div class="g2" style="margin-top:8px;">
+      <div>
+        <div class="spec-row"><span class="k">默认边框</span><span class="v"><code>1px #E3E6F2</code>，底 <code>#FFFFFF</code>，圆角 <code>6px</code>，高 <code>40px</code></span></div>
+        <div class="spec-row"><span class="k">悬停</span><span class="v">边框 <code>#ADB5FF</code>，不加投影</span></div>
+        <div class="spec-row"><span class="k">聚焦</span><span class="v">边框 <code>#5B6CFF</code> + 外环 <code>0 0 0 3px rgba(91,108,255,.14)</code></span></div>
+      </div>
+      <div>
+        <div class="spec-row"><span class="k">禁用</span><span class="v">底 <code>#F7F8FC</code>，边框 <code>#E9EBF5</code>，文字 <code>#C3C9DD</code>，不响应 hover</span></div>
+        <div class="spec-row"><span class="k">错误</span><span class="v">边框 <code>#FF6B6B</code> + 红环 + 右侧 16px 红色 ⊗ 图标 + 下方 11.5px 红字</span></div>
+        <div class="spec-row"><span class="k">只读</span><span class="v">同禁用底，但文字保持 <code>#4A5168</code>，可选中复制</span></div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12.5px;color:#8a94b0;">依据：截图为「默认 / 悬停 / 输入时 / 输入后 / 不可输入 / 错误」六态，错误态带红色圆点图标；聚焦环 3px 为 SCRM 通用做法。禁用与只读必须区分——禁用不可复制，只读可复制。</div>
+  </div>
+</div>
+
+<!-- ============ 06 选择器 ============ -->
+<div class="sec" id="a6">
+  <div class="sec-head"><div class="gem"></div><h2>选择器</h2><span class="en">Select</span></div>
+  <p class="sec-desc">触发器 5 状态 + 下拉项 4 状态。<span class="tag-new">新增</span></p>
+  <div class="panel">
+    <div class="g4">
+      <div class="field"><div class="lbl">默认</div><div class="sel-box">请选择<span class="arrow">▾</span></div></div>
+      <div class="field"><div class="lbl">悬停</div><div class="sel-box" style="border-color:#adb5ff;">请选择<span class="arrow" style="color:#8b96ff;">▾</span></div></div>
+      <div class="field"><div class="lbl">展开（聚焦）</div><div class="sel-box focus">选项二<span class="arrow" style="color:#5b6cff;transform:rotate(180deg);">▾</span></div>
+        <div class="dd-list">
+          <div class="it">选项一</div><div class="it hover">选项二</div><div class="it">选项三</div><div class="it">选项四</div>
+        </div>
+      </div>
+      <div class="field"><div class="lbl">选择后</div><div class="sel-box" style="color:#1f2540;">选项三<span class="arrow">▾</span></div></div>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="spec-row"><span class="k">触发器</span><span class="v">与输入框同高同圆角，右侧 ▾ 12px，展开时旋转 180°</span></div>
+        <div class="spec-row"><span class="k">下拉面板</span><span class="v">圆角 <code>8px</code>，阴影浮层级，内边距 <code>6px</code></span></div>
+      </div>
+      <div>
+        <div class="spec-row"><span class="k">选项</span><span class="v">高 <code>34px</code>，圆角 <code>6px</code>，hover <code>#F5F6FF</code>，选中 <code>#EFF0FF</code> + 主色字</span></div>
+        <div class="spec-row"><span class="k">禁用项</span><span class="v">文字 <code>#C3C9DD</code>，无 hover，光标 not-allowed</span></div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12.5px;color:#8a94b0;">依据：截图给出「默认 / 悬停 / 展开列表 / 选择后」四态；选项 hover 与选中用两级浅底区分，避免选中项在 hover 时丢失。</div>
+  </div>
+</div>
+
+<!-- ============ 07 日期 ============ -->
+<div class="sec" id="a7">
+  <div class="sec-head"><div class="gem"></div><h2>日期选择</h2><span class="en">Date Picker</span></div>
+  <p class="sec-desc">区间选择器：默认 / 悬停 / 选择中（含日历面板）/ 选择后。<span class="tag-new">新增</span></p>
+  <div class="panel">
+    <div class="g4">
+      <div class="field"><div class="lbl">默认</div>
+        <div style="display:flex;gap:6px;"><div class="inp" style="flex:1;"><span class="ph">起始时间</span><span class="suffix">▦</span></div><div class="inp" style="flex:1;"><span class="ph">终止时间</span><span class="suffix">▦</span></div></div>
+      </div>
+      <div class="field"><div class="lbl">悬停</div>
+        <div style="display:flex;gap:6px;"><div class="inp hover" style="flex:1;"><span class="ph">起始时间</span><span class="suffix">▦</span></div><div class="inp hover" style="flex:1;"><span class="ph">终止时间</span><span class="suffix">▦</span></div></div>
+      </div>
+      <div class="field"><div class="lbl">选择中</div>
+        <div style="display:flex;gap:6px;"><div class="inp focus" style="flex:1;"><span>2022-10-08</span><span class="suffix" style="color:#5b6cff;">▦</span></div><div class="inp" style="flex:1;"><span class="ph">终止时间</span><span class="suffix">▦</span></div></div>
+        <div class="cal" style="margin-top:6px;">
+          <div class="hd"><span>‹</span><b>2026 年 10 月</b><span>›</span></div>
+          <div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+          <div class="days">
+            <span class="mute">28</span><span class="mute">29</span><span class="mute">30</span><span>1</span><span>2</span><span>3</span><span>4</span>
+            <span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span>
+            <span>12</span><span>13</span><span class="hov">14</span><span>15</span><span>16</span><span>17</span><span>18</span>
+            <span class="on">19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span>
+          </div>
+        </div>
+      </div>
+      <div class="field"><div class="lbl">选择后</div>
+        <div style="display:flex;gap:6px;"><div class="inp" style="flex:1;"><span>2026-10-01</span><span class="suffix">▦</span></div><div class="inp" style="flex:1;"><span>2026-10-22</span><span class="suffix">▦</span></div></div>
+      </div>
+    </div>
+    <div class="spec-row"><span class="k">面板尺寸</span><span class="v">宽 <code>252px</code>（7 列 × 36），日期格 <code>32×32</code>，圆角 <code>6px</code> <span class="tag-mod">v2.2 修订</span></span></div>
+    <div class="spec-row"><span class="k">日期状态</span><span class="v">默认 #4A5168 / 非本月 <code>#B3BAD0</code> / hover 浅底 #EFF0FF / 选中 主色实底白字 <span class="tag-mod">v2.2 修订</span></span></div>
+    <div class="spec-row"><span class="k">区间高亮</span><span class="v">起止日实底主色，中间段 <code>#EFF0FF</code>（区间感）</span></div>
+    <div class="spec-row"><span class="k">浮层</span><span class="v">圆角 <code>8px</code>，阴影 <code>0 8px 24px rgba(31,37,64,.12)</code>，与下拉/气泡共用 </span></div>
+    <div style="margin-top:8px;font-size:12.5px;color:#8a94b0;">依据：截图日期组件为「开始-结束」双框 + 下拉日历，选中日为主色方块；补一条区间连续段规则，避免只高亮两端。<br>
+    <b>v2.2 修订依据：</b>Element Plus 把面板宽度写死 <code class="c">.el-date-picker{width:322px}</code> 且按 7 列均分，250px / 26px 无法落地；改为「定格宽 32×32 → 总宽自然落在 252」。非本月原值 #DFE2FF 对比度不足 1.4:1，提到占位符色 #B3BAD0（3.1:1）才满足可读下限。</div>
+  </div>
+</div>
+
+<!-- ============ 08 复选/单选/开关 ============ -->
+<div class="sec" id="a8">
+  <div class="sec-head"><div class="gem"></div><h2>复选框 / 单选框 / 开关</h2><span class="en">Selection Controls</span></div>
+  <p class="sec-desc">各 4 状态。<span class="tag-new">新增</span></p>
+  <div class="g3">
+    <div class="panel">
+      <h3>复选框 <span class="tag-new">新增</span></h3>
+      <div class="chk"><span class="cbx"></span><span class="t">默认状态</span></div>
+      <div class="chk"><span class="cbx hover"></span><span class="t">悬停状态</span></div>
+      <div class="chk"><span class="cbx on"></span><span class="t">点击 / 选中</span></div>
+      <div class="chk"><span class="cbx dis"></span><span class="t dis">禁用状态</span></div>
+      <div class="chk"><span class="cbx dis on"></span><span class="t dis">禁用且选中</span></div>
+      <div class="spec-row"><span class="k">尺寸</span><span class="v"><code>16×16</code>，圆角 <code>4px</code></span></div>
+      <div class="spec-row"><span class="k">选中</span><span class="v">主色实底 + 白色 1.6px 勾，无边框</span></div>
+    </div>
+    <div class="panel">
+      <h3>单选框 <span class="tag-new">新增</span></h3>
+      <div class="chk"><span class="cbx" style="border-radius:50%;"></span><span class="t">默认状态</span></div>
+      <div class="chk"><span class="cbx hover" style="border-radius:50%;"></span><span class="t">悬停状态</span></div>
+      <div class="chk"><span class="cbx on" style="border-radius:50%;"></span><span class="t">点击 / 选中</span></div>
+      <div class="chk"><span class="cbx dis" style="border-radius:50%;"></span><span class="t dis">禁用状态</span></div>
+      <div class="spec-row"><span class="k">尺寸</span><span class="v"><code>16×16</code> 圆形，边框 1px</span></div>
+      <div class="spec-row"><span class="k">选中</span><span class="v">主色实底 + 内部 6px 白点</span></div>
+    </div>
+    <div class="panel">
+      <h3>开关 <span class="tag-new">新增</span></h3>
+      <div class="chk" style="gap:12px;"><span class="sw on"></span><span class="t">开启状态</span></div>
+      <div class="chk" style="gap:12px;"><span class="sw"></span><span class="t">关闭状态</span></div>
+      <div class="chk" style="gap:12px;"><span class="sw dis"></span><span class="t dis">禁用状态</span></div>
+      <div class="spec-row"><span class="k">尺寸</span><span class="v"><code>37×20</code> 胶囊，滑块 <code>16px</code>，内缩 2px</span></div>
+      <div class="spec-row"><span class="k">开 / 关</span><span class="v">开 <code>#5B6CFF</code>，关 <code>#E3E6F2</code>，过渡 200ms</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 09 上传 ============ -->
+<div class="sec" id="a9">
+  <div class="sec-head"><div class="gem"></div><h2>上传</h2><span class="en">Upload</span></div>
+  <p class="sec-desc">4 状态：待上传 / 上传失败 / 重新上传 / 上传中。<span class="tag-new">新增</span></p>
+  <div class="panel">
+    <div class="btn-row" style="gap:20px;align-items:flex-start;">
+      <div style="text-align:center;"><div class="up idle"><div class="ic">↑</div>上传图片</div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">待上传</div></div>
+      <div style="text-align:center;"><div class="up fail"><div class="ic">⊗</div>上传失败</div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">可重试</div></div>
+      <div style="text-align:center;"><div class="up redo"><div class="ic">↻</div>重新上传</div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">失败后引导</div></div>
+      <div style="text-align:center;"><div class="up ing"><div class="spin-ring"></div>上传中</div><div style="font-size:11px;color:#8a94b0;margin-top:6px;">进度不可中断</div></div>
+      <div style="flex:1;min-width:320px;">
+        <div class="spec-row"><span class="k">卡片</span><span class="v"><code>88×76</code>，圆角 <code>8px</code>，图标 26×26 圆角 8</span></div>
+        <div class="spec-row"><span class="k">底色</span><span class="v">待传 <code>#F5F6FF</code> / 失败 <code>#FFF0F0</code> / 重传 <code>#E6FAF3</code></span></div>
+        <div class="spec-row"><span class="k">上传中</span><span class="v">替换图标为旋转环，不显示百分比（小卡片放不下），进度在列表里看</span></div>
+        <div class="spec-row"><span class="k">失败</span><span class="v">整卡变红并提示原因；点击后直接进入重传，不需要先删除</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 10 步骤条 ============ -->
+<div class="sec" id="a10">
+  <div class="sec-head"><div class="gem"></div><h2>步骤条 / 时间线</h2><span class="en">Steps &amp; Timeline</span></div>
+  <p class="sec-desc">步骤条用于流程引导，时间线用于进度记录。<span class="tag-new">新增</span></p>
+  <div class="g2">
+    <div class="panel">
+      <h3>胶囊步骤条</h3>
+      <div class="steps">
+        <span class="cur">添加跟进记录</span><span>首次拜访</span><span>方案展示</span><span>产品报价</span><span>合同签订</span>
+      </div>
+      <div class="spec-row" style="margin-top:14px;"><span class="k">容器</span><span class="v">白底胶囊 <code>999px</code>，内边距 4px，外描边 <code>1px #EEF0F8</code></span></div>
+      <div class="spec-row"><span class="k">当前段</span><span class="v">深主色 <code>#3F4EE0</code> 实底 + 白字 500</span></div>
+      <div class="spec-row"><span class="k">已完成</span><span class="v">主色文字，无底</span></div>
+      <div class="spec-row"><span class="k">未开始</span><span class="v">辅助灰 <code>#8A94B0</code></span></div>
+      <div class="spec-row"><span class="k">交互</span><span class="v">默认只读；已完成的段可点击回跳，未开始的段禁用</span></div>
+    </div>
+    <div class="panel">
+      <h3>时间线（进度记录）</h3>
+      <div class="tl" style="max-width:340px;">
+        <div class="node"><div style="font-size:12px;color:#8a94b0;margin-bottom:6px;">2026-10-22</div>
+          <div class="card"><div class="t"><b style="color:#5b6cff;">李天一</b> &nbsp;跟进</div><div class="d">进度内容：本次上门已确认漏水点位</div></div>
+        </div>
+        <div class="node done" style="margin-left:14px;"><div style="font-size:12px;color:#8a94b0;margin-bottom:6px;">2026-10-20</div>
+          <div class="card"><div class="t"><b style="color:#5b6cff;">李天一</b> &nbsp;派单</div><div class="d">已指派维修工 · 王师傅</div></div>
+        </div>
+      </div>
+      <div class="spec-row" style="margin-top:10px;"><span class="k">轴线</span><span class="v">1px <code>#EEF0F8</code>，节点 8px 圆点 + 3px 白描边</span></div>
+      <div class="spec-row"><span class="k">最新节点</span><span class="v">主色实心；历史节点浅紫 <code>#DFE2FF</code></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 11 表格 ============ -->
+<div class="sec" id="a11">
+  <div class="sec-head"><div class="gem"></div><h2>表格</h2><span class="en">Table</span></div>
+  <p class="sec-desc">无竖线、浅灰表头、行内彩色操作。<span class="tag-new">新增 hover / 选中 / 空态 / 加载态</span></p>
+  <div class="panel">
+    <table class="tbl">
+      <tr>
+        <th style="width:40px;"><span class="cbx"></span></th><th>客户名称</th><th>归属人员</th><th>客户类别</th><th>创建日期</th><th>所属项目</th><th style="width:170px;">操作</th>
+      </tr>
+      <tr><td><span class="cbx"></span></td><td>张建国</td><td>李天一</td><td>普通业主</td><td class="num">2026-04-25</td><td>阳光花园</td>
+        <td><div class="ops"><a class="i-follow">跟进</a><a class="i-edit">编辑</a><a class="i-del">删除</a></div></td></tr>
+      <tr class="sel"><td><span class="cbx on"></span></td><td>李秀兰</td><td>李天一</td><td>重点催缴</td><td class="num">2026-04-22</td><td>阳光花园</td>
+        <td><div class="ops"><a class="i-follow">跟进</a><a class="i-edit">编辑</a><a class="i-del">删除</a></div></td></tr>
+      <tr><td><span class="cbx"></span></td><td>王浩然</td><td>赵望望</td><td>普通业主</td><td class="num">2026-04-20</td><td>翠湖名邸</td>
+        <td><div class="ops"><a class="i-follow">跟进</a><a class="i-edit">编辑</a><a class="i-del">删除</a></div></td></tr>
+    </table>
+    <div class="g3" style="margin-top:16px;">
+      <div>
+        <div class="spec-row"><span class="k">表头</span><span class="v">底 <code>#F4F5FC</code>，字 <code>12px #6A7390</code>，字重 400，圆角仅两端 6px</span></div>
+        <div class="spec-row"><span class="k">行高 <span class="tag-new">拍板</span></span><span class="v"><b>主表固定 48px</b>、<b>内嵌表固定 40px</b>（<code class="c">--table-row-h</code> / <code class="c">--table-row-h-compact</code>）；仅底部 1px <code>#EEF0F8</code>，<b>无竖线</b>。内嵌表 = 详情页子表、驾驶舱右栏子表、抽屉内表格，用 <code class="c">size="small"</code>（W3 采纳 A）</span></div>
+      </div>
+      <div>
+        <div class="spec-row"><span class="k">hover</span><span class="v">整行底 <code>#F5F6FF</code></span></div>
+        <div class="spec-row"><span class="k">选中</span><span class="v">整行底 <code>#EFF0FF</code>，复选框同步选中</span></div>
+      </div>
+      <div>
+        <div class="spec-row"><span class="k">操作列</span><span class="v">12.5px 文字链接，间距 14px；蓝=查看/跟进，绿=编辑，红=删除</span></div>
+        <div class="spec-row"><span class="k">超 3 个操作</span><span class="v">保留前 2 个，其余收进「更多 ⋯」，避免行高被撑破</span></div>
+      </div>
+    </div>
+    <div class="g2" style="margin-top:14px;">
+      <div style="background:#fafbff;border:1px dashed #e3e6f2;border-radius:10px;padding:22px;text-align:center;font-size:12.5px;color:#b3bad0;">
+        加载态 · 6 行骨架屏（行高 48px，骨架条 <code class="c">#F0F2F9</code> 呼吸动画），不用转圈遮罩
+      </div>
+      <div style="background:#fafbff;border:1px dashed #e3e6f2;border-radius:10px;padding:22px;text-align:center;font-size:12.5px;color:#b3bad0;">
+        空态 · 表格内嵌缺省图 + 一句说明 + 主按钮（如「新增账单」），不用纯文字「暂无数据」
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 12 分页 ============ -->
+<div class="sec" id="a12">
+  <div class="sec-head"><div class="gem"></div><h2>分页</h2><span class="en">Pagination</span></div>
+  <p class="sec-desc">方块页码 + 每页条数 + 跳页。<span class="tag-new">新增</span></p>
+  <div class="panel">
+    <div class="pager">
+      <span class="total">共 125 条记录</span>
+      <span class="pg dis">‹</span><span class="pg cur">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">…</span><span class="pg">10</span><span class="pg">›</span>
+      <select><option>20 条/页</option><option>50 条/页</option><option>100 条/页</option></select>
+      <span>跳至</span><span class="jump">1</span><span>页</span>
+    </div>
+    <div class="spec-row" style="margin-top:14px;"><span class="k">页码</span><span class="v"><code>32×32</code>，圆角 <code>6px</code>，默认白底 1px 边框；当前页主色实底白字 <span class="tag-mod">v2.2</span></span></div>
+    <div class="spec-row"><span class="k">省略</span><span class="v">超过 7 页出现「…」，首尾页常驻</span></div>
+    <div class="spec-row"><span class="k">右侧控件</span><span class="v">每页条数与跳页输入同高 <code>32px</code>；条数选项 <code>20 / 50 / 100</code> <span class="tag-mod">v2.2</span></span></div>
+    <div class="spec-row"><span class="k">位置</span><span class="v">表格右下，与表格同卡片内，间距 <code>16px</code></span></div>
+    <div class="spec-row"><span class="k">禁用项</span><span class="v">禁用 EP 的 <code class="c">background</code> 属性（灰底无描边方案），全站统一白底描边</span></div>
+    <div style="margin-top:8px;font-size:12.5px;color:#8a94b0;">依据：截图分页为方块页码 + 「每页条数」下拉 + 「跳至 __ 页」，与 Element Plus 默认的纯文字分页不同，需覆盖 <code class="c">.el-pager li</code> 为方块。<br>
+    <b>v2.2 修订依据：</b>30 不在 8pt 栅格上，且与 <code class="c">--el-pagination-button-width</code> 默认值不一致，改 32 与控件基线同档；「7 条/页」来自截图的特殊场景，物业列表按 20/50/100 三档更实用（列表普遍 200 条以上）。</div>
+  </div>
+</div>
+
+<!-- ============ 13 提示反馈 ============ -->
+<div class="sec" id="a13">
+  <div class="sec-head"><div class="gem"></div><h2>提示反馈</h2><span class="en">Feedback</span></div>
+  <p class="sec-desc">轻提示条（行内）+ 弹窗式提示（全局）。<span class="tag-new">新增</span></p>
+  <div class="g2">
+    <div class="panel">
+      <h3>轻提示条 Alert</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="alert ok"><span class="ic">✓</span><b>操作成功</b></div>
+        <div class="alert err"><span class="ic">✕</span><b>操作错误</b></div>
+        <div class="alert na"><span class="ic">–</span><b>操作无效</b></div>
+        <div class="alert warn"><span class="ic">!</span><b>警告提示</b></div>
+      </div>
+      <div class="spec-row" style="margin-top:14px;"><span class="k">结构</span><span class="v">白卡 + 左圆图标 22px + 标题（成功绿 / 失败红 / 无效灰 / 警告橙）</span></div>
+      <div class="spec-row"><span class="k">场景</span><span class="v">页面内常驻说明、表单校验汇总；不自动消失</span></div>
+    </div>
+    <div class="panel">
+      <h3>弹窗式提示 Toast</h3>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="toast">
+          <span class="ic" style="background:#2ed9a3;">✓</span>
+          <div class="bd"><b style="color:#1db385;">提交成功！</b><p>深圳某某有限公司新客户创建成功！</p></div>
+          <span class="x">✕</span>
+        </div>
+        <div class="toast">
+          <span class="ic" style="background:#ff6b6b;">✕</span>
+          <div class="bd"><b style="color:#e04f4f;">提交失败！</b><p>您还没有上传合同文件错误，客户创建失败！</p></div>
+          <span class="x">✕</span>
+        </div>
+        <div class="toast">
+          <span class="ic" style="background:#ff9f40;">!</span>
+          <div class="bd"><b style="color:#d97f26;">警告提示！</b><p>您上传的文件大于 20M，请重新上传！</p></div>
+          <span class="x">✕</span>
+        </div>
+      </div>
+      <div class="spec-row" style="margin-top:14px;"><span class="k">结构</span><span class="v">图标 + 加粗标题 + 12px 描述 + 右上关闭；宽 <code>360px</code>，圆角 <code>10px</code>，浮层阴影</span></div>
+      <div class="spec-row"><span class="k">时长</span><span class="v">成功 3s 自动关；失败/警告 5s 且可手动关；同屏最多 3 条堆叠</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 14 缺省页 ============ -->
+<div class="sec" id="a14">
+  <div class="sec-head"><div class="gem"></div><h2>缺省页</h2><span class="en">Empty State</span></div>
+  <p class="sec-desc">三种语义，文案与动作各不同。<span class="tag-new">新增</span></p>
+  <div class="g3">
+    <div class="panel"><div class="empty"><div class="art">▤</div><p>暂无数据结果</p><div style="font-size:11.5px;color:#c3c9dd;margin-top:4px;">配「新增」主按钮</div></div>
+      <div class="spec-row"><span class="k">语义</span><span class="v">列表为空 / 筛选无匹配</span></div></div>
+    <div class="panel"><div class="empty"><div class="art">☁</div><p>暂无网络</p><div style="font-size:11.5px;color:#c3c9dd;margin-top:4px;">配「重新加载」次按钮</div></div>
+      <div class="spec-row"><span class="k">语义</span><span class="v">请求失败，可重试</span></div></div>
+    <div class="panel"><div class="empty"><div class="art">▦</div><p>暂无搜索结果</p><div style="font-size:11.5px;color:#c3c9dd;margin-top:4px;">配「清除筛选」文字按钮</div></div>
+      <div class="spec-row"><span class="k">语义</span><span class="v">筛选条件过严</span></div></div>
+  </div>
+  <div class="panel">
+    <div class="spec-row"><span class="k">插画区</span><span class="v"><code>76×56</code>，浅紫底 <code>#F5F6FD</code> 圆角 <code>10px</code>，禁止用彩色大插画（抢主色）</span></div>
+    <div class="spec-row"><span class="k">文案</span><span class="v">12.5px <code>#B3BAD0</code>，一句 8 字内；不写「抱歉」「很遗憾」等情绪词</span></div>
+    <div class="spec-row"><span class="k">动作</span><span class="v">一个页面只给一个主动作；无权限场景不给按钮，只给说明</span></div>
+  </div>
+</div>
+
+<!-- ============ 15 状态总表 ============ -->
+<div class="sec" id="a15">
+  <div class="sec-head"><div class="gem"></div><h2>交互状态总表</h2><span class="en">State Matrix</span></div>
+  <p class="sec-desc">所有组件的状态取值统一到一张表，禁止组件各写一套。<span class="tag-new">新增</span></p>
+  <div class="panel">
+    <table class="matrix">
+      <tr><th style="width:110px;">状态</th><th style="width:180px;">触发</th><th>视觉规则（底色 / 边框 / 文字）</th><th style="width:150px;">Token</th></tr>
+      <tr><td>默认 Default</td><td>无交互</td><td>白底 / <code>#E3E6F2</code> 1px / <code>#4A5168</code></td><td><code>--el-border-color</code></td></tr>
+      <tr><td>悬停 Hover</td><td>鼠标进入</td><td>浅底 <code>#F5F6FF</code> / 边框 <code>#ADB5FF</code> / 文字不变或转主色</td><td><code>--biz-state-hover-bg</code></td></tr>
+      <tr><td>聚焦 Focus</td><td>键盘 Tab / 点击输入</td><td>边框主色 + 3px 外环 <code>rgba(91,108,255,.14)</code></td><td><code>--biz-focus-ring</code></td></tr>
+      <tr><td>按下 Active</td><td>鼠标按下</td><td>主色加深一档 <code>#3F4EE0</code>，或浅底 <code>#EFF0FF</code></td><td><code>--biz-primary-active</code></td></tr>
+      <tr><td>选中 Selected</td><td>持久选择</td><td>浅主色底 <code>#EFF0FF</code> + 主色字；实心控件用主色实底白字</td><td><code>--biz-state-selected-bg</code></td></tr>
+      <tr><td>禁用 Disabled</td><td>条件不满足</td><td>底 <code>#F4F5FA</code> / 边框 <code>#E9EBF5</code> / 文字 <code>#C3C9DD</code> / 无阴影无 hover</td><td><code>--biz-state-disabled-*</code></td></tr>
+      <tr><td>只读 Readonly</td><td>不可改但可复制</td><td>底 <code>#F7F8FC</code>，文字保持 <code>#4A5168</code></td><td><code>--biz-state-readonly-bg</code></td></tr>
+      <tr><td>加载 Loading</td><td>异步等待</td><td>保留原尺寸，内容替换为 14px 旋转环（2px 描边，0.7s），禁用重复提交</td><td>—</td></tr>
+      <tr><td>错误 Error</td><td>校验失败</td><td>边框 <code>#FF6B6B</code> + 红环 + 右侧 ⊗ 图标 + 下方红字</td><td><code>--biz-focus-ring-danger</code></td></tr>
+    </table>
+    <div style="margin-top:12px; font-size:12.5px; color:#8a94b0;">原则：状态变化不改变组件尺寸与位置，避免布局跳动；同一组件最多同时出现 2 种状态（如「禁用 + 选中」）。</div>
+  </div>
+</div>
+
+<!-- ============ 16 落地 ============ -->
+<div class="sec" id="a16">
+  <div class="sec-head"><div class="gem"></div><h2>落地规则</h2><span class="en">Implementation</span></div>
+  <div class="panel">
+    <table class="matrix">
+      <tr><th style="width:200px;">Element Plus 覆盖点</th><th>取值</th><th>说明</th></tr>
+      <tr><td><code class="c">.el-button</code></td><td>高 40 / 圆角 6 / 内边距 20</td><td>同时覆盖 small（32）与 large（44）</td></tr>
+      <tr><td><code class="c">.el-input__wrapper</code></td><td>圆角 6 / 内阴影描边 1px</td><td>用 inset box-shadow 代替 border，聚焦时叠加 3px 外环</td></tr>
+      <tr><td><code class="c">.el-table</code></td><td>去竖线 / 表头 #F4F5FC / 主表 48 · 内嵌 40</td><td><code>border: none</code>，仅 <code>td</code> 底部 1px；内嵌表加 <code class="c">size="small"</code></td></tr>
+      <tr><td><code class="c">.el-pager li</code></td><td>32×32 方块 + 6px 圆角</td><td>覆盖默认圆形/文字页码（v2.2 由 30 上调至 32）</td></tr>
+      <tr><td><code class="c">.side-item</code></td><td>项高 38 / 圆角 8 / 图标 16</td><td>骨架定值，见 §02「页面骨架」；折叠态侧栏 64</td></tr>
+      <tr><td><code class="c">.el-dialog</code></td><td>圆角 12 / 阴影浮层级</td><td>头部 16/600，底部按钮右对齐</td></tr>
+      <tr><td><code class="c">.el-switch</code></td><td>37×20 胶囊</td><td>开 #5B6CFF，关 #E3E6F2</td></tr>
+      <tr><td><code class="c">.el-checkbox__inner</code></td><td>16×16 / 圆角 4</td><td>选中为主色实底 + 白勾</td></tr>
+    </table>
+    <div style="margin-top:14px; font-size:12.5px; color:#6a7390; line-height:2;">
+      <b style="color:#1f2540;">引入顺序：</b><code class="c">element-plus/dist/index.css</code> → <code class="c">@/styles/tokens.css</code>，否则变量不生效。<br>
+      <b style="color:#1f2540;">改造范围：</b>本次只动 tokens 与组件样式层，页面结构与信息架构不变；15 页原型直接继承本规范。<br>
+      <b style="color:#1f2540;">本批范围（W4 采纳 B）：</b>A/B/C/D/F 五域共 15 页 + 物联驾驶舱；<b>E 域「组织与权限」维持规划中</b>，菜单内以「规划」胶囊置灰，点击仅提示不跳转，待组织树 / 角色矩阵 / 数据权限三层模型确定后再补页。
+    </div>
+  </div>
+</div>
+
+<div class="foot">智慧物业 V2 · 组件规范 v2.2 · 对标站酷 SCRM 组件规范 · 2026-10-22 · 仅本地，待确认</div>
+</div>
+</body>
+</html>
