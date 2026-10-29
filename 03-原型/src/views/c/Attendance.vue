@@ -183,7 +183,7 @@ import {
 const tab = ref('month')
 const months = ATTENDANCE_MONTHS()
 const sum = ref(attendanceSummary(months[0]))
-const positions = ['项目经理', '客服主管', '客服专员', '安保主管', '保安', '保洁主管', '保洁员',
+const positions = ['项目经理', '客服主管', '客服专员', '安保主管', '保安', '环境主管', '保洁员',
   '工程主管', '维修工', '财务主管', '会计', '收银员', '人事专员', '品质专员', '总经理']
 
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(queryAttendance, {

@@ -610,26 +610,58 @@ for a in ALARMS:
 # ============================================================ 7. 巡检计划与任务
 INSPECT_PLANS = [
     {'planId': 'IP01', 'name': '保洁责任区日检', 'post': '保洁', 'cycle': '每日', 'templateId': 'TP-CLEAN', 'communityId': 'P01', 'executor': '孙桂英', 'items': 6, 'status': '启用'},
-    {'planId': 'IP02', 'name': '保安夜间巡更', 'post': '保安', 'cycle': '每日', 'templateId': 'TP-GUARD', 'communityId': 'P01', 'executor': '赵铁柱', 'items': 12, 'status': '启用'},
-    {'planId': 'IP03', 'name': '电梯日常点检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-ELEV', 'communityId': 'P01', 'executor': '周明', 'items': 9, 'status': '启用'},
-    {'planId': 'IP04', 'name': '消防设施月检', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-FIRE', 'communityId': 'P01', 'executor': '周明', 'items': 15, 'status': '启用'},
-    {'planId': 'IP05', 'name': '配电房周检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-POWER', 'communityId': 'P01', 'executor': '孙德海', 'items': 11, 'status': '启用'},
-    {'planId': 'IP06', 'name': '二次供水巡检', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-WATER', 'communityId': 'P01', 'executor': '孙德海', 'items': 8, 'status': '启用'},
-    {'planId': 'IP07', 'name': '绿化养护巡检', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-GREEN', 'communityId': 'P02', 'executor': '钱秀芳', 'items': 6, 'status': '启用'},
+    {'planId': 'IP02', 'name': '保安夜间巡更', 'post': '保安', 'cycle': '每日', 'templateId': 'TP-GUARD', 'communityId': 'P01', 'executor': '赵铁柱', 'items': 4, 'status': '启用'},
+    {'planId': 'IP03', 'name': '电梯日常点检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-ELEV', 'communityId': 'P01', 'executor': '周明', 'items': 6, 'status': '启用'},
+    {'planId': 'IP04', 'name': '消防设施月检', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-FIRE', 'communityId': 'P01', 'executor': '周明', 'items': 6, 'status': '启用'},
+    {'planId': 'IP05', 'name': '配电房周检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-POWER', 'communityId': 'P01', 'executor': '孙德海', 'items': 5, 'status': '启用'},
+    {'planId': 'IP06', 'name': '二次供水巡检', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-WATER', 'communityId': 'P01', 'executor': '孙德海', 'items': 5, 'status': '启用'},
+    {'planId': 'IP07', 'name': '绿化养护巡检', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-GREEN', 'communityId': 'P02', 'executor': '钱秀芳', 'items': 4, 'status': '启用'},
     {'planId': 'IP08', 'name': '垃圾房消杀检查', 'post': '环境', 'cycle': '每日', 'templateId': 'TP-TRASH', 'communityId': 'P02', 'executor': '冯小花', 'items': 4, 'status': '启用'},
-    {'planId': 'IP09', 'name': '地下车库安全巡检', 'post': '保安', 'cycle': '每日', 'templateId': 'TP-PARK', 'communityId': 'P02', 'executor': '蒋大勇', 'items': 10, 'status': '启用'},
-    {'planId': 'IP10', 'name': '商业公区品质巡检', 'post': '客服', 'cycle': '每日', 'templateId': 'TP-BIZ', 'communityId': 'P03', 'executor': '韩雪', 'items': 8, 'status': '启用'},
-    {'planId': 'IP11', 'name': '屋面与外墙季度检查', 'post': '工程', 'cycle': '每季', 'templateId': 'TP-ROOF', 'communityId': 'P01', 'executor': '周明', 'items': 7, 'status': '启用'},
-    {'planId': 'IP12', 'name': '儿童游乐设施周检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-KIDS', 'communityId': 'P02', 'executor': '孙德海', 'items': 5, 'status': '停用'},
+    {'planId': 'IP09', 'name': '地下车库安全巡检', 'post': '保安', 'cycle': '每日', 'templateId': 'TP-PARK', 'communityId': 'P02', 'executor': '蒋大勇', 'items': 5, 'status': '启用'},
+    {'planId': 'IP10', 'name': '商业公区品质巡检', 'post': '客服', 'cycle': '每日', 'templateId': 'TP-BIZ', 'communityId': 'P03', 'executor': '韩雪', 'items': 5, 'status': '启用'},
+    {'planId': 'IP11', 'name': '屋面与外墙季度检查', 'post': '工程', 'cycle': '每季', 'templateId': 'TP-ROOF', 'communityId': 'P01', 'executor': '周明', 'items': 4, 'status': '启用'},
+    {'planId': 'IP12', 'name': '儿童游乐设施周检', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-KIDS', 'communityId': 'P02', 'executor': '孙德海', 'items': 4, 'status': '停用'},
+    # —— 监督类计划：由品质督导下达给部门经理（组长），组长只做现场核验，不做一线作业 ——
+    {'planId': 'IP13', 'name': '环境组达标监督', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-SUP-ENV', 'communityId': 'P01', 'executor': '周伟', 'items': 5, 'status': '启用'},
+    {'planId': 'IP14', 'name': '安保组达标监督', 'post': '安保', 'cycle': '每周', 'templateId': 'TP-SUP-SEC', 'communityId': 'P01', 'executor': '胡建国', 'items': 5, 'status': '启用'},
+    {'planId': 'IP15', 'name': '环境组达标监督', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-SUP-ENV', 'communityId': 'P02', 'executor': '钱文博', 'items': 5, 'status': '启用'},
+    {'planId': 'IP16', 'name': '安保组达标监督', 'post': '安保', 'cycle': '每周', 'templateId': 'TP-SUP-SEC', 'communityId': 'P02', 'executor': '向建华', 'items': 5, 'status': '启用'},
+    {'planId': 'IP17', 'name': '环境组达标监督', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-SUP-ENV', 'communityId': 'P03', 'executor': '段娟', 'items': 5, 'status': '启用'},
+    {'planId': 'IP18', 'name': '工程组达标监督', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-SUP-ENG', 'communityId': 'P02', 'executor': '薛淼然', 'items': 5, 'status': '启用'},
 ]
+# 计划分类：前 12 个是执行类（一线员工作业），后 6 个是监督类（组长核验下属）
+_SUP_PLANS = {'IP13', 'IP14', 'IP15', 'IP16', 'IP17', 'IP18'}
+_SUP_META = {
+    'IP13': ('环境', 'O-P01-T4'), 'IP14': ('安保', 'O-P01-T3'),
+    'IP15': ('环境', 'O-P02-T4'), 'IP16': ('安保', 'O-P02-T3'),
+    'IP17': ('环境', 'O-P03-T4'), 'IP18': ('工程', 'O-P02-T2'),
+}
+for _p in INSPECT_PLANS:
+    if _p['planId'] in _SUP_PLANS:
+        _tp, _td = _SUP_META[_p['planId']]
+        _p.update({'taskType': '监督', 'targetPost': _tp, 'targetDept': _td})
+    else:
+        _p.update({'taskType': '执行', 'targetPost': '', 'targetDept': ''})
+# 巡检任务归属班组：由「计划岗位 + 计划所属项目」推导。
+# 不能靠执行人姓名反查 —— 计划的执行人是运营设定值，未必在员工名册里，
+# 反查会让任务在「本部门」视图里整批丢失（这正是 P0-5 实测发现的问题）。
+_POST_TEAM = {'保洁': 'T4', '环境': 'T4', '保安': 'T3', '安保': 'T3', '工程': 'T2', '客服': 'T1'}
+
+
+def org_of_plan(pl):
+    return 'O-%s-%s' % (pl['communityId'], _POST_TEAM.get(pl['post'], 'T1'))
+
+
 INSPECT_TASKS = []
 for i in range(1, 241):
-    pl = pick([p for p in INSPECT_PLANS if p['status'] == '启用'])
+    pl = pick([p for p in INSPECT_PLANS if p['status'] == '启用' and p['taskType'] == '执行'])
     day = TODAY - timedelta(days=rint(0, 14))
     stt = pickw([('已完成', 62), ('执行中', 8), ('待执行', 16), ('逾期', 8), ('已转工单', 6)])
     INSPECT_TASKS.append({
         'taskId': 'IT%05d' % i, 'planId': pl['planId'], 'planName': pl['name'], 'post': pl['post'],
-        'communityId': pl['communityId'], 'executor': pl['executor'], 'templateId': pl['templateId'],
+        'communityId': pl['communityId'], 'executor': pl['executor'], 'executorOrgId': org_of_plan(pl),
+        'templateId': pl['templateId'],
+        'taskType': pl['taskType'], 'targetPost': pl['targetPost'], 'targetDept': pl['targetDept'],
         'scheduledDate': ds(day), 'scheduledTime': '%02d:00' % pick([8, 9, 14, 15, 19, 20, 22]),
         'status': stt, 'doneTime': ds(day) + ' %02d:%02d' % (rint(8, 22), rint(0, 59)) if stt in ('已完成', '已转工单') else '',
         'duration': rint(12, 95) if stt in ('已完成', '已转工单') else 0,
@@ -649,31 +681,109 @@ for t in INSPECT_TASKS:
 
 # 巡检表单模板
 INSPECT_TEMPLATES = [
-    {'templateId': 'TP-CLEAN', 'name': '保洁责任区日检表', 'post': '保洁', 'version': 'v2.1',
+    # ===== 执行类模板：给一线员工用，告诉「做什么、什么算合格」 =====
+    {'templateId': 'TP-CLEAN', 'name': '保洁责任区日检表', 'type': '执行', 'post': '保洁', 'targetPost': '', 'version': 'v2.1',
      'fields': [{'label': '大堂地面', 'type': '拍照', 'required': True, 'standard': '无积尘、无水渍'},
                 {'label': '电梯轿厢', 'type': '拍照', 'required': True, 'standard': '内壁无手印、地面无杂物'},
                 {'label': '楼梯间', 'type': '拍照', 'required': True, 'standard': '扶手无灰、无堆物'},
                 {'label': '扶梯', 'type': '拍照', 'required': False, 'standard': '踏板无异物'},
                 {'label': '公共卫生间', 'type': '拍照', 'required': True, 'standard': '无异味、纸品充足'},
                 {'label': '垃圾收集点', 'type': '拍照', 'required': True, 'standard': '桶盖闭合、周边无散落'}]},
-    {'templateId': 'TP-GUARD', 'name': '保安巡更点位表', 'post': '保安', 'version': 'v1.8',
+    {'templateId': 'TP-GUARD', 'name': '保安巡更点位表', 'type': '执行', 'post': '保安', 'targetPost': '', 'version': 'v1.8',
      'fields': [{'label': '点位扫码', 'type': '扫码', 'required': True, 'standard': '现场二维码，禁止相册'},
                 {'label': '现场照片', 'type': '拍照', 'required': True, 'standard': '带水印，含时间地点'},
                 {'label': '异常情况', 'type': '单选', 'required': False, 'options': ['无', '可疑人员', '设施损坏', '安全隐患']},
                 {'label': '异常描述', 'type': '文本', 'required': False, 'visibleWhen': '异常情况≠无'}]},
-    {'templateId': 'TP-ELEV', 'name': '电梯日常点检表', 'post': '工程', 'version': 'v3.0',
+    {'templateId': 'TP-ELEV', 'name': '电梯日常点检表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v3.0',
      'fields': [{'label': '运行平稳性', 'type': '评分', 'required': True, 'min': 1, 'max': 5},
                 {'label': '轿厢照明', 'type': '单选', 'required': True, 'options': ['正常', '损坏', '闪烁']},
                 {'label': '呼梯按钮', 'type': '单选', 'required': True, 'options': ['正常', '卡滞', '失灵']},
                 {'label': '五方对讲', 'type': '单选', 'required': True, 'options': ['正常', '无声', '杂音']},
                 {'label': '异常描述', 'type': '文本', 'required': False, 'visibleWhen': '任一选项≠正常'},
                 {'label': '现场照片', 'type': '拍照', 'required': False, 'max': 3}]},
+    {'templateId': 'TP-FIRE', 'name': '消防设施月检表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v2.4',
+     'fields': [{'label': '灭火器压力表', 'type': '单选', 'required': True, 'options': ['正常', '欠压', '超压']},
+                {'label': '消火栓箱', 'type': '拍照', 'required': True, 'standard': '配件齐全、无水渍'},
+                {'label': '喷淋头', 'type': '拍照', 'required': True, 'standard': '无遮挡、无渗漏'},
+                {'label': '疏散指示灯', 'type': '拍照', 'required': True, 'standard': '常亮、无破损'},
+                {'label': '防火门闭门器', 'type': '单选', 'required': True, 'options': ['正常', '失效']},
+                {'label': '消防通道', 'type': '拍照', 'required': True, 'standard': '无占用、无堆物'}]},
+    {'templateId': 'TP-POWER', 'name': '配电房周检表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v1.6',
+     'fields': [{'label': '柜体温度', 'type': '评分', 'required': True, 'min': 1, 'max': 5},
+                {'label': '仪表读数', 'type': '拍照', 'required': True, 'standard': '三相电流平衡'},
+                {'label': '绝缘工器具', 'type': '单选', 'required': True, 'options': ['齐备', '缺失', '超期']},
+                {'label': '门禁与上锁', 'type': '单选', 'required': True, 'options': ['已上锁', '未上锁']},
+                {'label': '现场照片', 'type': '拍照', 'required': True, 'standard': '含整体环境'}]},
+    {'templateId': 'TP-WATER', 'name': '二次供水巡检表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v2.0',
+     'fields': [{'label': '水箱水位', 'type': '拍照', 'required': True, 'standard': '液位处于正常区间'},
+                {'label': '水质检测记录', 'type': '单选', 'required': True, 'options': ['合格', '待检', '不合格']},
+                {'label': '泵组运行', 'type': '单选', 'required': True, 'options': ['正常', '异响', '停机']},
+                {'label': '管路渗漏', 'type': '拍照', 'required': True, 'standard': '法兰与阀门无渗水'},
+                {'label': '消毒设备', 'type': '单选', 'required': True, 'options': ['运行', '停用']}]},
+    {'templateId': 'TP-GREEN', 'name': '绿化养护巡检表', 'type': '执行', 'post': '环境', 'targetPost': '', 'version': 'v1.3',
+     'fields': [{'label': '草坪修剪', 'type': '拍照', 'required': True, 'standard': '高度均匀、无斑秃'},
+                {'label': '乔灌木长势', 'type': '拍照', 'required': True, 'standard': '无枯枝、无病虫害'},
+                {'label': '绿化带杂物', 'type': '拍照', 'required': True, 'standard': '无白色垃圾'},
+                {'label': '灌溉设施', 'type': '单选', 'required': False, 'options': ['正常', '堵塞', '损坏']}]},
+    {'templateId': 'TP-TRASH', 'name': '垃圾房消杀检查表', 'type': '执行', 'post': '环境', 'targetPost': '', 'version': 'v1.5',
+     'fields': [{'label': '桶盖闭合', 'type': '拍照', 'required': True, 'standard': '全部分类桶盖闭合'},
+                {'label': '地面冲洗', 'type': '拍照', 'required': True, 'standard': '无污渍、无积水'},
+                {'label': '消杀记录', 'type': '拍照', 'required': True, 'standard': '当日已消杀并登记'},
+                {'label': '异味控制', 'type': '单选', 'required': True, 'options': ['无', '轻微', '明显']}]},
+    {'templateId': 'TP-PARK', 'name': '地下车库安全巡检表', 'type': '执行', 'post': '保安', 'targetPost': '', 'version': 'v1.9',
+     'fields': [{'label': '照明与应急灯', 'type': '拍照', 'required': True, 'standard': '全亮、无频闪'},
+                {'label': '消防设施', 'type': '拍照', 'required': True, 'standard': '箱体完好、无遮挡'},
+                {'label': '车辆停放秩序', 'type': '拍照', 'required': True, 'standard': '无占道、无占用消防位'},
+                {'label': '排水沟与集水井', 'type': '单选', 'required': True, 'options': ['畅通', '堵塞', '积水']},
+                {'label': '门禁与道闸', 'type': '单选', 'required': True, 'options': ['正常', '故障']}]},
+    {'templateId': 'TP-BIZ', 'name': '商业公区品质巡检表', 'type': '执行', 'post': '客服', 'targetPost': '', 'version': 'v1.2',
+     'fields': [{'label': '公区卫生', 'type': '拍照', 'required': True, 'standard': '地面无杂物、无污渍'},
+                {'label': '商户门前秩序', 'type': '拍照', 'required': True, 'standard': '无占道经营'},
+                {'label': '导视标识', 'type': '拍照', 'required': True, 'standard': '完好、无褪色'},
+                {'label': '休息区设施', 'type': '单选', 'required': True, 'options': ['完好', '破损']},
+                {'label': '投诉与建议收集', 'type': '文本', 'required': False}]},
+    {'templateId': 'TP-ROOF', 'name': '屋面与外墙检查表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v1.1',
+     'fields': [{'label': '屋面防水', 'type': '拍照', 'required': True, 'standard': '无起鼓、无渗漏痕迹'},
+                {'label': '排水口', 'type': '拍照', 'required': True, 'standard': '无堵塞、无落叶堆积'},
+                {'label': '外墙饰面', 'type': '拍照', 'required': True, 'standard': '无空鼓、无脱落'},
+                {'label': '避雷带', 'type': '单选', 'required': False, 'options': ['完好', '锈蚀', '断开']}]},
+    {'templateId': 'TP-KIDS', 'name': '儿童游乐设施周检表', 'type': '执行', 'post': '工程', 'targetPost': '', 'version': 'v1.4',
+     'fields': [{'label': '结构紧固件', 'type': '拍照', 'required': True, 'standard': '无松动、无锈蚀'},
+                {'label': '滑梯表面', 'type': '拍照', 'required': True, 'standard': '无毛刺、无破损'},
+                {'label': '安全地垫', 'type': '拍照', 'required': True, 'standard': '无缺失、无移位'},
+                {'label': '警示标识', 'type': '单选', 'required': True, 'options': ['齐全', '缺失', '字迹模糊']}]},
+
+    # ===== 监督类模板：给部门经理（组长）用，检查「下属责任区实际达标情况」 =====
+    # 由品质督导统一维护，组长只读；检查项是达标标准，而不是作业步骤
+    {'templateId': 'TP-SUP-ENV', 'name': '环境达标监督表', 'type': '监督', 'post': '', 'targetPost': '环境', 'version': 'v1.0',
+     'fields': [{'label': '责任区地面达标', 'type': '拍照', 'required': True, 'standard': '随机抽查 3 处，均无积尘积水'},
+                {'label': '电梯与楼道', 'type': '拍照', 'required': True, 'standard': '与员工上报情况一致'},
+                {'label': '垃圾点位', 'type': '拍照', 'required': True, 'standard': '桶盖闭合、周边无散落'},
+                {'label': '员工在岗情况', 'type': '单选', 'required': True, 'options': ['在岗', '脱岗', '迟到']},
+                {'label': '员工上报真实性', 'type': '单选', 'required': True, 'options': ['属实', '不属实', '部分不属实']}]},
+    {'templateId': 'TP-SUP-SEC', 'name': '安保达标监督表', 'type': '监督', 'post': '', 'targetPost': '安保', 'version': 'v1.0',
+     'fields': [{'label': '巡更点位抽检', 'type': '扫码', 'required': True, 'standard': '随机抽 2 个点位，核对打卡时间'},
+                {'label': '门岗值守', 'type': '拍照', 'required': True, 'standard': '无脱岗、着装规范'},
+                {'label': '监控室', 'type': '拍照', 'required': True, 'standard': '有人值守、画面正常'},
+                {'label': '交接班记录', 'type': '拍照', 'required': True, 'standard': '连续无缺漏'},
+                {'label': '员工上报真实性', 'type': '单选', 'required': True, 'options': ['属实', '不属实', '部分不属实']}]},
+    {'templateId': 'TP-SUP-ENG', 'name': '工程达标监督表', 'type': '监督', 'post': '', 'targetPost': '工程', 'version': 'v1.0',
+     'fields': [{'label': '设备房现场', 'type': '拍照', 'required': True, 'standard': '整洁、上锁、无杂物'},
+                {'label': '点检记录核对', 'type': '拍照', 'required': True, 'standard': '与设备实际状态一致'},
+                {'label': '故障响应时效', 'type': '单选', 'required': True, 'options': ['达标', '超时']},
+                {'label': '工器具与备件', 'type': '单选', 'required': True, 'options': ['齐备', '缺失']},
+                {'label': '员工上报真实性', 'type': '单选', 'required': True, 'options': ['属实', '不属实', '部分不属实']}]},
+    {'templateId': 'TP-SUP-CS', 'name': '客服达标监督表', 'type': '监督', 'post': '', 'targetPost': '客服', 'version': 'v1.0',
+     'fields': [{'label': '前台在岗与服务规范', 'type': '拍照', 'required': True, 'standard': '着装规范、无脱岗'},
+                {'label': '工单受理时效', 'type': '单选', 'required': True, 'options': ['达标', '超时']},
+                {'label': '投诉回访记录', 'type': '拍照', 'required': True, 'standard': '闭环且有回访'},
+                {'label': '员工上报真实性', 'type': '单选', 'required': True, 'options': ['属实', '不属实', '部分不属实']}]},
 ]
 
 # ============================================================ 8. 人力资源
 POSITIONS = [
     ('总经理', 'M2', 1), ('项目经理', 'M1', 3), ('客服主管', 'P6', 3), ('客服专员', 'P4', 12),
-    ('安保主管', 'P6', 3), ('保安', 'P3', 22), ('保洁主管', 'P5', 3), ('保洁员', 'P3', 18),
+    ('安保主管', 'P6', 3), ('保安', 'P3', 22), ('环境主管', 'P5', 3), ('保洁员', 'P3', 18),
     ('工程主管', 'P6', 3), ('维修工', 'P4', 14), ('财务主管', 'P7', 1), ('会计', 'P5', 3),
     ('收银员', 'P4', 6), ('人事专员', 'P5', 2), ('品质专员', 'P5', 3), ('绿化员', 'P3', 6),
 ]
@@ -698,6 +808,8 @@ for i in range(1, 121):
     })
 for e in EMPLOYEES:
     e['monthlySalary'] = money(e['baseSalary'] * random.uniform(1.15, 1.55))
+
+
     if e['position'] in ('维修工', '工程主管') and random.random() < 0.6:
         e['certificates'] = [{'name': pick(['低压电工证', '高压电工证', '电梯安全员', '消防设施操作员']),
                               'no': 'CERT' + str(rint(10 ** 7, 10 ** 8 - 1)),
@@ -706,6 +818,55 @@ for e in EMPLOYEES:
         e['certificates'] = [{'name': '保安员证', 'no': 'CERT' + str(rint(10 ** 7, 10 ** 8 - 1)),
                               'expire': ds(TODAY + timedelta(days=rint(-30, 900)))}]
 
+
+# --- 监督类任务：静态构造，不消耗 PRNG（保证既有 240 条执行任务逐字不变） ---
+# 口径：监督任务由品质督导下达给组长，组长到现场核验下属责任区实际达标情况，
+#       发现问题必须指定责任员工（用于考核与整改），因此带 issueItems / hitEmployees。
+_SPT_SEED = [
+    # (planId, 状态, 距今天数, 发现问题数, [(问题项, 责任员工)])
+    # 责任员工必须属于「被检岗位 + 同一项目」，否则考核归不到正确的人
+    ('IP13', '已完成', 1, 2, [('楼道扶手有积尘', '顾建国'), ('垃圾点位桶盖未闭合', '吴明')]),
+    ('IP13', '已完成', 8, 1, [('大堂玻璃有手印', '邵磊')]),
+    ('IP14', '已完成', 2, 1, [('夜间巡更漏打 2 个点位', '宋杰')]),
+    ('IP14', '逾期', 5, 0, []),
+    ('IP15', '已完成', 3, 2, [('地下车库地面有积水', '雷洋'), ('绿化带杂草未清', '林浩')]),
+    ('IP15', '执行中', 0, 0, []),
+    ('IP16', '已完成', 6, 1, [('门岗交接记录缺失', '闫宇')]),
+    ('IP17', '已完成', 2, 2, [('电梯轿厢内壁有污渍', '姚辉'), ('公区垃圾桶满溢未清', '唐娜')]),
+    ('IP17', '已完成', 9, 0, []),
+    ('IP18', '已完成', 4, 1, [('配电箱门未上锁', '曹杰')]),
+    ('IP18', '待执行', 1, 0, []),
+    ('IP14', '已完成', 12, 2, [('监控室无人值守', '宋杰'), ('巡更点位二维码破损', '宋杰')]),
+]
+_SPT_PLAN_OF = {x['planId']: x for x in INSPECT_PLANS}
+for _spt_k, (_spt_pid, _spt_stt, _spt_ago, _spt_n, _spt_issues) in enumerate(_SPT_SEED, 1):
+    _spt_pl = _SPT_PLAN_OF[_spt_pid]
+    _spt_day = TODAY - timedelta(days=_spt_ago)
+    _spt_done = _spt_stt in ('已完成', '已转工单')
+    INSPECT_TASKS.append({
+        'taskId': 'IT%05d' % (240 + _spt_k), 'planId': _spt_pl['planId'], 'planName': _spt_pl['name'],
+        'post': _spt_pl['post'], 'communityId': _spt_pl['communityId'], 'executor': _spt_pl['executor'],
+        'templateId': _spt_pl['templateId'],
+        'taskType': '监督', 'targetPost': _spt_pl['targetPost'], 'targetDept': _spt_pl['targetDept'],
+        'executorOrgId': _spt_pl['targetDept'],
+        'scheduledDate': ds(_spt_day), 'scheduledTime': '09:00',
+        'status': _spt_stt, 'doneTime': ds(_spt_day) + ' 10:20' if _spt_done else '',
+        'duration': 35 if _spt_done else 0,
+        'itemCount': _spt_pl['items'], 'normalCount': (_spt_pl['items'] - _spt_n) if _spt_done else 0,
+        'issueCount': _spt_n if _spt_done else 0,
+        'photos': (_spt_n + 2) if _spt_done else 0,
+        'checkinType': 'GPS围栏', 'checkedIn': _spt_done or _spt_stt == '执行中',
+        'gps': '104.06%d,30.5%d' % (6000 + _spt_k * 37, 6000 + _spt_k * 41),
+        'score': 0, 'refWoId': '',
+        'reviewer': '', 'reviewScore': 0, 'reviewTime': '',
+        'issueItems': [
+            {'item': _spt_it, 'deduct': 2, 'responsibleName': _spt_who,
+             'responsibleEmpId': next((e['empId'] for e in EMPLOYEES if e['name'] == _spt_who), '')}
+            for _spt_it, _spt_who in _spt_issues
+        ] if _spt_done else [],
+        'hitEmployees': [_spt_who for _, _spt_who in _spt_issues] if _spt_done else [],
+        'conflictFlag': _spt_k in (1, 8),
+    })
 # ============================================================ 9. 看板聚合指标
 def pct(a, b): return round(a / b * 100, 1) if b else 0.0
 
@@ -1063,7 +1224,7 @@ def _team_leader(org_id, position):
     names = [e['name'] for e in EMPLOYEES if e['orgId'] == org_id and e['position'] == position]
     return names[0] if names else ''
 
-_TEAM_DEF = [('客服组', '客服主管'), ('工程组', '工程主管'), ('安保组', '安保主管'), ('环境组', '保洁主管')]
+_TEAM_DEF = [('客服组', '客服主管'), ('工程组', '工程主管'), ('安保组', '安保主管'), ('环境组', '环境主管')]
 _sort = 10
 for _oid in ['O-P01', 'O-P02', 'O-P03']:
     for _i, (_tname, _pos) in enumerate(_TEAM_DEF, 1):
@@ -1076,6 +1237,20 @@ for _oid in ['O-P01', 'O-P02', 'O-P03']:
             'sort': _sort,
         })
         _sort += 1
+
+# --- 组长补齐（不消耗 PRNG）：seed 的随机分布会让个别项目缺某岗位主管，
+#     导致该班组 leader 为空、监督任务没有执行人。从主管富余的项目调岗过来补位。 ---
+_fix_leaders = {x['leader'] for x in ORGS if x.get('leader')}
+for _tid, _pos, _src in [('O-P02-T3', '安保主管', 'O-P01'), ('O-P03-T2', '工程主管', 'O-P01')]:
+    _team = next((x for x in ORGS if x['orgId'] == _tid), None)
+    if not _team or _team['leader']:
+        continue
+    _cand = next((e for e in EMPLOYEES
+                  if e['orgId'] == _src and e['position'] == _pos and e['name'] not in _fix_leaders), None)
+    if _cand:
+        _cand['orgId'] = _tid.split('-T')[0]      # 调到目标项目（组归属由 TEAM_BY_POS 推出）
+        _team['leader'] = _cand['name']
+        _fix_leaders.add(_cand['name'])
 
 # --- 权限项字典：域 → 功能 → 操作（E 域权限矩阵的列定义，与 pages.js 路由一一对应） ---
 PERM_GROUPS = [
@@ -1119,9 +1294,11 @@ PERM_GROUPS = [
         ('woDetail', '派单与处理', ('view', 'edit'), '/f/wo-detail'),
         ('inspectPlans', '巡检计划', ('view', 'edit'), '/f/inspect-plans'),
         ('inspectTasks', '巡检任务', ('view', 'edit'), '/f/inspect-tasks'),
-        ('inspect', '巡检任务执行', ('view',), '/f/inspect'),
+        ('inspect', '巡检任务执行', ('view', 'exec'), '/f/inspect'),
+        ('inspectTemplates', '巡检模板配置', ('view', 'edit'), '/f/inspect-templates'),
         ('quality', '品质评分卡', ('view', 'edit'), '/f/quality'),
         ('qualityRecords', '品质检查记录', ('view', 'edit'), '/f/quality-records'),
+        ('qualityEval', '品质评价', ('view', 'edit'), '/f/quality-eval'),
     ]),
 ]
 PERMISSIONS = []
@@ -1163,13 +1340,14 @@ ROLE_SPEC = [
       ('d', '*', ('view',)),
       ('e', 'reports|downloads', ('view',)),
       ('f', 'workorders|woDetail|inspectTasks|qualityRecords', ('view', 'edit')),
-      ('f', 'quality|inspectPlans|inspect', ('view',))]),
-    ('R-CS', '客服主管', '项目', '本项目', [], ['客服主管', '客服专员'],
-     '业主关系与工单受理，可派单、可回访、可发公告',
-     [('a', 'owners|houses|tenants|vehicles', ('view', 'edit')),
+      ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval', ('view',))]),
+    ('R-CS', '客服专员', '项目', '本项目', [], ['客服专员'],
+     '一线客服：受理业主诉求、执行巡检任务，不含公告发布与档案编辑',
+     [('a', 'owners|houses|tenants|vehicles', ('view',)),
       ('a', 'owner360', ('view',)),
-      ('c', 'notices', ('view', 'edit')),
       ('e', 'downloads', ('view',)),
+      ('f', 'inspectTasks', ('view',)),
+      ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit'))]),
     ('R-CHG', '收银员', '项目', '本项目', [], ['收银员'],
      '前台收费与开票：可收款，不可改账单金额',
@@ -1182,36 +1360,49 @@ ROLE_SPEC = [
      [('a', 'houses', ('view',)), ('b', '*', ('view', 'edit')),
       ('c', 'contracts', ('view',)), ('c', 'payroll', ('view',)),
       ('e', 'reports|downloads', ('view',))]),
-    ('R-ENG', '工程维修', '项目', '仅本人', [], ['工程主管', '维修工'],
+    ('R-ENG', '工程维修', '项目', '仅本人', [], ['维修工'],
      '只看派给自己的工单与巡检任务，设备可报修',
      [('d', 'devices|alarms', ('view', 'edit')),
       ('e', 'downloads', ('view',)),
-      ('f', 'inspectTasks', ('view', 'edit')),
-      ('f', 'inspect', ('view',)),
+      ('f', 'inspectTasks', ('view',)),
+      ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit'))]),
     ('R-QS', '品质督导', '集团', '指定项目', ['P01', 'P03'], ['品质专员'],
      '跨项目巡检与评分，负责整改闭环（仅翡翠城 + 星光天地）',
      [('d', '*', ('view',)),
       ('e', 'reports|downloads', ('view',)),
       ('f', 'inspectPlans', ('view', 'edit')),
+      ('f', 'inspectTemplates', ('view', 'edit')),
       ('f', 'inspect', ('view',)),
+      ('f', 'qualityEval', ('view', 'edit')),
       ('f', 'inspectTasks|qualityRecords|quality', ('view', 'edit'))]),
     ('R-HR', '人事专员', '集团', '全部项目', [], ['人事专员'],
      '人事、薪资与合同台账维护，可分配角色',
      [('c', 'employees|payroll|contracts', ('view', 'edit')),
       ('e', 'org', ('view', 'edit')), ('e', 'reports|downloads', ('view',))]),
-    ('R-SEC', '安保班长', '项目', '本部门', [], ['安保主管', '保安'],
-     '只处理本班组管辖范围内的通行与告警',
-     [('a', 'vehicles', ('view',)),
-      ('d', 'passRecords|alarms', ('view', 'edit')),
-      ('d', 'devices|iotDash', ('view',)),
+    ('R-SEC', '部门经理', '项目', '本部门', [], ['客服主管', '工程主管', '安保主管', '环境主管'],
+     '班组长级：只做现场核验与监督，不承担一线作业；监督模板与计划由品质督导下发',
+     [('a', 'houses|owners|vehicles', ('view',)),
+      ('b', 'bills|payments', ('view',)),
+      ('d', 'passRecords|alarms|devices|iotDash', ('view',)),
+      ('f', 'inspectTasks', ('view',)),
+      ('f', 'inspect', ('view', 'exec')),
+      ('f', 'inspectTemplates', ('view',)),
       ('e', 'downloads', ('view',))]),
-    ('R-CLN', '环境保洁', '项目', '本项目', [], ['保洁主管', '保洁员', '绿化员'],
+    ('R-CLN', '环境保洁', '项目', '本项目', [], ['保洁员', '绿化员'],
      '环境类巡检与工单执行，不含收费与业主档案',
-     [('f', 'inspectTasks', ('view', 'edit')),
-      ('f', 'inspect', ('view',)),
+     [('f', 'inspectTasks', ('view',)),
+      ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit')),
       ('d', 'devices', ('view',)),
+      ('e', 'downloads', ('view',))]),
+    ('R-GRD', '秩序维护员', '项目', '本项目', [], ['保安'],
+     '一线秩序维护：巡更打卡、通行与告警处理、执行巡检任务',
+     [('a', 'vehicles', ('view',)),
+      ('d', 'passRecords|alarms|devices', ('view',)),
+      ('f', 'inspectTasks', ('view',)),
+      ('f', 'inspect', ('view', 'exec')),
+      ('f', 'workorders|woDetail', ('view', 'edit')),
       ('e', 'downloads', ('view',))]),
     ('R-VIEW', '只读观察员', '集团', '全部项目', [], [],
      '外部审计 / 集团巡查，全量只读、不留操作',

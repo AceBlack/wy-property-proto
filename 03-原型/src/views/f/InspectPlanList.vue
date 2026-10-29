@@ -25,6 +25,12 @@
             <el-option v-for="c in communities" :key="c.communityId" :label="c.name" :value="c.communityId" />
           </el-select>
         </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="query.taskType" placeholder="全部" clearable style="width:110px">
+            <el-option label="执行（一线作业）" value="执行" />
+            <el-option label="监督（组长核验）" value="监督" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="岗位">
           <el-select v-model="query.post" placeholder="全部" clearable style="width:110px">
             <el-option v-for="o in postOpts" :key="o" :label="o" :value="o" />
@@ -62,6 +68,13 @@
       <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 400px)" @row-click="onRow">
         <el-table-column prop="planId" label="编号" width="80" />
         <el-table-column prop="name" label="计划名称" min-width="135" show-overflow-tooltip />
+        <el-table-column label="类型" width="82">
+          <template #default="{ row }">
+            <el-tag :type="row.taskType === '监督' ? 'warning' : 'info'" effect="plain" size="small">
+              {{ row.taskType || '执行' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="post" label="岗位" width="75" />
         <el-table-column prop="cycle" label="周期" width="70" />
         <el-table-column prop="templateName" label="检查模板" min-width="120" show-overflow-tooltip />

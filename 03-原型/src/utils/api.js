@@ -115,7 +115,7 @@ export const OPEN_WO = ['待派单', '已派单', '处理中', '待确认']
 export const isOpenWo = w => OPEN_WO.includes(w.status)
 
 export function woSummary(communityId = null) {
-  const list = scopeFilter(communityId ? workOrders.filter(w => w.communityId === communityId) : workOrders, { emp: w => w.assignee })
+  const list = scopeFilter(communityId ? workOrders.filter(w => w.communityId === communityId) : workOrders, { emp: w => w.assignee, org: w => orgOfEmpName(w.assignee) })
   const by = s => list.filter(w => w.status === s).length
   return {
     total: list.length,
@@ -132,7 +132,7 @@ export function woSummary(communityId = null) {
 /* ---------------- 巡检 ---------------- */
 
 export function inspectSummary(communityId = null) {
-  const list = scopeFilter(communityId ? inspectTasks.filter(t => t.communityId === communityId) : inspectTasks, { emp: t => t.executor })
+  const list = scopeFilter(communityId ? inspectTasks.filter(t => t.communityId === communityId) : inspectTasks, { emp: t => t.executor, org: orgOfTask })
   return {
     total: list.length,
     done: list.filter(t => t.status === '已完成').length,
@@ -528,7 +528,7 @@ export const paymentsOfOwner = ownerId => payments.filter(p => p.ownerId === own
 export function queryWorkOrders({ pageNo = 1, size = 20, filters = {} } = {}) {
   return delay(() => {
     const vf = WO_VF[filters.vf]
-    const list = scopeFilter(WO_ROWS, { emp: w => w.assignee }).filter(w =>
+    const list = scopeFilter(WO_ROWS, { emp: w => w.assignee, org: w => orgOfEmpName(w.assignee) }).filter(w =>
       eq(w, filters.communityId, 'communityId') &&
       eq(w, filters.buildingId, 'buildingId') &&
       eq(w, filters.unitId, 'unitId') &&
@@ -590,10 +590,11 @@ export const woSourceCount = () => groupCount(workOrders, 'source')
 
 export function queryInspectTasks({ pageNo = 1, size = 20, filters = {} } = {}) {
   return delay(() => {
-    const list = scopeFilter(inspectTasks, { emp: t => t.executor }).filter(t =>
+    const list = scopeFilter(inspectTasks, { emp: t => t.executor, org: orgOfTask }).filter(t =>
       eq(t, filters.communityId, 'communityId') &&
       eq(t, filters.status, 'status') &&
       eq(t, filters.post, 'post') &&
+      eq(t, filters.taskType, 'taskType') &&
       kwHit(t, filters.kw, ['taskId', 'planName', 'executor'])
     )
     // 列表要显示项目名，统一在数据层补（原始表只有 communityId）
@@ -1136,6 +1137,7 @@ export function queryInspectPlans({ pageNo = 1, size = 20, filters = {} } = {}) 
   return delay(() => {
     const list = PLAN_ROWS.filter(p =>
       eq(p, filters.communityId, 'communityId') &&
+      eq(p, filters.taskType, 'taskType') &&
       eq(p, filters.post, 'post') &&
       eq(p, filters.cycle, 'cycle') &&
       eq(p, filters.status, 'status') &&
@@ -1182,11 +1184,16 @@ export function getInspectTaskDetail(taskId) {
       template: inspectTemplates.find(t => t.templateId === task.templateId) || null,
       plan: PLAN_OF.get(task.planId) || null,
       community: COMMUNITY_OF.get(task.communityId) || null,
+      /** 监督任务：被检班组与责任员工（用于展示「谁的问题」） */
+      targetDept: task.targetDept ? orgs.find(o => o.orgId === task.targetDept) || null : null,
+      hitEmployees: (task.issueItems || []).map(i => i.responsibleName).filter(Boolean),
       /** 已转工单时回连工单 */
       workOrder: task.refWoId ? workOrders.find(w => w.woId === task.refWoId) || null : null
     }
   })
 }
+/** 巡检任务类型：执行 = 一线作业；监督 = 部门经理核验下属达标情况 */
+export const INSPECT_TASK_TYPES = ['执行', '监督']
 export const taskPostOpts = () => distinct(inspectTasks, 'post')
 export const taskStatusOpts = () => distinct(inspectTasks, 'status')
 
@@ -2350,7 +2357,7 @@ const TEAM_BY_POS = {
   客服主管: 'T1', 客服专员: 'T1', 收银员: 'T1',
   工程主管: 'T2', 维修工: 'T2',
   安保主管: 'T3', 保安: 'T3',
-  保洁主管: 'T4', 保洁员: 'T4', 绿化员: 'T4'
+  环境主管: 'T4', 保洁员: 'T4', 绿化员: 'T4'
 }
 const DEPT_BY_POS = {
   财务主管: 'O-FIN', 会计: 'O-FIN', 收银员: 'O-FIN',
@@ -4094,6 +4101,10 @@ export function createInspectPlan(payload) {
     communityId: d.communityId || 'P01',
     executor: d.executor, items: tpl?.fields?.length || d.items || 6,
     status: d.status || '启用',
+    /* 任务类型跟随模板：监督模板建出来的就是监督计划。P1 会在表单里放开手选 */
+    taskType: d.taskType || (tpl?.type === '监督' ? '监督' : '执行'),
+    targetPost: d.targetPost || (tpl?.type === '监督' ? (tpl?.targetPost || '') : ''),
+    targetDept: d.targetDept || '',
     startDate: d.startDate || _now().slice(0, 10),
     endDate: d.endDate || '',
     remark: d.remark || '',
@@ -4841,6 +4852,18 @@ export function communityOfOrg(orgId) {
 }
 
 /** 当前角色的数据范围（每次调用现算，切角色立刻生效） */
+/** 员工姓名 → 所在组织（班组级）。同名取第一条；用于「本部门」按经手人组织过滤 */
+const ORG_OF_EMP_NAME = new Map(EMP_ROWS.map(e => [e.name, e.orgId]))
+export const orgOfEmpName = name => ORG_OF_EMP_NAME.get(name) || ''
+
+/**
+ * 巡检任务的归属班组：任务自带 executorOrgId 优先（由执行计划的「岗位 + 项目」推导），
+ * 缺失时才退回按执行人姓名反查。执行人是计划上的运营设定值、未必在员工名册里，
+ * 只靠姓名反查会让整批任务在「本部门」视图里丢失（P0-5 实测踩到）。
+ */
+export const orgOfTask = t =>
+  t.executorOrgId || orgOfEmpName(t.executor) || `O-${t.communityId}-T1`
+
 export function currentScope() {
   const role = ROLE_OF.get(currentRoleId.value)
   if (!role) return { roleId: '', roleName: '', mode: '全部项目', communityIds: null, empId: '', anchorName: '', orgName: '', hint: '' }
@@ -4866,7 +4889,9 @@ export function currentScope() {
   }
   if (role.dataScope === '指定项目') return { ...base, communityIds: new Set(role.communities || []) }
   if (role.dataScope === '本项目') return { ...base, communityIds: new Set(myCommunity ? [myCommunity] : []) }
-  if (role.dataScope === '本部门') return { ...base, communityIds: new Set(deptCommunities) }
+  // 「本部门」= 该组长所在班组子树。orgIds 用于巡检/工单这类有「经手人组织」的行，
+  // communityIds 只作资产与费用类（没有组织维度）的兜底收窄，避免整页空白。
+  if (role.dataScope === '本部门') return { ...base, orgIds, communityIds: new Set(deptCommunities) }
   if (role.dataScope === '仅本人') return { ...base, communityIds: new Set(myCommunity ? [myCommunity] : []) }
   return { ...base, mode: '全部项目', communityIds: null }
 }
@@ -4878,7 +4903,7 @@ export function scopeHint() {
   const names = [...(s.communityIds || [])].map(id => communityName(id)).join('、') || '无可用项目'
   if (s.mode === '仅本人') return `仅本人：${s.anchorName || '—'} 经手的工单 / 巡检任务；资产与费用按 ${names} 收窄`
   if (s.mode === '本项目') return `本项目：${names}（锚点 ${s.anchorName || '—'}）`
-  if (s.mode === '本部门') return `本部门：${s.orgName} 覆盖 ${names}`
+  if (s.mode === '本部门') return `本部门：${s.orgName || '—'}（只看本班组经手；资产与费用按 ${names} 收窄）`
   return `指定项目：${names}`
 }
 
@@ -4887,10 +4912,14 @@ export function scopeHint() {
  * communities: 返回行所属项目（字符串）或项目集合（Set）
  * emp: 「仅本人」时用于取行的经手人（姓名），不传则退回按项目收窄
  */
-export function scopeFilter(list, { communities: getComm = r => r.communityId, emp = null } = {}) {
+export function scopeFilter(list, { communities: getComm = r => r.communityId, emp = null, org = null } = {}) {
   const s = currentScope()
   if (s.mode === '全部项目') return list
   if (s.mode === '仅本人' && emp) return list.filter(r => emp(r) === s.anchorName)
+  // 「本部门」优先按组织子树过滤（组长只看本班组经手的单据），没传 org 时退回按项目收窄
+  if (s.mode === '本部门' && org && s.orgIds && s.orgIds.size) {
+    return list.filter(r => s.orgIds.has(org(r)))
+  }
   const ids = s.communityIds || new Set()
   return list.filter(r => {
     const v = getComm(r)

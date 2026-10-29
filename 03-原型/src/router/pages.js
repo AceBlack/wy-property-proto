@@ -99,7 +99,10 @@ export const PAGES = [
     component: () => import('@/views/f/InspectPlanList.vue') },
   { path: '/f/inspect-tasks', name: 'InspectTaskList', title: '巡检任务列表', group: 'f', status: 'done', icon: 'Finished', desc: '全量任务 · 异常项 · 转单',
     component: () => import('@/views/f/InspectTaskList.vue') },
-  { path: '/f/inspect', name: 'InspectExec', title: '巡检任务执行', group: 'f', status: 'done', icon: 'Aim', desc: '三类执行载体 · 异常一键转单',
+  // 巡检任务执行属移动端：后台只做监管（任务列表 / 报表 / 模板与计划配置），
+  // 此处 hidden 保留路由，供产品与设计预览执行页形态，不进后台菜单。
+  { path: '/f/inspect', name: 'InspectExec', title: '巡检任务执行（移动端）', group: 'f', status: 'done', icon: 'Aim',
+    hidden: true, mobile: true, desc: '移动端作业台 · 三类执行载体 · 异常一键转单',
     component: () => import('@/views/f/InspectExec.vue') },
   { path: '/f/quality', name: 'QualityScore', title: '品质检查评分卡', group: 'f', status: 'done', icon: 'Star', desc: '评分卡 · 扣分档位 · 整改闭环',
     component: () => import('@/views/f/QualityScore.vue') },
