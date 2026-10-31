@@ -18,7 +18,7 @@
 
 ---
 
-## 〇、在线访问（2026-10-23 部署）
+## 〇、在线访问（2026-10-31 更新）
 
 | 用途 | 地址 |
 |---|---|
@@ -29,6 +29,14 @@
 - **无需登录、无需安装**，浏览器直接打开即可给团队演示；建议用 Chrome / Edge，页面按 1280px 最小宽度设计。
 - 页面用的是 **hash 路由**（`#/a/houses` 这种），GitHub Pages 上深链可直接访问、刷新不 404。
 - 写操作（新增 / 编辑 / 审批 / 抵扣等）**都是内存态，刷新即还原**——演示时如需重来，直接刷新页面。
+
+**部署方式**：push 到 `main` 即触发 `.github/workflows/deploy-pages.yml` 构建（base 用仓库子路径），
+`verify.yml` 同时跑契约测试与原型自检。
+
+> **本机推送注意**：代理只放行 `api.github.com`，`github.com:443` 会返回
+> `CONNECT tunnel failed, response 502`，`git push` 因此失败。
+> 兜底脚本：`python3 tools/push-via-api.py`（走 API 完成等价推送，commit SHA 与本地一致，
+> 推完 `git status` 仍干净）。代理放行 `github.com` 后直接用 `git push` 即可，不必用脚本。
 
 **本地运行**：
 
