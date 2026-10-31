@@ -1,0 +1,57 @@
+name: Verify
+
+# 三类检查，任何一项红都不合并：
+#   1) 契约测试（04-契约）：21+ 条接口断言，后端照着它实现、也照着它验收
+#   2) 原型静态自检（03-原型）：禁用字面量 / mock 双份一致 / 路由→组件存在
+#   3) 全站冒烟（03-原型）：52 个可见路由渲染 + 控制台零错误（自带起预览、自带找 Chrome）
+#
+# 注意：本 workflow 只做验证，不做部署；部署见 deploy-pages.yml（需要手动触发或 merge 到 main）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: 契约测试
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 04-契约
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装依赖
+        run: npm ci --no-audit --no-fund || npm i --no-audit --no-fund
+      - name: 跑契约测试（结构 + 语义 + 业务不变量）
+        run: npm test
+
+  check-build-e2e:
+    name: 自检 · 构建 · 冒烟
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 03-原型
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: 03-原型/package-lock.json
+      - name: 安装依赖
+        run: npm ci --no-audit --no-fund
+      - name: 静态自检（禁用字面量 / mock 一致 / 路由→组件）
+        run: npm run check
+      - name: 构建
+        run: npm run build
+      - name: 全站冒烟（Ubuntu runner 自带 Chrome）
+        run: npm run e2e

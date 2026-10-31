@@ -1,0 +1,3645 @@
+[
+ {
+  "rectifyId": "RC0001",
+  "rectifyNo": "ZG-2026-10-0001",
+  "checkId": "QC0002",
+  "checkNo": "QZ-2026-10-463",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-10-463）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 7 项待整改",
+  "createdAt": "2026-10-21 10:30",
+  "dueDate": "2026-10-29",
+  "submitAt": "2026-10-29 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0002",
+  "rectifyNo": "ZG-2026-10-0002",
+  "checkId": "QC0008",
+  "checkNo": "QZ-2026-10-509",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-509）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-509）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 2 项待整改",
+  "createdAt": "2026-10-21 10:30",
+  "dueDate": "2026-10-26",
+  "submitAt": "2026-10-26 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-26 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0003",
+  "rectifyNo": "ZG-2026-10-0003",
+  "checkId": "QC0006",
+  "checkNo": "QZ-2026-10-189",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-189）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-189）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-189）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-189）",
+    "done": false
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-189）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 5 项待整改",
+  "createdAt": "2026-10-20 10:30",
+  "dueDate": "2026-10-31",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0004",
+  "rectifyNo": "ZG-2026-10-0004",
+  "checkId": "QC0024",
+  "checkNo": "QZ-2026-10-731",
+  "communityId": "P01",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "地下车库检查发现问题 6（详见检查记录 QZ-2026-10-731）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 6 项待整改",
+  "createdAt": "2026-10-20 10:30",
+  "dueDate": "2026-10-24",
+  "submitAt": "2026-10-24 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0005",
+  "rectifyNo": "ZG-2026-10-0005",
+  "checkId": "QC0075",
+  "checkNo": "QZ-2026-10-908",
+  "communityId": "P03",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-908）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 6 项待整改",
+  "createdAt": "2026-10-20 10:30",
+  "dueDate": "2026-10-27",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0006",
+  "rectifyNo": "ZG-2026-10-0006",
+  "checkId": "QC0039",
+  "checkNo": "QZ-2026-10-514",
+  "communityId": "P02",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-10-514）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-10-514）",
+    "done": false
+   }
+  ],
+  "issueDesc": "电梯机房：共 2 项待整改",
+  "createdAt": "2026-10-19 10:30",
+  "dueDate": "2026-10-30",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0007",
+  "rectifyNo": "ZG-2026-10-0007",
+  "checkId": "QC0067",
+  "checkNo": "QZ-2026-10-280",
+  "communityId": "P03",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-10-280）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-10-280）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-10-280）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "公共区域检查发现问题 4（详见检查记录 QZ-2026-10-280）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 4 项待整改",
+  "createdAt": "2026-10-18 10:30",
+  "dueDate": "2026-10-26",
+  "submitAt": "2026-10-26 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0008",
+  "rectifyNo": "ZG-2026-10-0008",
+  "checkId": "QC0001",
+  "checkNo": "QZ-2026-10-501",
+  "communityId": "P01",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "地下车库检查发现问题 6（详见检查记录 QZ-2026-10-501）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 6 项待整改",
+  "createdAt": "2026-10-17 10:30",
+  "dueDate": "2026-10-21",
+  "submitAt": "2026-10-21 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-21 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0009",
+  "rectifyNo": "ZG-2026-10-0009",
+  "checkId": "QC0012",
+  "checkNo": "QZ-2026-10-557",
+  "communityId": "P01",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "楼栋大堂检查发现问题 4（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "楼栋大堂检查发现问题 5（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "楼栋大堂检查发现问题 6（详见检查记录 QZ-2026-10-557）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "楼栋大堂检查发现问题 7（详见检查记录 QZ-2026-10-557）",
+    "done": false
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 7 项待整改",
+  "createdAt": "2026-10-17 10:30",
+  "dueDate": "2026-10-24",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0010",
+  "rectifyNo": "ZG-2026-10-0010",
+  "checkId": "QC0022",
+  "checkNo": "QZ-2026-10-471",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-471）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-471）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-471）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 3 项待整改",
+  "createdAt": "2026-10-17 10:30",
+  "dueDate": "2026-10-22",
+  "submitAt": "2026-10-22 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-22 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0011",
+  "rectifyNo": "ZG-2026-10-0011",
+  "checkId": "QC0080",
+  "checkNo": "QZ-2026-10-232",
+  "communityId": "P03",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-10-232）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-10-232）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-10-232）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 3 项待整改",
+  "createdAt": "2026-10-17 10:30",
+  "dueDate": "2026-10-30",
+  "submitAt": "2026-10-30 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0012",
+  "rectifyNo": "ZG-2026-10-0012",
+  "checkId": "QC0084",
+  "checkNo": "QZ-2026-10-188",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-10-188）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-10-188）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 2 项待整改",
+  "createdAt": "2026-10-17 10:30",
+  "dueDate": "2026-10-22",
+  "submitAt": "2026-10-22 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-22 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0013",
+  "rectifyNo": "ZG-2026-10-0013",
+  "checkId": "QC0041",
+  "checkNo": "QZ-2026-10-752",
+  "communityId": "P02",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-752）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-752）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-752）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-752）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-10-752）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 5 项待整改",
+  "createdAt": "2026-10-16 10:30",
+  "dueDate": "2026-10-22",
+  "submitAt": "2026-10-22 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0014",
+  "rectifyNo": "ZG-2026-10-0014",
+  "checkId": "QC0074",
+  "checkNo": "QZ-2026-10-559",
+  "communityId": "P03",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-559）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-559）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-559）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-559）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 4 项待整改",
+  "createdAt": "2026-10-16 10:30",
+  "dueDate": "2026-10-20",
+  "submitAt": "2026-10-20 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-20 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0015",
+  "rectifyNo": "ZG-2026-10-0015",
+  "checkId": "QC0016",
+  "checkNo": "QZ-2026-10-650",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "设备房检查发现问题 5（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "设备房检查发现问题 6（详见检查记录 QZ-2026-10-650）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 6 项待整改",
+  "createdAt": "2026-10-15 10:30",
+  "dueDate": "2026-10-25",
+  "submitAt": "2026-10-25 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-25 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0016",
+  "rectifyNo": "ZG-2026-10-0016",
+  "checkId": "QC0062",
+  "checkNo": "QZ-2026-10-390",
+  "communityId": "P03",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-390）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-390）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-390）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-390）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-10-390）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 5 项待整改",
+  "createdAt": "2026-10-15 10:30",
+  "dueDate": "2026-10-29",
+  "submitAt": "2026-10-29 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0017",
+  "rectifyNo": "ZG-2026-10-0017",
+  "checkId": "QC0066",
+  "checkNo": "QZ-2026-10-440",
+  "communityId": "P03",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "园区外围检查发现问题 8（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   },
+   {
+    "no": 9,
+    "desc": "园区外围检查发现问题 9（详见检查记录 QZ-2026-10-440）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 9 项待整改",
+  "createdAt": "2026-10-15 10:30",
+  "dueDate": "2026-10-27",
+  "submitAt": "2026-10-27 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-27 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0018",
+  "rectifyNo": "ZG-2026-10-0018",
+  "checkId": "QC0031",
+  "checkNo": "QZ-2026-10-129",
+  "communityId": "P02",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "重大",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-10-129）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-10-129）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-10-129）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "公共区域检查发现问题 4（详见检查记录 QZ-2026-10-129）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 4 项待整改",
+  "createdAt": "2026-10-14 10:30",
+  "dueDate": "2026-10-22",
+  "submitAt": "2026-10-22 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0019",
+  "rectifyNo": "ZG-2026-10-0019",
+  "checkId": "QC0063",
+  "checkNo": "QZ-2026-10-664",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-10-664）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-10-664）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 2 项待整改",
+  "createdAt": "2026-10-13 10:30",
+  "dueDate": "2026-10-19",
+  "submitAt": "2026-10-19 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0020",
+  "rectifyNo": "ZG-2026-10-0020",
+  "checkId": "QC0069",
+  "checkNo": "QZ-2026-10-619",
+  "communityId": "P03",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-619）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-10-619）",
+    "done": false
+   },
+   {
+    "no": 8,
+    "desc": "园区外围检查发现问题 8（详见检查记录 QZ-2026-10-619）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 8 项待整改",
+  "createdAt": "2026-10-13 10:30",
+  "dueDate": "2026-10-23",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0021",
+  "rectifyNo": "ZG-2026-10-0021",
+  "checkId": "QC0045",
+  "checkNo": "QZ-2026-10-298",
+  "communityId": "P02",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "绿化带检查发现问题 6（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "绿化带检查发现问题 7（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "绿化带检查发现问题 8（详见检查记录 QZ-2026-10-298）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 8 项待整改",
+  "createdAt": "2026-10-12 10:30",
+  "dueDate": "2026-10-16",
+  "submitAt": "2026-10-16 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-16 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0022",
+  "rectifyNo": "ZG-2026-10-0022",
+  "checkId": "QC0054",
+  "checkNo": "QZ-2026-10-446",
+  "communityId": "P02",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-10-446）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-10-446）",
+    "done": true
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 2 项待整改",
+  "createdAt": "2026-10-12 10:30",
+  "dueDate": "2026-10-27",
+  "submitAt": "2026-10-27 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0023",
+  "rectifyNo": "ZG-2026-10-0023",
+  "checkId": "QC0055",
+  "checkNo": "QZ-2026-10-586",
+  "communityId": "P02",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "设备房检查发现问题 5（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "设备房检查发现问题 6（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "设备房检查发现问题 7（详见检查记录 QZ-2026-10-586）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 7 项待整改",
+  "createdAt": "2026-10-11 10:30",
+  "dueDate": "2026-10-24",
+  "submitAt": "2026-10-24 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-24 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0024",
+  "rectifyNo": "ZG-2026-10-0024",
+  "checkId": "QC0032",
+  "checkNo": "QZ-2026-10-740",
+  "communityId": "P02",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-10-740）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-10-740）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-10-740）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-10-740）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 4 项待整改",
+  "createdAt": "2026-10-10 10:30",
+  "dueDate": "2026-10-19",
+  "submitAt": "2026-10-19 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0025",
+  "rectifyNo": "ZG-2026-10-0025",
+  "checkId": "QC0044",
+  "checkNo": "QZ-2026-10-457",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-10-457）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 7 项待整改",
+  "createdAt": "2026-10-10 10:30",
+  "dueDate": "2026-10-20",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0026",
+  "rectifyNo": "ZG-2026-10-0026",
+  "checkId": "QC0053",
+  "checkNo": "QZ-2026-10-984",
+  "communityId": "P02",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-10-984）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-10-984）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-10-984）",
+    "done": false
+   }
+  ],
+  "issueDesc": "绿化带：共 3 项待整改",
+  "createdAt": "2026-10-10 10:30",
+  "dueDate": "2026-10-15",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0027",
+  "rectifyNo": "ZG-2026-10-0027",
+  "checkId": "QC0056",
+  "checkNo": "QZ-2026-10-027",
+  "communityId": "P02",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "电梯机房检查发现问题 8（详见检查记录 QZ-2026-10-027）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 8 项待整改",
+  "createdAt": "2026-10-10 10:30",
+  "dueDate": "2026-10-16",
+  "submitAt": "2026-10-16 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-16 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0028",
+  "rectifyNo": "ZG-2026-10-0028",
+  "checkId": "QC0015",
+  "checkNo": "QZ-2026-10-322",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "设备房检查发现问题 5（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "设备房检查发现问题 6（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "设备房检查发现问题 7（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "设备房检查发现问题 8（详见检查记录 QZ-2026-10-322）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 8 项待整改",
+  "createdAt": "2026-10-09 10:30",
+  "dueDate": "2026-10-20",
+  "submitAt": "2026-10-20 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-20 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0029",
+  "rectifyNo": "ZG-2026-10-0029",
+  "checkId": "QC0020",
+  "checkNo": "QZ-2026-10-382",
+  "communityId": "P01",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "地下车库检查发现问题 6（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "地下车库检查发现问题 7（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "地下车库检查发现问题 8（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   },
+   {
+    "no": 9,
+    "desc": "地下车库检查发现问题 9（详见检查记录 QZ-2026-10-382）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 9 项待整改",
+  "createdAt": "2026-10-09 10:30",
+  "dueDate": "2026-10-17",
+  "submitAt": "2026-10-17 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-17 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0030",
+  "rectifyNo": "ZG-2026-10-0030",
+  "checkId": "QC0059",
+  "checkNo": "QZ-2026-10-337",
+  "communityId": "P02",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-10-337）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-10-337）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-10-337）",
+    "done": true
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 3 项待整改",
+  "createdAt": "2026-10-09 10:30",
+  "dueDate": "2026-10-23",
+  "submitAt": "2026-10-23 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-23 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0031",
+  "rectifyNo": "ZG-2026-10-0031",
+  "checkId": "QC0088",
+  "checkNo": "QZ-2026-10-079",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "重大",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-10-079）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-10-079）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-10-079）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 3 项待整改",
+  "createdAt": "2026-10-07 10:30",
+  "dueDate": "2026-10-12",
+  "submitAt": "2026-10-12 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-12 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0032",
+  "rectifyNo": "ZG-2026-10-0032",
+  "checkId": "QC0003",
+  "checkNo": "QZ-2026-10-170",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-10-170）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 7 项待整改",
+  "createdAt": "2026-10-06 10:30",
+  "dueDate": "2026-10-13",
+  "submitAt": "2026-10-13 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0033",
+  "rectifyNo": "ZG-2026-10-0033",
+  "checkId": "QC0046",
+  "checkNo": "QZ-2026-10-387",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-10-387）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-10-387）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-10-387）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-10-387）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 4 项待整改",
+  "createdAt": "2026-10-03 10:30",
+  "dueDate": "2026-10-17",
+  "submitAt": "2026-10-17 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0034",
+  "rectifyNo": "ZG-2026-09-0034",
+  "checkId": "QC0050",
+  "checkNo": "QZ-2026-09-976",
+  "communityId": "P02",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-09-976）",
+    "done": false
+   },
+   {
+    "no": 4,
+    "desc": "楼栋大堂检查发现问题 4（详见检查记录 QZ-2026-09-976）",
+    "done": false
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 4 项待整改",
+  "createdAt": "2026-09-29 10:30",
+  "dueDate": "2026-10-05",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0035",
+  "rectifyNo": "ZG-2026-09-0035",
+  "checkId": "QC0033",
+  "checkNo": "QZ-2026-09-947",
+  "communityId": "P02",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-09-947）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-09-947）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-09-947）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-09-947）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-09-947）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 5 项待整改",
+  "createdAt": "2026-09-27 10:30",
+  "dueDate": "2026-10-06",
+  "submitAt": "2026-10-06 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-06 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0036",
+  "rectifyNo": "ZG-2026-09-0036",
+  "checkId": "QC0043",
+  "checkNo": "QZ-2026-09-138",
+  "communityId": "P02",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "绿化带检查发现问题 6（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "绿化带检查发现问题 7（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "绿化带检查发现问题 8（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   },
+   {
+    "no": 9,
+    "desc": "绿化带检查发现问题 9（详见检查记录 QZ-2026-09-138）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 9 项待整改",
+  "createdAt": "2026-09-25 10:30",
+  "dueDate": "2026-09-29",
+  "submitAt": "2026-09-29 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-09-29 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0037",
+  "rectifyNo": "ZG-2026-09-0037",
+  "checkId": "QC0085",
+  "checkNo": "QZ-2026-09-303",
+  "communityId": "P03",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-09-303）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-09-303）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-09-303）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 3 项待整改",
+  "createdAt": "2026-09-24 10:30",
+  "dueDate": "2026-10-02",
+  "submitAt": "2026-10-02 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-10-02 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0038",
+  "rectifyNo": "ZG-2026-09-0038",
+  "checkId": "QC0078",
+  "checkNo": "QZ-2026-09-961",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-09-961）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-09-961）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-09-961）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-09-961）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 4 项待整改",
+  "createdAt": "2026-09-21 10:30",
+  "dueDate": "2026-10-01",
+  "submitAt": "2026-10-01 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0039",
+  "rectifyNo": "ZG-2026-09-0039",
+  "checkId": "QC0011",
+  "checkNo": "QZ-2026-09-601",
+  "communityId": "P01",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "公共区域检查发现问题 4（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "公共区域检查发现问题 5（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "公共区域检查发现问题 6（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "公共区域检查发现问题 7（详见检查记录 QZ-2026-09-601）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 7 项待整改",
+  "createdAt": "2026-09-18 10:30",
+  "dueDate": "2026-09-26",
+  "submitAt": "2026-09-26 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0040",
+  "rectifyNo": "ZG-2026-09-0040",
+  "checkId": "QC0017",
+  "checkNo": "QZ-2026-09-427",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-09-427）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 1 项待整改",
+  "createdAt": "2026-09-10 10:30",
+  "dueDate": "2026-09-25",
+  "submitAt": "2026-09-25 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0041",
+  "rectifyNo": "ZG-2026-09-0041",
+  "checkId": "QC0072",
+  "checkNo": "QZ-2026-09-976",
+  "communityId": "P03",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-09-976）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 4 项待整改",
+  "createdAt": "2026-09-09 10:30",
+  "dueDate": "2026-09-13",
+  "submitAt": "2026-09-13 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-09-13 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0042",
+  "rectifyNo": "ZG-2026-09-0042",
+  "checkId": "QC0090",
+  "checkNo": "QZ-2026-09-997",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-09-997）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-09-997）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-09-997）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-09-997）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 4 项待整改",
+  "createdAt": "2026-09-09 10:30",
+  "dueDate": "2026-09-17",
+  "submitAt": "2026-09-17 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0043",
+  "rectifyNo": "ZG-2026-09-0043",
+  "checkId": "QC0076",
+  "checkNo": "QZ-2026-09-676",
+  "communityId": "P03",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-09-676）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-09-676）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-09-676）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "楼栋大堂检查发现问题 4（详见检查记录 QZ-2026-09-676）",
+    "done": true
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 4 项待整改",
+  "createdAt": "2026-09-03 10:30",
+  "dueDate": "2026-09-17",
+  "submitAt": "2026-09-17 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0044",
+  "rectifyNo": "ZG-2026-09-0044",
+  "checkId": "QC0071",
+  "checkNo": "QZ-2026-09-442",
+  "communityId": "P03",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-09-442）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-09-442）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-09-442）",
+    "done": false
+   }
+  ],
+  "issueDesc": "设备房：共 3 项待整改",
+  "createdAt": "2026-09-01 10:30",
+  "dueDate": "2026-09-16",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0045",
+  "rectifyNo": "ZG-2026-08-0045",
+  "checkId": "QC0083",
+  "checkNo": "QZ-2026-08-502",
+  "communityId": "P03",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "电梯机房检查发现问题 8（详见检查记录 QZ-2026-08-502）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 8 项待整改",
+  "createdAt": "2026-08-29 10:30",
+  "dueDate": "2026-09-03",
+  "submitAt": "2026-09-03 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0046",
+  "rectifyNo": "ZG-2026-08-0046",
+  "checkId": "QC0040",
+  "checkNo": "QZ-2026-08-326",
+  "communityId": "P02",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "公共区域检查发现问题 4（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "公共区域检查发现问题 5（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "公共区域检查发现问题 6（详见检查记录 QZ-2026-08-326）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 6 项待整改",
+  "createdAt": "2026-08-25 10:30",
+  "dueDate": "2026-09-03",
+  "submitAt": "2026-09-03 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-09-03 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0047",
+  "rectifyNo": "ZG-2026-08-0047",
+  "checkId": "QC0034",
+  "checkNo": "QZ-2026-08-248",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-08-248）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 1 项待整改",
+  "createdAt": "2026-08-22 10:30",
+  "dueDate": "2026-09-04",
+  "submitAt": "2026-09-04 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0048",
+  "rectifyNo": "ZG-2026-08-0048",
+  "checkId": "QC0042",
+  "checkNo": "QZ-2026-08-365",
+  "communityId": "P02",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-08-365）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-08-365）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 2 项待整改",
+  "createdAt": "2026-08-20 10:30",
+  "dueDate": "2026-08-27",
+  "submitAt": "2026-08-27 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0049",
+  "rectifyNo": "ZG-2026-08-0049",
+  "checkId": "QC0021",
+  "checkNo": "QZ-2026-08-453",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-08-453）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-08-453）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-08-453）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 3 项待整改",
+  "createdAt": "2026-08-19 10:30",
+  "dueDate": "2026-08-23",
+  "submitAt": "2026-08-23 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-08-23 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0050",
+  "rectifyNo": "ZG-2026-08-0050",
+  "checkId": "QC0082",
+  "checkNo": "QZ-2026-08-785",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-08-785）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-08-785）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-08-785）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   },
+   {
+    "no": 6,
+    "desc": "绿化带检查发现问题 6（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   },
+   {
+    "no": 7,
+    "desc": "绿化带检查发现问题 7（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   },
+   {
+    "no": 8,
+    "desc": "绿化带检查发现问题 8（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   },
+   {
+    "no": 9,
+    "desc": "绿化带检查发现问题 9（详见检查记录 QZ-2026-08-785）",
+    "done": false
+   }
+  ],
+  "issueDesc": "绿化带：共 9 项待整改",
+  "createdAt": "2026-08-15 10:30",
+  "dueDate": "2026-08-19",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0051",
+  "rectifyNo": "ZG-2026-08-0051",
+  "checkId": "QC0048",
+  "checkNo": "QZ-2026-08-928",
+  "communityId": "P02",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-08-928）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 7 项待整改",
+  "createdAt": "2026-08-13 10:30",
+  "dueDate": "2026-08-18",
+  "submitAt": "2026-08-18 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-08-18 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0052",
+  "rectifyNo": "ZG-2026-08-0052",
+  "checkId": "QC0038",
+  "checkNo": "QZ-2026-08-916",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-08-916）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-08-916）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 2 项待整改",
+  "createdAt": "2026-08-12 10:30",
+  "dueDate": "2026-08-16",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0053",
+  "rectifyNo": "ZG-2026-08-0053",
+  "checkId": "QC0077",
+  "checkNo": "QZ-2026-08-132",
+  "communityId": "P03",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "电梯机房检查发现问题 8（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   },
+   {
+    "no": 9,
+    "desc": "电梯机房检查发现问题 9（详见检查记录 QZ-2026-08-132）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 9 项待整改",
+  "createdAt": "2026-08-08 10:30",
+  "dueDate": "2026-08-15",
+  "submitAt": "2026-08-15 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0054",
+  "rectifyNo": "ZG-2026-08-0054",
+  "checkId": "QC0089",
+  "checkNo": "QZ-2026-08-920",
+  "communityId": "P03",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "重大",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "地下车库检查发现问题 6（详见检查记录 QZ-2026-08-920）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 6 项待整改",
+  "createdAt": "2026-08-07 10:30",
+  "dueDate": "2026-08-13",
+  "submitAt": "2026-08-13 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-08-13 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0055",
+  "rectifyNo": "ZG-2026-08-0055",
+  "checkId": "QC0068",
+  "checkNo": "QZ-2026-08-962",
+  "communityId": "P03",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "公共区域检查发现问题 4（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "公共区域检查发现问题 5（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "公共区域检查发现问题 6（详见检查记录 QZ-2026-08-962）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "公共区域检查发现问题 7（详见检查记录 QZ-2026-08-962）",
+    "done": false
+   }
+  ],
+  "issueDesc": "公共区域：共 7 项待整改",
+  "createdAt": "2026-08-04 10:30",
+  "dueDate": "2026-08-09",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0056",
+  "rectifyNo": "ZG-2026-08-0056",
+  "checkId": "QC0009",
+  "checkNo": "QZ-2026-08-407",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-08-407）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-08-407）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-08-407）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 3 项待整改",
+  "createdAt": "2026-08-03 10:30",
+  "dueDate": "2026-08-17",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0057",
+  "rectifyNo": "ZG-2026-08-0057",
+  "checkId": "QC0029",
+  "checkNo": "QZ-2026-08-461",
+  "communityId": "P01",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-08-461）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-08-461）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-08-461）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 3 项待整改",
+  "createdAt": "2026-08-02 10:30",
+  "dueDate": "2026-08-15",
+  "submitAt": "2026-08-15 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0058",
+  "rectifyNo": "ZG-2026-07-0058",
+  "checkId": "QC0087",
+  "checkNo": "QZ-2026-07-093",
+  "communityId": "P03",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-07-093）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-07-093）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-07-093）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-07-093）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 4 项待整改",
+  "createdAt": "2026-07-27 10:30",
+  "dueDate": "2026-07-31",
+  "submitAt": "2026-07-31 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0059",
+  "rectifyNo": "ZG-2026-07-0059",
+  "checkId": "QC0051",
+  "checkNo": "QZ-2026-07-599",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "园区外围检查发现问题 6（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "园区外围检查发现问题 7（详见检查记录 QZ-2026-07-599）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 7 项待整改",
+  "createdAt": "2026-07-24 10:30",
+  "dueDate": "2026-07-29",
+  "submitAt": "2026-07-29 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0060",
+  "rectifyNo": "ZG-2026-07-0060",
+  "checkId": "QC0064",
+  "checkNo": "QZ-2026-07-066",
+  "communityId": "P03",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-07-066）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-07-066）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-07-066）",
+    "done": false
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-07-066）",
+    "done": false
+   }
+  ],
+  "issueDesc": "设备房：共 4 项待整改",
+  "createdAt": "2026-07-24 10:30",
+  "dueDate": "2026-08-01",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0061",
+  "rectifyNo": "ZG-2026-07-0061",
+  "checkId": "QC0023",
+  "checkNo": "QZ-2026-07-582",
+  "communityId": "P01",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-07-582）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-07-582）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "公共区域检查发现问题 3（详见检查记录 QZ-2026-07-582）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 3 项待整改",
+  "createdAt": "2026-07-18 10:30",
+  "dueDate": "2026-07-22",
+  "submitAt": "2026-07-22 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0062",
+  "rectifyNo": "ZG-2026-07-0062",
+  "checkId": "QC0026",
+  "checkNo": "QZ-2026-07-437",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-07-437）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-07-437）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-07-437）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-07-437）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "设备房检查发现问题 5（详见检查记录 QZ-2026-07-437）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 5 项待整改",
+  "createdAt": "2026-07-11 10:30",
+  "dueDate": "2026-07-24",
+  "submitAt": "2026-07-24 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-07-24 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0063",
+  "rectifyNo": "ZG-2026-07-0063",
+  "checkId": "QC0086",
+  "checkNo": "QZ-2026-07-647",
+  "communityId": "P03",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-07-647）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 1 项待整改",
+  "createdAt": "2026-07-11 10:30",
+  "dueDate": "2026-07-18",
+  "submitAt": "2026-07-18 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-07-18 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0064",
+  "rectifyNo": "ZG-2026-07-0064",
+  "checkId": "QC0018",
+  "checkNo": "QZ-2026-07-469",
+  "communityId": "P01",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-07-469）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 7 项待整改",
+  "createdAt": "2026-07-06 10:30",
+  "dueDate": "2026-07-14",
+  "submitAt": "2026-07-14 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-07-14 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0065",
+  "rectifyNo": "ZG-2026-06-0065",
+  "checkId": "QC0027",
+  "checkNo": "QZ-2026-06-021",
+  "communityId": "P01",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "一般",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "绿化带检查发现问题 6（详见检查记录 QZ-2026-06-021）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 6 项待整改",
+  "createdAt": "2026-06-29 10:30",
+  "dueDate": "2026-07-04",
+  "submitAt": "2026-07-04 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0066",
+  "rectifyNo": "ZG-2026-06-0066",
+  "checkId": "QC0049",
+  "checkNo": "QZ-2026-06-801",
+  "communityId": "P02",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "楼栋大堂检查发现问题 4（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "楼栋大堂检查发现问题 5（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "楼栋大堂检查发现问题 6（详见检查记录 QZ-2026-06-801）",
+    "done": true
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 6 项待整改",
+  "createdAt": "2026-06-28 10:30",
+  "dueDate": "2026-07-13",
+  "submitAt": "2026-07-13 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-07-13 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0067",
+  "rectifyNo": "ZG-2026-06-0067",
+  "checkId": "QC0035",
+  "checkNo": "QZ-2026-06-085",
+  "communityId": "P02",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "一般",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-06-085）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-06-085）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "楼栋大堂检查发现问题 3（详见检查记录 QZ-2026-06-085）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "楼栋大堂检查发现问题 4（详见检查记录 QZ-2026-06-085）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "楼栋大堂检查发现问题 5（详见检查记录 QZ-2026-06-085）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "楼栋大堂检查发现问题 6（详见检查记录 QZ-2026-06-085）",
+    "done": false
+   },
+   {
+    "no": 7,
+    "desc": "楼栋大堂检查发现问题 7（详见检查记录 QZ-2026-06-085）",
+    "done": false
+   },
+   {
+    "no": 8,
+    "desc": "楼栋大堂检查发现问题 8（详见检查记录 QZ-2026-06-085）",
+    "done": false
+   },
+   {
+    "no": 9,
+    "desc": "楼栋大堂检查发现问题 9（详见检查记录 QZ-2026-06-085）",
+    "done": false
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 9 项待整改",
+  "createdAt": "2026-06-26 10:30",
+  "dueDate": "2026-07-08",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0068",
+  "rectifyNo": "ZG-2026-06-0068",
+  "checkId": "QC0052",
+  "checkNo": "QZ-2026-06-873",
+  "communityId": "P02",
+  "deptName": "电梯机房",
+  "area": "电梯机房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "电梯机房检查发现问题 1（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "电梯机房检查发现问题 2（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "电梯机房检查发现问题 3（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "电梯机房检查发现问题 4（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "电梯机房检查发现问题 5（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "电梯机房检查发现问题 6（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "电梯机房检查发现问题 7（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "电梯机房检查发现问题 8（详见检查记录 QZ-2026-06-873）",
+    "done": true
+   }
+  ],
+  "issueDesc": "电梯机房：共 8 项待整改",
+  "createdAt": "2026-06-24 10:30",
+  "dueDate": "2026-06-29",
+  "submitAt": "2026-06-29 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-06-29 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0069",
+  "rectifyNo": "ZG-2026-06-0069",
+  "checkId": "QC0036",
+  "checkNo": "QZ-2026-06-036",
+  "communityId": "P02",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-06-036）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-06-036）",
+    "done": true
+   }
+  ],
+  "issueDesc": "园区外围：共 2 项待整改",
+  "createdAt": "2026-06-21 10:30",
+  "dueDate": "2026-07-03",
+  "submitAt": "2026-07-03 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0070",
+  "rectifyNo": "ZG-2026-06-0070",
+  "checkId": "QC0061",
+  "checkNo": "QZ-2026-06-911",
+  "communityId": "P03",
+  "deptName": "绿化带",
+  "area": "绿化带",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "绿化带检查发现问题 1（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "绿化带检查发现问题 2（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "绿化带检查发现问题 3（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "绿化带检查发现问题 4（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "绿化带检查发现问题 5（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "绿化带检查发现问题 6（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "绿化带检查发现问题 7（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 8,
+    "desc": "绿化带检查发现问题 8（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   },
+   {
+    "no": 9,
+    "desc": "绿化带检查发现问题 9（详见检查记录 QZ-2026-06-911）",
+    "done": true
+   }
+  ],
+  "issueDesc": "绿化带：共 9 项待整改",
+  "createdAt": "2026-06-20 10:30",
+  "dueDate": "2026-07-04",
+  "submitAt": "2026-07-04 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-07-04 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0071",
+  "rectifyNo": "ZG-2026-06-0071",
+  "checkId": "QC0030",
+  "checkNo": "QZ-2026-06-880",
+  "communityId": "P01",
+  "deptName": "楼栋大堂",
+  "area": "楼栋大堂",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "楼栋大堂检查发现问题 1（详见检查记录 QZ-2026-06-880）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "楼栋大堂检查发现问题 2（详见检查记录 QZ-2026-06-880）",
+    "done": true
+   }
+  ],
+  "issueDesc": "楼栋大堂：共 2 项待整改",
+  "createdAt": "2026-06-19 10:30",
+  "dueDate": "2026-07-02",
+  "submitAt": "2026-07-02 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0072",
+  "rectifyNo": "ZG-2026-06-0072",
+  "checkId": "QC0047",
+  "checkNo": "QZ-2026-06-790",
+  "communityId": "P02",
+  "deptName": "公共区域",
+  "area": "公共区域",
+  "level": "轻微",
+  "status": "待复核",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "公共区域检查发现问题 1（详见检查记录 QZ-2026-06-790）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "公共区域检查发现问题 2（详见检查记录 QZ-2026-06-790）",
+    "done": true
+   }
+  ],
+  "issueDesc": "公共区域：共 2 项待整改",
+  "createdAt": "2026-06-18 10:30",
+  "dueDate": "2026-06-25",
+  "submitAt": "2026-06-25 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0073",
+  "rectifyNo": "ZG-2026-06-0073",
+  "checkId": "QC0057",
+  "checkNo": "QZ-2026-06-805",
+  "communityId": "P02",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-06-805）",
+    "done": false
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-06-805）",
+    "done": false
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-06-805）",
+    "done": false
+   }
+  ],
+  "issueDesc": "地下车库：共 3 项待整改",
+  "createdAt": "2026-06-17 10:30",
+  "dueDate": "2026-06-28",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0074",
+  "rectifyNo": "ZG-2026-06-0074",
+  "checkId": "QC0019",
+  "checkNo": "QZ-2026-06-411",
+  "communityId": "P01",
+  "deptName": "园区外围",
+  "area": "园区外围",
+  "level": "轻微",
+  "status": "待整改",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "园区外围检查发现问题 1（详见检查记录 QZ-2026-06-411）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "园区外围检查发现问题 2（详见检查记录 QZ-2026-06-411）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "园区外围检查发现问题 3（详见检查记录 QZ-2026-06-411）",
+    "done": false
+   },
+   {
+    "no": 4,
+    "desc": "园区外围检查发现问题 4（详见检查记录 QZ-2026-06-411）",
+    "done": false
+   },
+   {
+    "no": 5,
+    "desc": "园区外围检查发现问题 5（详见检查记录 QZ-2026-06-411）",
+    "done": false
+   }
+  ],
+  "issueDesc": "园区外围：共 5 项待整改",
+  "createdAt": "2026-06-15 10:30",
+  "dueDate": "2026-06-28",
+  "submitAt": "",
+  "submitBy": "",
+  "submitRemark": "",
+  "recheckAt": "",
+  "recheckResult": "",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0075",
+  "rectifyNo": "ZG-2026-05-0075",
+  "checkId": "QC0081",
+  "checkNo": "QZ-2026-05-650",
+  "communityId": "P03",
+  "deptName": "地下车库",
+  "area": "地下车库",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "地下车库检查发现问题 1（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "地下车库检查发现问题 2（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "地下车库检查发现问题 3（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "地下车库检查发现问题 4（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "地下车库检查发现问题 5（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "地下车库检查发现问题 6（详见检查记录 QZ-2026-05-650）",
+    "done": true
+   }
+  ],
+  "issueDesc": "地下车库：共 6 项待整改",
+  "createdAt": "2026-05-30 10:30",
+  "dueDate": "2026-06-10",
+  "submitAt": "2026-06-10 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-06-10 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ },
+ {
+  "rectifyId": "RC0076",
+  "rectifyNo": "ZG-2026-05-0076",
+  "checkId": "QC0010",
+  "checkNo": "QZ-2026-05-172",
+  "communityId": "P01",
+  "deptName": "设备房",
+  "area": "设备房",
+  "level": "一般",
+  "status": "已闭环",
+  "sourceType": "现场抽查",
+  "items": [
+   {
+    "no": 1,
+    "desc": "设备房检查发现问题 1（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 2,
+    "desc": "设备房检查发现问题 2（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 3,
+    "desc": "设备房检查发现问题 3（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 4,
+    "desc": "设备房检查发现问题 4（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 5,
+    "desc": "设备房检查发现问题 5（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 6,
+    "desc": "设备房检查发现问题 6（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   },
+   {
+    "no": 7,
+    "desc": "设备房检查发现问题 7（详见检查记录 QZ-2026-05-172）",
+    "done": true
+   }
+  ],
+  "issueDesc": "设备房：共 7 项待整改",
+  "createdAt": "2026-05-27 10:30",
+  "dueDate": "2026-06-01",
+  "submitAt": "2026-06-01 17:10",
+  "submitBy": "部门经理",
+  "submitRemark": "已按要求整改并上传现场照片",
+  "recheckAt": "2026-06-01 09:40",
+  "recheckResult": "通过",
+  "_ver": 1
+ }
+]

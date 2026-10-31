@@ -1,0 +1,16 @@
+{
+  "name": "wy-property-contracts",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "接口契约（OpenAPI 3.1）+ 假服务 + 契约测试：原型 → 后台的交付物",
+  "scripts": {
+    "mock": "node mock-server.mjs",
+    "test": "node contract-test.mjs",
+    "gen:enums": "node scripts/gen-enums.mjs",
+    "gen:fixtures": "node scripts/gen-fixtures.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

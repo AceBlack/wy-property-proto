@@ -1,0 +1,170 @@
+[
+ {
+  "orgId": "O-ROOT",
+  "name": "嘉合物业服务集团",
+  "parentId": "",
+  "type": "集团",
+  "leader": "周建国",
+  "sort": 1
+ },
+ {
+  "orgId": "O-HEAD",
+  "name": "总部职能中心",
+  "parentId": "O-ROOT",
+  "type": "部门",
+  "leader": "周建国",
+  "sort": 2
+ },
+ {
+  "orgId": "O-FIN",
+  "name": "财务管理部",
+  "parentId": "O-HEAD",
+  "type": "部门",
+  "leader": "何淑珍",
+  "sort": 3
+ },
+ {
+  "orgId": "O-HR",
+  "name": "人力资源部",
+  "parentId": "O-HEAD",
+  "type": "部门",
+  "leader": "谢文博",
+  "sort": 4
+ },
+ {
+  "orgId": "O-QS",
+  "name": "品质管理部",
+  "parentId": "O-HEAD",
+  "type": "部门",
+  "leader": "梁雅静",
+  "sort": 5
+ },
+ {
+  "orgId": "O-ENG",
+  "name": "工程管理部",
+  "parentId": "O-HEAD",
+  "type": "部门",
+  "leader": "罗天佑",
+  "sort": 6
+ },
+ {
+  "orgId": "O-P01",
+  "name": "翡翠城项目部",
+  "parentId": "O-ROOT",
+  "type": "项目",
+  "leader": "张振华",
+  "sort": 7
+ },
+ {
+  "orgId": "O-P02",
+  "name": "锦绣家园项目部",
+  "parentId": "O-ROOT",
+  "type": "项目",
+  "leader": "李春梅",
+  "sort": 8
+ },
+ {
+  "orgId": "O-P03",
+  "name": "星光天地项目部",
+  "parentId": "O-ROOT",
+  "type": "项目",
+  "leader": "陈瑞",
+  "sort": 9
+ },
+ {
+  "orgId": "O-P01-T1",
+  "name": "客服组",
+  "parentId": "O-P01",
+  "type": "班组",
+  "leader": "万军",
+  "sort": 10
+ },
+ {
+  "orgId": "O-P01-T2",
+  "name": "工程组",
+  "parentId": "O-P01",
+  "type": "班组",
+  "leader": "苏春梅",
+  "sort": 11
+ },
+ {
+  "orgId": "O-P01-T3",
+  "name": "安保组",
+  "parentId": "O-P01",
+  "type": "班组",
+  "leader": "胡建国",
+  "sort": 12
+ },
+ {
+  "orgId": "O-P01-T4",
+  "name": "环境组",
+  "parentId": "O-P01",
+  "type": "班组",
+  "leader": "周伟",
+  "sort": 13
+ },
+ {
+  "orgId": "O-P02-T1",
+  "name": "客服组",
+  "parentId": "O-P02",
+  "type": "班组",
+  "leader": "段浩",
+  "sort": 14
+ },
+ {
+  "orgId": "O-P02-T2",
+  "name": "工程组",
+  "parentId": "O-P02",
+  "type": "班组",
+  "leader": "薛淼然",
+  "sort": 15
+ },
+ {
+  "orgId": "O-P02-T3",
+  "name": "安保组",
+  "parentId": "O-P02",
+  "type": "班组",
+  "leader": "向建华",
+  "sort": 16
+ },
+ {
+  "orgId": "O-P02-T4",
+  "name": "环境组",
+  "parentId": "O-P02",
+  "type": "班组",
+  "leader": "钱文博",
+  "sort": 17
+ },
+ {
+  "orgId": "O-P03-T1",
+  "name": "客服组",
+  "parentId": "O-P03",
+  "type": "班组",
+  "leader": "宋杰",
+  "sort": 18
+ },
+ {
+  "orgId": "O-P03-T2",
+  "name": "工程组",
+  "parentId": "O-P03",
+  "type": "班组",
+  "leader": "谢佳怡",
+  "sort": 19
+ },
+ {
+  "orgId": "O-P03-T3",
+  "name": "安保组",
+  "parentId": "O-P03",
+  "type": "班组",
+  "leader": "范鑫",
+  "sort": 20
+ },
+ {
+  "orgId": "O-P03-T4",
+  "name": "环境组",
+  "parentId": "O-P03",
+  "type": "班组",
+  "leader": "段娟",
+  "sort": 21
+ }
+]

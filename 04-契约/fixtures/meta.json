@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-10-30T04:05:40",
+  "source": "02-原型设计/mock/（seed_dataset.py，SEED 20261021）",
+  "dataDate": "2026-10-21",
+  "counts": {
+    "owners": 60,
+    "houses": 160,
+    "bills": 252,
+    "payments": 160,
+    "workOrders": 120,
+    "tenants": 80,
+    "inspectTasks": 120,
+    "rectifyOrders": 76,
+    "qualityChecks": 90
+  },
+  "note": "样例数据的真值与原型一致；列表接口由服务端脱敏后再下发，不要在前端脱敏"
+}

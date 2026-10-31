@@ -1,0 +1,319 @@
+{
+  "generatedAt": "2026-10-30T06:56:25",
+  "source": "02-原型设计/mock/*.json（seed_dataset.py 生成）",
+  "note": "值本身为中文，后端请用 @JsonValue/@JsonCreator 直接映射，不要另造英文 code——否则前后端各存一套必然分叉",
+  "enums": {
+    "billStatus": {
+      "values": [
+        "部分缴",
+        "未缴",
+        "已减免",
+        "已缴",
+        "已作废",
+        "逾期"
+      ],
+      "usedBy": [
+        "Bill.status"
+      ],
+      "note": "账单状态；「已减免」「已作废」不计入应收"
+    },
+    "billItem": {
+      "values": [
+        "车位管理服务费",
+        "电费",
+        "水费",
+        "物业服务费"
+      ],
+      "usedBy": [
+        "Bill.itemName"
+      ],
+      "note": "收费科目名称（科目主数据见 /fee-items）"
+    },
+    "payMethod": {
+      "values": [
+        "微信支付",
+        "现金",
+        "银行代扣",
+        "预存抵扣",
+        "支付宝",
+        "POS刷卡"
+      ],
+      "usedBy": [
+        "Payment.method"
+      ],
+      "note": "收款方式；现金需日结实点"
+    },
+    "payChannel": {
+      "values": [
+        "微信支付",
+        "现金",
+        "银行代扣",
+        "预存抵扣",
+        "支付宝",
+        "POS刷卡"
+      ],
+      "usedBy": [
+        "Payment.channel"
+      ],
+      "note": "收款渠道；与 method 不强绑定（POS 可刷微信）"
+    },
+    "invoiceStatus": {
+      "values": [
+        "未开票",
+        "已冲红",
+        "已开票"
+      ],
+      "usedBy": [
+        "Payment.invoiceStatus"
+      ],
+      "note": "开票状态；退款时已开票转「已冲红」"
+    },
+    "woStatus": {
+      "values": [
+        "处理中",
+        "待派单",
+        "待确认",
+        "已关闭",
+        "已派单",
+        "已评价",
+        "已取消",
+        "已完工"
+      ],
+      "usedBy": [
+        "WorkOrder.status"
+      ],
+      "note": "终态：已完工 / 已关闭 / 已评价；已取消不进 SLA"
+    },
+    "woType": {
+      "values": [
+        "报事",
+        "公共区域维修",
+        "其他",
+        "入户维修",
+        "投诉建议",
+        "咨询"
+      ],
+      "usedBy": [
+        "WorkOrder.type"
+      ]
+    },
+    "woSource": {
+      "values": [
+        "电话",
+        "前台",
+        "小程序",
+        "巡检转单"
+      ],
+      "usedBy": [
+        "WorkOrder.source"
+      ],
+      "note": "来源：业主自助 / 前台代报 / 电话 / 巡检转单"
+    },
+    "woPriority": {
+      "values": [
+        "紧急",
+        "普通",
+        "特急"
+      ],
+      "usedBy": [
+        "WorkOrder.priority"
+      ],
+      "note": "缺省 SLA：特急 2h / 紧急 4h / 普通 24h / 低 48h（工作日历）"
+    },
+    "woPayStatus": {
+      "values": [
+        "未支付",
+        "无需支付",
+        "已挂账",
+        "已支付"
+      ],
+      "usedBy": [
+        "WorkOrder.payStatus"
+      ]
+    },
+    "tenantVerify": {
+      "values": [
+        "待核验",
+        "信息不全",
+        "已核验"
+      ],
+      "usedBy": [
+        "Tenant.verifyStatus"
+      ],
+      "note": "待核验 / 已核验 / 信息不全"
+    },
+    "tenantSource": {
+      "values": [
+        "物业补录",
+        "业主自助"
+      ],
+      "usedBy": [
+        "Tenant.source"
+      ],
+      "note": "业主自助 / 物业补录"
+    },
+    "contractStatus": {
+      "values": [
+        "待审批",
+        "待生效",
+        "即将到期",
+        "履行中",
+        "已到期",
+        "已终止"
+      ],
+      "usedBy": [
+        "Contract.status"
+      ]
+    },
+    "noticeStatus": {
+      "values": [
+        "草稿",
+        "待审核",
+        "已撤回",
+        "已发布",
+        "已过期"
+      ],
+      "usedBy": [
+        "Notice.status"
+      ]
+    },
+    "tenantStatus": {
+      "values": [
+        "在住",
+        "已搬离"
+      ],
+      "usedBy": [
+        "Tenant.status"
+      ],
+      "note": "在住 / 已搬离；搬离后保留记录可回溯（seed 里全是「在住」，已搬离由操作产生）"
+    },
+    "inspectTaskType": {
+      "values": [
+        "监督",
+        "执行"
+      ],
+      "usedBy": [
+        "InspectTask.taskType"
+      ],
+      "note": "执行 = 一线做；监督 = 部门经理查下属落地情况（问题必须指定责任员工）"
+    },
+    "inspectStatus": {
+      "values": [
+        "待执行",
+        "已完成",
+        "已转工单",
+        "逾期",
+        "执行中"
+      ],
+      "usedBy": [
+        "InspectTask.status"
+      ]
+    },
+    "inspectPost": {
+      "values": [
+        "安保",
+        "保安",
+        "保洁",
+        "工程",
+        "环境",
+        "客服"
+      ],
+      "usedBy": [
+        "InspectTask.post"
+      ],
+      "note": "历史数据里有「保洁 / 保安」旧称，已按「环境 / 安保」统一，保留旧值仅为兼容"
+    },
+    "qualityGrade": {
+      "values": [
+        "不合格",
+        "合格",
+        "良好",
+        "优秀"
+      ],
+      "usedBy": [
+        "QualityCheck.grade"
+      ],
+      "note": "≥90 优秀 / ≥80 良好 / ≥70 合格 / <70 不合格"
+    },
+    "rectifyStatus": {
+      "values": [
+        "待整改",
+        "待复核",
+        "已闭环",
+        "已退回"
+      ],
+      "usedBy": [
+        "RectifyOrder.status"
+      ],
+      "note": "已退回 = 复核不通过，整改项归零重做"
+    },
+    "rectifyLevel": {
+      "values": [
+        "轻微",
+        "一般",
+        "重大"
+      ],
+      "usedBy": [
+        "RectifyOrder.level"
+      ],
+      "note": "重大 = 一票否决；一般 = 扣 ≥6 分"
+    },
+    "reportCode": {
+      "values": [
+        "arrears",
+        "collection-rate",
+        "dept-target"
+      ],
+      "usedBy": [
+        "ReportCode"
+      ],
+      "note": "英文短代码（路由与批次号用）；中文名由前端字典渲染"
+    },
+    "reportBatchStatus": {
+      "values": [
+        "成功",
+        "运行中",
+        "失败"
+      ],
+      "usedBy": [
+        "ReportSnapshot.status"
+      ],
+      "note": "失败批次保留可查，但不参与「最新成功批次」选取"
+    },
+    "agingBucket": {
+      "values": [
+        "未到期",
+        "0-30天",
+        "31-90天",
+        "91-180天",
+        "180天以上"
+      ],
+      "usedBy": [
+        "ArrearsRow.aging"
+      ],
+      "note": "账龄按 statDate 与 dueDate 的天数差分档——所以报表必须落快照"
+    },
+    "reportPeriodType": {
+      "values": [
+        "日",
+        "月",
+        "年"
+      ],
+      "usedBy": [
+        "ReportMeta.periodType",
+        "ReportRetentionType.periodType"
+      ],
+      "note": "对外中文、内部 day/month/year；混用会导致「找不到批次」"
+    },
+    "monthCloseStatus": {
+      "values": [
+        "已结账",
+        "已反结"
+      ],
+      "usedBy": [
+        "MonthClose.status"
+      ],
+      "note": "已反结 = 期间解封、报表批次作废并回到试算，记录不删除"
+    }
+  }
+}
