@@ -21,38 +21,24 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="合同范围" tree-title="合同类型 / 子类型"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜类型 / 子类型"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开合同树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部合同</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方筛选可叠加" @change="run" />
           </div>
 
           <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <el-form-item label="类型">
+              <el-select v-model="query.ctype" placeholder="全部" clearable style="width:118px" @change="onType">
+                <el-option v-for="o in typeOpts" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="子类型">
+              <el-select v-model="query.csub" placeholder="全部" clearable :disabled="!query.ctype" style="width:126px">
+                <el-option v-for="o in subOpts" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="状态">
               <el-select v-model="query.status" placeholder="全部" clearable style="width:92px">
                 <el-option v-for="o in statusOpts" :key="o" :label="o" :value="o" />
@@ -67,13 +53,24 @@
               <el-input v-model="query.kw" placeholder="合同号 / 名称 / 相对方" clearable style="width:150px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="search">查询</el-button>
+              <el-button :icon="'Search'" @click="run">查询</el-button>
               <el-button :icon="'RefreshLeft'" @click="reset">重置</el-button>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="panel" style="margin-top:16px;">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ total }}</b> 份
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
+
           <div class="toolbar">
             <el-button type="primary" :icon="'Plus'" @click="$router.push('/c/contracts/new')">新建合同</el-button>
             <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
@@ -84,7 +81,7 @@
 
           <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 500px)"
             :row-class-name="rowClass" @row-click="onRow">
-            <el-table-column label="合同" min-min-width="220">
+            <el-table-column label="合同" min-width="220">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.name }}</div>
                 <div class="ps-sub">{{ row.contractNo }}</div>
@@ -96,7 +93,7 @@
                 <div class="ps-sub">{{ row.subtype }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="partyB" label="相对方" min-min-width="120" show-overflow-tooltip />
+            <el-table-column prop="partyB" label="相对方" min-width="120" show-overflow-tooltip />
             <el-table-column prop="communityName" label="项目" min-width="104" show-overflow-tooltip />
             <el-table-column label="金额" min-width="96" align="right">
               <template #default="{ row }"><span class="num">¥{{ wan(row.amount) }}</span></template>
@@ -262,12 +259,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   CONTRACT_CHANGE_TYPES, PAGE_SIZES, communityOpts, contractAttachmentRows, contractChanges,
-  contractStatusOpts, contractSummary, contractTree, contractVirtualNodes, getContractDetail,
-  queryContracts, submitContractChange
-} from '@/utils/api'
+  contractStatusOpts, contractSubtypeOpts, contractSummary, contractTypeOpts, contractVirtualNodes,
+  getContractDetail, queryContracts, submitContractChange
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -300,20 +297,35 @@ const { rows, total, pageNo, size, loading, query, load, search } = useListQuery
   queryContracts, { immediate: false, filters: { ...BLANK_ALL } }
 )
 
-const tree = contractTree()
 const vnodes = contractVirtualNodes()
-const summary = ref(contractSummary())
+/* KPI 汇总：mock 同步、http 异步，统一 await；失败保留旧值 */
+const summary = ref({ total: 0, amount: 0, running: 0, expiring: 0, expired: 0, pending: 0 })
+async function syncSummary() {
+  try { summary.value = await contractSummary() } catch { /* 保留旧值 */ }
+}
+syncSummary()
+/* 快捷视图：原左树的虚拟视图节点搬到这里（6 个状态视图 + 全部） */
+const quickViews = [{ key: '', label: '全部', n: summary.value.total }, ...vnodes]
+const expiringN = vnodes.find(v => v.key === 'expiring')?.n || 0
 const statusOpts = contractStatusOpts()
+const typeOpts = contractTypeOpts()
 const communities = communityOpts()
+/* 子类型随类型联动 */
+const subOpts = computed(() => (query.ctype ? contractSubtypeOpts(query.ctype) : []))
+function onType() { query.csub = ''; run() }
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
 const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.find(v => v.key === query.vf)?.label || '') : ''))
+function run() { search() }
 
-const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
+const hasScope = computed(() => !!(query.ctype || query.csub || query.vf || query.communityId || query.status || query.kw))
+const scopeText = computed(() => {
+  const parts = []
+  if (query.ctype) parts.push(query.ctype)
+  if (query.csub) parts.push(query.csub)
+  if (query.communityId) parts.push((communities.find(c => c.id === query.communityId) || {}).name || '')
+  return parts.filter(Boolean).join(' · ') || '全部合同'
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getContractDetail)
 
 /* B 级补齐：下载合同附件 —— 原型无真实文件，按附件份数生成「附件清单」走下载中心 */
@@ -332,14 +344,6 @@ function doDownloadAttachments(c) {
   } catch (e) { ElMessage.error(e?.message || '下载失败') }
 }
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
 const REF_LABEL = { house: '房屋', parking: '车位', employee: '员工' }
 function refTypeLabel(t) { return REF_LABEL[t] || '未绑定' }
 function refName(d) {
@@ -354,41 +358,9 @@ function restText(c) {
   return `剩余 ${c.restDays} 天`
 }
 
-function onPick(node) {
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK_ALL)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
-  search()
+  run()
 }
 function reset() { clearScope() }
 
@@ -429,7 +401,7 @@ async function submitChange() {
     })
     ElMessage.success(`已生成变更单 ${res.change.changeNo}，审批单 ${res.approval.approvalNo}（待审批）`)
     changeVisible.value = false
-    summary.value = contractSummary()
+    await syncSummary()
     load()
     if (detailVisible.value) openDetail(chContract.value.contractId)
   } catch (e) { ElMessage.error(e?.message || '提交失败') }
@@ -442,10 +414,6 @@ useFocusLanding(async ({ focus, open, location }) => {
   if (vf && vnodes.some(v => v.key === vf)) {
     Object.assign(query, BLANK_ALL)
     Object.assign(query, { vf })
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = vf
-    scopePath.value = []
     await load()
     return
   }
@@ -456,26 +424,13 @@ useFocusLanding(async ({ focus, open, location }) => {
       csub: location.csub || '',
       communityId: location.communityId || ''
     })
-    if (location.csub) {
-      activeId.value = `T:${location.ctype}:${location.csub}`
-      activeChain.value = [`T:${location.ctype}`, activeId.value]
-      scopePath.value = pathOf(tree, activeId.value)
-    } else if (location.ctype) {
-      activeId.value = `T:${location.ctype}`
-      activeChain.value = [activeId.value]
-      scopePath.value = pathOf(tree, activeId.value)
-    } else {
-      activeId.value = ''
-      activeChain.value = []
-      scopePath.value = []
-    }
-    activeVn.value = ''
     await load()
     highlightId.value = focus.id
     if (open) openDetail(focus.id)
     return
   }
-  clearScope()
+  Object.assign(query, BLANK_ALL)
+  await load()
 })
 </script>
 

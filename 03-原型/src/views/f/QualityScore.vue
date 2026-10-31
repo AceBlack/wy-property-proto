@@ -121,6 +121,46 @@
         </div>
 
         <div class="panel" style="margin-top:16px;">
+          <div class="panel__hd">
+            <h3>部门达标率</h3><span class="spacer" />
+            <span class="desc">合格率 × 权重 + 完成率 × 权重</span>
+          </div>
+          <el-select v-model="achiDept" size="small" style="width:100%;margin-bottom:10px;">
+            <el-option v-for="d in deptOpts" :key="d.id" :label="`${d.name}（${d.post}）`" :value="d.id" />
+          </el-select>
+          <div class="stat2">
+            <div><span class="stat2__k">完成率</span><b>{{ fp(achi.doneRate) }}</b></div>
+            <div><span class="stat2__k">合格率</span><b>{{ fp(achi.passRate) }}</b></div>
+            <div><span class="stat2__k">加权达标率</span><b class="is-hl">{{ fp(achi.weighted) }}</b></div>
+            <div><span class="stat2__k">部门分</span><b class="is-hl">{{ achi.deptScore }}</b></div>
+            <div><span class="stat2__k">发现问题</span><b>{{ achi.supervisor.found }} 项</b></div>
+            <div><span class="stat2__k">申报冲突</span><b :class="achi.conflicts ? 'is-warn' : ''">{{ achi.conflicts }}</b></div>
+          </div>
+          <div class="hint">
+            权重：合格率 {{ Math.round(achi.weight.pass * 100) }}% + 完成率 {{ Math.round(achi.weight.done * 100) }}%
+            · 任务 {{ achi.finished }}/{{ achi.planned }} 完成 · 检查项 {{ achi.itemOk }}/{{ achi.itemTotal }} 合格
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__hd"><h3>分档扣分与权重</h3><span class="spacer" /><span class="desc">按岗位可配</span></div>
+          <div v-for="r in weights" :key="r.post" class="wrow">
+            <span class="wrow__p">{{ r.post }}</span>
+            <el-input-number
+              v-model="r.passPct" size="small" :min="0" :max="100" :step="5"
+              controls-position="right" style="width:96px;" @change="saveWeight(r)"
+            />
+            <span class="muted" style="font-size:11.5px;">% 合格率 / {{ 100 - r.passPct }}% 完成率</span>
+            <el-tag v-if="r.customized" size="small" type="warning" effect="plain">已改</el-tag>
+          </div>
+          <div class="sec__hd" style="margin:14px 0 8px;"><h4>问题处置分档</h4></div>
+          <div v-for="r in deductRows" :key="r.key" class="drule" :class="`is-${r.key}`">
+            <div class="drule__t">{{ r.label }}</div>
+            <div class="drule__s">{{ r.note }}</div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
           <el-button type="primary" style="width:100%;" :loading="saving" @click="submit">提交评分并生成整改单</el-button>
           <el-button style="width:100%;margin:8px 0 0 0;">存为草稿</el-button>
         </div>
@@ -132,8 +172,34 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { communities } from '@/utils/api'
+import {
+  DEDUCT_RULES, achievementDeptOpts, communities, deptAchievement,
+  qualityWeightRows, setQualityWeight
+} from '@/utils/api'
+import { pct } from '@/utils/format'
 import { bucketColor } from '@/utils/dict'
+
+/* ---------- 部门达标率（P1：合格率 × 权重 + 完成率 × 权重） ---------- */
+const deptOpts = achievementDeptOpts()
+const achiDept = ref(deptOpts[0]?.id || '')
+/** 权重是模块级 Map（非响应式），改完靠这个版本号触发达标率重算 */
+const wVer = ref(0)
+const achi = computed(() => {
+  void wVer.value
+  return deptAchievement({ orgId: achiDept.value })
+})
+/** 后端返回的是小数比例，页面统一按百分数展示 */
+const fp = v => pct((Number(v) || 0) * 100)
+const weights = ref(qualityWeightRows().map(r => ({ ...r, passPct: Math.round(r.pass * 100) })))
+const deductRows = Object.values(DEDUCT_RULES)
+function saveWeight(r) {
+  try {
+    setQualityWeight(r.post, r.passPct / 100, Number(((100 - r.passPct) / 100).toFixed(2)))
+    weights.value = qualityWeightRows().map(x => ({ ...x, passPct: Math.round(x.pass * 100) }))
+    wVer.value++
+    ElMessage.success(`「${r.post}」权重已更新：合格率 ${r.passPct}% / 完成率 ${100 - r.passPct}%`)
+  } catch (e) { ElMessage.error(e?.message || '权重保存失败') }
+}
 
 const target = reactive({ community: 'P01', area: '公共区域', type: '日常', auditor: '品质专员 · 韩雪' })
 const grades = [
@@ -237,4 +303,21 @@ function submit() {
 .issue__t { font-size: 12.5px; }
 .issue__d { color: var(--biz-danger); font-size: 11.5px; }
 .issue__s { font-size: 11px; color: var(--biz-text-3); margin-top: 2px; }
+
+/* 部门达标率 */
+.stat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat2 > div { background: var(--biz-bg-fill); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.stat2__k { font-size: 11px; color: var(--biz-text-3); }
+.stat2 b { font-family: var(--biz-font-num); font-size: 15px; font-weight: 600; }
+.stat2 b.is-hl { color: var(--el-color-primary); }
+.stat2 b.is-warn { color: var(--biz-danger); }
+
+/* 权重与分档 */
+.wrow { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.wrow__p { width: 32px; font-size: 12.5px; color: var(--biz-text-2); }
+.drule { border-left: 3px solid var(--biz-border); padding: 6px 8px; margin-bottom: 8px; background: var(--biz-bg-fill); border-radius: 0 6px 6px 0; }
+.drule.is-self { border-left-color: var(--biz-success); }
+.drule.is-cross { border-left-color: var(--biz-danger); }
+.drule__t { font-size: 12.5px; font-weight: 500; }
+.drule__s { font-size: 11px; color: var(--biz-text-3); margin-top: 2px; line-height: 1.5; }
 </style>

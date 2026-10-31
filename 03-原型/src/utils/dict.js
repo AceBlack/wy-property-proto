@@ -36,6 +36,12 @@ const MAP = {
   },
   notice: { 已发布: 'success', 待审核: 'warning', 草稿: 'muted', 已过期: 'muted', 已撤回: 'danger' },
   quality: { 已闭环: 'success', 整改中: 'primary', 待复核: 'warning', 已超时: 'danger' },
+  // 租户（P4）：在住/已搬离 + 物业核验三态（租金不进字典，后台不展示）
+  tenantStatus: { 在住: 'success', 已搬离: 'muted' },
+  tenantVerify: { 待核验: 'warning', 已核验: 'success', 信息不全: 'danger' },
+  // 整改闭环（P3）：待整改要盯、退回是红、闭环是绿
+  rectify: { 待整改: 'warning', 待复核: 'primary', 已退回: 'danger', 已闭环: 'success' },
+  rectifyLevel: { 重大: 'danger', 一般: 'warning', 轻微: 'info' },
   lease: { 生效中: 'success', 即将到期: 'warning', 已到期: 'danger' },
   // 装修押金（唯一押金场景）：在账 = danger，已结清 = success/muted
   deposit: {

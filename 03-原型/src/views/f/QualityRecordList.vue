@@ -5,7 +5,8 @@
       <div>
         <b>品质检查记录 · 以「一次检查」为行</b>：本页是<b>结果台账与整改闭环</b>，/f/quality 是<b>现场评分卡（执行载体）</b>——
         前者回答「查出什么、改没改完」，后者回答「这次怎么打分」，两者共用同一套评分档位但页面不合并。
-        <b>{{ summary.overdue }} 条整改已超时</b>、<b>{{ summary.rectifying }} 条在整改中</b>进常用视图。
+        顶部<b>快捷视图定状态</b>（整改中 / 已超时 / 待复核 / 不合格），下方<b>项目 + 区域</b>定范围，两者可叠加；
+        区域是业务条线（保洁 / 安保 / 工程 / 客服），不是空间层级，所以不再用树表达。
       </div>
     </div>
 
@@ -21,38 +22,25 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="检查范围" tree-title="项目 / 区域"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜项目 / 区域"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开检查树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部检查</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方范围可叠加" @change="run" />
           </div>
 
           <el-form :model="query" class="filter-bar" label-width="48px" @submit.prevent>
+            <ScopeFilter :model="query" :levels="['community']" @patch="p2 => Object.assign(query, p2)" @change="run" />
+            <el-form-item label="区域">
+              <el-select v-model="query.area" placeholder="全部" clearable style="width:88px">
+                <el-option v-for="o in areaOpts" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="来源">
+              <el-select v-model="query.sourceType" placeholder="全部" clearable style="width:96px">
+                <el-option v-for="o in QUALITY_SOURCES" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="类型">
               <el-select v-model="query.type" placeholder="全部" clearable style="width:72px">
                 <el-option v-for="o in typeOpts" :key="o" :label="o" :value="o" />
@@ -72,14 +60,26 @@
               <el-input v-model="query.kw" placeholder="单号 / 检查人 / 区域" clearable style="width:132px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="search">查询</el-button>
+              <el-button :icon="'Search'" @click="run">查询</el-button>
               <el-button :icon="'RefreshLeft'" @click="reset">重置</el-button>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="panel" style="margin-top:16px;">
-          <div class="toolbar">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ scopeSum.count }}</b> 条 · 平均 <b>{{ scopeSum.avgScore }}</b> 分 ·
+              不合格 <b class="is-warn">{{ scopeSum.unqualified }}</b> · 整改中 <b>{{ scopeSum.rectifying }}</b>
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
+
+          <div class="toolbar" style="margin-top:10px;">
             <el-button type="primary" :icon="'Plus'" @click="jump('/f/quality')">发起现场评分</el-button>
             <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
             <span class="spacer" />
@@ -89,10 +89,17 @@
 
           <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 500px)"
             :row-class-name="rowClass" @row-click="onRow">
-            <el-table-column label="检查单" min-min-width="160">
+            <el-table-column label="检查单" min-width="160">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.checkNo }}</div>
                 <div class="ps-sub">{{ row.checkDate }}</div>
+              </template>
+            </el-table-column>
+            <el-table-column label="来源" width="94">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain" :type="row.sourceType === '任务评价' ? 'warning' : 'info'">
+                  {{ row.sourceType || '现场抽查' }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="communityName" label="项目" min-width="92" show-overflow-tooltip />
@@ -105,7 +112,7 @@
                 <div class="ps-sub"><StatusTag domain="grade" :value="row.grade" /></div>
               </template>
             </el-table-column>
-            <el-table-column label="整改" min-min-width="130">
+            <el-table-column label="整改" min-width="130">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.rectifyDone }} / {{ row.rectifyCount }} 项</div>
                 <div class="ps-sub" :class="{ 'is-expire': row.status === '已超时' }">截止 {{ row.dueDate.slice(5) }}</div>
@@ -168,6 +175,22 @@
           <div class="dl__i is-full"><span class="dl__k">检查备注</span><span class="dl__v">{{ detailData.check.remark || '—' }}</span></div>
         </div>
 
+        <template v-if="detailData.check.sourceType === '任务评价' && detailData.check.metrics">
+          <div class="sec__hd" style="margin-top:18px;">
+            <h4>评价依据</h4><span class="desc">来自巡检执行数据 · 周期 {{ detailData.check.period }}</span>
+          </div>
+          <div class="dl">
+            <div class="dl__i"><span class="dl__k">完成率</span><span class="dl__v">{{ (detailData.check.metrics.doneRate * 100).toFixed(1) }}%</span></div>
+            <div class="dl__i"><span class="dl__k">合格率</span><span class="dl__v">{{ (detailData.check.metrics.passRate * 100).toFixed(1) }}%</span></div>
+            <div class="dl__i"><span class="dl__k">加权达标率</span><span class="dl__v">{{ (detailData.check.metrics.weighted * 100).toFixed(1) }}%</span></div>
+            <div class="dl__i"><span class="dl__k">权重</span><span class="dl__v">合格 {{ Math.round((detailData.check.metrics.weight?.pass || 0) * 100) }}% + 完成 {{ Math.round((detailData.check.metrics.weight?.done || 0) * 100) }}%</span></div>
+            <div class="dl__i"><span class="dl__k">自查问题</span><span class="dl__v">{{ detailData.check.metrics.selfIssues }} 项（扣 {{ detailData.check.metrics.selfDeduct }}）</span></div>
+            <div class="dl__i"><span class="dl__k">抽查问题</span><span class="dl__v">{{ detailData.check.metrics.crossIssues }} 项（扣 {{ detailData.check.metrics.crossDeduct }}）</span></div>
+            <div class="dl__i"><span class="dl__k">申报冲突</span><span class="dl__v">{{ detailData.check.metrics.conflicts }} 次</span></div>
+            <div class="dl__i"><span class="dl__k">涉及任务</span><span class="dl__v">{{ (detailData.check.taskIds || []).length }} 条</span></div>
+          </div>
+        </template>
+
         <div v-if="detailData.items.length" style="margin-top:18px;">
           <div class="sec__hd"><h4>整改项</h4><span class="desc">{{ detailData.items.filter(i => i.done).length }} / {{ detailData.items.length }} 已闭环</span></div>
           <el-table :data="detailData.items" size="small" max-height="220">
@@ -206,6 +229,7 @@
       </template>
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button v-if="detailData?.check?.rectifyCount" @click="toRectifyOrders">整改闭环</el-button>
         <el-button v-if="detailData && !detailData.check.recheck" @click="doScheduleRecheck">安排复查</el-button>
         <el-button type="primary" @click="doStartRectify">发起整改</el-button>
       </template>
@@ -218,13 +242,14 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  PAGE_SIZES, createWoFromQuality, getQualityCheckDetail, qualityGradeOpts, qualityStatusOpts,
-  qualitySummary, qualityTree, qualityTypeOpts, qualityVirtualNodes, queryQualityChecks,
-  scheduleQualityRecheck, startQualityRectify
-} from '@/utils/api'
+  PAGE_SIZES, QUALITY_SOURCES, communities, createWoFromQuality, getQualityCheckDetail, qcScopeSummary,
+  qualityAreaOpts, qualityGradeOpts, qualityStatusOpts, qualitySummary, qualityTypeOpts, qualityVirtualNodes,
+  queryQualityChecks, scheduleQualityRecheck, startQualityRectify
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
+import ScopeFilter from '@/components/ScopeFilter.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -233,7 +258,7 @@ import { exportList } from '@/utils/export'
 const router = useRouter()
 const route = useRoute()
 const BLANK = { communityId: '', area: '', vf: '' }
-const BLANK_ALL = { ...BLANK, type: '', grade: '', status: '', kw: '' }
+const BLANK_ALL = { ...BLANK, sourceType: '', type: '', grade: '', status: '', kw: '' }
 
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */
@@ -256,28 +281,46 @@ const { rows, total, pageNo, size, loading, query, load, search } = useListQuery
   queryQualityChecks, { immediate: false, filters: { ...BLANK_ALL } }
 )
 
-const tree = qualityTree()
 const vnodes = ref(qualityVirtualNodes())
-const summary = ref(qualitySummary())
+/* KPI 汇总：mock 同步、http 异步，统一 await；失败保留上一次的数 */
+const summary = ref({ total: 0, avgScore: 0, qualified: 0, unqualified: 0, rectifying: 0, overdue: 0, recheck: 0, veto: 0 })
+async function syncSummary() {
+  try { summary.value = await qualitySummary() } catch { /* 保持旧值 */ }
+}
+syncSummary()
+/* 快捷视图：原左树的虚拟视图节点搬到这里 */
+const quickViews = computed(() => [{ key: '', label: '全部', n: summary.value.total }, ...vnodes.value])
+const areaOpts = qualityAreaOpts()
 const typeOpts = qualityTypeOpts()
 const gradeOpts = qualityGradeOpts()
 const statusOpts = qualityStatusOpts()
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
 const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.value.find(v => v.key === query.vf)?.label || '') : ''))
 
-const vnLabel = computed(() => vnodes.value.find(v => v.key === activeVn.value)?.label || '')
+/* 当前范围小计 */
+const scopeSum = ref({ count: 0, avgScore: 0, unqualified: 0, rectifying: 0, overdue: 0 })
+/* 小计与列表同源：越权/异常时不能让页面抛未捕获异常——列表已把 403 提示出来，这里静默归零 */
+async function syncScopeSum() {
+  try { scopeSum.value = await qcScopeSummary({ ...query }) }
+  catch { scopeSum.value = Object.fromEntries(Object.keys(scopeSum.value).map(k => [k, 0])) }
+}
+function run() { search(); syncScopeSum() }
+
+const hasScope = computed(() => !!(query.communityId || query.area || query.vf ||
+  query.sourceType || query.type || query.grade || query.status || query.kw))
+const scopeText = computed(() => {
+  const c = communities.find(x => x.communityId === query.communityId)?.name || '全部项目'
+  return query.area ? `${c} · ${query.area}` : c
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getQualityCheckDetail)
 
 /* B 级补齐：发起整改（只改状态+整改开始时间）/ 安排复查（+7 天） */
 function refreshQuality(id) {
-  summary.value = qualitySummary()
+  syncSummary()
   vnodes.value = qualityVirtualNodes()
   search()
+  syncScopeSum()
   openDetail(id)
 }
 function doStartRectify() {
@@ -299,53 +342,20 @@ function doScheduleRecheck() {
   } catch (e) { ElMessage.error(e?.message || '安排失败') }
 }
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
-function onPick(node) {
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK_ALL)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
-  search()
+  run()
 }
 function reset() { clearScope() }
 
 function onRow(row) { openDetail(row.checkId) }
+/** P3：跳到整改工作台，按检查单号定位（整改单是独立台账，不在品质记录里就地展开） */
+function toRectifyOrders() {
+  const no = detailData.value?.check?.checkNo
+  if (!no) return
+  detailVisible.value = false
+  router.push({ path: '/f/rectify', query: { check: no } })
+}
 function rowClass({ row }) { return row.checkId === highlightId.value ? 'row--focus' : '' }
 function jump(path, focus) { router.push(focus ? `${path}?focus=${focus}` : path) }
 function soon(name) { ElMessage(`${name}：B 级能力，原型阶段仅提示`) }
@@ -358,8 +368,8 @@ async function toRectifyWo() {
   try {
     const wo = createWoFromQuality(id, c?.area || '')
     ElMessage.success(`已生成整改工单 ${wo.woNo}，状态已转「整改中」`)
-    // 汇总 / 左树 / 列表都读派生数据，统一刷新，避免「转了工单但数字不变」
-    summary.value = qualitySummary()
+    // 汇总 / 快捷视图 / 列表都读派生数据，统一刷新，避免「转了工单但数字不变」
+    syncSummary()
     vnodes.value = qualityVirtualNodes()
     search()
     openDetail(id)
@@ -374,35 +384,20 @@ useFocusLanding(async ({ focus, open, location }) => {
   const vf = String(route.query.vf || '')
   if (vf && vnodes.value.some(v => v.key === vf)) {
     Object.assign(query, { ...BLANK_ALL, vf })
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = vf
-    scopePath.value = []
     await load()
+    await syncScopeSum()
     return
   }
   if (focus && location && focus.type === 'check') {
     Object.assign(query, { ...BLANK_ALL, communityId: location.communityId || '', area: location.area || '' })
-    if (location.area) {
-      activeId.value = `Q:${location.communityId}:${location.area}`
-      activeChain.value = [`Q:${location.communityId}`, activeId.value]
-      scopePath.value = pathOf(tree, activeId.value)
-    } else if (location.communityId) {
-      activeId.value = `Q:${location.communityId}`
-      activeChain.value = [activeId.value]
-      scopePath.value = pathOf(tree, activeId.value)
-    } else {
-      activeId.value = ''
-      activeChain.value = []
-      scopePath.value = []
-    }
-    activeVn.value = ''
     await load()
+    await syncScopeSum()
     highlightId.value = focus.id
     if (open) openDetail(focus.id)
     return
   }
   clearScope()
+  await load()
 })
 </script>
 

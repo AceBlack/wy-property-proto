@@ -2,6 +2,7 @@
 // 页面只传「取数函数」，分页、加载态、重置逻辑全部复用，L4 批量页直接继承
 
 import { onMounted, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 
 /**
  * 列表查询
@@ -10,12 +11,13 @@ import { onMounted, reactive, ref, watch } from 'vue'
  *   filters  - 筛选字段初始值（重置时回填）
  *   size     - 默认每页条数
  *   immediate- 是否挂载即查询
+ *   onResponse - (res) => void，拿到完整响应（报表要读 meta / summary，不能只留 rows）
  *
  * 异常口径（2026-10-22 修订）：失败不再静默清空数据后置之不理，而是置 error 供页面渲染
  * 「加载失败 + 重试」，与「查询成功但 0 条」严格区分——此前二者都显示「暂无数据」，
  * 无法分辨是接口坏了还是真的没有业务数据。
  */
-export function useListQuery(fetcher, { filters = {}, size: defaultSize = 20, immediate = true } = {}) {
+export function useListQuery(fetcher, { filters = {}, size: defaultSize = 20, immediate = true, onResponse = null } = {}) {
   const rows = ref([])
   const total = ref(0)
   const pageNo = ref(1)
@@ -33,11 +35,19 @@ export function useListQuery(fetcher, { filters = {}, size: defaultSize = 20, im
       const res = await fetcher({ pageNo: pageNo.value, size: size.value, filters: { ...query } })
       rows.value = res.rows
       total.value = res.total
+      /* 报表页要读 meta（批次）与 summary（合计），这两样只有响应里有；
+         传回调而不是把整个 res 塞进 ref，避免页面把它当表格数据用 */
+      if (onResponse) onResponse(res)
     } catch (e) {
       rows.value = []
       total.value = 0
+      if (onResponse) onResponse(null)     /* 失败要把页头的批次/合计一起清掉，别留上一批的数 */
       error.value = e?.message || '数据加载失败'
       errorCode.value = e?.code || 500
+      /* 403（越权）/ 409（并发冲突）不是"查询失败"，必须让用户看见原因，否则只是一张空表 */
+      if (errorCode.value === 403 || errorCode.value === 409) {
+        ElMessage({ type: 'warning', message: error.value, duration: 4200 })
+      }
     } finally {
       loading.value = false
     }

@@ -5,8 +5,14 @@
       <div>
         <b>巡检任务执行（移动端）</b>：这是移动端作业台的 PC 预览，<b>后台不提供执行入口</b> ——
         巡查巡检在现场完成，管理侧只做任务监管、模板与计划配置、报表。
-        同一套引擎跑三类载体：保洁「环节卡片流 + 拍照」、保安「扫码 + 流程」、工程「设备码 + 阈值」；
-        正常项一键批量（1 秒），异常才展开拍照描述（30 秒），异常一键转工单避免二次录入。
+        <template v-if="isSup">
+          当前是<b>监督任务</b>：部门经理到下属责任区<b>实地核验</b>（不是看员工提交的表单），
+          发现问题必须<b>指定责任员工</b>，否则考核归不到人。
+        </template>
+        <template v-else>
+          同一套引擎跑三类载体：保洁「环节卡片流 + 拍照」、保安「扫码 + 流程」、工程「设备码 + 阈值」；
+          正常项一键批量（1 秒），异常才展开拍照描述（30 秒），异常一键转工单避免二次录入。
+        </template>
       </div>
     </div>
 
@@ -17,12 +23,14 @@
           <div class="thead__t">
             {{ task.planName }}
             <StatusTag domain="inspect" :value="task.status" />
-            <span class="tag tag--muted">{{ task.post }}</span>
-            <span class="tag tag--info">{{ template.version }}</span>
+            <el-tag :type="isSup ? 'warning' : 'info'" effect="plain" size="small">{{ isSup ? '监督' : '执行' }}</el-tag>
+            <span class="tag tag--muted">{{ isSup ? task.targetPost : task.post }}</span>
+            <span class="tag tag--info">{{ template?.version }}</span>
           </div>
           <div class="thead__s">
             {{ task.taskId }} · {{ communityName }} · 计划时间 {{ task.scheduledDate }} {{ task.scheduledTime }} ·
-            执行人 {{ task.executor }} · 到位方式 {{ task.checkinType }}
+            {{ isSup ? '监督人' : '执行人' }} {{ task.executor }} · 到位方式 {{ task.checkinType }}
+            <template v-if="isSup"> · 被检班组 {{ targetDeptName }}</template>
           </div>
         </div>
         <div class="thead__r">
@@ -31,7 +39,7 @@
             <div class="prog__d">已完成项</div>
           </div>
           <el-button :icon="'SwitchButton'" @click="batchNormal">全部正常</el-button>
-          <el-button type="primary" :icon="'Select'" :loading="submitting" @click="submit">提交巡检</el-button>
+          <el-button type="primary" :icon="'Select'" :loading="submitting" @click="submit">提交{{ isSup ? '核验' : '巡检' }}</el-button>
         </div>
       </div>
     </div>
@@ -39,13 +47,17 @@
     <div class="grid" style="margin-top:16px;grid-template-columns:250px minmax(0,1fr) 300px;">
       <!-- 左：任务列表 -->
       <div class="panel" style="padding:14px;">
-        <div class="panel__hd"><h3>今日任务</h3><span class="spacer" /><span class="desc">{{ todayTasks.length }}</span></div>
+        <div class="panel__hd"><h3>我的任务</h3><span class="spacer" /><span class="desc">{{ todayTasks.length }}</span></div>
         <div class="tlist">
           <div
             v-for="t in todayTasks" :key="t.taskId"
-            class="titem" :class="{ 'is-on': t.taskId === task.taskId }"
+            class="titem" :class="{ 'is-on': t.taskId === taskId }"
+            @click="switchTask(t.taskId)"
           >
-            <div class="titem__n">{{ t.planName }}</div>
+            <div class="titem__n">
+              <el-tag v-if="t.taskType === '监督'" type="warning" effect="plain" size="small" style="margin-right:4px;">监督</el-tag>
+              {{ t.planName }}
+            </div>
             <div class="titem__m">{{ t.post }} · {{ t.scheduledTime }} · {{ t.executor }}</div>
             <StatusTag domain="inspect" :value="t.status" />
           </div>
@@ -55,9 +67,11 @@
       <!-- 中：执行表单 -->
       <div class="panel">
         <div class="panel__hd">
-          <h3>{{ template.name }}</h3>
+          <h3>{{ template?.name }}</h3>
           <span class="spacer" />
-          <span class="desc">默认合格（正常项免操作），异常才切换并拍照说明</span>
+          <span class="desc">
+            {{ isSup ? '按达标标准抽查，发现问题指定责任员工' : '默认合格（正常项免操作），异常才切换并拍照说明' }}
+          </span>
         </div>
 
         <div class="cards">
@@ -73,24 +87,30 @@
                   <span v-if="it.required" class="req">*</span>
                   <span class="icard__type">{{ it.type }}</span>
                 </div>
-                <div class="icard__s">标准：{{ it.standard }}</div>
+                <div class="icard__s">标准：{{ it.standard || (it.options || []).join(' / ') || '—' }}</div>
               </div>
               <el-radio-group v-model="it.state" size="small">
-                <el-radio-button label="ok">合格</el-radio-button>
-                <el-radio-button label="ng">异常</el-radio-button>
+                <el-radio-button label="ok">{{ isSup ? '达标' : '合格' }}</el-radio-button>
+                <el-radio-button label="ng">{{ isSup ? '不达标' : '异常' }}</el-radio-button>
               </el-radio-group>
             </div>
 
             <div v-if="it.state === 'ng'" class="icard__ng">
-              <el-select v-model="it.reason" placeholder="异常类型" size="small" style="width:150px;">
+              <el-select v-model="it.reason" placeholder="问题类型" size="small" style="width:140px;">
                 <el-option v-for="r in reasons" :key="r" :label="r" :value="r" />
               </el-select>
-              <el-input v-model="it.note" size="small" placeholder="补充说明（必填）" style="flex:1;" />
+              <el-select
+                v-if="isSup" v-model="it.responsibleName" filterable placeholder="责任员工（必选）"
+                size="small" style="width:170px;" :class="{ 'is-req': !it.responsibleName }"
+              >
+                <el-option v-for="e in respOpts" :key="e.name" :label="e.label" :value="e.name" />
+              </el-select>
+              <el-input v-model="it.note" size="small" :placeholder="isSup ? '现场情况（可留空）' : '补充说明（必填）'" style="flex:1;min-width:120px;" />
               <el-button size="small" :icon="'Camera'">拍照</el-button>
-              <el-button size="small" type="warning" plain :icon="'Tools'" @click="toWorkOrder(it)">转工单</el-button>
+              <el-button v-if="!isSup" size="small" type="warning" plain :icon="'Tools'" @click="toWorkOrder(it)">转工单</el-button>
             </div>
             <div v-else-if="it.state === 'ok'" class="icard__ok">
-              <el-icon><CircleCheckFilled /></el-icon> 已确认合格
+              <el-icon><CircleCheckFilled /></el-icon> 已确认{{ isSup ? '达标' : '合格' }}
               <span class="muted" style="font-size:11.5px;margin-left:6px;">{{ it.note || '无异常' }}</span>
             </div>
           </div>
@@ -104,13 +124,26 @@
           <div class="stat">
             <div class="stat__i"><div class="stat__k">应检项</div><div class="stat__v">{{ items.length }}</div></div>
             <div class="stat__i"><div class="stat__k">已检项</div><div class="stat__v">{{ doneCount }}</div></div>
-            <div class="stat__i"><div class="stat__k">异常项</div><div class="stat__v is-danger">{{ ngCount }}</div></div>
+            <div class="stat__i">
+              <div class="stat__k">{{ isSup ? '发现问题' : '异常项' }}</div>
+              <div class="stat__v is-danger">{{ ngCount }}</div>
+            </div>
             <div class="stat__i"><div class="stat__k">照片</div><div class="stat__v">{{ photoCount }}</div></div>
           </div>
 
           <div class="bar">
-            <i :style="{ width: (doneCount / items.length * 100) + '%' }" />
+            <i :style="{ width: (items.length ? doneCount / items.length * 100 : 0) + '%' }" />
           </div>
+
+          <template v-if="isSup">
+            <div class="sec__hd" style="margin:18px 0 8px;"><h4>核验对象</h4></div>
+            <div class="chk">
+              <div>被检班组：{{ targetDeptName }}</div>
+              <div>被检岗位：{{ task.targetPost }}</div>
+              <div class="muted">责任员工候选：{{ respOpts.length }} 人</div>
+              <div v-if="!ngCount" class="muted">未标记不达标时，提交视为「本次抽查全部达标」</div>
+            </div>
+          </template>
 
           <div class="sec__hd" style="margin:18px 0 8px;"><h4>到位与定位</h4></div>
           <div class="chk">
@@ -119,19 +152,25 @@
             <div class="muted">与点位偏差 8 米（阈值 50 米）</div>
           </div>
 
-          <el-input v-model="remark" type="textarea" :rows="2" placeholder="巡检小结（选填）" style="margin-top:14px;" />
+          <el-input v-model="remark" type="textarea" :rows="2" :placeholder="isSup ? '核验结论（选填）' : '巡检小结（选填）'" style="margin-top:14px;" />
 
           <el-button type="primary" plain style="width:100%;margin-top:12px;" :loading="submitting" @click="submit">
             提交（{{ doneCount }}/{{ items.length }}）
           </el-button>
-          <div class="hint">未完成项提交后记为「逾期」，逾期率计入项目经理考核。</div>
+          <div class="hint">
+            {{ isSup
+              ? '问题项未指定责任员工时不允许提交；若本班组当日有「零异常」申报，系统会标出冲突。'
+              : '未完成项提交后记为「逾期」，逾期率计入项目经理考核。' }}
+          </div>
         </div>
 
         <div class="panel" style="margin-top:16px;">
-          <div class="sec__hd"><h4>历史评分</h4></div>
+          <div class="sec__hd"><h4>{{ isSup ? '历史核验' : '历史评分' }}</h4></div>
           <div class="score">
             <div class="score__n">{{ task.score || '-' }}</div>
-            <div class="score__d">上次质检得分 · 复核人 {{ task.reviewer || '未复核' }}</div>
+            <div class="score__d">
+              上次{{ isSup ? '核验' : '质检' }}得分 · 复核人 {{ task.reviewer || '未复核' }}
+            </div>
           </div>
         </div>
       </div>
@@ -140,31 +179,64 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { inspectExecData } from '@/utils/api'
+import {
+  INSPECT_ISSUE_REASONS, inspectExecData, orgNameOf, responsibilityOpts, submitInspectResult
+} from '@/api'
 import StatusTag from '@/components/StatusTag.vue'
 
-// 固定演示任务：保洁责任区日检（待执行）。数据拼装收归 api，页面只消费
-const { task, template, communityName, todayTasks } = inspectExecData('IT00006')
+const route = useRoute()
+/** 支持 #/f/inspect?task=IT00049 直达某条任务（任务列表抽屉里会带过来） */
+const taskId = ref(String(route.query.task || 'IT00006'))
+const data = computed(() => inspectExecData(taskId.value))
+const task = computed(() => data.value.task)
+const template = computed(() => data.value.template)
+const communityName = computed(() => data.value.communityName)
+const todayTasks = computed(() => data.value.todayTasks)
+const isSup = computed(() => task.value.taskType === '监督')
+const targetDeptName = computed(() => orgNameOf(task.value.targetDept))
 
-const reasons = ['保洁不到位', '设施损坏', '安全隐患', '标识缺失', '记录不全']
+const reasons = ref([...INSPECT_ISSUE_REASONS, '保洁不到位', '设施损坏', '标识缺失', '记录不全'])
+const respOpts = computed(() => responsibilityOpts(task.value))
 
-const items = reactive(template.fields.map(f => ({
-  label: f.label, type: f.type, required: f.required, standard: f.standard,
-  state: 'ok', reason: '', note: ''
-})))
-
+const items = ref([])
 const remark = ref('')
 const submitting = ref(false)
 
-const doneCount = computed(() => items.filter(i => i.state === 'ok' || i.state === 'ng').length)
-const ngCount = computed(() => items.filter(i => i.state === 'ng').length)
-const photoCount = computed(() => items.filter(i => i.state).length) // 原型：完成项默认带 1 张
+/** 按当前任务的模板重建检查项；已存在的异常项（历史）带入责任员工 */
+function buildItems(tpl, t) {
+  const exist = new Map((t?.issueItems || []).map(i => [i.item, i]))
+  return (tpl?.fields || []).map(f => {
+    const old = exist.get(f.label)
+    return {
+      label: f.label, type: f.type, required: f.required,
+      standard: f.standard, options: f.options || [],
+      state: old ? 'ng' : 'ok',
+      reason: old?.reason || '',
+      note: old?.note || '',
+      responsibleName: old?.responsibleName || ''
+    }
+  })
+}
+watch(taskId, () => {
+  items.value = buildItems(template.value, task.value)
+  remark.value = task.value.remark || ''
+}, { immediate: true })
+
+function switchTask(id) {
+  if (id === taskId.value) return
+  taskId.value = id
+}
+
+const doneCount = computed(() => items.value.filter(i => i.state === 'ok' || i.state === 'ng').length)
+const ngCount = computed(() => items.value.filter(i => i.state === 'ng').length)
+const photoCount = computed(() => items.value.filter(i => i.state).length)
 
 function batchNormal() {
-  items.forEach(i => { if (!i.state) i.state = 'ok' })
-  ElMessage.success('未填项已批量标记为合格')
+  items.value.forEach(i => { i.state = 'ok' })
+  ElMessage.success(isSup.value ? '未填项已批量标记为「达标」' : '未填项已批量标记为合格')
 }
 
 function toWorkOrder(it) {
@@ -174,14 +246,26 @@ function toWorkOrder(it) {
 
 function submit() {
   if (!doneCount.value) { ElMessage.error('请至少完成一项'); return }
-  if (items.some(i => i.state === 'ng' && !i.note)) {
-    ElMessage.error('异常项必须填写说明'); return
+  /* 监督任务：问题项必须先选责任员工，把校验前置到提交前，避免后端抛错 */
+  if (isSup.value) {
+    const miss = items.value.find(i => i.state === 'ng' && !i.responsibleName)
+    if (miss) { ElMessage.error(`问题项「${miss.label}」必须指定责任员工`); return }
   }
   submitting.value = true
-  setTimeout(() => {
+  try {
+    const r = submitInspectResult(taskId.value, {
+      items: items.value.map(i => ({ ...i })),
+      remark: remark.value
+    })
+    const tail = isSup.value
+      ? `，发现问题 ${r.issueCount} 项${r.conflictFlag ? '（存在与员工申报的冲突，已标记）' : ''}`
+      : `，异常 ${r.issueCount} 项`
+    ElMessage.success(`已提交：${r.normalCount} 项达标${tail}`)
+  } catch (e) {
+    ElMessage.error(e?.message || '提交失败')
+  } finally {
     submitting.value = false
-    ElMessage.success(`巡检已提交：${doneCount.value} 项已检，${ngCount.value} 项异常`)
-  }, 600)
+  }
 }
 </script>
 
@@ -213,7 +297,8 @@ function submit() {
 .icard__type { font-size: 10.5px; color: var(--biz-text-3); background: #fff; border: 1px solid var(--biz-border-light); border-radius: 999px; padding: 0 6px; }
 .icard__s { font-size: 11.5px; color: var(--biz-text-3); margin-top: 3px; }
 .req { color: var(--el-color-danger); }
-.icard__ng { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--biz-border); }
+.icard__ng { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--biz-border); flex-wrap: wrap; }
+.icard__ng .is-req :deep(.el-select__wrapper) { box-shadow: 0 0 0 1px var(--el-color-danger) inset; }
 .icard__ok { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; color: var(--biz-success); }
 
 .stat { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

@@ -3,14 +3,17 @@
 //
 // 口径纪律：金额一律来自 api.js（isDebt / feeSummary），页面禁止自行 filter/reduce
 
-import { billPeriodOpts, communityOpts, inspectPostOpts } from '@/utils/api'
+import { billPeriodOpts, communityOpts, inspectPostOpts, qualityPeriodOpts, supFindingSupervisorOpts } from '@/utils/api'
 
 /** 筛选控件：type 决定渲染成什么 */
 const F = {
   community: { key: 'communityId', label: '项目', type: 'select', opts: () => communityOpts(), width: 150 },
   period: { key: 'period', label: '账期', type: 'select', opts: () => billPeriodOpts(), width: 120 },
   kw: { key: 'kw', label: '关键字', type: 'text', placeholder: '房号 / 业主 / 账单号', width: 180 },
-  inspectPost: { key: 'post', label: '岗位', type: 'select', opts: () => inspectPostOpts(), width: 120 }
+  kwBuilding: { key: 'kw', label: '楼栋', type: 'text', placeholder: '楼栋名，如 3栋', width: 180 },
+  inspectPost: { key: 'post', label: '岗位', type: 'select', opts: () => inspectPostOpts(), width: 120 },
+  evalPeriod: { key: 'period', label: '评价周期', type: 'select', opts: () => qualityPeriodOpts(), width: 120 },
+  supervisor: { key: 'supervisor', label: '主管', type: 'select', opts: () => supFindingSupervisorOpts(), width: 120 }
 }
 
 export const REPORTS = [
@@ -197,6 +200,147 @@ export const REPORTS = [
       { k: 'planned', l: '应执行', money: false },
       { k: 'doneRate', l: '完成率', money: false },
       { k: 'issues', l: '异常项', money: false, warn: true }
+    ]
+  },
+  {
+    // 2026-10-30 拍板：账龄类是**跑批产物**，不做实时算（实时算会让同一张表每刷新一次一个数）
+    code: 'arrears-aging', name: '欠费账龄统计', group: 'G 统计（跑批）', prio: 'P0', ready: true,
+    snapshot: 'arrears', snapshotType: 'point',
+    desc: '按「楼栋 × 账龄」统计欠费规模：哪栋欠得多、欠了多久、主要欠什么科目，催缴排班照这张表排',
+    filters: [F.community, F.kwBuilding],
+    note: '账龄 = 统计日 − 到期日；「未到期」单列一档（没到期的不算逾期）；作废账单不进表；' +
+      '车位账单没有楼栋，不在本表（差额在费用明细表里核对）',
+    columns: [
+      { prop: 'communityName', label: '项目', width: 110 },
+      { prop: 'buildingName', label: '楼栋', width: 90 },
+      { prop: 'aging', label: '账龄', width: 100 },
+      { prop: 'billCount', label: '欠费笔数', width: 100, align: 'right' },
+      { prop: 'houseCount', label: '涉及房屋', width: 100, align: 'right' },
+      { prop: 'ownerCount', label: '涉及业主', width: 100, align: 'right' },
+      { prop: 'payable', label: '涉及应收', width: 120, align: 'right', money: true },
+      { prop: 'unpaid', label: '欠费金额', width: 120, align: 'right', money: true, strong: true },
+      { prop: 'avgOverdueDays', label: '平均逾期', width: 100, align: 'right', unit: '天' },
+      { prop: 'topItem', label: '主要科目', minWidth: 120, tip: true }
+    ],
+    summaryFields: [
+      { k: 'count', l: '欠费笔数' },
+      { k: 'payable', l: '涉及应收', money: true },
+      { k: 'paid', l: '其中已逾期', money: true, warn: true },
+      { k: 'unpaid', l: '欠费合计', money: true, warn: true }
+    ]
+  },
+  {
+    code: 'collection-rate', name: '收缴率统计', group: 'G 统计（跑批）', prio: 'P0', ready: true,
+    snapshot: 'collection-rate', snapshotType: 'period',
+    desc: '按「账期 × 科目」统计应收、已收与收缴率，减免与作废单列，避免把公司让利算成业主欠费',
+    filters: [F.community, F.period],
+    note: '收缴率 = 已收 ÷ 应收；分母**剔除已作废与已减免**——减免是公司决策不是业主欠费，' +
+      '算进分母会让收缴率永远达标不了。应收为 0 时显示「—」而不是 0%',
+    columns: [
+      { prop: 'period', label: '账期', width: 90 },
+      { prop: 'itemName', label: '科目', width: 130 },
+      { prop: 'communityName', label: '项目', width: 110 },
+      { prop: 'billCount', label: '账单数', width: 90, align: 'right' },
+      { prop: 'payable', label: '应收', width: 120, align: 'right', money: true },
+      { prop: 'paid', label: '已收', width: 120, align: 'right', money: true },
+      { prop: 'unpaid', label: '未收', width: 120, align: 'right', money: true, strong: true },
+      { prop: 'reduction', label: '减免', width: 100, align: 'right', money: true },
+      { prop: 'voided', label: '作废', width: 100, align: 'right', money: true },
+      { prop: 'rate', label: '收缴率', width: 100, align: 'right', unit: '%' }
+    ],
+    summaryFields: [
+      { k: 'count', l: '账期 × 科目' },
+      { k: 'payable', l: '应收合计', money: true },
+      { k: 'paid', l: '已收合计', money: true },
+      { k: 'unpaid', l: '未收合计', money: true, warn: true },
+      { k: 'deduct', l: '减免合计', money: true }
+    ]
+  },
+  {
+    code: 'dept-quality', name: '部门达标率', group: 'F 现场', prio: 'P2', ready: true,
+    snapshot: 'dept-target', snapshotType: 'period',
+    desc: '按「部门 × 周期」看完成率、合格率、加权达标率与问题发现情况',
+    filters: [F.evalPeriod, F.community, F.inspectPost],
+    note: '达标率 = 合格率 × 权重 + 完成率 × 权重（权重按岗位可配）；完成率分母只算执行任务，' +
+      '监督任务不进分母（否则越查越低）；得分再扣问题：自查 ×1、抽查 ×3',
+    columns: [
+      { prop: 'deptName', label: '部门', minWidth: 120 },
+      { prop: 'post', label: '岗位', width: 76 },
+      { prop: 'communityName', label: '项目', width: 100 },
+      { prop: 'planned', label: '应执行', width: 84, align: 'right', unit: '次' },
+      { prop: 'finished', label: '已完成', width: 84, align: 'right', unit: '次' },
+      { prop: 'doneRate', label: '完成率', width: 86, align: 'right', unit: '%' },
+      { prop: 'passRate', label: '合格率', width: 86, align: 'right', unit: '%' },
+      { prop: 'weighted', label: '加权达标率', width: 104, align: 'right', unit: '%', strong: true },
+      { prop: 'selfIssues', label: '自查问题', width: 92, align: 'right', unit: '项' },
+      { prop: 'crossIssues', label: '抽查问题', width: 92, align: 'right', unit: '项', warn: true },
+      { prop: 'score', label: '得分', width: 82, align: 'right' },
+      { prop: 'grade', label: '等级', width: 82 },
+      { prop: 'evaluated', label: '评价状态', width: 96, bool: ['已评价', '待评价'] }
+    ],
+    summaryFields: [
+      { k: 'count', l: '部门数' },
+      { k: 'payable', l: '应执行次数', money: false },
+      { k: 'paid', l: '平均达标率', money: false },
+      { k: 'unpaid', l: '问题合计', money: false, warn: true },
+      { k: 'deduct', l: '抽查问题', money: false }
+    ]
+  },
+  {
+    code: 'sup-finding', name: '主管发现问题数', group: 'F 现场', prio: 'P1', ready: true,
+    desc: '按「部门经理 × 周期」考核监督任务完成情况、问题检出量与申报冲突，看谁在真查、谁在走过场',
+    fetchCode: 'supFinding',
+    filters: [F.evalPeriod, F.community, F.inspectPost, F.supervisor],
+    note: '只统计「监督」任务（一线执行任务不计）；发现问题数 = 监督任务异常项合计，每项都必须指定责任员工；' +
+      '次均 = 发现问题 ÷ 已完成监督任务；申报冲突 = 下属报「零异常」却被查出问题的次数；' +
+      '抽查未发现取评价记录录入值，主动发现率 = 自查 ÷（自查 + 抽查未发现）',
+    columns: [
+      { prop: 'supervisor', label: '主管', width: 90 },
+      { prop: 'deptName', label: '部门', minWidth: 120 },
+      { prop: 'post', label: '岗位', width: 76 },
+      { prop: 'communityName', label: '项目', width: 100 },
+      { prop: 'planned', label: '监督任务', width: 88, align: 'right', unit: '次' },
+      { prop: 'done', label: '已完成', width: 84, align: 'right', unit: '次' },
+      { prop: 'doneRate', label: '完成率', width: 84, align: 'right', unit: '%' },
+      { prop: 'issues', label: '发现问题', width: 90, align: 'right', unit: '项', strong: true },
+      { prop: 'perTask', label: '次均问题', width: 90, align: 'right' },
+      { prop: 'issueRate', label: '问题检出率', width: 100, align: 'right', unit: '%' },
+      { prop: 'conflicts', label: '申报冲突', width: 90, align: 'right', unit: '次', warn: true },
+      { prop: 'crossMissed', label: '抽查未发现', width: 100, align: 'right', unit: '项', warn: true },
+      { prop: 'proactive', label: '主动发现率', width: 100, align: 'right', unit: '%' }
+    ],
+    summaryFields: [
+      { k: 'count', l: '考核主管', money: false },
+      { k: 'payable', l: '监督任务', money: false },
+      { k: 'paid', l: '发现问题', money: false, warn: true },
+      { k: 'unpaid', l: '申报冲突', money: false, warn: true },
+      { k: 'deduct', l: '抽查未发现', money: false }
+    ]
+  }
+  ,
+  {
+    // 2026-10-29：工单列表去树后，「哪栋报修集中」由这张报表回答（原来靠左树看节点数）
+    code: 'wo-by-building', name: '工单按楼栋分布', group: 'F 现场', prio: 'P1', ready: true,
+    desc: '按楼栋统计工单量与处理压力：谁家报修多、多少没闭环、多少超时、每百户多少单',
+    fetchCode: 'woBuilding',
+    filters: [F.community],
+    note: '只统计有房屋归属的工单（入户维修类）；公共区域 / 投诉 / 咨询类没有楼栋，不在本表；每百户 = 工单数 / 有工单的户数 × 100',
+    columns: [
+      { prop: 'communityName', label: '项目', width: 110 },
+      { prop: 'buildingName', label: '楼栋', width: 120 },
+      { prop: 'count', label: '工单数', width: 90, align: 'right', strong: true },
+      { prop: 'open', label: '未闭环', width: 90, align: 'right' },
+      { prop: 'overdue', label: '已超时', width: 90, align: 'right', warn: true },
+      { prop: 'urgent', label: '紧急及以上', width: 110, align: 'right' },
+      { prop: 'houseCount', label: '涉及户数', width: 90, align: 'right' },
+      { prop: 'perHundred', label: '每百户工单', width: 110, align: 'right' },
+      { prop: 'topType', label: '主要类型', minWidth: 120, tip: true }
+    ],
+    summaryFields: [
+      { k: 'count', l: '楼栋数' },
+      { k: 'payable', l: '工单合计', money: false },
+      { k: 'paid', l: '未闭环', money: false },
+      { k: 'unpaid', l: '已超时', money: false, warn: true }
     ]
   }
 ]

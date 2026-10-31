@@ -21,7 +21,10 @@
             <span v-else class="tag tag--muted">未实名</span>
           </div>
           <div class="ohead__sub">
-            {{ owner.phone }} · 证件 {{ maskId(owner.idCard) }} · 入住 {{ owner.registerDate }}
+            <SensitiveText :value="owner.phone" field="phone" entity-type="业主" :entity-id="owner.ownerId"
+              :entity-name="owner.name" source="/a/owner360" /> ·
+            证件 <SensitiveText :value="owner.idCard" field="idCard" entity-type="业主" :entity-id="owner.ownerId"
+              :entity-name="owner.name" source="/a/owner360" /> · 入住 {{ owner.registerDate }}
             · 人脸{{ owner.faceRegistered ? '已录' : '未录' }} · APP{{ owner.appRegistered ? '已注册' : '未注册' }}
           </div>
           <div class="ohead__tags">
@@ -191,7 +194,10 @@
             <el-table-column prop="relation" label="关系" width="100" />
             <el-table-column prop="phone" label="手机号" width="140" />
             <el-table-column label="证件" min-width="180">
-              <template #default="{ row }">{{ maskId(row.idCard) }}</template>
+              <template #default="{ row }">
+                <SensitiveText :value="row.idCard" field="idCard" entity-type="业主" :entity-id="row.ownerId"
+                  :entity-name="row.name" source="/a/owner360" />
+              </template>
             </el-table-column>
             <el-table-column label="认证" width="90">
               <template #default="{ row }">
@@ -317,7 +323,8 @@ import {
 } from '@/utils/api'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { expireText, maskId, money } from '@/utils/format'
+import { expireText, money } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
 import { idCardValid } from '@/utils/rules'
 
 // 四个固定演示对象（与数据集剧本一致）

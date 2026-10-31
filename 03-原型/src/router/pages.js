@@ -45,10 +45,13 @@ export const PAGES = [
   // ---------- L4 第二批（21–28 页，数据齐全的实体全部列表化） ----------
   { path: '/a/houses', name: 'HouseLedger', title: '房屋台账', group: 'a', status: 'done', icon: 'OfficeBuilding', desc: '房号 · 户型 · 用途 · 欠费',
     component: () => import('@/views/a/HouseLedger.vue') },
+  // 楼栋责任范围：楼管按范围看业主资料与催缴，项目经理负责配置与移交（2026-10-29）
+  { path: '/a/stewards', name: 'Stewards', title: '楼栋责任范围', group: 'a', status: 'done', icon: 'UserFilled', desc: '楼管分配 · 一栋多楼管 · 责任移交',
+    component: () => import('@/views/a/Stewards.vue') },
   { path: '/a/vehicles', name: 'VehicleList', title: '车位与车辆', group: 'a', status: 'done', icon: 'Van', desc: '车位台账 · 车辆 · 闲置车位 · 授权',
     component: () => import('@/views/a/VehicleList.vue') },
   // ---------- L4 收尾（29–32 页，数据与 IA 骨架齐备后补齐） ----------
-  { path: '/a/tenants', name: 'TenantList', title: '租户管理', group: 'a', status: 'done', icon: 'Avatar', desc: '租约 · 实名 · 人脸 · 到期提醒',
+  { path: '/a/tenants', name: 'TenantList', title: '租户管理', group: 'a', status: 'done', icon: 'Avatar', desc: '在住租户 · 核验 · 补充 · 搬离',
     component: () => import('@/views/a/TenantList.vue') },
 
   // ---------- B 费用 ----------
@@ -58,7 +61,12 @@ export const PAGES = [
     component: () => import('@/views/b/Cashier.vue') },
   { path: '/b/bills', name: 'BillList', title: '账单查询', group: 'b', status: 'done', icon: 'Tickets', desc: '账期 · 科目 · 收缴状态 · 缴费流水',
     component: () => import('@/views/b/BillList.vue') },
-  { path: '/b/payments', name: 'PaymentList', title: '缴费流水', group: 'b', status: 'done', icon: 'Money', desc: '收款流水 · 渠道 · 开票',
+  // 收费日结（2026-10-30）：现金实点轧账 + 退款冲红核对，一天只能结一次
+  { path: '/b/daily-close', name: 'DailyClose', title: '收费日结', group: 'b', status: 'done', icon: 'Wallet',
+    desc: '现金实点 · 退款冲红 · 一天一笔账', component: () => import('@/views/b/DailyClose.vue') },
+  { path: '/b/month-close', name: 'MonthClose', title: '收费月结', group: 'b', status: 'done', icon: 'Calendar',
+    desc: '账面封账 · 试算转定稿 · 一月一笔账', component: () => import('@/views/b/MonthClose.vue') },
+  { path: '/b/payments', name: 'PaymentList', title: '缴费流水', group: 'b', status: 'done', icon: 'Money', desc: '收款流水 · 渠道 · 开票 · 退款',
     component: () => import('@/views/b/PaymentList.vue') },
   { path: '/b/fee-items', name: 'FeeItemList', title: '收费科目', group: 'b', status: 'done', icon: 'PriceTag', desc: '科目 · 单价 · 计费方式 · 收缴率',
     component: () => import('@/views/b/FeeItemList.vue') },
@@ -97,6 +105,9 @@ export const PAGES = [
     component: () => import('@/views/f/WorkOrderList.vue') },
   { path: '/f/inspect-plans', name: 'InspectPlanList', title: '巡检计划', group: 'f', status: 'done', icon: 'Calendar', desc: '周期计划 · 模板 · 生成任务',
     component: () => import('@/views/f/InspectPlanList.vue') },
+  // 模板是公司级标准：品质督导配置，其他人只读（编辑按钮按 f.inspectTemplates.edit 控制）
+  { path: '/f/inspect-templates', name: 'InspectTemplateList', title: '巡检模板', group: 'f', status: 'done', icon: 'Document', desc: '执行 / 监督两类模板 · 检查项配置',
+    component: () => import('@/views/f/InspectTemplateList.vue') },
   { path: '/f/inspect-tasks', name: 'InspectTaskList', title: '巡检任务列表', group: 'f', status: 'done', icon: 'Finished', desc: '全量任务 · 异常项 · 转单',
     component: () => import('@/views/f/InspectTaskList.vue') },
   // 巡检任务执行属移动端：后台只做监管（任务列表 / 报表 / 模板与计划配置），
@@ -106,8 +117,17 @@ export const PAGES = [
     component: () => import('@/views/f/InspectExec.vue') },
   { path: '/f/quality', name: 'QualityScore', title: '品质检查评分卡', group: 'f', status: 'done', icon: 'Star', desc: '评分卡 · 扣分档位 · 整改闭环',
     component: () => import('@/views/f/QualityScore.vue') },
+  // 品质评价：按部门 × 周期聚合巡检数据 → 打分 → 生成品质记录（品质督导专属）
+  { path: '/f/quality-eval', name: 'QualityEval', title: '品质评价', group: 'f', status: 'done', icon: 'Medal', desc: '部门达标率 · 按周期评价 · 生成记录',
+    component: () => import('@/views/f/QualityEval.vue') },
   { path: '/f/quality-records', name: 'QualityRecordList', title: '品质检查记录', group: 'f', status: 'done', icon: 'Tickets', desc: '检查台账 · 整改闭环 · 复查',
     component: () => import('@/views/f/QualityRecordList.vue') },
+  // 整改闭环：开单 → 整改 → 复核 → 闭环，评价不合格自动开单（P3）
+  { path: '/f/rectify', name: 'RectifyList', title: '整改闭环', group: 'f', status: 'done', icon: 'CircleCheck', desc: '开单 · 整改 · 复核 · 超期预警',
+    component: () => import('@/views/f/RectifyList.vue') },
+  // 主管发现问题数：独立考核报表（监督任务的检出量、冲突、主动发现率）
+  { path: '/f/sup-finding', name: 'SupFindingReport', title: '主管发现问题数', group: 'f', status: 'done', icon: 'TrendCharts', desc: '监督任务 · 检出量 · 申报冲突',
+    component: () => import('@/views/f/SupFindingReport.vue') },
   // ---------- D 物联 ----------
   { path: '/d/dashboard', name: 'IotDashboard', title: '物联驾驶舱', group: 'd', status: 'done', icon: 'Odometer', desc: '设备在线率 · 告警 · 通行',
     component: () => import('@/views/d/IotDashboard.vue') },
@@ -118,8 +138,11 @@ export const PAGES = [
   { path: '/d/pass-records', name: 'PassRecordList', title: '通行记录', group: 'd', status: 'done', icon: 'Guide', desc: '车行流水 · 道闸 · 识别方式',
     component: () => import('@/views/d/PassRecordList.vue') },
   // ---------- E 平台底座 ----------
-  // 模型已拍板（2026-10-22）：纯 RBAC（人 → 角色 → 权限）+ 项目级数据权限五档；
+  // 模型已拍板（2026-10-22）：纯 RBAC（人 → 角色 → 权限）+ 项目级数据权限六档（2026-10-29 增「责任范围」）；
   // 单页三 Tab（成员 / 角色权限 / 数据权限），左侧树随 Tab 切换为 组织树 / 角色树 / 数据范围树。
+  { path: '/e/perm-log', name: 'PermLog', title: '权限变更日志', group: 'e', status: 'done', icon: 'Document',
+    desc: '谁在什么时候给哪个角色加了什么权限 · 记 diff 不记动作 · 只增不删',
+    component: () => import('@/views/e/PermLog.vue') },
   { path: '/e/org', name: 'Org', title: '组织与权限', group: 'e', status: 'done', icon: 'Share', desc: '组织架构 · 角色 · 数据权限',
     component: () => import('@/views/e/Org.vue') },
   { path: '/e/reports', name: 'Reports', title: '报表中心', group: 'e', status: 'done', icon: 'Tickets',
@@ -128,6 +151,12 @@ export const PAGES = [
     desc: '配置驱动的通用报表页', component: () => import('@/views/e/ReportView.vue') },
   { path: '/e/downloads', name: 'Downloads', title: '下载中心', group: 'e', status: 'done', icon: 'Download',
     desc: '全站导出的唯一出口 · 异步任务 · 24 小时有效', component: () => import('@/views/e/Downloads.vue') },
+  // 数据安全（2026-10-29）：敏感字段查看与导出留痕，只增不删
+  { path: '/e/access-log', name: 'AccessLog', title: '数据访问日志', group: 'e', status: 'done', icon: 'Lock',
+    desc: '敏感字段查看 · 导出留痕 · 越权拦截', component: () => import('@/views/e/AccessLog.vue') },
+  // 口径自检（2026-10-30）：不变量红绿灯，开发阶段可直接搬成后端单测
+  { path: '/e/audit', name: 'Audit', title: '口径自检', group: 'e', status: 'done', icon: 'CircleCheck',
+    desc: '金额自洽 · 枚举 · 外键 · 权限 · 敏感字段', component: () => import('@/views/e/Audit.vue') },
   { path: '/e/config', name: 'Config', title: '系统配置', group: 'e', status: 'done', icon: 'Setting', desc: '字典管理 · 参数设置 · 操作日志',
     component: () => import('@/views/e/Config.vue') },
   { path: '/e/import', name: 'ImportWizard', title: '导入向导', group: 'e', status: 'done', icon: 'Upload', desc: '三步向导 · 模板下载 · 校验回显',
@@ -143,10 +172,10 @@ export const PAGES = [
     desc: '房屋建档 · 房号唯一性校验', component: () => import('@/views/a/HouseForm.vue') },
   { path: '/a/houses/:id/edit', name: 'HouseEdit', title: '编辑房屋', group: 'a', status: 'done', icon: 'OfficeBuilding', hidden: true,
     desc: '房屋信息回填与修改', component: () => import('@/views/a/HouseForm.vue') },
-  { path: '/a/tenants/new', name: 'TenantNew', title: '新增租约', group: 'a', status: 'done', icon: 'Avatar', hidden: true,
-    desc: '租约建档 · 承租人实名', component: () => import('@/views/a/TenantForm.vue') },
-  { path: '/a/tenants/:id/edit', name: 'TenantEdit', title: '编辑租约', group: 'a', status: 'done', icon: 'Avatar', hidden: true,
-    desc: '续租与租期变更', component: () => import('@/views/a/TenantForm.vue') },
+  { path: '/a/tenants/new', name: 'TenantNew', title: '代业主登记租户', group: 'a', status: 'done', icon: 'Avatar', hidden: true,
+    desc: '前台代录 · 记「物业补录 · 待核验」', component: () => import('@/views/a/TenantForm.vue') },
+  { path: '/a/tenants/:id/edit', name: 'TenantEdit', title: '编辑住户信息', group: 'a', status: 'done', icon: 'Avatar', hidden: true,
+    desc: '物业补充 / 修正 · 保存即生效', component: () => import('@/views/a/TenantForm.vue') },
   { path: '/c/contracts/new', name: 'ContractNew', title: '新建合同', group: 'c', status: 'done', icon: 'Document', hidden: true,
     desc: '五类合同建档 · 期限校验', component: () => import('@/views/c/ContractForm.vue') },
   { path: '/c/contracts/:id/edit', name: 'ContractEdit', title: '编辑合同', group: 'c', status: 'done', icon: 'Document', hidden: true,

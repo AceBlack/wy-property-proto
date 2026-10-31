@@ -18,6 +18,9 @@ const FILE = 'wy_dl_file_'
 const KEEP = 60                 // 最多保留 60 条任务记录
 const EXPIRE_HOURS = 24         // 文件有效期
 const MAX_RUNNING = 3           // 并发上限：超出的排队等待
+const TIMEOUT_MS = 90 * 1000    // 单任务硬超时：超过即判失败，防止任务永远卡在「生成中」
+const AUTO_RETRY = 1            // 失败后自动重试次数（超过转人工）
+const KEEP_FAILED_DAYS = 7      // 失败 / 已过期任务保留天数，超期自动清理
 
 /* ---------------- 状态与存储 ---------------- */
 
@@ -131,9 +134,37 @@ function start(id) {
   setTimeout(() => tick(id), 400)
 }
 
+function _bornMs(t) {
+  const v = new Date(String(t.createdAt || '').replace(/-/g, '/')).getTime()
+  return Number.isNaN(v) ? Date.now() : v
+}
+/** 统一失败出口：写原因 + 按策略自动重试一次，重试也用尽才留给人工 */
+function failTask(t, msg) {
+  t.retries = t.retries || 0
+  if (t.retries < AUTO_RETRY && BUILDS.has(t.id)) {
+    t.retries += 1
+    t.status = '排队中'
+    t.progress = 0
+    t.error = `${msg}（已自动重试第 ${t.retries} 次）`
+    persist()
+    setTimeout(schedule, 600)
+    return
+  }
+  t.status = '失败'
+  t.progress = 0
+  t.error = msg
+  persist()
+  schedule()
+}
+
 function tick(id) {
   const t = find(id)
   if (!t || t.status !== '生成中') return
+  // 硬超时：浏览器切后台 / 长任务卡死时，任务不能永远停在「生成中」
+  if (Date.now() - _bornMs(t) > TIMEOUT_MS) {
+    failTask(t, `生成超时（超过 ${Math.round(TIMEOUT_MS / 1000)}s），任务已回收`)
+    return
+  }
   // 条数越多走得越慢，让「生成中」这个状态在演示里真的看得见
   const step = t.count > 2000 ? 12 + Math.random() * 14 : 18 + Math.random() * 22
   t.progress = Math.min(96, Math.round(t.progress + step))
@@ -152,11 +183,7 @@ async function finish(id) {
   // 失败注入：演示「生成失败 → 重试」这一支（下载中心可开关）
   // 注意：失败分支不能删 build，否则重试时没有生成函数，会变成永远修不好的死任务
   if (state.failMode) {
-    t.status = '失败'
-    t.progress = 0
-    t.error = '导出服务超时（模拟）：生成时间超过 60s，请重试或缩小筛选范围'
-    persist()
-    schedule()
+    failTask(t, '导出服务超时（模拟）：生成时间超过 60s，请重试或缩小筛选范围')
     return
   }
   try {
@@ -172,12 +199,8 @@ async function finish(id) {
     t.finishedAt = nowText()
     t.error = ok ? '' : '文件超过本地存储余量，请回来源页重新导出'
   } catch (e) {
-    t.status = '失败'
-    t.progress = 0
-    t.error = e?.message || '生成失败'
-    persist()
-    schedule()
-    return                      // 同样保留 build：失败后重试要能重跑
+    failTask(t, e?.message || '生成失败')   // 保留 build：自动重试与手动重试都要能重跑
+    return
   }
   BUILDS.delete(id)             // 只有成功才释放
   persist()
@@ -238,6 +261,38 @@ export function downloadTask(id) {
   URL.revokeObjectURL(a.href)
   a.remove()
   return { ok: true, msg: `已下载 ${t.count} 条` }
+}
+
+/**
+ * 任务清理（下载中心挂载时调用）：
+ *   ① 已完成但超过有效期的文件 → 标「已过期」并释放存储；
+ *   ② 失败 / 已过期且超过 7 天的记录 → 自动移除（避免 localStorage 越滚越大）。
+ */
+export function sweepTasks() {
+  let expired = 0
+  let removed = 0
+  const now = Date.now()
+  for (const t of [...state.tasks]) {
+    if (t.status === '已完成' && hoursLeft(t) === 0 && t.finishedAt) {
+      t.status = '已过期'
+      t.error = '文件已超出 24 小时有效期，请重新导出'
+      dropFile(t.id)
+      expired++
+      continue
+    }
+    if (['失败', '已过期'].includes(t.status)) {
+      const base = String(t.finishedAt || t.createdAt || '').replace(/-/g, '/')
+      const ms = new Date(base).getTime()
+      if (!Number.isNaN(ms) && now - ms > KEEP_FAILED_DAYS * 86400000) {
+        const i = state.tasks.findIndex(x => x.id === t.id)
+        if (i >= 0) state.tasks.splice(i, 1)
+        dropFile(t.id)
+        removed++
+      }
+    }
+  }
+  if (expired || removed) persist()
+  return { expired, removed }
 }
 
 export function retryTask(id) {

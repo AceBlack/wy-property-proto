@@ -28,6 +28,13 @@
           </el-form-item>
         </el-col>
         <el-col :span="8">
+          <el-form-item label="单元" prop="unitId">
+            <el-select v-model="form.unitId" style="width:100%" :disabled="!form.buildingId">
+              <el-option v-for="u in unitOpts" :key="u.unitId" :label="u.name" :value="u.unitId" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
           <el-form-item label="房号" prop="room"><el-input v-model="form.room" placeholder="4 位，如 0101" /></el-form-item>
         </el-col>
         <el-col :span="8">
@@ -106,6 +113,13 @@
           <el-form-item label="产权证号"><el-input v-model="form.certNo" placeholder="选填" /></el-form-item>
         </el-col>
         <el-col :span="8">
+          <el-form-item label="责任楼管" prop="stewardEmpId">
+            <el-select v-model="form.stewardEmpId" filterable style="width:100%" placeholder="按楼栋自动带出，可单独指定">
+              <el-option v-for="s in stewardOpts" :key="s.empId" :label="s.label" :value="s.empId" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
           <el-form-item label="绑定业主">
             <el-select v-model="form.ownerId" filterable clearable style="width:100%" placeholder="姓名 / 手机号（可空，未售房屋）">
               <el-option v-for="o in ownerOptions(200)" :key="o.ownerId" :label="`${o.name} ${o.phone}`" :value="o.ownerId" />
@@ -123,14 +137,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import FormShell from '@/components/FormShell.vue'
 import { useForm } from '@/composables/useForm'
 import {
-  buildingsOf, communities, communityOpts, getHouseDetail, houseOptions, houseTypeOpts,
-  houseUsageOpts, houseUseStatusOpts, ownerOptions
+  buildingsOf, cashierUnitOpts, communities, communityOpts, getHouseDetail, houseOptions, houseTypeOpts,
+  houseUsageOpts, houseUseStatusOpts, ownerOptions, saveHouse, stewardOfBuilding, stewardOptions
 } from '@/utils/api'
 import { money } from '@/utils/format'
 import { area, intPositive, number, reqSel, room, uniqueIn } from '@/utils/rules'
@@ -141,7 +155,7 @@ const editing = computed(() => !!route.params.id)
 const id = computed(() => route.params.id || '')
 
 const EMPTY = {
-  communityId: 'P01', buildingId: '', room: '', floor: null, houseType: '', orientation: '',
+  communityId: 'P01', buildingId: '', unitId: '', stewardEmpId: '', room: '', floor: null, houseType: '', orientation: '',
   usage: '住宅', area: null, innerArea: null, chargeArea: null, decoration: '',
   deliverStatus: '已交付', useStatus: '自住', propertyStatus: '已办证', certNo: '',
   ownerId: '', remark: ''
@@ -159,6 +173,8 @@ const roomRules = computed(() => [
 const rules = {
   communityId: reqSel('所属项目'),
   buildingId: reqSel('楼栋'),
+  unitId: reqSel('单元'),
+  stewardEmpId: reqSel('责任楼管'),
   room: roomRules,
   floor: intPositive('楼层', 99),
   houseType: reqSel('户型'),
@@ -171,6 +187,22 @@ const rules = {
 }
 
 const buildingOpts = computed(() => buildingsOf(form.communityId))
+const unitOpts = computed(() => cashierUnitOpts(form.buildingId).map(u => ({ unitId: u.value, name: u.label })))
+const stewardOpts = stewardOptions()
+
+/* 责任范围联动：选楼栋/单元自动带出该栋楼管；手动改过即视为房屋级例外。
+   回填编辑数据时用 filling 挡住 watch，否则会把手动指定的例外覆盖成楼栋默认值 */
+let filling = false
+function syncStewardByBuilding() {
+  const b = stewardOfBuilding(form.buildingId, form.unitId)
+  if (b) form.stewardEmpId = b.empId
+}
+watch(() => form.buildingId, () => {
+  if (filling) return
+  form.unitId = ''
+  syncStewardByBuilding()
+})
+watch(() => form.unitId, () => { if (!filling) syncStewardByBuilding() })
 const priceText = computed(() => {
   const c = communities.find(x => x.communityId === form.communityId)
   return c ? `${money(c.propertyFee)} 元/㎡·月` : '-'
@@ -180,12 +212,21 @@ const shell = ref()
 const loading = ref(false)
 const { saving, dirty, submit, markSaved, confirmLeave } = useForm(form, {
   formRef: () => shell.value?.formRef,
-  onSave: async () => { await new Promise(r => setTimeout(r, 400)) }
+  onSave: async () => {
+    const r = saveHouse({ ...form }, id.value)
+    savedHouseId = r.houseId
+  }
 })
 
+let savedHouseId = ''
 async function onSubmit() {
   const ok = await submit(editing.value ? '房屋信息已更新' : '房屋已创建')
   if (!ok) return
+  if (!savedHouseId) {
+    const { ElMessage } = await import('element-plus')
+    ElMessage.error('保存失败：请检查项目 / 楼栋 / 单元 / 房号')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       editing.value ? '房屋信息已更新（原型阶段为内存态，刷新还原）' : '房屋已创建（原型阶段为内存态，刷新还原）',
@@ -206,13 +247,17 @@ onMounted(async () => {
     const d = await getHouseDetail(String(id.value))
     const h = d?.house || d
     if (h) {
+      filling = true
       Object.assign(form, {
-        communityId: h.communityId, buildingId: h.buildingId, room: h.room, floor: h.floor,
+        communityId: h.communityId, buildingId: h.buildingId, unitId: h.unitId || '',
+        stewardEmpId: h.stewardEmpId || '', room: h.room, floor: h.floor,
         houseType: h.houseType, orientation: h.orientation || '', usage: h.usage, area: h.area,
         innerArea: h.innerArea, chargeArea: h.chargeArea ?? null, decoration: h.decoration || '',
         deliverStatus: h.deliverStatus, useStatus: h.useStatus, propertyStatus: h.propertyStatus,
         certNo: h.certNo || '', ownerId: h.ownerId || '', remark: ''
       })
+      await nextTick()
+      filling = false
       markSaved()
     }
   } finally {

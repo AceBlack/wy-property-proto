@@ -172,7 +172,7 @@
       </template>
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
-        <el-button @click="goPreview">预览移动端执行页</el-button>
+        <el-button @click="goPreview(detailData?.task?.taskId)">预览移动端执行页</el-button>
       </template>
     </DetailDrawer>
   </div>
@@ -185,7 +185,7 @@ import { ElMessage } from 'element-plus'
 import {
   INSPECT_TASK_TYPES, PAGE_SIZES, communities, getInspectTaskDetail, inspectSummary,
   queryInspectTasks, taskPostOpts, taskStatusOpts
-} from '@/utils/api'
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -206,8 +206,8 @@ const { data: detailData, visible: detailVisible, loading: detailLoading, open: 
 function onRow(row) { openDetail(row.taskId) }
 /** 一键只看逾期：把状态筛选落到「逾期」再查，避免页面另起一套过滤 */
 function quick(status) { query.status = status; search() }
-/** 后台只做监管：不提供代填入口，仅可预览移动端执行页（只读演示） */
-function goPreview() { router.push('/f/inspect') }
+/** 后台只做监管：不提供代填入口，仅可预览移动端执行页（只读演示，带 task 直达） */
+function goPreview(id) { router.push(id ? `/f/inspect?task=${id}` : '/f/inspect') }
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */
 const EXPORT_COLS = [

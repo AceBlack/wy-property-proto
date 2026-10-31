@@ -58,7 +58,8 @@
 
     <div class="panel" style="margin-top:16px;">
       <div class="toolbar">
-        <el-button type="primary" :icon="'Plus'" @click="goNew">新建计划</el-button>
+        <el-button type="primary" :icon="'Plus'" :disabled="!canEdit" @click="goNew">新建计划</el-button>
+        <span v-if="!canEdit" class="muted" style="font-size:12.5px;margin-left:4px;">计划由品质督导统一建并指派</span>
         <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
         <span class="spacer" />
         <el-button :icon="'Refresh'" circle title="刷新" @click="load" />
@@ -130,6 +131,11 @@
         <div class="dl">
           <div class="dl__i"><span class="dl__k">计划编号</span><span class="dl__v">{{ detailData.plan.planId }}</span></div>
           <div class="dl__i"><span class="dl__k">岗位</span><span class="dl__v">{{ detailData.plan.post }}</span></div>
+          <div class="dl__i"><span class="dl__k">任务类型</span><span class="dl__v">{{ detailData.plan.taskType || '执行' }}</span></div>
+          <div v-if="detailData.plan.taskType === '监督'" class="dl__i">
+            <span class="dl__k">被检班组</span>
+            <span class="dl__v">{{ detailData.plan.targetDept || '—' }}</span>
+          </div>
           <div class="dl__i"><span class="dl__k">执行周期</span><span class="dl__v">{{ detailData.plan.cycle }}</span></div>
           <div class="dl__i"><span class="dl__k">默认执行人</span><span class="dl__v">{{ detailData.plan.executor }}</span></div>
           <div class="dl__i"><span class="dl__k">检查模板</span><span class="dl__v">{{ detailData.plan.templateName }}</span></div>
@@ -179,6 +185,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -186,11 +193,15 @@ import {
   planPostOpts, queryInspectPlans
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
+import { currentRoleId } from '@/utils/auth'
+import { permCodesOfRole } from '@/utils/rbac'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { exportList } from '@/utils/export'
 
+/* 计划由品质督导统一建并指派给组长：无编辑权只读 */
+const canEdit = computed(() => permCodesOfRole(currentRoleId.value).has('f.inspectPlans.edit'))
 const router = useRouter()
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(
   queryInspectPlans, { filters: { communityId: '', post: '', cycle: '', status: '', kw: '' } }

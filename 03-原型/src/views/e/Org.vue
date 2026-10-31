@@ -5,7 +5,7 @@
       <div>
         <b>组织与权限 · 纯 RBAC</b>：权限只挂在<b>角色</b>上（{{ summary.roleCount }} 个角色 / {{ summary.permCount }} 个权限位），人只挂角色——改权限即改角色，不逐人授权。
         员工的角色与班组由<b>岗位反推</b>（数据里员工只到项目部，班组是执行层），所以左侧组织树能展开到第 4 层。
-        <b>数据权限按项目级五档</b>：全部项目 / 指定项目 / 本项目 / 本部门 / 仅本人——这正是「为什么这个账号只看得到翡翠城」的答案。
+        <b>数据权限按项目级六档</b>：全部项目 / 指定项目 / 本项目 / 本部门 / 责任范围 / 仅本人——这就是「为什么这个账号只看得到自己那几栋、那个账号能看到整个小区」的答案。
       </div>
     </div>
 
@@ -121,6 +121,8 @@
           <div class="toolbar">
             <el-button v-if="tab === 'member'" type="primary" :icon="'Plus'" @click="openEmp">新增成员</el-button>
             <el-button v-else type="primary" :icon="'Plus'" @click="openRoleCreate">新增角色</el-button>
+            <!-- 组织维护：契约 POST/PATCH /orgs 已有，这里给它一个入口（只读角色能看结构，按钮灰） -->
+            <el-button :icon="'Share'" @click="orgStructVisible = true">组织维护</el-button>
             <el-button :icon="'Download'" :disabled="!exportRows.length" @click="onExport">导出</el-button>
             <span class="spacer" />
             <el-button v-if="tab === 'member'" :icon="'Refresh'" circle title="刷新" @click="load" />
@@ -130,7 +132,7 @@
           <!-- Tab1 成员 -->
           <el-table v-if="tab === 'member'" v-loading="loading" :data="rows" style="width:100%"
             max-height="calc(100vh - 500px)" :row-class-name="rowClass" @row-click="onRow">
-            <el-table-column label="姓名 / 工号" min-min-width="130">
+            <el-table-column label="姓名 / 工号" min-width="130">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.name }}</div>
                 <div class="ps-sub">{{ row.empNo }}</div>
@@ -148,7 +150,7 @@
                 <el-tag size="small" effect="plain" :type="scopeTagType(row.dataScope)">{{ row.dataScope || '—' }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="所属组织" min-min-width="160" show-overflow-tooltip>
+            <el-table-column label="所属组织" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="nowrap">{{ row.orgName }}</div>
                 <div class="ps-sub">{{ row.projName }}</div>
@@ -179,7 +181,7 @@
           <!-- Tab2 角色权限 -->
           <el-table v-else-if="tab === 'role'" :data="roleRowsData" style="width:100%"
             max-height="calc(100vh - 500px)" :row-class-name="rowClass" @row-click="onRoleRow">
-            <el-table-column label="角色" min-min-width="160">
+            <el-table-column label="角色" min-width="160">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.name }}</div>
                 <div class="ps-sub">{{ row.roleId }}</div>
@@ -207,7 +209,7 @@
                 <div class="ps-sub">{{ row.coverage }}%</div>
               </template>
             </el-table-column>
-            <el-table-column label="涉及业务域" min-min-width="180" show-overflow-tooltip>
+            <el-table-column label="涉及业务域" min-width="180" show-overflow-tooltip>
               <template #default="{ row }">{{ row.domains.join('、') || '—' }}</template>
             </el-table-column>
             <el-table-column label="操作" width="84" fixed="right">
@@ -220,7 +222,7 @@
           <!-- Tab3 数据权限 -->
           <el-table v-else :data="scopeRowsData" style="width:100%"
             max-height="calc(100vh - 500px)" :row-class-name="rowClass" @row-click="onRoleRow">
-            <el-table-column label="角色" min-min-width="160">
+            <el-table-column label="角色" min-width="160">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.name }}</div>
                 <div class="ps-sub">{{ row.roleId }} · {{ row.scope }}级</div>
@@ -231,13 +233,13 @@
                 <el-tag size="small" effect="plain" :type="scopeTagType(row.dataScope)">{{ row.dataScope }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="可见项目" min-min-width="220" show-overflow-tooltip>
+            <el-table-column label="可见项目" min-width="220" show-overflow-tooltip>
               <template #default="{ row }">{{ row.visibleText }}</template>
             </el-table-column>
             <el-table-column label="影响人数" min-width="92">
               <template #default="{ row }">{{ row.userCount }}<span class="ps-sub">人</span></template>
             </el-table-column>
-            <el-table-column label="口径说明" min-min-width="120" show-overflow-tooltip>
+            <el-table-column label="口径说明" min-width="120" show-overflow-tooltip>
               <template #default="{ row }">{{ row.scopeMemo }}</template>
             </el-table-column>
             <el-table-column label="操作" width="84" fixed="right">
@@ -264,7 +266,12 @@
     >
       <template v-if="mData">
         <div class="grid g4">
-          <div class="dstat"><div class="dstat__k">月薪</div><div class="dstat__v">{{ money(mData.member.monthlySalary) }}<span class="unit">元</span></div></div>
+          <!-- 这里**不显示月薪**：薪资属工资域（c.payroll.view），员工域接口在适配层就把金额剥掉了。
+               抽屉里露一个月薪，等于「能看到员工列表的人就能看到全公司工资」。 -->
+          <div class="dstat">
+            <div class="dstat__k">权限位</div>
+            <div class="dstat__v">{{ mData.matrix.granted }}<span class="unit">/ {{ mData.matrix.total }}</span></div>
+          </div>
           <div class="dstat"><div class="dstat__k">绩效分</div><div class="dstat__v">{{ mData.member.score }}<span class="unit">分</span></div></div>
           <div class="dstat"><div class="dstat__k">本月迟到</div><div class="dstat__v" :class="mData.attendance.late >= 3 ? 'is-warn' : ''">{{ mData.attendance.late }}<span class="unit">次</span></div></div>
           <div class="dstat"><div class="dstat__k">合同剩余</div>
@@ -281,8 +288,12 @@
           <div class="dl__i"><span class="dl__k">岗位 / 职级</span><span class="dl__v">{{ mData.member.position }} · {{ mData.member.level }}</span></div>
           <div class="dl__i"><span class="dl__k">用工类型</span><span class="dl__v">{{ mData.member.empType }}</span></div>
           <div class="dl__i"><span class="dl__k">角色</span><span class="dl__v">{{ mData.role?.name || '未分配' }}（{{ mData.role?.scope }}级）</span></div>
-          <div class="dl__i"><span class="dl__k">可见数据</span><span class="dl__v">{{ mData.role?.scopeText || '—' }}</span></div>
-          <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">{{ maskPhone(mData.member.phone) }}</span></div>
+          <div class="dl__i"><span class="dl__k">可见数据</span><span class="dl__v">{{ mData.role?.scopeText || mData.role?.dataScope || '—' }}</span></div>
+          <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">
+            <!-- 和业主 / 租户同一套揭示规矩：默认掩码，看明文要 a.sensitive.view 且写访问日志 -->
+            <SensitiveText :value="mData.member.phone" field="phone" entity-type="员工"
+              :entity-id="mData.member.empId" :entity-name="mData.member.name" source="/e/org" />
+          </span></div>
           <div class="dl__i"><span class="dl__k">入职 / 转正</span><span class="dl__v">{{ mData.member.entryDate }} / {{ mData.member.regularDate }}</span></div>
         </div>
 
@@ -305,10 +316,19 @@
             员工不单独立例外，避免出现「说不清谁给了他这个权限」。
           </span>
         </div>
+
+        <div class="rel">
+          <span class="rel__note">
+            <b>薪酬不在这里</b>：基本工资 / 应发 / 银行卡属「工资域」（<code>c.payroll.view</code>），
+            员工域接口在适配层就把金额剥掉了——否则能看到员工列表的人，就能看到全公司工资。
+          </span>
+        </div>
       </template>
       <template #footer>
         <el-button @click="mVisible = false">关闭</el-button>
-        <el-button @click="jump('/c/payroll', 'emp:' + (mData?.member?.empId || ''))">工资表</el-button>
+        <!-- 工资是另一个域：这里只负责把人带过去，能不能看由工资域自己的权限位判 -->
+        <el-button :disabled="!payView" :title="payView ? '' : '需要 c.payroll.view（工资域权限）'"
+          @click="jump('/c/payroll', 'emp:' + (mData?.member?.empId || ''))">工资表</el-button>
         <el-button type="primary" @click="openRoleChange">调整角色</el-button>
       </template>
     </DetailDrawer>
@@ -358,7 +378,7 @@
           <div class="dstat"><div class="dstat__k">影响人数</div><div class="dstat__v">{{ rData.role.userCount }}<span class="unit">人</span></div></div>
         </div>
 
-        <div class="sec__hd" style="margin-top:18px;"><h4>可见数据范围</h4><span class="desc">项目级五档</span></div>
+        <div class="sec__hd" style="margin-top:18px;"><h4>可见数据范围</h4><span class="desc">项目级六档（含责任范围）</span></div>
         <div class="dl">
           <div class="dl__i"><span class="dl__k">数据范围</span><span class="dl__v">{{ rData.role.dataScope }}</span></div>
           <div class="dl__i"><span class="dl__k">可见项目</span><span class="dl__v">{{ rData.visible }}</span></div>
@@ -376,6 +396,12 @@
               <el-button size="small" @click="selectAll(false)">清空</el-button>
               <span class="muted" style="font-size:12.5px;">已选 {{ grantedCount }} / {{ totalPerms }}</span>
             </template>
+          </div>
+          <div v-if="editing" class="permreason">
+            <el-input v-model="permReason" size="small" clearable
+              placeholder="本次变更说明（含高敏权限时必填，会带进权限变更日志）"
+              maxlength="60" show-word-limit />
+            <span class="muted">这条会带进「权限变更日志」，审计靠它判断当时为什么这么改</span>
           </div>
           <div v-for="g in rData.matrix.groups" :key="g.domain" class="permgrp">
             <div class="permgrp__hd">
@@ -432,6 +458,9 @@
         <el-button v-else type="primary" @click="startEdit">编辑权限</el-button>
       </template>
     </DetailDrawer>
+
+    <!-- 组织维护（新增部门/班组、改名、调上级） -->
+    <OrgStructureDrawer v-model="orgStructVisible" @changed="onOrgChanged" />
 
     <!-- E1：新增成员 -->
     <el-dialog v-model="empVisible" title="新增成员" width="560">
@@ -508,21 +537,32 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { currentRoleId, rolePermsDirty, saveRolePerms } from '@/utils/auth'
+import { currentRoleId, hasPerm, rolePermsDirty } from '@/utils/auth'
+/**
+ * 走契约（`@/api`）：新增成员 / 新增角色 / 调整角色 / 保存权限矩阵 / **成员与角色详情**。
+ * 写操作必须由服务端判规则（工号生成、名称唯一、提权要不要审批、diff 记什么）；
+ * 详情也必须同一份数据——抽屉与员工档案页各取一套，最早的问题就是「抽屉里有月薪、档案页没有」。
+ *
+ * 树、虚拟视图、字典仍是本地派生：它们是**前端视图模型**（组织树 → 一棵 el-tree），
+ * 不是服务端数据；服务端给的是组织列表与人头数，建树是页面的事。
+ */
 import {
-  PAGE_SIZES, createEmployee, createRole, dataScopeOpts, dataScopeOptsOf, dataScopeTree,
-  empStatusOpts, filterRoles, getMemberDetail, getRoleDetail, orgOptions, orgSummary, orgTree,
+  createEmployee, createRole, getEmployee, getRole, saveRolePerms, updateEmployeeRole
+} from '@/api'
+import {
+  PAGE_SIZES, dataScopeOpts, dataScopeOptsOf, dataScopeTree,
+  empStatusOpts, filterRoles, orgOptions, orgSummary, orgTree,
   orgVirtualNodes, orgTypeOpts, permCodeOpts, positionOpts, queryOrgMembers, roleOpts, roleRows,
-  roleTree, syncRolePermsRow, updateEmployeeRole,
-  roleVirtualNodes, scopeVirtualNodes
+  roleTree, roleVirtualNodes, scopeVirtualNodes
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import { pathOf, useFocusLanding } from '@/composables/useFocus'
 import SpaceTree from '@/components/SpaceTree.vue'
+import OrgStructureDrawer from '@/components/OrgStructureDrawer.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
+import SensitiveText from '@/components/SensitiveText.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { maskPhone, money } from '@/utils/format'
 import { exportList } from '@/utils/export'
 
 const router = useRouter()
@@ -538,8 +578,11 @@ const roleOptsData = roleOpts()
 const statusOpts = empStatusOpts()
 const scopeOptsData = dataScopeOpts()
 const allRoles = ref(roleRows())   // E1：新增角色后需刷新，故用 ref
+/* 工资是独立域：抽屉里不显示金额，只判断"能不能把人带到工资表" */
+const payView = computed(() => hasPerm('c.payroll.view'))
 
-const MEMBER_TREE = orgTree()
+/* 组织维护会新增/移动节点，树要能重建，所以用 ref 而不是常量 */
+const MEMBER_TREE = ref(orgTree())
 const ROLE_TREE = roleTree()
 const SCOPE_TREE = dataScopeTree()
 const MEMBER_VN = orgVirtualNodes()
@@ -557,13 +600,13 @@ const highlightId = ref('')
 const roleFilter = reactive({ scope: '', roleId: '', vf: '', kw: '' })
 const scopeFilter = reactive({ dataScope: '', roleId: '', vf: '' })
 
-const curTree = computed(() => tab.value === 'member' ? MEMBER_TREE : tab.value === 'role' ? ROLE_TREE : SCOPE_TREE)
+const curTree = computed(() => tab.value === 'member' ? MEMBER_TREE.value : tab.value === 'role' ? ROLE_TREE : SCOPE_TREE)
 const curVnodes = computed(() => tab.value === 'member' ? MEMBER_VN : tab.value === 'role' ? ROLE_VN : SCOPE_VN)
 const vnLabel = computed(() => curVnodes.value.find(v => v.key === activeVn.value)?.label || '')
 
 const treeTitle = computed(() => tab.value === 'member' ? '组织范围' : tab.value === 'role' ? '角色范围' : '数据范围')
 const treeSubTitle = computed(() => tab.value === 'member' ? '集团 / 项目 / 部门 / 班组'
-  : tab.value === 'role' ? '适用层级 → 角色' : '五档 → 角色')
+  : tab.value === 'role' ? '适用层级 → 角色' : '六档 → 角色')
 const treePlaceholder = computed(() => tab.value === 'member' ? '搜组织 / 班组' : '搜角色 / 范围')
 const emptyScopeText = computed(() => tab.value === 'member' ? '全部成员' : '全部角色')
 const scopeHint = computed(() => tab.value === 'member' ? '树定组织 · 筛选定属性'
@@ -594,7 +637,43 @@ const totalText = computed(() => tab.value === 'member'
   ? `共 ${total.value} 名成员`
   : `共 ${(tab.value === 'role' ? roleRowsData.value : scopeRowsData.value).length} 个角色`)
 
-const { data: mData, visible: mVisible, loading: mLoading, open: openMember } = useDetail(getMemberDetail)
+/**
+ * 成员抽屉的数据分两处取（契约里它们也确实是两个域）：
+ * - 档案 / 角色 / 组织 / 合同 / 考勤 → `GET /employees/{empId}`（金额在适配层已剥掉）；
+ * - 权限概览 → `GET /roles/{roleId}`（角色矩阵属于权限域，不属于员工）。
+ * 拼回模板原有的 member / org / role / matrix 形状，模板不用跟着改。
+ */
+async function loadMemberDetail(empId) {
+  const d = await getEmployee(empId)
+  if (!d) return null
+  let role = d.role || {}
+  let matrix = { groups: [], total: 0, granted: 0, coverage: 0 }
+  if (role.roleId) {
+    /* 角色详情拿不到不该让整个抽屉打不开：档案本身已经是有效信息 */
+    const rd = await getRole(role.roleId).catch(() => null)
+    if (rd) {
+      matrix = rd.matrix
+      role = { ...role, ...rd.role }
+    }
+  }
+  return {
+    member: d.employee,
+    role,
+    matrix,
+    org: d.org,
+    contract: { start: d.contract.start, end: d.contract.end, left: d.contract.daysLeft },
+    attendance: d.attendance
+  }
+}
+
+/* 组织维护：改完要重建左树与成员列表（组织改名后，成员行上的组织名也变了） */
+const orgStructVisible = ref(false)
+function onOrgChanged() {
+  MEMBER_TREE.value = orgTree()
+  if (tab.value === 'member') load()
+}
+
+const { data: mData, visible: mVisible, loading: mLoading, open: openMember } = useDetail(loadMemberDetail)
 
 /* B 级补齐：调整角色（覆盖表优先于岗位反推；改完刷新成员列表与角色人数） */
 const roleChangeVisible = ref(false)
@@ -607,11 +686,14 @@ function openRoleChange() {
   rcRoleId.value = ''
   roleChangeVisible.value = true
 }
-function saveRoleChange() {
+async function saveRoleChange() {
   if (!rcRoleId.value) { ElMessage.warning('请选择新角色'); return }
   try {
-    const r = updateEmployeeRole(rcEmp.value.empId, rcRoleId.value)
-    ElMessage.success(`已将「${r.name}」从「${r.from}」调整为「${r.roleName}」（${r.dataScope} · ${r.permCount} 项）`)
+    const r = await updateEmployeeRole(rcEmp.value.empId, rcRoleId.value)
+    ElMessage.success(
+      `已将「${r.employee.name}」从「${r.from.roleName}」调整为「${r.to.roleName}」` +
+      `（${r.to.dataScope} · ${r.to.permCount} 项）`
+    )
     roleChangeVisible.value = false
     allRoles.value = roleRows()
     roleVersion.value++
@@ -619,7 +701,8 @@ function saveRoleChange() {
     openMember(rcEmp.value.empId)
   } catch (e) { ElMessage.error(e?.message || '调整失败') }
 }
-const { data: rData, visible: rVisible, loading: rLoading, open: openRole } = useDetail(getRoleDetail)
+/* 角色抽屉也走契约：`GET /roles/{roleId}` 回角色 + 矩阵 + 成员样本 + 高敏持有情况 */
+const { data: rData, visible: rVisible, loading: rLoading, open: openRole } = useDetail(getRole)
 
 function scopeTagType(ds) {
   return ({ 全部项目: 'danger', 指定项目: 'warning', 本项目: 'primary', 本部门: 'info', 仅本人: 'muted' })[ds] || 'info'
@@ -737,7 +820,7 @@ function openEmp() {
 async function saveEmp() {
   try {
     await empRef.value.validate()
-    const r = createEmployee({ ...empForm.value })
+    const r = await createEmployee({ ...empForm.value })
     ElMessage.success(`已新增成员「${r.name}」（${r.position}）`)
     empVisible.value = false
     search()
@@ -760,8 +843,10 @@ function openRoleCreate() {
 async function saveRole() {
   try {
     await roleRef.value.validate()
-    const r = createRole({ ...roleForm.value })
-    ElMessage.success(`已新增角色「${r.name}」，${r.permCount} 个权限位`)
+    /* 不带 perms：新建角色权限为空，授权要到矩阵里做（那一步有 diff、日志、高敏审批） */
+    const { perms: _ignored, ...rest } = roleForm.value
+    const r = await createRole(rest)
+    ElMessage.success(`已新增角色「${r.name}」，权限为空——请在角色矩阵里授权`)
     roleVisible.value = false
     allRoles.value = roleRows()
     roleVersion.value++
@@ -772,6 +857,8 @@ async function saveRole() {
 /* ---------- E2 角色权限矩阵：可编辑并保存（保存后菜单与页面守卫立即生效） ---------- */
 const editing = ref(false)
 const editMap = reactive({})
+/* 变更说明：写进权限变更日志。空着也能存，但日志里会显示「未填写」——收回权限时尤其该写 */
+const permReason = ref('')
 const grantedCount = computed(() => Object.values(editMap).filter(Boolean).length)
 const totalPerms = computed(() => Object.keys(editMap).length)
 
@@ -782,6 +869,7 @@ function startEdit() {
   }
   Object.keys(editMap).forEach(k => delete editMap[k])
   Object.assign(editMap, m)
+  permReason.value = ''
   editing.value = true
 }
 function cancelEdit() { editing.value = false }
@@ -794,23 +882,55 @@ async function savePerms() {
   const roleId = rData.value?.role?.roleId
   if (!roleId) return
   const codes = Object.keys(editMap).filter(k => editMap[k])
+  const roleName = rData.value.role.name
+
   // 改自己正在用的角色会立刻收紧菜单，先确认一次，避免把自己锁在门外
   if (roleId === currentRoleId.value) {
     try {
       await ElMessageBox.confirm(
-        `「${rData.value.role.name}」是你当前登录的身份。保存后菜单与可访问页面会立即按新权限收紧，可能连本页都进不去（原型为内存态，刷新即还原）。`,
+        `「${roleName}」是你当前登录的身份。保存后菜单与可访问页面会立即按新权限收紧，可能连本页都进不去（原型为内存态，刷新即还原）。`,
         '正在修改当前登录角色', { confirmButtonText: '确认保存', cancelButtonText: '再想想', type: 'warning' }
       )
     } catch { return }
   }
-  saveRolePerms(roleId, codes)
-  syncRolePermsRow(roleId)
-  roleVersion.value++
-  editing.value = false
-  ElMessage.success(
-    `已保存「${rData.value.role.name}」${codes.length} 个权限位：菜单与页面访问立即生效（原型阶段为内存态，刷新还原）`
-  )
-  await openRole(roleId)
+
+  try {
+    /* 三条分支全在数据层判：无变化 / 含高敏提权进审批 / 普通变更直接生效。
+       页面只负责把结果说清楚——尤其是 `applied=false` 时**不能说"已保存"**，
+       否则用户以为加上了，第二天发现菜单还是灰的。 */
+    const r = await saveRolePerms(roleId, codes, permReason.value)
+    editing.value = false
+    if (r.noChange) {
+      ElMessage.info(`「${roleName}」权限未发生变化，未产生变更记录`)
+    } else if (!r.applied) {
+      const risks = r.request?.risks || []
+      ElMessage.warning(
+        `本次新增 ${risks.length} 项高敏权限，已提交审批（${r.request?.reqId || '—'}）：` +
+        '审批通过后才生效，可在「权限变更日志」页跟进'
+      )
+    } else {
+      const part = [
+        r.diff.added.length ? `+${r.diff.added.length}` : '',
+        r.diff.removed.length ? `-${r.diff.removed.length}` : ''
+      ].filter(Boolean).join(' / ')
+      ElMessage.success(
+        `已保存「${roleName}」${codes.length} 个权限位（${part}，记录 ${r.log?.changeId || '—'}）：` +
+        '菜单与页面访问立即生效（原型阶段为内存态，刷新还原）'
+      )
+    }
+    roleVersion.value++
+    allRoles.value = roleRows()
+    await openRole(roleId)
+  } catch (e) {
+    const m = e?.message || '保存失败'
+    /* 提权必须留原因：不写原因等于没有审计——审批人看到的是"给这个人加了看证件明文的权限"，
+       却不知道为什么。这里把话说明白，而不是只弹一个"保存失败"。 */
+    if (/原因/.test(m)) {
+      ElMessage.warning(`${m}——本次含高敏权限，请先填写上方「本次变更说明」再保存`)
+    } else {
+      ElMessage.error(m)
+    }
+  }
 }
 
 /* 导出：按当前 Tab 提交任务，文件在下载中心生成与下载 */
@@ -857,7 +977,7 @@ function viewMembers(roleId) {
 
 /** 三棵树共用一份扁平索引，面包屑回退要能取到节点 */
 function flatNode(id) {
-  for (const t of [MEMBER_TREE, ROLE_TREE, SCOPE_TREE]) {
+  for (const t of [MEMBER_TREE.value, ROLE_TREE, SCOPE_TREE]) {
     let hit = null
     const walk = list => list.forEach(n => {
       if (hit) return
@@ -899,6 +1019,9 @@ void orgTypeOpts
 .tabsbar__hint { font-size: 11.5px; color: var(--biz-text-3); }
 .ps-sub { font-size: 11px; color: var(--biz-text-3); margin-top: 1px; }
 .is-warn { color: var(--biz-danger); }
+.permreason { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+.permreason .el-input { max-width: 380px; }
+.permreason .muted { font-size: 12px; }
 .permgrp { margin-top: 8px; border: 1px solid var(--biz-border); border-radius: 6px; overflow: hidden; }
 .permgrp__hd { padding: 5px 10px; font-size: 12px; font-weight: 600; color: var(--biz-text-1); background: var(--biz-bg-hover); }
 .permgrp__i { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--biz-border); }

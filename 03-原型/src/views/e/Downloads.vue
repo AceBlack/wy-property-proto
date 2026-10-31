@@ -114,8 +114,11 @@ import EmptyState from '@/components/EmptyState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import {
   STATUS_OPTS, clearFinished, downloadTask, expireText, exportFailMode, listTasks, removeTask,
-  retryTask, setExportFailMode, sizeText, taskSummary
+  retryTask, setExportFailMode, sizeText, sweepTasks, taskSummary
 } from '@/utils/download'
+
+/* 进页面先做一次任务清理：过期文件释放存储、7 天前的失败记录移除（避免 localStorage 越滚越大） */
+sweepTasks()
 
 const query = reactive({ status: '', type: '', kw: '' })
 const searchQ = reactive({ ...query })

@@ -21,38 +21,19 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="公告范围" tree-title="公告类型 / 项目"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜类型 / 项目"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开公告树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部公告</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方筛选可叠加" @change="search" />
           </div>
 
           <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <el-form-item label="类型">
+              <el-select v-model="query.ntype" placeholder="全部" clearable style="width:118px">
+                <el-option v-for="o in NOTICE_TYPES" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="状态">
               <el-select v-model="query.status" placeholder="全部" clearable style="width:92px">
                 <el-option v-for="o in statusOpts" :key="o" :label="o" :value="o" />
@@ -74,6 +55,17 @@
         </div>
 
         <div class="panel" style="margin-top:16px;">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ total }}</b> 条
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
+
           <div class="toolbar">
             <el-button type="primary" :icon="'Plus'" @click="openNotice(null)">新建公告</el-button>
             <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
@@ -84,7 +76,7 @@
 
           <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 500px)"
             :row-class-name="rowClass" @row-click="onRow">
-            <el-table-column label="公告标题" min-min-width="220">
+            <el-table-column label="公告标题" min-width="220">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.title }}</div>
                 <div class="ps-sub">{{ row.noticeId }}</div>
@@ -97,7 +89,7 @@
               </template>
             </el-table-column>
             <el-table-column prop="communityName" label="项目" min-width="92" show-overflow-tooltip />
-            <el-table-column prop="channelText" label="发布渠道" min-min-width="120" show-overflow-tooltip />
+            <el-table-column prop="channelText" label="发布渠道" min-width="120" show-overflow-tooltip />
             <el-table-column label="发布" min-width="112">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.publisher }}</div>
@@ -242,12 +234,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   NOTICE_CHANNELS, NOTICE_SCOPES, NOTICE_TYPES, PAGE_SIZES, communityOpts,
-  createNotice, getNoticeDetail, noticeStatusOpts, noticeSummary, noticeTree,
-  noticeVirtualNodes, queryNotices, republishNotice, repushNotice, updateNotice, withdrawNotice
-} from '@/utils/api'
+  createNotice, getNoticeDetail, noticeStatusOpts, noticeSummary, noticeVirtualNodes,
+  queryNotices, republishNotice, repushNotice, updateNotice, withdrawNotice
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -278,78 +270,45 @@ const { rows, total, pageNo, size, loading, query, load, search } = useListQuery
   queryNotices, { immediate: false, filters: { ...BLANK_ALL } }
 )
 
-const tree = noticeTree()
 const vnodes = noticeVirtualNodes()
-const summary = ref(noticeSummary())   // 写操作后需刷新，故用 ref
+/* KPI 汇总：mock 同步、http 异步，统一 await；失败保留旧值（列表本身已提示错误） */
+const summary = ref({ total: 0, published: 0, avgReadRate: 0, lowRead: 0, pending: 0, expired: 0 })
+async function syncSummary() {
+  try { summary.value = await noticeSummary() } catch { /* 保留旧值 */ }
+}
+syncSummary()
+/* 快捷视图：原左树的虚拟视图节点搬到这里（5 个状态视图 + 全部） */
+const quickViews = computed(() => [{ key: '', label: '全部', n: summary.value.total }, ...vnodes])
 const statusOpts = noticeStatusOpts()
 const communities = communityOpts()
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
 const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.value.find(v => v.key === query.vf)?.label || '') : ''))
 
-const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
+const hasScope = computed(() => !!(query.ntype || query.vf || query.communityId || query.status || query.kw))
+const scopeText = computed(() => {
+  const parts = []
+  if (query.ntype) parts.push(query.ntype)
+  if (query.communityId) parts.push((communities.find(c => c.id === query.communityId) || {}).name || '')
+  return parts.filter(Boolean).join(' · ') || '全部公告'
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getNoticeDetail)
 
 /* B 级补齐：短信补推未读业主（覆盖户数 - 已读），累计记录 */
 async function doRepush(n) {
   try {
-    const r = repushNotice(n.noticeId)
-    summary.value = noticeSummary()
+    const r = await repushNotice(n.noticeId)
+    await syncSummary()
     await load()
     openDetail(n.noticeId)
     ElMessage.success(`已补推 ${r.unread} 户未读业主（${r.channels.join(' / ')}），累计补推 ${r.total} 户`)
   } catch (e) { ElMessage.error(e?.message || '补推失败') }
 }
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
-function onPick(node) {
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK_ALL)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK_ALL)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
   search()
 }
-function reset() { clearScope() }
 
 function onRow(row) { openDetail(row.noticeId) }
 function rowClass({ row }) { return row.noticeId === highlightId.value ? 'row--focus' : '' }
@@ -444,26 +403,11 @@ useFocusLanding(async ({ focus, open, location }) => {
   const vf = String(route.query.vf || '')
   if (vf && vnodes.some(v => v.key === vf)) {
     Object.assign(query, { ...BLANK_ALL, vf })
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = vf
-    scopePath.value = []
     await load()
     return
   }
   if (focus && location && focus.type === 'notice') {
-    const ckey = location.communityId || 'ALL'
     Object.assign(query, { ...BLANK_ALL, ntype: location.ntype || '', communityId: location.communityId || '' })
-    if (location.ntype) {
-      activeId.value = ckey === 'ALL' ? `N:${location.ntype}` : `N:${location.ntype}:${ckey}`
-      activeChain.value = [`N:${location.ntype}`, activeId.value]
-      scopePath.value = pathOf(tree, activeId.value)
-    } else {
-      activeId.value = ''
-      activeChain.value = []
-      scopePath.value = []
-    }
-    activeVn.value = ''
     await load()
     highlightId.value = focus.id
     if (open) openDetail(focus.id)

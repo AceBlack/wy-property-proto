@@ -3,10 +3,10 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>工单列表 · 以「一张工单」为行</b>：树走<b>项目 → 楼栋 → 单元</b>，与房屋台账同源。
-        只有入户维修类带房屋（约两成），公共区域 / 投诉 / 咨询类没有房屋归属，统一挂在项目的
-        <b>「公共 / 非入户工单」</b>分支下——不挂的话这部分工单在树视图里会凭空消失。
-        <b>{{ summary.overdue }} 单已超时</b>、<b>{{ summary.pending }} 单待派单</b>进树即可见。
+        <b>工单列表 · 以「一张工单」为行</b>：顶部<b>快捷视图定状态</b>（待派单 / 已超时 / 紧急及以上 / 未闭环），
+        下方<b>范围筛选定空间</b>（项目 → 楼栋 → 单元），两者<b>可叠加</b>。只有入户维修类带房屋（约两成），
+        公共区域 / 投诉 / 咨询类没有房屋归属，用「只看无房屋工单」开关承接；
+        看「哪栋报修集中」用报表中心的<b>工单按楼栋分布</b>，不在列表里翻树。
       </div>
     </div>
 
@@ -22,38 +22,19 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="工单范围" tree-title="项目 / 楼栋 / 单元"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜项目 / 楼栋"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开楼栋树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部工单</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方范围可叠加" @change="run">
+              <template #after>
+                <el-checkbox v-model="onlyNoHouse" size="small" @change="onNoHouse">只看无房屋工单</el-checkbox>
+              </template>
+            </QuickViews>
           </div>
 
-          <el-form :model="query" class="filter-bar" label-width="40px" @submit.prevent>
+          <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <ScopeFilter :model="query" @patch="p2 => Object.assign(query, p2)" @change="run" />
             <el-form-item label="状态">
               <el-select v-model="query.status" placeholder="全部" clearable style="width:80px">
                 <el-option v-for="s in statusOpts" :key="s" :label="s" :value="s" />
@@ -73,14 +54,27 @@
               <el-input v-model="query.kw" placeholder="工单号 / 标题 / 师傅" clearable style="width:120px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="search">查询</el-button>
+              <el-button :icon="'Search'" @click="run">查询</el-button>
               <el-button :icon="'RefreshLeft'" @click="onResetAll">重置</el-button>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="panel" style="margin-top:16px;">
-          <div class="toolbar">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="query.nohouse" class="scopebar__vf">无房屋工单</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ scopeSum.count }}</b> 单 · 未闭环 <b>{{ scopeSum.open }}</b> ·
+              超时 <b class="is-warn">{{ scopeSum.overdue }}</b> · 待派单 <b>{{ scopeSum.pending }}</b>
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
+
+          <div class="toolbar" style="margin-top:10px;">
             <el-button type="primary" :icon="'Plus'" @click="$router.push('/f/workorders/new')">发起工单</el-button>
             <el-button :icon="'MagicStick'" :disabled="!picked.length" @click="openBatch">
               批量操作{{ picked.length ? `（${picked.length}）` : '' }}
@@ -101,9 +95,9 @@
                 <div class="ps-sub">{{ row.communityName }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="title" label="标题" min-min-width="200" show-overflow-tooltip />
+            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
             <el-table-column prop="type" label="类型" min-width="96" show-overflow-tooltip />
-            <el-table-column label="房屋" min-min-width="140" show-overflow-tooltip>
+            <el-table-column label="房屋" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">
                 <span v-if="row.houseId">{{ houseShort(row.houseName || houseName(row.houseId)) }}</span>
                 <span v-else class="ps-sub">公共 / 非入户</span>
@@ -120,10 +114,12 @@
             <el-table-column prop="assignee" label="处理人" min-width="82" show-overflow-tooltip>
               <template #default="{ row }">{{ row.assignee || '待派单' }}</template>
             </el-table-column>
-            <el-table-column label="超时" min-width="66" align="right">
+            <el-table-column label="SLA 剩余" min-width="92" align="right">
               <template #default="{ row }">
-                <span v-if="row.isOverdue" class="money money--out">已超时</span>
-                <span v-else>-</span>
+                <span v-if="slaOf(row).finished" class="muted">已结单</span>
+                <span v-else-if="slaOf(row).paused" class="muted">停表中</span>
+                <span v-else-if="slaOf(row).breached" class="money money--out">超 {{ slaOf(row).overdueHours }}h</span>
+                <span v-else :class="slaOf(row).pct >= 80 ? 'is-warn-text' : ''">剩 {{ slaOf(row).leftHours }}h</span>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="66" fixed="right">
@@ -154,12 +150,32 @@
       <template v-if="detailData">
         <div class="grid g4">
           <div class="dstat"><div class="dstat__k">优先级</div><div class="dstat__v" style="font-size:15px;">{{ detailData.priority }}</div></div>
-          <div class="dstat"><div class="dstat__k">SLA</div><div class="dstat__v">{{ detailData.slaHours }}<span class="unit">小时</span></div></div>
+          <div class="dstat"><div class="dstat__k">SLA 承诺</div><div class="dstat__v">{{ detailData.slaHours }}<span class="unit">小时</span></div></div>
           <div class="dstat"><div class="dstat__k">处理人</div><div class="dstat__v" style="font-size:15px;">{{ detailData.assignee || '待派单' }}</div></div>
-          <div class="dstat"><div class="dstat__k">是否超时</div><div class="dstat__v" :class="detailData.isOverdue ? 'is-warn' : ''">{{ detailData.isOverdue ? '已超时' : '正常' }}</div></div>
+          <div class="dstat">
+            <div class="dstat__k">{{ slaOf(detailData).breached ? '已超时' : '剩余' }}</div>
+            <div class="dstat__v" :class="slaOf(detailData).breached ? 'is-warn' : ''">
+              {{ slaOf(detailData).breached ? slaOf(detailData).overdueHours : slaOf(detailData).leftHours }}<span class="unit">小时</span>
+            </div>
+          </div>
         </div>
 
-        <div class="dl" style="margin-top:18px;">
+        <div class="sec__hd" style="margin-top:18px;">
+          <h4>SLA 计时</h4>
+          <span class="desc">工作日 09:00–18:00 · 周末与节假日不计时 · 「待业主确认」停表</span>
+        </div>
+        <div class="dl">
+          <div class="dl__i"><span class="dl__k">到期时间</span><span class="dl__v">{{ slaOf(detailData).dueAt }}</span></div>
+          <div class="dl__i"><span class="dl__k">已耗工时</span><span class="dl__v">{{ slaOf(detailData).usedHours }} 小时（{{ slaOf(detailData).pct }}%）</span></div>
+          <div class="dl__i"><span class="dl__k">状态</span><span class="dl__v">
+            <el-tag v-if="slaOf(detailData).finished" size="small" type="info" effect="plain">已结单</el-tag>
+            <el-tag v-else-if="slaOf(detailData).paused" size="small" type="warning" effect="plain">停表中</el-tag>
+            <el-tag v-else-if="slaOf(detailData).breached" size="small" type="danger" effect="plain">已超时 {{ slaOf(detailData).overdueHours }}h</el-tag>
+            <el-tag v-else size="small" type="success" effect="plain">计时中</el-tag>
+          </span></div>
+        </div>
+
+        <div class="dl" style="margin-top:12px;">
           <div class="dl__i"><span class="dl__k">优先级</span><span class="dl__v">
             <InlineField :model-value="detailData.priority" type="select" :options="WO_PRIORITY_OPTS"
               :save="v => saveWoField('priority', v)" @update:model-value="v => detailData.priority = v" />
@@ -233,12 +249,14 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  PAGE_SIZES, WO_PRIORITY_OPTS, batchUpdateWorkOrders, getWorkOrder, houseName,
-  queryWorkOrders, updateWorkOrderField, woQuerySummary, woTree, woVirtualNodes
-} from '@/utils/api'
+  PAGE_SIZES, WO_PRIORITY_OPTS, batchUpdateWorkOrders, cashierBuildingOpts, cashierUnitOpts, communities,
+  getWorkOrder, houseName, queryWorkOrders, updateWorkOrderField, woQuerySummary, woScopeSummary,
+  woSlaState, woVirtualNodes
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
+import ScopeFilter from '@/components/ScopeFilter.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import InlineField from '@/components/InlineField.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -246,15 +264,15 @@ import EmptyState from '@/components/EmptyState.vue'
 import { money } from '@/utils/format'
 
 const router = useRouter()
-const BLANK = { communityId: '', buildingId: '', unitId: '', vf: '', status: '', type: '', priority: '', kw: '' }
+const BLANK = { communityId: '', buildingId: '', unitId: '', vf: '', status: '', type: '', priority: '', nohouse: false, kw: '' }
 
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(
   queryWorkOrders, { immediate: false, filters: { ...BLANK } }
 )
 
-const tree = woTree()
-const vnodes = woVirtualNodes()
 const summary = woQuerySummary()
+/* 快捷视图：原左树的虚拟视图节点搬到这里 */
+const quickViews = [{ key: '', label: '全部', n: summary.total }, ...woVirtualNodes()]
 const statusOpts = ['待派单', '已派单', '处理中', '待确认', '已完工', '已评价', '已关闭', '已取消']
 const typeOpts = ['入户维修', '公共区域维修', '投诉建议', '咨询', '报事', '其他']
 const priorityOpts = ['特急', '紧急', '普通']
@@ -271,14 +289,38 @@ function onExport() {
   exportList({ name: '工单列表', source: '/f/workorders', columns: EXPORT_COLS, rows: rows.value, filters: { ...query } })
 }
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
-const highlightId = ref('')
+/* SLA 按工作日历算，列表 20 行每行算一次代价不小 → 按 createTime+状态 缓存 */
+const slaCache = new Map()
+function slaOf(wo) {
+  if (!wo) return { leftHours: 0, overdueHours: 0, pct: 0, breached: false, paused: false, finished: false, dueAt: '', usedHours: 0 }
+  const key = `${wo.woId}|${wo.status}|${wo.finishTime || ''}`
+  if (!slaCache.has(key)) slaCache.set(key, woSlaState(wo))
+  return slaCache.get(key)
+}
 
-const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
+const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.find(v => v.key === query.vf)?.label || '') : ''))
+
+/* 当前范围小计 */
+const scopeSum = ref({ count: 0, open: 0, overdue: 0, pending: 0, nohouse: 0 })
+/* 小计与列表同源：越权/异常时不能让页面抛未捕获异常——列表已把 403 提示出来，这里静默归零 */
+async function syncScopeSum() {
+  try { scopeSum.value = await woScopeSummary({ ...query }) }
+  catch { scopeSum.value = Object.fromEntries(Object.keys(scopeSum.value).map(k => [k, 0])) }
+}
+function run() { search(); syncScopeSum() }
+
+const onlyNoHouse = ref(false)
+function onNoHouse(v) { query.nohouse = !!v; run() }
+
+const hasScope = computed(() => !!(query.communityId || query.buildingId || query.unitId || query.vf ||
+  query.status || query.type || query.priority || query.nohouse || query.kw))
+const scopeText = computed(() => {
+  const b = cashierBuildingOpts(query.communityId).find(x => x.value === query.buildingId)?.label
+  const u = cashierUnitOpts(query.buildingId).find(x => x.value === query.unitId)?.label
+  if (b) return [b, u].filter(Boolean).join(' · ')
+  return communities.find(x => x.communityId === query.communityId)?.name || '全部工单'
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getWorkOrder)
 
 /* X3 批量操作：勾选后批量改优先级 / 指派处理人 */
@@ -315,61 +357,21 @@ async function saveWoField(field, v) {
   ElMessage.success(`已更新${field === 'priority' ? '优先级' : field === 'assignee' ? '处理人' : '处理备注'}`)
 }
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
-function onPick(node) {
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
-  search()
+  onlyNoHouse.value = false
+  run()
 }
 function onResetAll() {
+  Object.assign(query, BLANK)
+  onlyNoHouse.value = false
   reset()
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
+  syncScopeSum()
 }
 
 function onRow(row) { openDetail(row.woId) }
 function rowClass({ row }) { return row.woId === highlightId.value ? 'row--focus' : '' }
-/** 房屋全名带项目前缀（翡翠城 1栋1单元0501），项目已在副行与左树给出，主行只留房号 */
+/** 房屋全名带项目前缀（翡翠城 1栋1单元0501），项目已在副行给出，主行只留房号 */
 function houseShort(name) {
   const s = String(name || '')
   const i = s.indexOf(' ')
@@ -393,10 +395,8 @@ useFocusLanding(async ({ focus, open, location }) => {
     Object.assign(query, {
       communityId: location.communityId || '', buildingId: location.buildingId || '', unitId: location.unitId || ''
     })
-    activeId.value = location.unitId || location.buildingId || location.communityId || ''
-    activeChain.value = [location.communityId, location.buildingId, location.unitId].filter(Boolean)
-    scopePath.value = pathOf(tree, activeId.value)
     await load()
+    await syncScopeSum()
     return
   }
   if (focus?.type === 'wo' && location) {
@@ -404,16 +404,16 @@ useFocusLanding(async ({ focus, open, location }) => {
     Object.assign(query, {
       communityId: location.communityId || '', buildingId: location.buildingId || '', unitId: location.unitId || ''
     })
-    activeId.value = location.unitId || location.buildingId || location.communityId || ''
-    activeChain.value = [location.communityId, location.buildingId, location.unitId].filter(Boolean)
-    activeVn.value = ''
-    scopePath.value = pathOf(tree, activeId.value)
     await load()
+    await syncScopeSum()
     highlightId.value = location.woId || ''
     if (open && location.woId) openDetail(location.woId)
     return
   }
-  clearScope()
+  Object.assign(query, BLANK)
+  onlyNoHouse.value = false
+  await load()
+  await syncScopeSum()
 })
 </script>
 

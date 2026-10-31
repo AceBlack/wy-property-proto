@@ -8,7 +8,7 @@
 //   ① 菜单：无权限的页面直接隐藏（不在菜单里出现）
 //   ② 直访：在地址栏输入 / 书签进入无权限页面 → 跳 /error/403，并说明所需权限码
 //   ③ 切换角色：若停在无权限页面，同样跳 403（与直访行为一致，规则只有一条）
-//   ④ 不做行级数据过滤（数据范围五档只做展示，不在此处生效）
+//   ④ 行级数据过滤不在守卫里做：数据范围六档在 api.js 的 scopeFilter 内生效（P5 起含「责任范围」）
 
 import { computed, reactive } from 'vue'
 // 只依赖 rbac 内核：这里不能 import '@/utils/api'，否则首屏主包会带上整个 mock
@@ -22,6 +22,15 @@ const DEFAULT_ROLE = 'R-GM'   // 默认集团总经理：首轮演示全部可�
 
 // permVersion：E2 保存权限矩阵后自增，让依赖 hasPerm / canVisit 的 computed 重新求值
 const state = reactive({ roleId: localStorage.getItem(KEY) || DEFAULT_ROLE, permVersion: 0 })
+
+/**
+ * 只让守卫 / 菜单失效重算，不写数据。
+ * 用在「数据已经被别处改过」的场景：比如审批通过时由 api 层写入了角色权限，
+ * 页面只需要通知守卫重新求值——再调一次 saveRolePerms 会把同一份数据写两遍。
+ */
+export function invalidatePerms() {
+  state.permVersion++
+}
 
 /** 保存角色权限位并让守卫 / 菜单立即生效 */
 export function saveRolePerms(roleId, codes) {

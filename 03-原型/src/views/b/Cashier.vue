@@ -13,7 +13,7 @@
       <div class="search-row">
         <el-input
           v-model="kw" clearable
-          placeholder="输入业主姓名 / 房号 / 手机号 / 身份证后四位"
+          placeholder="业主 / 租户姓名、房号、手机号、身份证后四位"
           style="max-width:460px;"
           :prefix-icon="'Search'"
         />
@@ -58,7 +58,10 @@
             <div class="oitem__ava">{{ o.name.slice(0, 1) }}</div>
             <div class="oitem__b">
               <div class="oitem__n">{{ o.name }}<span class="oitem__t">{{ o.ownerType }}</span></div>
-              <div class="oitem__d">{{ maskPhone(o.phone) }} · {{ roomOfScope(o) || (o.houseIds.length + ' 套房') }}</div>
+              <div class="oitem__d">
+                <SensitiveText :value="o.phone" field="phone" entity-type="业主" :entity-id="o.ownerId"
+                  :entity-name="o.name" source="/b/cashier" /> · {{ roomOfScope(o) || (o.houseIds.length + ' 套房') }}
+              </div>
             </div>
             <div class="oitem__r">
               <div class="oitem__m">{{ money(quickDebt(o.ownerId)) }}</div>
@@ -147,6 +150,32 @@
           </div>
         </div>
 
+        <!-- 在住租户：租户到场代缴物业费时，就地补充 / 修正其信息（保存即生效） -->
+        <div class="tenant-card">
+          <div class="tenant-card__hd">
+            <h4>在住租户</h4>
+            <span class="desc">{{ ownerTenants.length }} 人 · 收费对象仍是业主</span>
+          </div>
+          <div v-if="!ownerTenants.length" class="tenant-card__empty">
+            该业主名下暂无在住租户（出租后由业主小程序登记）
+            <div style="margin-top:6px;">
+              <el-button link type="primary" size="small" @click="$router.push('/a/tenants/new')">前台代录租户</el-button>
+            </div>
+          </div>
+          <div v-for="t in ownerTenants.slice(0, 3)" :key="t.tenantId" class="tline">
+            <div class="tline__b">
+              <div class="tline__n">{{ t.name }}<span class="tline__r">{{ t.roomText }}</span></div>
+              <div class="tline__m">
+                信息 {{ t.completeness.rate }}% ·
+                <span :class="{ 'is-warn': t.verifyStatus !== '已核验' }">{{ t.verifyStatus }}</span>
+              </div>
+            </div>
+            <el-button link type="primary" size="small" @click="openTenantSupplement(t)">补充</el-button>
+          </div>
+          <div v-if="ownerTenants.length > 3" class="tenant-card__more">另有 {{ ownerTenants.length - 3 }} 人，可在「租户管理」查看</div>
+          <div class="tenant-card__tip">租户代缴时可直接补充/修正信息，保存即生效，无需业主确认。</div>
+        </div>
+
         <div class="sec__hd" style="margin:18px 0 10px;"><h4>收款方式</h4></div>
         <el-radio-group v-model="method" class="methods">
           <el-radio-button label="扫码">扫码</el-radio-button>
@@ -173,16 +202,25 @@
         </div>
       </div>
     </div>
+
+    <TenantSupplementDrawer
+      v-model="tsVisible" :tenant="tsTarget" @saved="onTenantSaved"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { cashierBuildingOpts, cashierOwnerList, cashierOwnerRoom, cashierUnitOpts, debtOf, isDebt, ownerProfile } from '@/utils/api'
+import {
+  cashierBuildingOpts, cashierOwnerList, cashierOwnerRoom, cashierUnitOpts, debtOf, isDebt,
+  ownerProfile, tenantsOfOwner
+} from '@/utils/api'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { maskPhone, money } from '@/utils/format'
+import TenantSupplementDrawer from '@/components/TenantSupplementDrawer.vue'
+import SensitiveText from '@/components/SensitiveText.vue'
+import { money } from '@/utils/format'
 
 const kw = ref('')
 const ownerId = ref('OW00001')
@@ -195,6 +233,20 @@ const paying = ref(false)
 const tableRef = ref()
 
 const p = computed(() => ownerProfile(ownerId.value))
+
+/* 在住租户：租户代缴物业费时，前台可当场补充/修正其信息（保存即生效） */
+const tenantVer = ref(0)
+const ownerTenants = computed(() => { void tenantVer.value; return tenantsOfOwner(ownerId.value) })
+const tsVisible = ref(false)
+const tsTarget = ref(null)
+function openTenantSupplement(t) {
+  tsTarget.value = t
+  tsVisible.value = true
+}
+function onTenantSaved() {
+  tenantVer.value++
+  ElMessage.success('租户信息已更新，收费对象不变（账单仍归业主）')
+}
 const houseName = id => p.value.houses.find(h => h.houseId === id)?.fullName || id
 const roomOf = id => p.value.houses.find(h => h.houseId === id)?.room || ''
 // 合并收费表格里省掉项目名，避免一列被撑爆
@@ -372,4 +424,21 @@ function confirmPay() {
   font-size: 11.5px; color: #5a6488; line-height: 1.6;
 }
 .is-danger { color: var(--biz-danger); }
+
+.tenant-card {
+  margin-top: 14px; padding: 12px 12px 10px; border-radius: 10px;
+  border: 1px solid var(--biz-border-light); background: var(--biz-bg-fill);
+}
+.tenant-card__hd { display: flex; align-items: baseline; gap: 8px; }
+.tenant-card__hd h4 { margin: 0; font-size: 13px; color: var(--biz-text-1); }
+.tenant-card__hd .desc { font-size: 11px; color: var(--biz-text-3); }
+.tenant-card__empty { font-size: 11.5px; color: var(--biz-text-3); margin-top: 8px; line-height: 1.6; }
+.tenant-card__more { font-size: 11px; color: var(--biz-text-3); margin-top: 4px; }
+.tenant-card__tip { font-size: 10.5px; color: var(--biz-text-3); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--biz-border); }
+.tline { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.tline__b { flex: 1; min-width: 0; }
+.tline__n { font-size: 12.5px; color: var(--biz-text-1); display: flex; gap: 6px; align-items: baseline; }
+.tline__r { font-size: 11px; color: var(--biz-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tline__m { font-size: 11px; color: var(--biz-text-3); margin-top: 1px; }
+.tline__m .is-warn { color: var(--biz-danger); }
 </style>

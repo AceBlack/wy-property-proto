@@ -146,7 +146,7 @@ import { useForm } from '@/composables/useForm'
 import {
   CONTRACT_CHANGE_TYPES, communityOpts, contractPayCycleOpts, contractSubtypeOpts, contractTypeOpts,
   createContract, empOptions, getContractDetail, nextContractNo, orgOptions, submitContractChange
-} from '@/utils/api'
+} from '@/api'
 import { amount, dateAfter, name, number, phone, reqSel } from '@/utils/rules'
 
 const route = useRoute()

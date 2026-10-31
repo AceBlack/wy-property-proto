@@ -3,9 +3,10 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>通行记录 · 以「一次抬杆」为行</b>：车行流水是车位与收费的对账依据。树只到<b>项目 → 车库区域</b>两级——
-        道闸跨项目复用（同一个「南门」在三个项目都有），进树会产生同名重复叶子，改走筛选；
-        <b>{{ summary.manualCount }} 条人工放行</b>进树即可见，人工抬杆是对账舞弊点，必须可抽查。
+        <b>通行记录 · 以「一次抬杆」为行</b>：车行流水是车位与收费的对账依据。
+        道闸跨项目复用（同一个「南门」在三个项目都有），所以<b>道闸只能做筛选</b>，不做层级；
+        顶部<b>快捷视图定状态</b>（人工放行 / 临停收费 / 停留 ≥6 小时 / ETC），下方<b>项目 + 车库区域</b>定范围，两者可叠加。
+        <b>{{ summary.manualCount }} 条人工放行</b>在视图里一眼可见——人工抬杆是对账舞弊点，必须可抽查。
       </div>
     </div>
 
@@ -21,39 +22,20 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="通行范围" tree-title="项目 / 车库区域"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜项目 / 车库"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开车库树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部车库</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span v-if="query.kw" class="scopebar__vf">车牌 {{ query.kw }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方范围可叠加" @change="run" />
           </div>
 
-          <el-form :model="query" class="filter-bar" label-width="40px" @submit.prevent>
+          <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <ScopeFilter :model="query" :levels="['community']" @patch="p2 => Object.assign(query, p2)" @change="run" />
+            <el-form-item label="车库区域">
+              <el-select v-model="query.zone" placeholder="全部" clearable filterable style="width:110px">
+                <el-option v-for="o in zoneOpts" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="方向">
               <el-select v-model="query.direction" placeholder="全部" clearable style="width:76px">
                 <el-option v-for="o in dirOpts" :key="o" :label="o" :value="o" />
@@ -73,13 +55,24 @@
               <el-input v-model="query.kw" placeholder="车牌 / 车位 / 业主" clearable style="width:120px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="search">查询</el-button>
+              <el-button :icon="'Search'" @click="run">查询</el-button>
               <el-button :icon="'RefreshLeft'" @click="onResetAll">重置</el-button>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="panel" style="margin-top:16px;">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ scopeSum.count }}</b> 次 · 进/出 <b>{{ scopeSum.inCount }} / {{ scopeSum.outCount }}</b> ·
+              临停费 <b>¥{{ money(scopeSum.fee) }}</b>
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
           <div class="toolbar">
             <el-date-picker v-model="query.range" type="daterange" unlink-panels
               start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width:220px" />
@@ -99,7 +92,7 @@
                 <div class="ps-sub">{{ row.communityName }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="通行时间" min-min-width="130">
+            <el-table-column label="通行时间" min-width="130">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.passTime }}</div>
                 <div class="ps-sub">
@@ -109,7 +102,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="plateNo" label="车牌号" min-min-width="120" />
+            <el-table-column prop="plateNo" label="车牌号" min-width="120" />
             <el-table-column prop="parkNo" label="车位" min-width="74" />
             <el-table-column prop="ownerName" label="业主" min-width="84" show-overflow-tooltip />
             <el-table-column prop="gate" label="道闸" min-width="96" show-overflow-tooltip />
@@ -215,12 +208,13 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  PAGE_SIZES, getPassRecordDetail, passChannelOpts, passDirectionOpts, passGateOpts,
-  passSummary, passTree, passVirtualNodes, queryPassRecords
+  PAGE_SIZES, communities, getPassRecordDetail, passChannelOpts, passDirectionOpts, passGateOpts,
+  passScopeSummary, passSummary, passVirtualNodes, passZoneOpts, queryPassRecords
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
+import ScopeFilter from '@/components/ScopeFilter.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -234,9 +228,11 @@ const { rows, total, pageNo, size, loading, query, load, search, reset } = useLi
   queryPassRecords, { immediate: false, filters: { ...BLANK, range: null } }
 )
 
-const tree = passTree()
 const vnodes = passVirtualNodes()
 const summary = passSummary()
+/* 快捷视图：原左树的虚拟视图节点搬到这里 */
+const quickViews = [{ key: '', label: '全部', n: summary.total }, ...vnodes]
+const zoneOpts = passZoneOpts()
 const PASS_FEE_N = vnodes.find(v => v.key === 'paid')?.n || 0
 const dirOpts = passDirectionOpts()
 const gateOpts = passGateOpts()
@@ -254,66 +250,34 @@ function onExport() {
   exportList({ name: '通行记录', source: '/d/pass-records', columns: EXPORT_COLS, rows: rows.value, filters: { ...query } })
 }
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
 const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.find(v => v.key === query.vf)?.label || '') : ''))
 
-const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
+/* 当前范围小计 */
+const scopeSum = ref({ count: 0, inCount: 0, outCount: 0, fee: 0 })
+/* 小计与列表同源：越权/异常时不能让页面抛未捕获异常——列表已把 403 提示出来，这里静默归零 */
+async function syncScopeSum() {
+  try { scopeSum.value = await passScopeSummary({ ...query }) }
+  catch { scopeSum.value = Object.fromEntries(Object.keys(scopeSum.value).map(k => [k, 0])) }
+}
+function run() { search(); syncScopeSum() }
+
+const hasScope = computed(() => !!(query.communityId || query.zone || query.vf ||
+  query.direction || query.gate || query.channel || query.kw || query.range))
+const scopeText = computed(() => {
+  const c = communities.find(x => x.communityId === query.communityId)?.name || '全部车库'
+  return query.zone ? `${c} · ${query.zone}` : c
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getPassRecordDetail)
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
-function onPick(node) {
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
-  search()
+  run()
 }
 function onResetAll() {
+  Object.assign(query, BLANK)
   reset()
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
+  syncScopeSum()
 }
 
 function onRow(row) { openDetail(row.passId) }
@@ -325,20 +289,19 @@ function jump(path, focus) { router.push(`${path}?focus=${focus}&open=1`) }
 /* 落地：车位页跳过来带 plate:车牌（走关键字）；带 pass:记录号 则落到对应车库 */
 useFocusLanding(async ({ focus, open, location }) => {
   highlightId.value = ''
-  if (focus?.type === 'plate') { clearScope(); query.kw = focus.id; await load(); return }
+  if (focus?.type === 'plate') { Object.assign(query, BLANK); query.kw = focus.id; await load(); await syncScopeSum(); return }
   if (focus?.type === 'pass' && location) {
     Object.assign(query, BLANK)
     Object.assign(query, { communityId: location.communityId || '', zone: location.zone || '' })
-    activeId.value = [location.communityId, location.zone].filter(Boolean).join(':')
-    activeChain.value = [location.communityId, activeId.value].filter(Boolean)
-    activeVn.value = ''
-    scopePath.value = pathOf(tree, activeId.value)
     await load()
+    await syncScopeSum()
     highlightId.value = location.passId || ''
     if (open && location.passId) openDetail(location.passId)
     return
   }
-  clearScope()
+  Object.assign(query, BLANK)
+  await load()
+  await syncScopeSum()
 })
 </script>
 

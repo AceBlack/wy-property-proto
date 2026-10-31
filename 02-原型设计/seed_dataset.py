@@ -221,6 +221,15 @@ for h in HOUSES:
              'houseId': h['houseId'], 'ownerId': h['ownerId'], 'leaseStart': ds(TODAY - timedelta(days=rint(60, 900))),
              'leaseEnd': ds(TODAY + timedelta(days=rint(30, 600))), 'rent': money(random.uniform(1200, 5200)),
              'certified': pickw([(True, 66), (False, 34)]), 'faceRegistered': pick([True, False])}
+        # P4 租户口径改造（2026-10-29）：租户由业主出租产生、信息主要由业主维护，物业只做核验与补充。
+        # 以下四个字段由既有值静态派生，不消耗 PRNG（保证后续表逐字不变）：
+        #   source 数据来源 / verifyStatus 核验状态 / relation 与业主关系 / residents 居住人数
+        t['source'] = '物业补录' if tid % 11 == 0 else '业主自助'
+        t['verifyStatus'] = ('已核验' if (t['certified'] and t['faceRegistered'])
+                             else ('待核验' if not t['certified'] else '信息不全'))
+        t['relation'] = ['承租人', '业主亲属', '业主朋友', '企业宿舍'][tid % 4]
+        t['residents'] = 1 + tid % 3
+        t['status'] = '在住'
         h['tenantId'] = t['tenantId']
         TENANTS.append(t)
 
@@ -628,13 +637,23 @@ INSPECT_PLANS = [
     {'planId': 'IP16', 'name': '安保组达标监督', 'post': '安保', 'cycle': '每周', 'templateId': 'TP-SUP-SEC', 'communityId': 'P02', 'executor': '向建华', 'items': 5, 'status': '启用'},
     {'planId': 'IP17', 'name': '环境组达标监督', 'post': '环境', 'cycle': '每周', 'templateId': 'TP-SUP-ENV', 'communityId': 'P03', 'executor': '段娟', 'items': 5, 'status': '启用'},
     {'planId': 'IP18', 'name': '工程组达标监督', 'post': '工程', 'cycle': '每月', 'templateId': 'TP-SUP-ENG', 'communityId': 'P02', 'executor': '薛淼然', 'items': 5, 'status': '启用'},
+    # 2026-10-29 补：三个项目的工程 / 客服组此前没有监督计划，
+    # 「主管发现问题数」考核表会缺部门；补齐后每个班组都有直管主管。
+    {'planId': 'IP19', 'name': '工程组达标监督', 'post': '工程', 'cycle': '每周', 'templateId': 'TP-SUP-ENG', 'communityId': 'P01', 'executor': '苏春梅', 'items': 5, 'status': '启用'},
+    {'planId': 'IP20', 'name': '安保组达标监督', 'post': '安保', 'cycle': '每周', 'templateId': 'TP-SUP-SEC', 'communityId': 'P03', 'executor': '范鑫', 'items': 5, 'status': '启用'},
+    {'planId': 'IP21', 'name': '客服组达标监督', 'post': '客服', 'cycle': '每周', 'templateId': 'TP-SUP-CS', 'communityId': 'P01', 'executor': '汪磊', 'items': 5, 'status': '启用'},
+    {'planId': 'IP22', 'name': '客服组达标监督', 'post': '客服', 'cycle': '每周', 'templateId': 'TP-SUP-CS', 'communityId': 'P02', 'executor': '段浩', 'items': 5, 'status': '启用'},
+    {'planId': 'IP23', 'name': '客服组达标监督', 'post': '客服', 'cycle': '每周', 'templateId': 'TP-SUP-CS', 'communityId': 'P03', 'executor': '梁婷', 'items': 5, 'status': '启用'},
 ]
 # 计划分类：前 12 个是执行类（一线员工作业），后 6 个是监督类（组长核验下属）
-_SUP_PLANS = {'IP13', 'IP14', 'IP15', 'IP16', 'IP17', 'IP18'}
+_SUP_PLANS = {'IP13', 'IP14', 'IP15', 'IP16', 'IP17', 'IP18', 'IP19', 'IP20', 'IP21', 'IP22', 'IP23'}
 _SUP_META = {
     'IP13': ('环境', 'O-P01-T4'), 'IP14': ('安保', 'O-P01-T3'),
     'IP15': ('环境', 'O-P02-T4'), 'IP16': ('安保', 'O-P02-T3'),
     'IP17': ('环境', 'O-P03-T4'), 'IP18': ('工程', 'O-P02-T2'),
+    'IP19': ('工程', 'O-P01-T2'), 'IP20': ('安保', 'O-P03-T3'),
+    'IP21': ('客服', 'O-P01-T1'), 'IP22': ('客服', 'O-P02-T1'),
+    'IP23': ('客服', 'O-P03-T1'),
 }
 for _p in INSPECT_PLANS:
     if _p['planId'] in _SUP_PLANS:
@@ -819,54 +838,132 @@ for e in EMPLOYEES:
                               'expire': ds(TODAY + timedelta(days=rint(-30, 900)))}]
 
 
+# ---- 楼栋责任范围（楼栋管家）----
+# 2026-10-29：业主资料与催缴按「责任范围」隔离。
+# 粒度 = 楼栋为主 + 单元可拆 + 房屋例外（房屋级仅 houses.stewardEmpId 覆盖，不单独建表）。
+# 做法：5 名客服专员转为「楼栋管家」（不新增员工，避免工资/考勤出现断档），
+#       责任表与房屋快照全部静态派生，不消耗 PRNG。
+_STEWARD_NAMES = ['莫瑞', '贺文博', '龚文', '武超', '董娜']
+for _e in EMPLOYEES:
+    if _e['name'] in _STEWARD_NAMES and _e['position'] == '客服专员':
+        _e['position'] = '楼栋管家'
+_STW_OF = {e['name']: e for e in EMPLOYEES if e['position'] == '楼栋管家'}
+_STW_PLAN = {'P01': ['莫瑞', '贺文博'], 'P02': ['龚文', '武超'], 'P03': ['董娜']}
+BUILDING_STEWARDS = []
+for _b in BUILDINGS:
+    _names = _STW_PLAN.get(_b['communityId']) or []
+    if not _names:
+        continue
+    _same = [x['buildingId'] for x in BUILDINGS if x['communityId'] == _b['communityId']]
+    _emp = _STW_OF[_names[_same.index(_b['buildingId']) % len(_names)]]
+    _b['stewardEmpId'] = _emp['empId']
+    BUILDING_STEWARDS.append({
+        'stewardId': 'BS%04d' % (len(BUILDING_STEWARDS) + 1),
+        'buildingId': _b['buildingId'], 'unitId': '', 'communityId': _b['communityId'],
+        'empId': _emp['empId'], 'empName': _emp['name'],
+        'scopeType': '楼栋', 'from': '2026-03-01', 'note': '',
+    })
+# 单元级拆分示例：同一栋楼两位楼管各管一个单元（演示「一栋多楼管」）
+for _bid, _uid, _nm in [('B0101', 'U01101', '贺文博'), ('B0201', 'U02101', '贺文博')]:
+    _emp = _STW_OF[_nm]
+    BUILDING_STEWARDS.append({
+        'stewardId': 'BS%04d' % (len(BUILDING_STEWARDS) + 1),
+        'buildingId': _bid, 'unitId': _uid, 'communityId': 'P01',
+        'empId': _emp['empId'], 'empName': _emp['name'],
+        'scopeType': '单元', 'from': '2026-05-01', 'note': '单元拆分共管',
+    })
+_UNIT_STW = {(x['buildingId'], x['unitId']): x['empId'] for x in BUILDING_STEWARDS if x['unitId']}
+_BLD_STW = {x['buildingId']: x['empId'] for x in BUILDING_STEWARDS if not x['unitId']}
+for _h in HOUSES:
+    _h['stewardEmpId'] = _UNIT_STW.get((_h['buildingId'], _h['unitId'])) or _BLD_STW.get(_h['buildingId'], '')
+
 # --- 监督类任务：静态构造，不消耗 PRNG（保证既有 240 条执行任务逐字不变） ---
 # 口径：监督任务由品质督导下达给组长，组长到现场核验下属责任区实际达标情况，
 #       发现问题必须指定责任员工（用于考核与整改），因此带 issueItems / hitEmployees。
-_SPT_SEED = [
-    # (planId, 状态, 距今天数, 发现问题数, [(问题项, 责任员工)])
-    # 责任员工必须属于「被检岗位 + 同一项目」，否则考核归不到正确的人
-    ('IP13', '已完成', 1, 2, [('楼道扶手有积尘', '顾建国'), ('垃圾点位桶盖未闭合', '吴明')]),
-    ('IP13', '已完成', 8, 1, [('大堂玻璃有手印', '邵磊')]),
-    ('IP14', '已完成', 2, 1, [('夜间巡更漏打 2 个点位', '宋杰')]),
-    ('IP14', '逾期', 5, 0, []),
-    ('IP15', '已完成', 3, 2, [('地下车库地面有积水', '雷洋'), ('绿化带杂草未清', '林浩')]),
-    ('IP15', '执行中', 0, 0, []),
-    ('IP16', '已完成', 6, 1, [('门岗交接记录缺失', '闫宇')]),
-    ('IP17', '已完成', 2, 2, [('电梯轿厢内壁有污渍', '姚辉'), ('公区垃圾桶满溢未清', '唐娜')]),
-    ('IP17', '已完成', 9, 0, []),
-    ('IP18', '已完成', 4, 1, [('配电箱门未上锁', '曹杰')]),
-    ('IP18', '待执行', 1, 0, []),
-    ('IP14', '已完成', 12, 2, [('监控室无人值守', '宋杰'), ('巡更点位二维码破损', '宋杰')]),
-]
+# 2026-10-29 扩充：每名部门经理覆盖近 6 周（09-14 ~ 10-20），
+#       供「主管发现问题数」独立考核报表按自然月统计；责任员工必须属于被检班组。
+_SPT_WEEKS = (1, 8, 15, 22, 29, 37)     # 距基准日天数：本周 / 上周 / …… / 六周前
+_SPT_BANK = {
+    '环境': ['楼道扶手有积尘', '垃圾点位桶盖未闭合', '大堂玻璃有手印', '绿化带落叶未清',
+             '电梯厅地面有水渍', '公共区域烟头未清理', '垃圾桶满溢未清运'],
+    '安保': ['夜间巡更漏打 2 个点位', '门岗交接记录缺失', '监控室无人值守', '巡更点位二维码破损',
+             '访客登记缺项', '消防通道被占用'],
+    '工程': ['配电箱门未上锁', '电梯轿厢内壁有污渍', '设备房巡检记录缺项', '消防泵压力不足', '应急照明不亮'],
+    '客服': ['前台交接记录不完整', '投诉回访未按时完成', '业主档案未及时更新', '报修回访记录缺失', '钥匙借用登记缺项'],
+}
+# 各班组可被追责的一线员工（组长本人不进名单：监督任务追的是下属）
+_SPT_STAFF = {
+    'IP13': ['顾建国', '吴明', '邵磊', '冯嘉'],
+    'IP14': ['宋杰'],
+    'IP15': ['雷洋', '林浩'],
+    'IP16': ['闫宇', '肖秀芳'],
+    'IP17': ['姚辉', '唐娜'],
+    'IP18': ['曹杰', '刘桂英', '卢佳怡'],
+    'IP19': ['邵艳', '吴洋', '朱鑫'],
+    'IP20': ['段芳'],
+    'IP21': ['莫瑞', '覃海燕', '贺文博'],
+    'IP22': ['龚文', '武超'],
+    'IP23': ['董娜', '周佳怡'],
+}
+# 每期发现问题数（近 6 周，由近及远）：不同主管的检出力刻意做出梯度，
+# 考核表才有「谁在真查、谁在走过场」的对比，0 表示本期零异常。
+_SPT_PATTERN = {
+    'IP13': (2, 1, 1, 3, 1, 2),
+    'IP14': (1, 0, 2, 1, 0, 1),
+    'IP15': (2, 1, 1, 0, 2, 1),
+    'IP16': (0, 1, 0, 1, 0, 0),
+    'IP17': (2, 2, 1, 2, 1, 2),
+    'IP18': (1, 0, 1, 2, 0, 1),
+    'IP19': (1, 2, 0, 1, 1, 0),
+    'IP20': (1, 1, 2, 0, 1, 1),
+    'IP21': (0, 1, 0, 0, 1, 0),
+    'IP22': (1, 0, 1, 1, 0, 1),
+    'IP23': (0, 0, 1, 0, 0, 1),
+}
+# 申报冲突：下属当日申报「零异常」，组长现场却查出问题 —— 防作弊重点看这几期
+_SPT_CONFLICT = {('IP13', 0), ('IP13', 3), ('IP14', 2), ('IP17', 0), ('IP17', 2), ('IP18', 3), ('IP20', 2)}
+# 未完成状态（其余默认已完成）：最近一期留几条在执行，避免「全是历史数据」
+_SPT_STATUS = {('IP14', 1): '逾期', ('IP15', 0): '执行中', ('IP18', 0): '待执行', ('IP21', 0): '待执行'}
 _SPT_PLAN_OF = {x['planId']: x for x in INSPECT_PLANS}
-for _spt_k, (_spt_pid, _spt_stt, _spt_ago, _spt_n, _spt_issues) in enumerate(_SPT_SEED, 1):
-    _spt_pl = _SPT_PLAN_OF[_spt_pid]
-    _spt_day = TODAY - timedelta(days=_spt_ago)
-    _spt_done = _spt_stt in ('已完成', '已转工单')
-    INSPECT_TASKS.append({
-        'taskId': 'IT%05d' % (240 + _spt_k), 'planId': _spt_pl['planId'], 'planName': _spt_pl['name'],
-        'post': _spt_pl['post'], 'communityId': _spt_pl['communityId'], 'executor': _spt_pl['executor'],
-        'templateId': _spt_pl['templateId'],
-        'taskType': '监督', 'targetPost': _spt_pl['targetPost'], 'targetDept': _spt_pl['targetDept'],
-        'executorOrgId': _spt_pl['targetDept'],
-        'scheduledDate': ds(_spt_day), 'scheduledTime': '09:00',
-        'status': _spt_stt, 'doneTime': ds(_spt_day) + ' 10:20' if _spt_done else '',
-        'duration': 35 if _spt_done else 0,
-        'itemCount': _spt_pl['items'], 'normalCount': (_spt_pl['items'] - _spt_n) if _spt_done else 0,
-        'issueCount': _spt_n if _spt_done else 0,
-        'photos': (_spt_n + 2) if _spt_done else 0,
-        'checkinType': 'GPS围栏', 'checkedIn': _spt_done or _spt_stt == '执行中',
-        'gps': '104.06%d,30.5%d' % (6000 + _spt_k * 37, 6000 + _spt_k * 41),
-        'score': 0, 'refWoId': '',
-        'reviewer': '', 'reviewScore': 0, 'reviewTime': '',
-        'issueItems': [
-            {'item': _spt_it, 'deduct': 2, 'responsibleName': _spt_who,
-             'responsibleEmpId': next((e['empId'] for e in EMPLOYEES if e['name'] == _spt_who), '')}
-            for _spt_it, _spt_who in _spt_issues
-        ] if _spt_done else [],
-        'hitEmployees': [_spt_who for _, _spt_who in _spt_issues] if _spt_done else [],
-        'conflictFlag': _spt_k in (1, 8),
-    })
+_spt_seq = 240
+for _spt_plan in sorted(_SPT_PATTERN):
+    _spt_pl = _SPT_PLAN_OF[_spt_plan]
+    _spt_bank = _SPT_BANK[_spt_pl['post']]
+    _spt_staff = _SPT_STAFF[_spt_plan]
+    for _spt_wk, _spt_n in enumerate(_SPT_PATTERN[_spt_plan]):
+        _spt_seq += 1
+        _spt_day = TODAY - timedelta(days=_SPT_WEEKS[_spt_wk])
+        _spt_stt = _SPT_STATUS.get((_spt_plan, _spt_wk), '已完成')
+        _spt_done = _spt_stt in ('已完成', '已转工单')
+        _spt_issues = [
+            (_spt_bank[(_spt_wk * 2 + _spt_i) % len(_spt_bank)],
+             _spt_staff[(_spt_wk + _spt_i) % len(_spt_staff)])
+            for _spt_i in range(_spt_n)
+        ]
+        INSPECT_TASKS.append({
+            'taskId': 'IT%05d' % _spt_seq, 'planId': _spt_pl['planId'], 'planName': _spt_pl['name'],
+            'post': _spt_pl['post'], 'communityId': _spt_pl['communityId'], 'executor': _spt_pl['executor'],
+            'templateId': _spt_pl['templateId'],
+            'taskType': '监督', 'targetPost': _spt_pl['targetPost'], 'targetDept': _spt_pl['targetDept'],
+            'executorOrgId': _spt_pl['targetDept'],
+            'scheduledDate': ds(_spt_day), 'scheduledTime': '09:00',
+            'status': _spt_stt, 'doneTime': ds(_spt_day) + ' 10:20' if _spt_done else '',
+            'duration': 35 if _spt_done else 0,
+            'itemCount': _spt_pl['items'], 'normalCount': (_spt_pl['items'] - _spt_n) if _spt_done else 0,
+            'issueCount': _spt_n if _spt_done else 0,
+            'photos': (_spt_n + 2) if _spt_done else 0,
+            'checkinType': 'GPS围栏', 'checkedIn': _spt_done or _spt_stt == '执行中',
+            'gps': '104.06%d,30.5%d' % (6000 + _spt_seq * 37, 6000 + _spt_seq * 41),
+            'score': 0, 'refWoId': '',
+            'reviewer': '', 'reviewScore': 0, 'reviewTime': '',
+            'issueItems': [
+                {'item': _spt_it, 'deduct': 2, 'responsibleName': _spt_who,
+                 'responsibleEmpId': next((e['empId'] for e in EMPLOYEES if e['name'] == _spt_who), '')}
+                for _spt_it, _spt_who in _spt_issues
+            ] if _spt_done else [],
+            'hitEmployees': [_spt_who for _, _spt_who in _spt_issues] if _spt_done else [],
+            'conflictFlag': _spt_done and _spt_n > 0 and (_spt_plan, _spt_wk) in _SPT_CONFLICT,
+        })
 # ============================================================ 9. 看板聚合指标
 def pct(a, b): return round(a / b * 100, 1) if b else 0.0
 
@@ -1259,6 +1356,11 @@ PERM_GROUPS = [
         ('houses', '房屋台账', ('view', 'edit'), '/a/houses'),
         ('tenants', '租户管理', ('view', 'edit'), '/a/tenants'),
         ('vehicles', '车位与车辆', ('view', 'edit'), '/a/vehicles'),
+        # 2026-10-29：楼栋责任范围（楼管分配 / 项目经理移交）
+        ('stewards', '楼栋责任范围', ('view', 'edit'), '/a/stewards'),
+        # 2026-10-29 补：敏感字段明文（手机/证件/银行账号）。route 留空 ——
+        # 它不是一个页面，而是「在页面里点开脱敏值」的能力，绑路由会抢掉 /a/owners 的页面守卫
+        ('sensitive', '敏感字段明文', ('view',), ''),
         # 2026-10-22 补：页面级权限守卫上线后，这两个页此前无权限码（默认放行）
         ('assetDash', '资产驾驶舱', ('view',), '/a/dashboard'),
         ('owner360', '业主360视图', ('view',), '/a/owner360'),
@@ -1266,6 +1368,10 @@ PERM_GROUPS = [
     ('b', 'B 费用', [
         ('bills', '账单查询', ('view', 'edit'), '/b/bills'),
         ('payments', '缴费流水', ('view',), '/b/payments'),
+        # 2026-10-30：收费日结（现金实点轧账 / 退款冲红核对）
+        ('dailyClose', '收费日结', ('view', 'edit'), '/b/daily-close'),
+        # 2026-10-30 夜：收费月结（账面封账）。结账是财务动作，edit 只给财务口径的角色
+        ('monthClose', '收费月结', ('view', 'edit'), '/b/month-close'),
         ('cashier', 'PC 收银台', ('view', 'edit'), '/b/cashier'),
         ('feeItems', '收费科目', ('view',), '/b/fee-items'),
         ('feeDash', '费用驾驶舱', ('view',), '/b/dashboard'),
@@ -1288,6 +1394,20 @@ PERM_GROUPS = [
         # 2026-10-22 补：报表中心与下载中心（导出统一走异步任务后的新入口）
         ('reports', '报表中心', ('view',), '/e/reports'),
         ('downloads', '下载中心', ('view',), '/e/downloads'),
+        # 2026-10-29 补：数据访问日志（敏感字段查看 + 导出留痕，只增不删）
+        ('accessLog', '数据访问日志', ('view',), '/e/access-log'),
+        # 2026-10-30 补：口径自检（不变量红绿灯，运维/开发用）
+        ('audit', '口径自检', ('view',), '/e/audit'),
+        # 2026-10-30 夜补：月结反结（推翻已封账结果）。
+        # **刻意放 e 域而不是 b 域**：财务专员对 b 域是通配（b.* view/edit），
+        # 反结是治理动作，不该被"管收费"这一个事实自动授予 —— 放 b 域会静默给到每个财务。
+        # route 留空：它不是一个页面，是月结页上的一个按钮。
+        ('monthReopen', '月结反结', ('view', 'edit'), ''),
+        # 2026-10-30 夜补：权限变更日志。**只读、只增**——能改权限的人最需要被记录
+        ('permLog', '权限变更日志', ('view',), '/e/perm-log'),
+        # 2026-10-30 夜补：高敏权限变更的审批（按钮级，无路由）。
+        # 只给总经理与财务主管，且**不能审批自己提交的**——双人原则，一个人批不了自己的提权
+        ('permApprove', '权限变更审批', ('view', 'edit'), ''),
     ]),
     ('f', 'F 现场运营', [
         ('workorders', '工单列表', ('view', 'edit'), '/f/workorders'),
@@ -1299,6 +1419,9 @@ PERM_GROUPS = [
         ('quality', '品质评分卡', ('view', 'edit'), '/f/quality'),
         ('qualityRecords', '品质检查记录', ('view', 'edit'), '/f/quality-records'),
         ('qualityEval', '品质评价', ('view', 'edit'), '/f/quality-eval'),
+        # 2026-10-29 补：整改闭环（品质督导开单 → 部门经理整改 → 督导复核）+ 主管发现问题数考核表
+        ('rectify', '整改闭环', ('view', 'edit'), '/f/rectify'),
+        ('supFinding', '主管发现问题数', ('view',), '/f/sup-finding'),
     ]),
 ]
 PERMISSIONS = []
@@ -1335,31 +1458,50 @@ ROLE_SPEC = [
     ('R-PM', '项目经理', '项目', '本项目', [], ['项目经理'],
      '单项目第一责任人，统筹收费、工单与现场，不含人事与工资',
      [('a', '*', ('view', 'edit')),
+      ('e', 'accessLog', ('view',)),
       ('b', 'bills|payments|feeDash|feeItems', ('view',)),
       ('c', 'notices', ('view', 'edit')), ('c', 'contracts', ('view',)),
       ('d', '*', ('view',)),
       ('e', 'reports|downloads', ('view',)),
       ('f', 'workorders|woDetail|inspectTasks|qualityRecords', ('view', 'edit')),
-      ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval', ('view',))]),
+      ('f', 'rectify', ('view', 'edit')),
+      ('a', 'stewards', ('view', 'edit')),
+      ('e', 'audit', ('view',)),
+      ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval|supFinding', ('view',))]),
     ('R-CS', '客服专员', '项目', '本项目', [], ['客服专员'],
      '一线客服：受理业主诉求、执行巡检任务，不含公告发布与档案编辑',
      [('a', 'owners|houses|tenants|vehicles', ('view',)),
+      ('a', 'sensitive', ('view',)),
       ('a', 'owner360', ('view',)),
       ('e', 'downloads', ('view',)),
       ('f', 'inspectTasks', ('view',)),
       ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit'))]),
     ('R-CHG', '收银员', '项目', '本项目', [], ['收银员'],
-     '前台收费与开票：可收款，不可改账单金额',
+     '前台收费与开票：可收款，不可改账单金额；租户到场代缴时可补充租户信息',
      [('a', 'owners|houses', ('view',)),
+      # 2026-10-29：前台收费必须能核对业主/租户手机号 → 给敏感字段明文（每次查看留痕）
+      ('a', 'sensitive', ('view',)),
+      # 2026-10-29：租户信息由业主维护，但「代缴物业费时补充」落点在前台 → 收银员需要租户读写
+      ('a', 'tenants', ('view', 'edit')),
       ('b', 'cashier', ('view', 'edit')), ('b', 'bills', ('view', 'edit')),
       ('b', 'payments|feeItems|feeDash', ('view',)),
+      # 2026-10-30：收银员要能自己日结（现金实点 + 差异说明）
+      ('b', 'dailyClose', ('view', 'edit')),
       ('e', 'downloads', ('view',))]),
     ('R-FIN', '财务专员', '集团', '全部项目', [], ['财务主管', '会计'],
      '集团财务口径，全项目账目、凭证与冲红',
-     [('a', 'houses', ('view',)), ('b', '*', ('view', 'edit')),
+     [('a', 'houses', ('view',)), ('a', 'sensitive', ('view',)), ('b', '*', ('view', 'edit')),
       ('c', 'contracts', ('view',)), ('c', 'payroll', ('view',)),
       ('e', 'reports|downloads', ('view',))]),
+    ('R-FINM', '财务主管', '集团', '全部项目', [], ['财务主管', '财务经理'],
+     '封账与反结的授权人：能推翻已月结结果，但每次反结都要写原因并作废该期报表批次',
+     [('a', 'houses', ('view',)), ('a', 'sensitive', ('view',)),
+      ('b', '*', ('view', 'edit')),
+      ('e', 'monthReopen', ('view', 'edit')),
+      ('e', 'permApprove', ('view', 'edit')),
+      ('e', 'reports|downloads|accessLog|audit|permLog', ('view',)),
+      ('c', 'contracts', ('view',)), ('c', 'payroll', ('view',))]),
     ('R-ENG', '工程维修', '项目', '仅本人', [], ['维修工'],
      '只看派给自己的工单与巡检任务，设备可报修',
      [('d', 'devices|alarms', ('view', 'edit')),
@@ -1375,19 +1517,36 @@ ROLE_SPEC = [
       ('f', 'inspectTemplates', ('view', 'edit')),
       ('f', 'inspect', ('view',)),
       ('f', 'qualityEval', ('view', 'edit')),
+      ('f', 'rectify', ('view', 'edit')),
+      ('f', 'supFinding', ('view',)),
       ('f', 'inspectTasks|qualityRecords|quality', ('view', 'edit'))]),
     ('R-HR', '人事专员', '集团', '全部项目', [], ['人事专员'],
      '人事、薪资与合同台账维护，可分配角色',
      [('c', 'employees|payroll|contracts', ('view', 'edit')),
-      ('e', 'org', ('view', 'edit')), ('e', 'reports|downloads', ('view',))]),
+      # 人事维护员工手机/证件，需要明文；同时可查数据访问日志（员工隐私被谁看过）
+      ('a', 'sensitive', ('view',)),
+      ('e', 'org', ('view', 'edit')), ('e', 'reports|downloads|accessLog|audit|permLog', ('view',))]),
+    ('R-STW', '楼栋管家', '项目', '责任范围', [], ['楼栋管家'],
+     '按楼栋/单元责任范围管理业主资料、租户信息与欠费催缴；范围外一条不可见',
+     [('a', 'owners|houses|tenants', ('view', 'edit')),
+      # 楼管要联系业主，范围内必须能看手机号；每一次揭示都写访问日志（范围外仍看不到）
+      ('a', 'sensitive', ('view',)),
+      ('b', 'bills|payments', ('view',)),
+      ('f', 'workorders|woDetail', ('view', 'edit')),
+      ('a', 'stewards', ('view',)),
+      ('e', 'downloads', ('view',))]),
     ('R-SEC', '部门经理', '项目', '本部门', [], ['客服主管', '工程主管', '安保主管', '环境主管'],
      '班组长级：只做现场核验与监督，不承担一线作业；监督模板与计划由品质督导下发',
      [('a', 'houses|owners|vehicles', ('view',)),
+      ('a', 'sensitive', ('view',)),
       ('b', 'bills|payments', ('view',)),
       ('d', 'passRecords|alarms|devices|iotDash', ('view',)),
       ('f', 'inspectTasks', ('view',)),
       ('f', 'inspect', ('view', 'exec')),
       ('f', 'inspectTemplates', ('view',)),
+      ('f', 'rectify', ('view', 'edit')),
+      ('f', 'supFinding', ('view',)),
+      ('a', 'stewards', ('view',)),
       ('e', 'downloads', ('view',))]),
     ('R-CLN', '环境保洁', '项目', '本项目', [], ['保洁员', '绿化员'],
      '环境类巡检与工单执行，不含收费与业主档案',
@@ -1404,16 +1563,29 @@ ROLE_SPEC = [
       ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit')),
       ('e', 'downloads', ('view',))]),
+    # 2026-10-31：补一个「能看档案、不能看工资」的角色样本。
+    # 没有它，「员工域不含薪资」这条隔离永远没有反例可验（R-HR / R-VIEW 都带 c.payroll.view）。
+    # 岗位「人事助理」刻意不与既有 120 名员工重合：这个角色只做隔离演示，不参与人数统计。
+    ('R-HRA', '人事助理（不含薪酬）', '集团', '全部项目', [], ['人事助理'],
+     '只管人事档案与合同，不含薪资：能看员工手机/证件（每次揭示留痕），看不到任何工资金额',
+     [('a', 'sensitive', ('view',)),
+      ('c', 'employees|contracts', ('view', 'edit')),
+      ('e', 'org', ('view',)), ('e', 'reports|downloads', ('view',))]),
     ('R-VIEW', '只读观察员', '集团', '全部项目', [], [],
      '外部审计 / 集团巡查，全量只读、不留操作',
      [('*', '*', ('view',))]),
 ]
 ROLES = []
 for _rid, _name, _scope, _ds, _comms, _pos, _desc, _rules in ROLE_SPEC:
+    _perms = _expand(_rules)
+    # 只读观察员 = 外部审计 / 集团巡查：通配 view 会顺带拿到「敏感字段明文」，
+    # 按审计口径只给脱敏数据（「看了什么」的留痕他仍然能查）
+    if _rid == 'R-VIEW':
+        _perms = [x for x in _perms if x != 'a.sensitive.view']
     ROLES.append({
         'roleId': _rid, 'name': _name, 'scope': _scope,
         'dataScope': _ds, 'communities': _comms, 'positions': _pos,
-        'desc': _desc, 'builtin': True, 'perms': _expand(_rules),
+        'desc': _desc, 'builtin': True, 'perms': _perms,
     })
 
 # ============================================================ 补充批次（2026-10-22 押金与权限 · 独立随机流 SEED+51）
@@ -1435,7 +1607,9 @@ def r3_pickw(pairs):
 
 _OWNER_OF = {o['ownerId']: o for o in OWNERS}
 _COMM_NAME = {c['communityId']: c['name'] for c in COMMUNITIES}
-_OPERATORS = [e['name'] for e in EMPLOYEES if e['position'] in ('客服主管', '客服专员', '项目经理')]
+# 楼栋管家由客服专员转岗而来，仍属一线运营操作人，必须留在池子里：
+# 否则这个名单长度变化会让后面的随机流整体偏移（approvals / 押金 等表会莫名变动）
+_OPERATORS = [e['name'] for e in EMPLOYEES if e['position'] in ('客服主管', '客服专员', '楼栋管家', '项目经理')]
 if not _OPERATORS:
     _OPERATORS = [e['name'] for e in EMPLOYEES[:30]]
 
@@ -1870,6 +2044,8 @@ print('  [SEED+61] 审批 %d / 催缴 %d / 票据 %d / 表具 %d / 抄表 %d / �
 DATA = {
     'orgs': ORGS, 'communities': COMMUNITIES, 'buildings': BUILDINGS, 'units': UNITS, 'houses': HOUSES,
     'owners': OWNERS, 'members': MEMBERS, 'tenants': TENANTS, 'parkings': PARKINGS, 'vehicles': VEHICLES,
+    # 楼栋责任范围（2026-10-29 · 楼管按范围管业主资料与催缴）
+    'buildingStewards': BUILDING_STEWARDS,
     'passRecords': PASS_RECORDS,
     'feeItems': FEE_ITEMS, 'bills': BILLS, 'payments': PAYMENTS, 'workOrders': WORK_ORDERS,
     'devices': DEVICES, 'alarms': ALARMS, 'inspectPlans': INSPECT_PLANS, 'inspectTasks': INSPECT_TASKS,

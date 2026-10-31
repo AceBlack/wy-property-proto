@@ -59,9 +59,9 @@
           </div>
           <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 420px)"
             :row-class-name="rowClass">
-            <el-table-column prop="empName" label="姓名" min-min-width="90" show-overflow-tooltip />
+            <el-table-column prop="empName" label="姓名" min-width="90" show-overflow-tooltip />
             <el-table-column prop="empNo" label="工号" min-width="90" />
-            <el-table-column prop="position" label="岗位" min-min-width="110" show-overflow-tooltip />
+            <el-table-column prop="position" label="岗位" min-width="110" show-overflow-tooltip />
             <el-table-column prop="month" label="月份" min-width="90" />
             <el-table-column prop="shouldDays" label="应出勤" min-width="80" align="right" />
             <el-table-column prop="actualDays" label="实际出勤" min-width="90" align="right" />
@@ -75,7 +75,7 @@
             <el-table-column prop="absent" label="旷工" min-width="70" align="right" />
             <el-table-column prop="leaveDays" label="请假" min-width="70" align="right" />
             <el-table-column prop="overtimeHours" label="加班(h)" min-width="90" align="right" />
-            <el-table-column label="状态" min-min-width="90">
+            <el-table-column label="状态" min-width="90">
               <template #default="{ row }"><StatusTag domain="attendance" :value="row.status" /></template>
             </el-table-column>
             <el-table-column label="操作" width="130" fixed="right">

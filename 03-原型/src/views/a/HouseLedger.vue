@@ -76,6 +76,11 @@
                 <el-option v-for="o in useStatusOpts" :key="o" :label="o" :value="o" />
               </el-select>
             </el-form-item>
+            <el-form-item label="责任楼管">
+              <el-select v-model="query.stewardEmpId" placeholder="全部" clearable style="width:132px">
+                <el-option v-for="s in stewardOpts" :key="s.empId" :label="s.name" :value="s.empId" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="关键字">
               <el-input v-model="query.kw" placeholder="房号 / 业主 / 房屋编号" clearable style="width:180px" @keyup.enter="search" />
             </el-form-item>
@@ -107,6 +112,12 @@
               <template #default="{ row }"><StatusTag domain="house" :value="row.useStatus" /></template>
             </el-table-column>
             <el-table-column prop="ownerName" label="业主" width="95" />
+            <el-table-column label="责任楼管" width="96">
+              <template #default="{ row }">
+                <span v-if="row.stewardEmpId">{{ stewardNameOf(row.stewardEmpId) }}</span>
+                <span v-else class="muted">未分配</span>
+              </template>
+            </el-table-column>
             <el-table-column label="欠费" width="105" align="right">
               <template #default="{ row }">
                 <span class="money" :class="row.debt > 0 ? 'money--out' : ''">¥ {{ money(row.debt) }}</span>
@@ -184,7 +195,10 @@
           <div class="sec__hd" style="margin-top:18px;"><h4>业主 / 居住人</h4></div>
           <div class="dl">
             <div class="dl__i"><span class="dl__k">业主</span><span class="dl__v">{{ detailData.owner.name }}</span></div>
-            <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">{{ maskPhone(detailData.owner.phone) }}</span></div>
+            <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">
+              <SensitiveText :value="detailData.owner.phone" field="phone" entity-type="业主"
+                :entity-id="detailData.owner.ownerId" :entity-name="detailData.owner.name" source="/a/houses" />
+            </span></div>
             <div class="dl__i"><span class="dl__k">家庭成员</span><span class="dl__v">{{ detailData.members.length }} 人</span></div>
             <div class="dl__i"><span class="dl__k">租客</span><span class="dl__v">{{ detailData.tenants[0]?.name || '—' }}</span></div>
           </div>
@@ -247,7 +261,8 @@ import { ElMessage } from 'element-plus'
 import {
   HOUSE_PROPERTY_OPTS, HOUSE_USE_OPTS, PAGE_SIZES, getHouseDetail, houseFloorStats,
   houseLedgerSummary, houseTree, houseTreeSearchKeys, houseTypeOpts, houseUsageOpts,
-  houseUseStatusOpts, houseVirtualNodes, queryHouseLedger, updateHouseField
+  houseUseStatusOpts, houseVirtualNodes, queryHouseLedger, stewardNameOf, stewardOptions,
+  updateHouseField
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import { pathOf, useFocusLanding } from '@/composables/useFocus'
@@ -256,7 +271,8 @@ import DetailDrawer from '@/components/DetailDrawer.vue'
 import InlineField from '@/components/InlineField.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { expireText, maskPhone, money } from '@/utils/format'
+import { expireText, money } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
 import { exportList } from '@/utils/export'
 import { docFoot, docHead, docTable, printHtml } from '@/utils/print'
 
@@ -300,11 +316,13 @@ function onPrint() {
   else ElMessage.success(`已生成台账打印页（本页 ${rows.value.length} 套）`)
 }
 
+const stewardOpts = stewardOptions()
+
 const { rows, total, pageNo, size, loading, query, load, search } = useListQuery(
   queryHouseLedger,
   {
     immediate: false,
-    filters: { ...BLANK, usage: '', houseType: '', useStatus: '', kw: '' }
+    filters: { ...BLANK, usage: '', houseType: '', useStatus: '', stewardEmpId: '', kw: '' }
   }
 )
 const tree = houseTree()

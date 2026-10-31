@@ -93,10 +93,19 @@
             <el-table-column type="selection" width="46" />
             <el-table-column prop="houseName" label="房屋" min-width="180" show-overflow-tooltip />
             <el-table-column prop="ownerName" label="业主" width="100" />
-            <el-table-column label="手机号" width="130">
-              <template #default="{ row }">{{ maskPhone(row.phone) }}</template>
+            <el-table-column label="手机号" width="142">
+              <template #default="{ row }">
+                <SensitiveText :value="row.phone" field="phone" entity-type="业主" :entity-id="row.ownerId"
+                  :entity-name="row.ownerName" source="/b/collection" />
+              </template>
             </el-table-column>
             <el-table-column prop="communityName" label="项目" width="110" />
+            <el-table-column label="责任楼管" width="96">
+              <template #default="{ row }">
+                <span v-if="row.stewardName">{{ row.stewardName }}</span>
+                <span v-else class="muted">未分配</span>
+              </template>
+            </el-table-column>
             <el-table-column label="欠费笔数" width="90" align="right" prop="count" />
             <el-table-column label="欠费金额" width="120" align="right">
               <template #default="{ row }"><span class="money money--out">¥ {{ money(row.sum) }}</span></template>
@@ -247,7 +256,8 @@ import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { useListQuery } from '@/composables/useQuery'
 import { exportList } from '@/utils/export'
-import { maskPhone, money, wan } from '@/utils/format'
+import { money, wan } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
 import { printArea } from '@/utils/print'
 import {
   COLLECT_METHODS, COLLECT_STATUS, PAGE_SIZES, billPeriodOpts, collectionSummary,

@@ -3,9 +3,9 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>缴费流水 · 以「一笔收款」为行</b>：树走<b>项目 → 楼栋 → 单元</b>，与房屋台账同源。
-        车位管理费上溯不到楼栋，单独挂在项目的「车位收费」分支下——不挂的话这 {{ parkCount }} 笔在树视图里会凭空消失。
-        <b>{{ summary.cashCount }} 笔现金收款</b>进树即可见，现金是收银对账的重点，必须可抽查。
+        <b>缴费流水 · 以「一笔收款」为行</b>：顶部<b>快捷视图定状态</b>（现金收款 / 未开票 / 已冲红 / 预存抵扣），
+        下方<b>范围筛选定空间</b>（项目 → 楼栋 → 单元），两者<b>可叠加</b>——财务对账靠的是时间 + 方式 + 渠道，不是楼栋。
+        车位管理费上溯不到楼栋，用「只看车位收费」开关承接（原树的「车位收费」分支）；<b>现金收款</b>是对账重点，视图里一眼可见。
       </div>
     </div>
 
@@ -21,39 +21,19 @@
       </div>
     </div>
 
-    <div class="ia" :class="{ 'is-collapsed': treeCollapsed }" style="margin-top:16px;">
-      <div class="ia__tree">
-        <SpaceTree
-          title="收款范围" tree-title="项目 / 楼栋 / 单元"
-          :nodes="tree" :virtual="vnodes"
-          placeholder="搜项目 / 楼栋"
-          :active-id="activeId" :active-vn="activeVn"
-          @pick="onPick" @collapse="treeCollapsed = true"
-        />
-      </div>
-
+    <div class="ia is-flat" style="margin-top:16px;">
       <div class="ia__main">
-        <el-button v-if="treeCollapsed" class="ia__handle" size="small" :icon="'Expand'" @click="treeCollapsed = false">
-          展开楼栋树
-        </el-button>
-
         <div class="panel">
-          <div class="scopebar">
-            <template v-if="scopePath.length">
-              <span v-for="(p, i) in scopePath" :key="p">
-                <span class="scopebar__i" :class="{ 'is-last': i === scopePath.length - 1 }" @click="onCrumb(i)">{{ p }}</span>
-                <span v-if="i < scopePath.length - 1" class="scopebar__sep">/</span>
-              </span>
-            </template>
-            <span v-else class="scopebar__i is-last">全部收款</span>
-            <span v-if="activeVn" class="scopebar__vf">{{ vnLabel }}</span>
-            <span v-if="query.kw" class="scopebar__vf">流水 {{ query.kw }}</span>
-            <span class="spacer" />
-            <span class="scopebar__hint">树定范围 · 筛选定属性</span>
-            <el-button link type="primary" @click="clearScope">清除范围</el-button>
+          <div class="qvwrap">
+            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方范围可叠加" @change="run">
+              <template #after>
+                <el-checkbox v-model="onlyPark" size="small" @change="onOnlyPark">只看车位收费</el-checkbox>
+              </template>
+            </QuickViews>
           </div>
 
-          <el-form :model="query" class="filter-bar" label-width="40px" @submit.prevent>
+          <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <ScopeFilter :model="query" @patch="p2 => Object.assign(query, p2)" @change="run" />
             <el-form-item label="方式">
               <el-select v-model="query.method" placeholder="全部" clearable style="width:80px">
                 <el-option v-for="o in methodOpts" :key="o" :label="o" :value="o" />
@@ -73,13 +53,26 @@
               <el-input v-model="query.kw" placeholder="流水号 / 交易号 / 业主" clearable style="width:120px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="search">查询</el-button>
+              <el-button :icon="'Search'" @click="run">查询</el-button>
               <el-button :icon="'RefreshLeft'" @click="onResetAll">重置</el-button>
             </el-form-item>
           </el-form>
         </div>
 
         <div class="panel" style="margin-top:16px;">
+          <div class="scopebar">
+            <span class="scopebar__i is-last">{{ scopeText }}</span>
+            <span v-if="query.subjectType" class="scopebar__vf">车位收费</span>
+            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
+            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
+            <span class="spacer" />
+            <span class="scopebar__sum">
+              本范围 <b>{{ scopeSum.count }}</b> 笔 · 合计 <b>¥{{ money(scopeSum.amount) }}</b> ·
+              现金 <b>{{ scopeSum.cash }}</b> 笔 · 未开票 <b>{{ scopeSum.uninvoiced }}</b> 笔
+            </span>
+            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+          </div>
+
           <div class="toolbar">
             <el-date-picker v-model="query.range" type="daterange" unlink-panels
               start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width:220px" />
@@ -98,10 +91,10 @@
                 <div class="ps-sub">{{ row.payTime }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="业主" min-min-width="90" show-overflow-tooltip>
+            <el-table-column label="业主" min-width="90" show-overflow-tooltip>
               <template #default="{ row }">{{ row.ownerName }}</template>
             </el-table-column>
-            <el-table-column label="承载对象" min-min-width="140" show-overflow-tooltip>
+            <el-table-column label="承载对象" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="nowrap">{{ row.subject }}</div>
                 <div class="ps-sub">{{ row.itemName }}</div>
@@ -122,6 +115,13 @@
                 <el-tag size="small" :type="row.invoiceStatus === '已开票' ? 'success' : (row.invoiceStatus === '已冲红' ? 'danger' : 'info')" effect="plain">
                   {{ row.invoiceStatus }}
                 </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="退款" min-width="96">
+              <template #default="{ row }">
+                <span v-if="row.refundAmount > 0" class="money money--out">-{{ money(row.refundAmount) }}</span>
+                <span v-else class="muted">—</span>
+                <div v-if="row.refundStatus" class="ps-sub">{{ row.refundStatus }}</div>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="68" fixed="right">
@@ -192,8 +192,27 @@
           </el-table>
         </div>
 
+        <template v-if="myRefunds.length">
+          <div class="sec__hd" style="margin-top:18px;"><h4>退款 / 冲红</h4><span class="desc">{{ myRefunds.length }} 笔 · 合计 ¥{{ money(myRefundSum) }}</span></div>
+          <el-table :data="myRefunds" size="small">
+            <el-table-column prop="refundNo" label="退款单号" width="140" />
+            <el-table-column label="金额" width="100" align="right">
+              <template #default="{ row }"><span class="money money--out">-{{ money(row.amount) }}</span></template>
+            </el-table-column>
+            <el-table-column prop="kind" label="类型" width="70" />
+            <el-table-column prop="reason" label="原因" min-width="140" show-overflow-tooltip />
+            <el-table-column prop="operator" label="操作人" width="90" />
+            <el-table-column label="发票" width="86">
+              <template #default="{ row }">
+                <el-tag v-if="row.invoiceRedFlushed" size="small" type="danger" effect="plain">已红冲</el-tag>
+                <span v-else class="muted">—</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
+
         <div class="rel">
-          <span class="rel__note">流水只记 houseId，楼栋与单元由房屋台账反查得出；车位类流水无房屋，只能落到项目级</span>
+          <span class="rel__note">流水只记 houseId，楼栋与单元由房屋台账反查得出；车位类流水无房屋，只能落到项目级。退款会同时把账单的已收减回、未收加回（不是只给流水打个标记）。</span>
         </div>
       </template>
       <template #footer>
@@ -201,9 +220,37 @@
         <el-button v-if="detailData?.payment?.billId" @click="jump('/b/bills', 'bill:' + detailData.payment.billId)">查看账单</el-button>
         <el-button v-if="detailData?.payment?.houseId" @click="jump('/a/houses', 'house:' + detailData.payment.houseId)">房屋台账</el-button>
         <el-button :icon="'Printer'" @click="receiptVisible = true">打印收据</el-button>
+        <el-button v-if="canRefund" type="danger" plain @click="openRefund">发起退款</el-button>
         <el-button type="primary" @click="goInvoice">开票</el-button>
       </template>
     </DetailDrawer>
+
+    <!-- 退款 / 冲红 -->
+    <el-dialog v-model="refundVisible" title="发起退款" width="480">
+      <el-alert type="warning" :closable="false" show-icon style="margin-bottom:14px;"
+        title="退款将同时冲回账单：对应账单已收减少、未收增加；已开票的流水会红冲发票。" />
+      <el-form label-width="88px">
+        <el-form-item label="原流水">
+          <span>{{ detailData?.payment?.payId }} · {{ detailData?.payment?.ownerName }} · ¥{{ money(detailData?.payment?.amount || 0) }}</span>
+        </el-form-item>
+        <el-form-item label="可退金额">
+          <span class="money">¥ {{ money(refundLeft) }}</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <el-input v-model="refundForm.amount" placeholder="留空 = 全额退款">
+            <template #append>元</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="退款原因" required>
+          <el-input v-model="refundForm.reason" type="textarea" :rows="2" maxlength="80" show-word-limit
+            placeholder="如：重复缴费，业主申请退回" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="refundVisible = false">取消</el-button>
+        <el-button type="danger" :loading="refunding" @click="doRefund">确认退款</el-button>
+      </template>
+    </el-dialog>
 
     <!-- X4 收据打印 -->
     <el-dialog v-model="receiptVisible" title="收据打印预览" width="620">
@@ -248,16 +295,18 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  PAGE_SIZES, getPaymentDetail, invoiceStatusOpts, payChannelOpts, paymentSummary,
-  payMethodOpts, payTree, payVirtualNodes, queryPayments
-} from '@/utils/api'
+  PAGE_SIZES, cashierBuildingOpts, cashierUnitOpts, communities, getPaymentDetail, invoiceStatusOpts,
+  payChannelOpts, payMethodOpts, payScopeSummary, payVirtualNodes, paymentSummary, queryPayments,
+  refundPayment
+} from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { pathOf, useFocusLanding } from '@/composables/useFocus'
-import SpaceTree from '@/components/SpaceTree.vue'
+import { useFocusLanding } from '@/composables/useFocus'
+import QuickViews from '@/components/QuickViews.vue'
+import ScopeFilter from '@/components/ScopeFilter.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { money, wan } from '@/utils/format'
@@ -265,18 +314,23 @@ import { exportList } from '@/utils/export'
 import { printArea } from '@/utils/print'
 
 const router = useRouter()
-const BLANK = { communityId: '', buildingId: '', unitId: '', vf: '', method: '', channel: '', invoiceStatus: '', kw: '' }
+const BLANK = { communityId: '', buildingId: '', unitId: '', vf: '', subjectType: '', method: '', channel: '', invoiceStatus: '', kw: '' }
 
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(
   queryPayments, { immediate: false, filters: { ...BLANK, range: null } }
 )
 
-const tree = payTree()
-const vnodes = payVirtualNodes()
-const summary = paymentSummary()
-const parkCount = computed(() =>
-  tree.reduce((s, c) => s + (c.children.find(x => x.type === 'park')?.n || 0), 0)
-)
+/* KPI 汇总：mock 同步、http 异步，统一 await；失败保留上一次的数（列表已提示错误） */
+const summary = ref({
+  total: 0, amount: 0, monthAmount: 0, invoiced: 0,
+  todayCount: 0, todayAmount: 0, monthCount: 0,
+  cashCount: 0, cashAmount: 0, byMethod: [], byChannel: []
+})
+async function syncSummary() {
+  try { summary.value = await paymentSummary() } catch { /* 保持旧值 */ }
+}
+/* 快捷视图：原左树的虚拟视图节点搬到这里，全部 + 4 个状态视图，均带计数 */
+const quickViews = computed(() => [{ key: '', label: '全部', n: summary.value.total }, ...payVirtualNodes()])
 const methodOpts = payMethodOpts()
 const channelOpts = payChannelOpts()
 const invoiceOpts = invoiceStatusOpts()
@@ -294,66 +348,87 @@ function onExport() {
   exportList({ name: '缴费流水', source: '/b/payments', columns: EXPORT_COLS, rows: rows.value, filters: { ...query } })
 }
 
-const treeCollapsed = ref(false)
-const activeId = ref('')
-const activeChain = ref([])
-const activeVn = ref('')
-const scopePath = ref([])
-const highlightId = ref('')
+/* ---------- 退款 / 冲红 ---------- */
+const refundState = ref(0)          // 版本号：退款后强制刷新派生展示
+const refundVisible = ref(false)
+const refunding = ref(false)
+const refundForm = reactive({ amount: '', reason: '' })
+const myRefunds = computed(() => {
+  void refundState.value
+  /* 退款记录随详情一起下发（契约 /payments/{payId} 的 refunds[]），不再全表扫描前端过滤 */
+  return detailData.value?.refunds || []
+})
+const myRefundSum = computed(() => Math.round(myRefunds.value.reduce((s, r) => s + r.amount, 0) * 100) / 100)
+const refundLeft = computed(() => {
+  const p = detailData.value?.payment
+  if (!p) return 0
+  return Math.round(((p.amount || 0) - (p.refundAmount || 0)) * 100) / 100
+})
+const canRefund = computed(() => !!detailData.value?.payment && refundLeft.value > 0.01)
 
-const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
+function openRefund() {
+  refundForm.amount = ''
+  refundForm.reason = ''
+  refundVisible.value = true
+}
+
+async function doRefund() {
+  const p = detailData.value?.payment
+  if (!p) return
+  refunding.value = true
+  try {
+    const row = refundPayment(p.payId, {
+      amount: refundForm.amount === '' ? undefined : refundForm.amount,
+      reason: refundForm.reason, operator: '项目经理'
+    })
+    refundVisible.value = false
+    refundState.value++
+    ElMessage.success(`${row.refundNo} 已退款 ¥${money(row.amount)}（${row.kind}）${row.invoiceRedFlushed ? '，发票已红冲' : ''}`)
+    /* 重取详情：账单已收/未收、开票状态都变了 */
+    detailData.value = await getPaymentDetail(p.payId)
+    await load()
+    await syncScopeSum()
+    await syncSummary()          /* 退款会改「已开票 → 已冲红」和累计收款 */
+  } catch (e) {
+    ElMessage.error(e?.message || '退款失败')
+  } finally { refunding.value = false }
+}
+
+const highlightId = ref('')
+const vnLabel = computed(() => (query.vf ? (quickViews.value.find(v => v.key === query.vf)?.label || '') : ''))
+
+/* 当前范围小计：替代原树节点上的金额 */
+const scopeSum = ref({ count: 0, amount: 0, cash: 0, uninvoiced: 0 })
+/* 小计与列表同源：越权/异常时不能让页面抛未捕获异常——列表已把 403 提示出来，这里静默归零 */
+async function syncScopeSum() {
+  try { scopeSum.value = await payScopeSummary({ ...query }) }
+  catch { scopeSum.value = Object.fromEntries(Object.keys(scopeSum.value).map(k => [k, 0])) }
+}
+function run() { search(); syncScopeSum() }
+
+const onlyPark = ref(false)
+function onOnlyPark(v) { query.subjectType = v ? 'park' : ''; run() }
+
+const hasScope = computed(() => !!(query.communityId || query.buildingId || query.unitId || query.vf ||
+  query.subjectType || query.method || query.channel || query.invoiceStatus || query.kw || query.range))
+const scopeText = computed(() => {
+  const b = cashierBuildingOpts(query.communityId).find(x => x.value === query.buildingId)?.label
+  const u = cashierUnitOpts(query.buildingId).find(x => x.value === query.unitId)?.label
+  if (b) return [b, u].filter(Boolean).join(' · ')
+  return communities.find(x => x.communityId === query.communityId)?.name || '全部收款'
+})
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getPaymentDetail)
 
-const flatNode = new Map()
-;(function flatten(list) {
-  list.forEach(n => {
-    flatNode.set(n.id, n)
-    if (n.children?.length) flatten(n.children)
-  })
-})(tree)
-
-function onPick(node) {
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch || {})
-  if (node.kind === 'virtual') {
-    activeId.value = ''
-    activeChain.value = []
-    activeVn.value = node.key
-    scopePath.value = []
-  } else {
-    activeId.value = node.id
-    activeChain.value = node.chain || [node.id]
-    activeVn.value = ''
-    scopePath.value = node.path || []
-  }
-  search()
-}
-function onCrumb(index) {
-  if (index >= activeChain.value.length - 1) return
-  const node = flatNode.get(activeChain.value[index])
-  if (!node) return
-  Object.assign(query, BLANK)
-  Object.assign(query, node.patch)
-  activeId.value = node.id
-  activeChain.value = activeChain.value.slice(0, index + 1)
-  scopePath.value = scopePath.value.slice(0, index + 1)
-  activeVn.value = ''
-  search()
-}
 function clearScope() {
   Object.assign(query, BLANK)
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
-  search()
+  onlyPark.value = false
+  run()
 }
 function onResetAll() {
+  Object.assign(query, BLANK)
+  onlyPark.value = false
   reset()
-  activeId.value = ''
-  activeChain.value = []
-  activeVn.value = ''
-  scopePath.value = []
+  syncScopeSum()
 }
 
 function onRow(row) { openDetail(row.payId) }
@@ -419,11 +494,8 @@ useFocusLanding(async ({ focus, open, location }) => {
       communityId: location.communityId || '', buildingId: location.buildingId || '',
       unitId: location.unitId || '', kw: focus.id
     })
-    activeId.value = location.unitId || location.buildingId || location.communityId || ''
-    activeChain.value = [location.communityId, location.buildingId, location.unitId].filter(Boolean)
-    activeVn.value = ''
-    scopePath.value = pathOf(tree, activeId.value)
     await load()
+    await syncScopeSum()
     highlightId.value = location.payId || ''
     if (open && location.payId) openDetail(location.payId)
     return
@@ -433,14 +505,16 @@ useFocusLanding(async ({ focus, open, location }) => {
     Object.assign(query, {
       communityId: location.communityId || '', buildingId: location.buildingId || '', unitId: location.unitId || ''
     })
-    activeId.value = location.unitId || location.buildingId || location.communityId || ''
-    activeChain.value = [location.communityId, location.buildingId, location.unitId].filter(Boolean)
-    scopePath.value = pathOf(tree, activeId.value)
     await load()
+    await syncScopeSum()
     return
   }
-  clearScope()
+  Object.assign(query, BLANK)
+  onlyPark.value = false
+  await load()
+  await syncScopeSum()
 })
+onMounted(() => { run(); syncSummary() })
 </script>
 
 <style scoped>

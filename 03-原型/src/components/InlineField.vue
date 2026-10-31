@@ -3,10 +3,11 @@
        用法：<InlineField :model-value="row.phone" :save="v => updateOwnerField(id,'phone',v)" /> -->
   <span class="if" :class="{ 'is-editable': editable, 'is-editing': editing }">
     <template v-if="!editing">
-      <span class="if__v" :title="editable ? '点击编辑' : ''" @click="begin">
+      <span class="if__v" :title="title" @click="begin">
         {{ display || emptyText }}
       </span>
-      <el-icon v-if="editable" class="if__pen" @click.stop="begin"><EditPen /></el-icon>
+      <el-icon v-if="sensitive && !revealed" class="if__eye" @click.stop="revealNow"><View /></el-icon>
+      <el-icon v-if="editable && (!sensitive || revealed)" class="if__pen" @click.stop="begin"><EditPen /></el-icon>
     </template>
 
     <template v-else>
@@ -62,7 +63,8 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { EditPen, Loading, Select, Close } from '@element-plus/icons-vue'
+import { EditPen, Loading, Select, Close, View } from '@element-plus/icons-vue'
+import { maskSensitive } from '@/utils/api'
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
@@ -76,7 +78,11 @@ const props = defineProps({
   min: { type: Number, default: 0 },
   max: { type: Number, default: 99999999 },
   precision: { type: Number, default: 2 },
-  step: { type: Number, default: 1 }
+  step: { type: Number, default: 1 },
+  /** 敏感字段：phone | idCard | bankAccount —— 未揭示时只显示脱敏值，且不允许直接编辑 */
+  sensitive: { type: String, default: '' },
+  /** 揭示回调（由页面注入，内部写访问日志）；返回不明文，仅用于确认有权限 */
+  reveal: { type: Function, default: null }
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 
@@ -95,13 +101,34 @@ const local = ref(null)
 const base = () => (local.value !== null ? local.value : props.modelValue)
 watch(() => props.modelValue, () => { local.value = null })
 
+/* 敏感字段：默认只显示脱敏值，点眼睛揭示（留痕）后才允许编辑 */
+const revealed = ref(false)
+watch(() => props.sensitive, () => { revealed.value = false })
+watch(() => props.modelValue, () => { revealed.value = false })
+
 const opts = computed(() => props.options.map(o => (typeof o === 'string' ? { label: o, value: o } : o)))
 const display = computed(() => {
   const v = base()
-  return v === 0 ? '0' : (v ?? '')
+  const txt = v === 0 ? '0' : (v ?? '')
+  if (props.sensitive && !revealed.value && txt !== '') return maskSensitive(props.sensitive, txt)
+  return txt
+})
+const title = computed(() => {
+  if (props.sensitive && !revealed.value) return '敏感字段已脱敏，点击先揭示明文'
+  return props.editable ? '点击编辑' : ''
 })
 
+function revealNow() {
+  try {
+    if (props.reveal) props.reveal()
+    revealed.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '无权查看明文')
+  }
+}
+
 function begin() {
+  if (props.sensitive && !revealed.value) { revealNow(); return }
   if (!props.editable || editing.value) return
   draft.value = base()
   committed.value = false
@@ -157,6 +184,8 @@ async function commit() {
 .if.is-editable .if__v { cursor: pointer; border-bottom: 1px dashed transparent; }
 .if.is-editable:hover .if__v { border-bottom-color: var(--el-color-primary); color: var(--el-color-primary); }
 .if__pen { color: var(--biz-text-3); cursor: pointer; font-size: 13px; opacity: 0; transition: opacity .15s; }
+.if__eye { color: var(--biz-text-3); cursor: pointer; font-size: 13px; opacity: .55; transition: opacity .15s, color .15s; }
+.if__eye:hover { color: var(--el-color-primary); opacity: 1; }
 .if:hover .if__pen { opacity: 1; }
 .if.is-editing { flex: 1; }
 .if__ok, .if__no, .if__load { cursor: pointer; font-size: 15px; flex: 0 0 auto; }

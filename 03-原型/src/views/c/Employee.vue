@@ -69,18 +69,32 @@
           <div class="dl dl--2" style="margin-top:14px;">
             <div class="dl__i"><span class="dl__k">工号</span><span class="dl__v">{{ cur.empNo }}</span></div>
             <div class="dl__i"><span class="dl__k">性别</span><span class="dl__v">{{ cur.gender }}</span></div>
-            <div class="dl__i"><span class="dl__k">手机</span><span class="dl__v">{{ maskPhone(cur.phone) }}</span></div>
+            <div class="dl__i"><span class="dl__k">手机</span><span class="dl__v">
+              <SensitiveText :value="cur.phone" field="phone" entity-type="员工" :entity-id="cur.empId"
+                :entity-name="cur.name" source="/c/employee" />
+            </span></div>
             <div class="dl__i"><span class="dl__k">用工</span><span class="dl__v">{{ cur.empType }}</span></div>
-            <div class="dl__i is-full"><span class="dl__k">证件</span><span class="dl__v">{{ maskId(cur.idCard) }}</span></div>
+            <div class="dl__i is-full"><span class="dl__k">证件</span><span class="dl__v">
+              <SensitiveText :value="cur.idCard" field="idCard" entity-type="员工" :entity-id="cur.empId"
+                :entity-name="cur.name" source="/c/employee" />
+            </span></div>
             <div class="dl__i"><span class="dl__k">上级</span><span class="dl__v">{{ cur.manager }}</span></div>
             <div class="dl__i is-full"><span class="dl__k">入职</span><span class="dl__v">{{ cur.entryDate }}（转正 {{ cur.regularDate }}，试用 {{ cur.probationMonths }} 个月）</span></div>
             <div class="dl__i is-full"><span class="dl__k">合同</span><span class="dl__v">{{ cur.contractStart }} ~ {{ cur.contractEnd }}</span></div>
           </div>
 
           <div class="sec__hd" style="margin:16px 0 8px;"><h4>薪酬</h4></div>
-          <div class="pay">
-            <div><span>基本工资</span><b class="money">{{ money(cur.baseSalary) }}</b></div>
-            <div><span>月度应发</span><b class="money">{{ money(cur.monthlySalary) }}</b></div>
+          <!-- 员工域不返回薪资：基本工资 / 月度应发 / 银行卡属工资域（c.payroll.view）。
+               档案页显示金额的结果是——能看到员工列表的人，就能看到全公司工资。 -->
+          <div class="pay-lock">
+            <b>受限</b>
+            <div>
+              薪酬属「工资域」，需 <code>c.payroll.view</code>。
+              <template v-if="payView">当前角色已具备该权限，请到「工资表」查看（本期工资条尚未生成）。</template>
+              <template v-else>当前角色无该权限，仅能查看人事档案。</template>
+            </div>
+          </div>
+          <div class="pay" style="margin-top:8px;">
             <div><span>社保</span><b>{{ cur.socialSecurity ? '已缴' : '未缴' }}</b></div>
           </div>
 
@@ -105,12 +119,13 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
-import { orgs, queryEmployees } from '@/utils/api'
+import { computed, ref, watch } from 'vue'
+import { queryEmployees, orgOptions } from '@/api'
+import { hasPerm } from '@/utils/auth'
 import { useListQuery } from '@/composables/useQuery'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { maskId, maskPhone, money } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
 import { daysBetween } from '@/utils/format'
 
 /* 列表查询收归 useListQuery + api，页面不再遍历原始数组 */
@@ -120,8 +135,11 @@ const {
 const cur = ref(null)
 watch(rows, r => { if (!cur.value && r.length) cur.value = r[0] })
 
-const orgOpts = orgs
-const orgName = id => orgs.find(o => o.orgId === id)?.name || id
+/* 组织下拉走适配层：页面禁止 import '@/mock'，也不再从 api.js 直接取原始数组 */
+const orgOpts = orgOptions()
+const orgName = id => orgOpts.find(o => o.orgId === id)?.label || id
+/* 薪酬要看工资域的权限位，档案页只做「能不能看」的判断，不自己取数 */
+const payView = computed(() => hasPerm('c.payroll.view'))
 // 60 天内到期：daysBetween 为「今天 - 到期日」，所以 n ∈ [-60, 0]
 const soon = d => { const n = daysBetween(d); return n !== null && n >= -60 && n <= 0 }
 
@@ -137,6 +155,10 @@ function pick(row) { if (row) cur.value = row }
 .pay { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--biz-text-2); }
 .pay > div { display: flex; justify-content: space-between; }
 .pay b { color: var(--biz-text-1); }
+.pay-lock { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.6;
+  color: var(--biz-text-2); background: var(--biz-bg-fill); border-radius: 8px; padding: 10px; }
+.pay-lock b { flex: none; color: var(--biz-warning); font-weight: 600; }
+.pay-lock code { font-family: var(--biz-font-num); background: var(--biz-bg-card); padding: 0 4px; border-radius: 4px; }
 .att { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .att > div { background: var(--biz-bg-fill); border-radius: 8px; padding: 8px; text-align: center; }
 .att b { display: block; font-family: var(--biz-font-num); font-size: 16px; }

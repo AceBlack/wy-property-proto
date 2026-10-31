@@ -92,7 +92,12 @@
             :row-class-name="rowClass" @row-click="onRow" @selection-change="onSel">
             <el-table-column type="selection" width="46" />
             <el-table-column prop="name" label="业主" width="100" />
-            <el-table-column prop="phone" label="手机号" width="120" />
+            <el-table-column label="手机号" width="132">
+              <template #default="{ row }">
+                <SensitiveText :value="row.phone" field="phone" entity-type="业主" :entity-id="row.ownerId"
+                  :entity-name="row.name" source="/a/owners" />
+              </template>
+            </el-table-column>
             <el-table-column prop="ownerType" label="类型" width="90" />
             <el-table-column label="名下房屋" min-width="170" show-overflow-tooltip>
               <template #default="{ row }">
@@ -160,7 +165,9 @@
               @update:model-value="v => detailData.owner.name = v" />
           </span></div>
           <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">
-            <InlineField :model-value="detailData.owner.phone" :save="v => saveOwnerField('phone', v)"
+            <InlineField :model-value="detailData.owner.phone" sensitive="phone"
+              :reveal="() => revealSensitive({ entityType: '业主', entityId: detailData.owner.ownerId, entityName: detailData.owner.name, field: 'phone', value: detailData.owner.phone, source: '/a/owners' })"
+              :save="v => saveOwnerField('phone', v)"
               @update:model-value="v => detailData.owner.phone = v" />
           </span></div>
           <div class="dl__i"><span class="dl__k">邮箱</span><span class="dl__v">
@@ -296,14 +303,15 @@ import {
   ownerTree, ownerTypeOpts, ownerVirtualNodes, queryOwners
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
-import { checkMergeOwners, housesOfOwner, mergeOwners, splitOwnerHouses, updateOwnerField } from '@/utils/api'
+import { checkMergeOwners, housesOfOwner, mergeOwners, revealSensitive, splitOwnerHouses, updateOwnerField } from '@/utils/api'
 import { pathOf, useFocusLanding } from '@/composables/useFocus'
 import SpaceTree from '@/components/SpaceTree.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import InlineField from '@/components/InlineField.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { maskPhone, money } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
+import { money } from '@/utils/format'
 import { exportList } from '@/utils/export'
 
 const router = useRouter()

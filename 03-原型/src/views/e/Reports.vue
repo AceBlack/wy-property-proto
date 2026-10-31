@@ -5,6 +5,10 @@
       <div>
         <b>报表中心</b>：一张表 = 一份配置（<code>utils/reports.js</code>），页面不写死任何列。
         金额口径全部来自 <code>api.js</code>，与三个驾驶舱同源；明细表支持导出 CSV。
+        <b>带「跑批」标记的统计报表不做实时查询</b>——数字由夜间跑批算好落库，页面读统计批次快照，
+        可切历史批次、可手动重算（改账单不会让已生成的批次跟着变）。
+        <b>批次保留</b>：日快照 90 天 / 月快照 24 期 / 年报永久；<b>已月结期间的批次一律不清理</b>——
+        审计要能回答「那个月报表当时长什么样」，而月结正是"当时"被确认的时间点。
         <b>置灰的报表为未开工项</b>，标注了所属批次，避免误以为已交付。
       </div>
     </div>
@@ -20,6 +24,7 @@
           <div class="rcard__hd">
             <span class="rcard__n">{{ r.name }}</span>
             <span class="tag" :class="r.prio === 'P0' ? 'tag--warn' : 'tag--muted'">{{ r.prio }}</span>
+            <span v-if="r.snapshot" class="tag tag--muted">跑批</span>
             <span v-if="!r.ready" class="tag tag--muted">待开发</span>
           </div>
           <div class="rcard__d">{{ r.desc }}</div>

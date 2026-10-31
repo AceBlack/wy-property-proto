@@ -90,7 +90,7 @@
 
           <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 500px)"
             :row-class-name="rowClass" @row-click="onRow">
-            <el-table-column label="车位号" min-min-width="140">
+            <el-table-column label="车位号" min-width="140">
               <template #default="{ row }">
                 <div class="nowrap">{{ row.parkNo }}</div>
                 <div class="ps-sub">{{ row.communityName }} · {{ row.zone }}</div>
@@ -99,7 +99,7 @@
             <el-table-column prop="status" label="产权" min-width="90">
               <template #default="{ row }"><StatusTag domain="parking" :value="row.status" /></template>
             </el-table-column>
-            <el-table-column label="绑定" min-min-width="120">
+            <el-table-column label="绑定" min-width="120">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.bound ? 'success' : 'info'" effect="plain">
                   {{ row.bound ? '已绑定' : '闲置' }}
@@ -194,7 +194,10 @@
           <div class="sec__hd" style="margin-top:18px;"><h4>业主</h4></div>
           <div class="dl">
             <div class="dl__i"><span class="dl__k">姓名</span><span class="dl__v">{{ detailData.owner.name }}</span></div>
-            <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">{{ maskPhone(detailData.owner.phone) }}</span></div>
+            <div class="dl__i"><span class="dl__k">手机号</span><span class="dl__v">
+              <SensitiveText :value="detailData.owner.phone" field="phone" entity-type="业主"
+                :entity-id="detailData.owner.ownerId" :entity-name="detailData.owner.name" source="/a/vehicles" />
+            </span></div>
             <div class="dl__i"><span class="dl__k">名下房屋</span><span class="dl__v">{{ detailData.owner.houseIds.length }} 套</span></div>
             <div class="dl__i"><span class="dl__k">名下车位</span><span class="dl__v">{{ detailData.owner.parkIds.length }} 个</span></div>
           </div>
@@ -290,7 +293,8 @@ import SpaceTree from '@/components/SpaceTree.vue'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { expireText, maskPhone, money } from '@/utils/format'
+import { expireText, money } from '@/utils/format'
+import SensitiveText from '@/components/SensitiveText.vue'
 import { exportList } from '@/utils/export'
 
 const router = useRouter()
