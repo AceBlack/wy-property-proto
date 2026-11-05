@@ -1,0 +1,67 @@
+/* ============================================================
+   员工端 · 设计变量（从 03-原型/src/styles/tokens.css 摘取）
+   ------------------------------------------------------------
+   只摘 --biz-*：品牌色 / 语义色 / 文字三级灰 / 背景 / 边框 / 圆角 / 阴影 / 巡检状态色。
+   有意不摘：
+     - --el-color-*   ：Element Plus 的变量，本工程不引入该库；
+     - --layout-*     ：PC 布局变量（侧栏宽度等），手机上没有意义；
+     - --biz-sidebar-*：PC 深色侧栏，移动端没有侧栏。
+   补的三条（PC 侧对应 --el-color-primary 一族，移动端没有 EP，故以 --biz- 前缀补齐）：
+     --biz-primary / --biz-primary-light-9 / --biz-primary-light-8
+   ============================================================ */
+
+:root {
+  /* ---------- 品牌主色：靛蓝紫 ---------- */
+  --biz-primary: #5b6cff;
+  --biz-primary-hover: #4d5ef7;
+  --biz-primary-active: #3f4ee0;
+  --biz-primary-light-8: #dfe2ff;
+  --biz-primary-light-9: #eff0ff;
+
+  /* ---------- 品牌辅色：薄荷青 ---------- */
+  --biz-accent: #2ed9a3;
+  --biz-accent-dark: #1db385;
+  --biz-accent-light-9: #e6faf3;
+  --biz-gradient: linear-gradient(135deg, #5b6cff 0%, #2ed9a3 100%);
+
+  /* ---------- 语义色 ---------- */
+  --biz-success: #12b98a;
+  --biz-warning: #ff9f40;
+  --biz-danger: #ec4d63;
+  --biz-info: #8a94b0;
+
+  /* ---------- 背景 / 边框 / 文字 ---------- */
+  --biz-bg-page: #f1f2fa;
+  --biz-bg-card: #ffffff;
+  --biz-bg-hover: #f5f6ff;
+  --biz-bg-fill: #f4f5fc;
+  --biz-border: #e3e6f2;
+  --biz-border-light: #eef0f8;
+  --biz-text-1: #1f2540;
+  --biz-text-2: #4a5168;
+  --biz-text-3: #8a94b0;
+  --biz-text-4: #b3bad0;
+
+  /* ---------- 圆角 / 阴影 ---------- */
+  --biz-radius-control: 6px;
+  --biz-radius-btn: 6px;
+  --biz-radius-card: 10px;
+  --biz-radius-panel: 12px;
+  --biz-radius-pill: 999px;
+  --biz-shadow-card: 0 2px 8px rgba(31, 37, 64, 0.05);
+  --biz-shadow-card-hover: 0 6px 18px rgba(63, 76, 158, 0.1);
+  --biz-shadow-primary: 0 4px 12px rgba(91, 108, 255, 0.28);
+  --biz-shadow-accent: 0 4px 12px rgba(46, 217, 163, 0.28);
+
+  /* ---------- 字体 ---------- */
+  --biz-font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  --biz-font-num: 'DIN Pro', 'DIN Alternate', 'Bahnschrift', system-ui, sans-serif;
+  --biz-font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* ---------- 巡检状态色（与 PC 列表标签同源） ---------- */
+  --biz-ins-todo: #8a94b0;
+  --biz-ins-doing: #5b6cff;
+  --biz-ins-done: #2ed9a3;
+  --biz-ins-overdue: #ff6b6b;
+  --biz-ins-towo: #ff9f40;
+}

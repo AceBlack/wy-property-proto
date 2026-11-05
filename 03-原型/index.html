@@ -2,7 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=1280" />
+  <!-- 原来是 `width=1280`：手机打开后台时整体缩放，看起来"完整"但不可操作。
+       改成设备宽度后：后台在 PC 上照旧（`.app-shell` 自己有 min-width 1280），
+       窄屏上变成横向滚动；而扫码页（外部访客用手机打开）才能按手机宽度正常排版。
+       一个 index.html 服务两种终端，只能这样取舍 —— 扫码页正式上线应当独立部署。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>智慧物业 V2 · 高保真原型</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b6cff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='14' font-weight='700' fill='%23fff' text-anchor='middle'%3EWY%3C/text%3E%3C/svg%3E" />
   <style>

@@ -10,14 +10,26 @@
     </div>
 
     <div class="panel" style="margin-top:16px;">
-      <div class="grid g4">
+      <div class="grid" style="grid-template-columns:repeat(5,minmax(0,1fr));">
         <div class="dstat"><div class="dstat__k">合同总数</div><div class="dstat__v">{{ summary.total }}<span class="unit">份</span></div></div>
-        <div class="dstat"><div class="dstat__k">合同总金额</div><div class="dstat__v">{{ wan(summary.amount) }}<span class="unit">元</span></div></div>
+        <div class="dstat">
+          <div class="dstat__k">合同总金额</div>
+          <div class="dstat__v">{{ wan(summary.amount) }}<span class="unit">元</span></div>
+          <div class="dstat__s">期间总额，不是年额</div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">年化商业合作收入</div>
+          <div class="dstat__v">{{ wan(summary.operationAmount) }}<span class="unit">元</span></div>
+          <div class="dstat__s">{{ summary.operationCount }} 份经营合同 · 已扣公共收益</div>
+        </div>
         <div class="dstat"><div class="dstat__k">90 天内到期</div><div class="dstat__v" :class="summary.expiring > 0 ? 'is-warn' : ''">{{ summary.expiring }}<span class="unit">份</span></div></div>
         <div class="dstat"><div class="dstat__k">已到期 / 待审批</div><div class="dstat__v" :class="summary.expired > 0 ? 'is-warn' : ''">{{ summary.expired }} / {{ summary.pending }}<span class="unit">份</span></div></div>
       </div>
       <div class="sum-note">
         口径：履行中 {{ summary.running }} 份；「集团级合同」指未绑定具体项目（communityId 为空）的合同，走常用视图单独筛。
+        <b>合同金额是期间总额</b>，直接加起来不等于收入 —— 收入看「年化商业合作收入」这一列
+        （只算 16 份经营合同，扣掉归业主的公共收益 ¥{{ wan(summary.publicRevenue) }}）；
+        另有 {{ summary.expenseCount }} 份是支出合同（采购 / 外包 / 劳动 / 顾问服务），只进成本不进收入。
       </div>
     </div>
 
@@ -42,6 +54,11 @@
             <el-form-item label="状态">
               <el-select v-model="query.status" placeholder="全部" clearable style="width:92px">
                 <el-option v-for="o in statusOpts" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="收入分类">
+              <el-select v-model="query.incomeCategory" placeholder="全部" clearable style="width:112px">
+                <el-option v-for="o in CONTRACT_INCOME_CATEGORIES" :key="o" :label="o" :value="o" />
               </el-select>
             </el-form-item>
             <el-form-item label="项目">
@@ -95,8 +112,22 @@
             </el-table-column>
             <el-table-column prop="partyB" label="相对方" min-width="120" show-overflow-tooltip />
             <el-table-column prop="communityName" label="项目" min-width="104" show-overflow-tooltip />
-            <el-table-column label="金额" min-width="96" align="right">
+            <el-table-column label="收入归属" width="132">
+              <template #default="{ row }">
+                <span class="tag" :class="incomeTone(row.incomeCategory)">{{ row.incomeCategory }}</span>
+                <div v-if="row.incomeCategory === '多种经营'" class="ps-sub">
+                  公共收益 ¥{{ wan(row.publicRevenue) }}
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="合同金额" min-width="92" align="right">
               <template #default="{ row }"><span class="num">¥{{ wan(row.amount) }}</span></template>
+            </el-table-column>
+            <el-table-column label="年化经营收入" min-width="108" align="right">
+              <template #default="{ row }">
+                <span v-if="row.incomeCategory === '多种经营'" class="num money">{{ wan(row.annualRevenue) }}</span>
+                <span v-else class="muted">—</span>
+              </template>
             </el-table-column>
             <el-table-column label="履行期" min-width="92">
               <template #default="{ row }">
@@ -104,10 +135,14 @@
                 <div class="ps-sub">{{ row.endDate }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="状态" min-width="96">
+            <el-table-column label="状态" min-width="104">
               <template #default="{ row }">
                 <StatusTag domain="contract" :value="row.status" />
-                <div class="ps-sub" :class="{ 'is-expire': row.status === '即将到期' || row.status === '已到期' }">{{ restText(row) }}</div>
+                <!-- 审批中显示卡在哪个节点：以前只有合同状态「待审批」，看不出审到第几级 -->
+                <div v-if="apMap.get(row.contractId)" class="ps-sub is-ap">
+                  {{ apMap.get(row.contractId).currentNode }} · 等 {{ apMap.get(row.contractId).waitHours }}h
+                </div>
+                <div v-else class="ps-sub" :class="{ 'is-expire': row.status === '即将到期' || row.status === '已到期' }">{{ restText(row) }}</div>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="150" fixed="right">
@@ -162,6 +197,79 @@
           <div class="dl__i"><span class="dl__k">到期日期</span><span class="dl__v">{{ detailData.contract.endDate }}</span></div>
           <div class="dl__i"><span class="dl__k">合同责任人</span><span class="dl__v">{{ detailData.contract.owner }}</span></div>
           <div class="dl__i is-full"><span class="dl__k">备注</span><span class="dl__v">{{ detailData.contract.remark || '—' }}</span></div>
+        </div>
+
+        <div class="sec__hd" style="margin-top:18px;">
+          <h4>收入归属</h4>
+          <span class="desc">
+            {{ detailData.contract.incomeCategory === '多种经营'
+              ? '经营性合同：收入进「商业合作」分项，扣归业主的公共收益后年化计入'
+              : (detailData.contract.incomeCategory === '主营业务'
+                ? '物业费口径的主营收入，不并入多种经营'
+                : '支出合同：只进成本，不进任何收入口径') }}
+          </span>
+        </div>
+        <div class="dl">
+          <div class="dl__i"><span class="dl__k">收入分类</span><span class="dl__v">
+            <span class="tag" :class="incomeTone(detailData.contract.incomeCategory)">{{ detailData.contract.incomeCategory }}</span>
+          </span></div>
+          <div class="dl__i"><span class="dl__k">合同金额</span><span class="dl__v">¥{{ wan(detailData.contract.amount) }}（{{ detailData.contract.contractMonths }} 个月总额）</span></div>
+          <div class="dl__i"><span class="dl__k">公共收益</span><span class="dl__v">
+            <template v-if="detailData.contract.incomeCategory === '多种经营'">
+              ¥{{ wan(detailData.contract.publicRevenue) }}
+              <span class="muted" style="margin-left:6px;">{{ detailData.contract.publicRevenueNote || '归业主部分' }}</span>
+            </template>
+            <span v-else class="muted">不适用</span>
+          </span></div>
+          <div class="dl__i"><span class="dl__k">年化商业合作收入</span><span class="dl__v">
+            <b v-if="detailData.contract.incomeCategory === '多种经营'" class="money">¥{{ wan(detailData.contract.annualRevenue) }}</b>
+            <span v-else class="muted">—</span>
+          </span></div>
+        </div>
+        <div v-if="detailData.contract.incomeCategory === '多种经营'" class="inc-note">
+          算法：(合同金额 − 公共收益) ÷ 期间月数 × 12 = ({{ wan(detailData.contract.amount) }} −
+          {{ wan(detailData.contract.publicRevenue) }}) ÷ {{ detailData.contract.contractMonths }} × 12。
+          计入「全年收益」时还要乘当年覆盖月数 ÷ 12 —— 跨年合同不会把整年收入挤进签约当年。
+        </div>
+
+        <div class="sec__hd" style="margin-top:18px;">
+          <h4>审批</h4>
+          <span class="desc">
+            {{ approvalCards.length
+              ? `${approvalCards.length} 张审批单 · 最近：${approvalCards[0].approvalNo}`
+              : '暂无审批单' }}
+          </span>
+        </div>
+        <div v-if="!approvalCards.length" class="ap-empty">
+          这份合同没有对应审批单。审批单在建档 / 变更提交时自动生成，去
+          <el-button link type="primary" @click="$router.push('/c/todo')">待办中心</el-button>
+          可看全部在途审批。
+        </div>
+        <div v-for="a in approvalCards" :key="a.approvalId" class="ap" :class="{ 'is-live': a.live }">
+          <div class="ap__hd">
+            <span class="ap__no">{{ a.approvalNo }}</span>
+            <span class="tag" :class="apTone(a.status)">{{ a.status }}</span>
+            <span v-if="a.live" class="ap__cur">卡在「{{ a.currentNode }}」· 已等 {{ a.waitHours }} 小时</span>
+            <span v-else class="ap__cur is-muted">{{ a.applyTime }} 提交</span>
+            <span class="spacer" />
+            <el-button v-if="a.live" link type="primary" size="small"
+              @click="$router.push(`/c/approval/${a.approvalId}`)">去处理 →</el-button>
+          </div>
+          <div class="ap__flow">
+            <div v-for="(n, i) in a.nodes" :key="i" class="ap__node" :class="'is-' + n.st">
+              <span class="ap__dot" />
+              <div class="ap__body">
+                <div class="ap__name">
+                  {{ n.node }}
+                  <span class="ap__act">{{ n.action === '待处理' ? (n.st === 'now' ? '当前' : '待流转') : n.action }}</span>
+                </div>
+                <div class="ap__meta">
+                  {{ n.handler || '待指派' }}<template v-if="n.time"> · {{ n.time }}</template>
+                </div>
+                <div v-if="n.comment" class="ap__cmt">{{ n.comment }}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="sec__hd" style="margin-top:18px;">
@@ -258,7 +366,8 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  CONTRACT_CHANGE_TYPES, PAGE_SIZES, communityOpts, contractAttachmentRows, contractChanges,
+  CONTRACT_CHANGE_TYPES, CONTRACT_INCOME_CATEGORIES, PAGE_SIZES, communityOpts, contractApprovalOf,
+  contractAttachmentRows, contractChanges,
   contractStatusOpts, contractSubtypeOpts, contractSummary, contractTypeOpts, contractVirtualNodes,
   getContractDetail, queryContracts, submitContractChange
 } from '@/api'
@@ -274,17 +383,24 @@ import { exportList } from '@/utils/export'
 const router = useRouter()
 const route = useRoute()
 const BLANK = { ctype: '', csub: '', vf: '' }
-const BLANK_ALL = { ...BLANK, communityId: '', status: '', kw: '' }
+const BLANK_ALL = { ...BLANK, communityId: '', status: '', incomeCategory: '', kw: '' }
 
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */
+/** 收入分类的标签色：经营（蓝）/ 主营（绿）/ 支出（灰）—— 一眼分清哪列数字算收入 */
+const INCOME_TONE = { 多种经营: 'tag--primary', 主营业务: 'tag--success', 不计入: 'tag--muted' }
+const incomeTone = c => INCOME_TONE[c] || 'tag--muted'
+
 const EXPORT_COLS = [
   { prop: 'contractId', label: '合同编号' },
   { prop: 'name', label: '合同名称' },
   { prop: 'type', label: '类型' },
   { prop: 'partyB', label: '相对方' },
   { prop: 'communityName', label: '项目' },
-  { prop: 'amount', label: '金额' },
+  { prop: 'incomeCategory', label: '收入分类' },
+  { prop: 'amount', label: '合同金额' },
+  { prop: 'publicRevenue', label: '公共收益' },
+  { prop: 'annualRevenue', label: '年化经营收入' },
   { prop: 'startDate', label: '生效日' },
   { prop: 'endDate', label: '到期日' },
   { prop: 'status', label: '状态' }
@@ -296,6 +412,45 @@ function onExport() {
 const { rows, total, pageNo, size, loading, query, load, search } = useListQuery(
   queryContracts, { immediate: false, filters: { ...BLANK_ALL } }
 )
+
+/**
+ * 列表里的「卡在哪个节点」：只在途审批单，已通过的历史单不占位。
+ * 一次把当前页扫一遍，避免模板里对每行各查一遍。
+ */
+const apMap = computed(() => {
+  const m = new Map()
+  for (const r of rows.value) {
+    const a = contractApprovalOf(r.contractId)
+    if (a) m.set(r.contractId, a)
+  }
+  return m
+})
+
+/** 审批单状态标签色 */
+const AP_TONE = { 待审批: 'tag--warning', 审批中: 'tag--warning', 已通过: 'tag--success', 已驳回: 'tag--danger', 已撤回: 'tag--muted' }
+const apTone = st => AP_TONE[st] || 'tag--muted'
+
+/**
+ * 详情里的审批卡：给每个节点算状态。
+ * 「待处理」的节点有两种：当前该谁办（now）、还没轮到（wait）——
+ * 都画成一个灰点的话，看不出流程走到哪了。
+ */
+const approvalCards = computed(() => {
+  const list = detailData.value?.approvals || []
+  return list.map(a => {
+    let hit = false
+    const nodes = (a.flow || []).map(n => {
+      let st = 'done'
+      if (n.action === '驳回') st = 'reject'
+      else if (n.action === '撤回') st = 'void'
+      else if (n.action === '待处理') {
+        if (!hit) { st = 'now'; hit = true } else st = 'wait'
+      }
+      return { ...n, st }
+    })
+    return { ...a, nodes, live: ['待审批', '审批中'].includes(a.status) }
+  })
+})
 
 const vnodes = contractVirtualNodes()
 /* KPI 汇总：mock 同步、http 异步，统一 await；失败保留旧值 */
@@ -439,4 +594,55 @@ useFocusLanding(async ({ focus, open, location }) => {
 .ps-sub { font-size: 11px; color: var(--biz-text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ps-sub.is-expire { color: var(--biz-danger); }
 .num { font-family: var(--biz-font-num); }
+
+/* 收入归属的说明条：算法要写在页面上，不然没人知道年化是怎么来的 */
+.inc-note {
+  margin-top: 10px; padding: 9px 12px; border-radius: 7px; font-size: 12px; line-height: 1.8;
+  background: rgba(91, 108, 255, .06); color: var(--biz-text-3);
+}
+.dstat__s { margin-top: 2px; font-size: 11px; color: var(--biz-text-4, #a6adc1); line-height: 1.5; }
+
+/* ---------------- 审批段 ---------------- */
+.ap-empty {
+  padding: 10px 12px; border-radius: 7px; font-size: 12.5px; line-height: 1.8;
+  background: var(--biz-bg-fill); color: var(--biz-text-3);
+}
+.ap {
+  margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--biz-border, #eef0f6); background: var(--biz-bg-card, #fff);
+}
+.ap.is-live { border-color: rgba(217, 138, 31, .38); background: rgba(217, 138, 31, .04); }
+.ap__hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ap__no { font-family: var(--biz-font-num); font-size: 12.5px; font-weight: 600; }
+.ap__cur { font-size: 11.5px; color: var(--biz-warning, #d98a1f); }
+.ap__cur.is-muted { color: var(--biz-text-3); }
+.ap__flow { margin-top: 10px; padding-left: 4px; }
+.ap__node { position: relative; display: flex; gap: 10px; padding: 0 0 12px 14px; }
+.ap__node:last-child { padding-bottom: 0; }
+/* 竖线：把节点串成一条流程 */
+.ap__node::before {
+  content: ''; position: absolute; left: 3px; top: 12px; bottom: 0; width: 1px;
+  background: var(--biz-border, #eef0f6);
+}
+.ap__node:last-child::before { display: none; }
+.ap__dot {
+  position: absolute; left: 0; top: 4px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--biz-border, #dfe3ee);
+}
+.ap__node.is-done .ap__dot { background: #12b98a; }
+.ap__node.is-now .ap__dot { background: var(--biz-warning, #d98a1f); box-shadow: 0 0 0 3px rgba(217, 138, 31, .18); }
+.ap__node.is-reject .ap__dot { background: var(--biz-danger, #e34d59); }
+.ap__node.is-wait .ap__dot, .ap__node.is-void .ap__dot { background: #dfe3ee; }
+.ap__name { font-size: 12.5px; color: var(--biz-text-1); display: flex; align-items: center; gap: 6px; }
+.ap__node.is-wait .ap__name { color: var(--biz-text-3); }
+.ap__act {
+  padding: 0 5px; border-radius: 3px; font-size: 10.5px; background: var(--biz-bg-fill);
+  color: var(--biz-text-3);
+}
+.ap__node.is-done .ap__act { background: rgba(18, 185, 138, .1); color: #12b98a; }
+.ap__node.is-now .ap__act { background: rgba(217, 138, 31, .12); color: var(--biz-warning, #d98a1f); }
+.ap__node.is-reject .ap__act { background: rgba(227, 77, 89, .1); color: var(--biz-danger, #e34d59); }
+.ap__meta { margin-top: 1px; font-size: 11.5px; color: var(--biz-text-3); }
+.ap__cmt { margin-top: 2px; font-size: 11.5px; color: var(--biz-text-2); line-height: 1.6; }
+.ps-sub.is-ap { color: var(--biz-warning, #d98a1f); }
 </style>

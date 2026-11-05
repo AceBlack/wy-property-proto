@@ -1,0 +1,47 @@
+{
+  "name": "智慧物业业主端",
+  "appid": "",
+  "description": "智慧物业 V2 · 业主自助小程序（P0 高保真原型）",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "waiting": true,
+      "autoclose": true,
+      "delay": 0
+    },
+    "modules": {
+      "Camera": {}
+    },
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.CAMERA\"/>"
+        ]
+      },
+      "ios": {},
+      "sdkConfigs": {}
+    }
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false },
+    "usingComponents": true,
+    "permission": {
+      "scope.userLocation": { "desc": "用于报修上门地址定位" }
+    }
+  },
+  "h5": {
+    "title": "智慧物业 · 业主端",
+    "router": { "mode": "hash", "base": "./" },
+    "devServer": { "port": 5170 },
+    "optimization": { "treeShaking": { "enable": false } }
+  },
+  "vueVersion": "3"
+}

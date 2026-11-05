@@ -4,6 +4,7 @@
 输出：mock/*.json  +  mock/index.js（供 Vue 项目直接 import）
 """
 import json, os, random
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 SEED = 20261021
@@ -20,6 +21,7 @@ def d(s):  # 'YYYY-MM-DD' -> date
     return date(int(y), int(m), int(dd))
 
 def ds(x): return x.isoformat()
+def dts(x): return x.strftime('%Y-%m-%d %H:%M')
 
 def rint(a, b): return random.randint(a, b)
 def pick(seq): return random.choice(seq)
@@ -56,7 +58,7 @@ ORGS = [
     {'orgId': 'O-HEAD', 'name': '总部职能中心', 'parentId': 'O-ROOT', 'type': '部门', 'leader': '周建国', 'sort': 2},
     {'orgId': 'O-FIN', 'name': '财务管理部', 'parentId': 'O-HEAD', 'type': '部门', 'leader': '何淑珍', 'sort': 3},
     {'orgId': 'O-HR', 'name': '人力资源部', 'parentId': 'O-HEAD', 'type': '部门', 'leader': '谢文博', 'sort': 4},
-    {'orgId': 'O-QS', 'name': '品质管理部', 'parentId': 'O-HEAD', 'type': '部门', 'leader': '梁雅静', 'sort': 5},
+    {'orgId': 'O-QS', 'name': '运营管理部', 'parentId': 'O-HEAD', 'type': '部门', 'leader': '梁雅静', 'sort': 5},
     {'orgId': 'O-ENG', 'name': '工程管理部', 'parentId': 'O-HEAD', 'type': '部门', 'leader': '罗天佑', 'sort': 6},
     {'orgId': 'O-P01', 'name': '翡翠城项目部', 'parentId': 'O-ROOT', 'type': '项目', 'leader': '张振华', 'sort': 7},
     {'orgId': 'O-P02', 'name': '锦绣家园项目部', 'parentId': 'O-ROOT', 'type': '项目', 'leader': '李春梅', 'sort': 8},
@@ -165,7 +167,8 @@ def mk_owner(name, phone_no, tag):
         'ownerType': tag, 'certified': True, 'faceRegistered': pickw([(True, 72), (False, 28)]),
         'appRegistered': pickw([(True, 81), (False, 19)]), 'wechatBound': pickw([(True, 68), (False, 32)]),
         'email': '', 'emergencyContact': person_name(), 'emergencyPhone': phone(),
-        'houseIds': [], 'parkIds': [], 'tags': [], 'creditLevel': pickw([('A', 70), ('B', 22), ('C', 8)]),
+        # 2026-11-02：tags(名称数组) → tagIds(字典键)。改标签名只需改字典一处，不用刷 682 条业主
+        'houseIds': [], 'parkIds': [], 'tagIds': [], 'creditLevel': pickw([('A', 70), ('B', 22), ('C', 8)]),
         'registerDate': ds(date(rint(2015, 2025), rint(1, 12), rint(1, 28))),
         'remark': '',
     }
@@ -233,14 +236,13 @@ for h in HOUSES:
         h['tenantId'] = t['tenantId']
         TENANTS.append(t)
 
-# ---- 业主标签 ----
+# ---- 业主标签：随机数占位（2026-11-02）----
+# 原来这里按随机概率给业主挂"重点关怀/投诉频繁/长期欠费/意见领袖"，
+# 与账单对不上（不欠费的人也能挂上"长期欠费"），评审时会被当场指出来。
+# 现在标签统一在文件末尾按**真实数据派生**（见 SEED+78 段）。
+# 但这 4 次 random() **必须保留**：全局随机流按顺序消耗，删掉会让后面账单/工单/租户全部漂移。
 for o in OWNERS:
-    tags = []
-    if random.random() < 0.08: tags.append('重点关怀')
-    if random.random() < 0.05: tags.append('投诉频繁')
-    if random.random() < 0.06: tags.append('长期欠费')
-    if random.random() < 0.04: tags.append('意见领袖')
-    o['tags'] = tags
+    random.random(); random.random(); random.random(); random.random()
 
 # ============================================================ 3. 车位与车辆
 PARKINGS = []
@@ -573,6 +575,135 @@ g.update({'communityId': 'P01', 'houseId': zh_house['houseId'], 'houseName': zh_
           'createTime': '2026-10-21 09:12', 'acceptTime': '2026-10-21 09:38',
           'arriveTime': '2026-10-21 10:05', 'images': 3, 'isOverdue': False})
 
+# ============================================================ 5b. 工单口径修正（不消耗 PRNG）
+# 为什么放在生成后统一修、而不是改上面那段生成循环：
+#   那段循环里的每次抽签都会推移随机序列，改了它，后面的员工名册、306 条巡检任务、
+#   4884 张账单会全部跟着变 —— 而「巡检 306 / 待执行 40 / 员工 120 / 公告 106」
+#   是和 PC 对齐的硬指标，不能因为修工单而漂移。
+#   所以这里只做**确定性**改写：同一份 seed 每次结果一致，且其余表逐字不变。
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'repairPrices.json'), encoding='utf-8') as _f:
+    REPAIR_PRICES = json.load(_f)
+PRICE_BY_CAT = {i['category']: i for i in REPAIR_PRICES['items']}
+
+
+def price_of(category):
+    it = PRICE_BY_CAT.get(category)
+    return (it['material'], it['labor']) if it else (0.0, 60.0)
+
+
+def _idx_of(wo):
+    """用单号尾数当确定性种子，避免再消耗随机数"""
+    return int(wo['woNo'][-5:]) or 1
+
+
+for _w in WORK_ORDERS:
+    _n = _idx_of(_w)
+
+    # ① 标题与分类对齐（旧数据 137 张单的两行字互相打脸）
+    for _other in REPAIR_CAT:
+        if _other != _w['category'] and _w['title'].startswith(_other):
+            _w['title'] = _w['category'] + _w['title'][len(_other):]
+            break
+
+    # ② 电梯属公区设备：不挂在入户房号上、不向业主收费
+    if _w['category'] == '电梯异常' and _w['type'] != '公共区域维修':
+        _w['type'] = '公共区域维修'
+        _w['houseId'] = ''
+        _w['houseName'] = _w['houseName'].split(' ')[0] + ' · 电梯轿厢'
+        _w['feeType'] = '免费'
+        _w['materialFee'] = _w['laborFee'] = _w['totalFee'] = 0.0
+        _w['payStatus'] = '无需支付'
+
+    # ③ 收费单金额一律按价目表（旧数据是 60~480 的随机小数，业主端下单页摆不出来）
+    if _w['feeType'] == '收费':
+        _m, _l = price_of(_w['category'])
+        _w['materialFee'], _w['laborFee'] = _m, _l
+        _w['totalFee'] = money(_m + _l)
+        _w['priceCode'] = (PRICE_BY_CAT.get(_w['category']) or {}).get('code', '')
+    else:
+        _w['priceCode'] = ''
+
+    _w['isPublic'] = _w['type'] == '公共区域维修'
+
+    # ④ 时间：受理 / 到场 / 完工都带时刻，且严格晚于报修
+    _created = datetime.strptime(_w['createTime'], '%Y-%m-%d %H:%M')
+    if _w['status'] not in ('待派单', '已取消'):
+        _w['acceptTime'] = dts(_created + timedelta(minutes=9 + (_n * 7) % 29))
+        _w['arriveTime'] = ''
+        _w['finishTime'] = ''
+        if _w['status'] in ('处理中', '待确认', '已完工', '已评价', '已关闭'):
+            _w['arriveTime'] = dts(_created + timedelta(minutes=50 + (_n * 11) % 120))
+        if _w['status'] in ('已完工', '已评价', '已关闭'):
+            _w['finishTime'] = dts(_created + timedelta(minutes=180 + (_n * 13) % 900))
+            _w['durationHours'] = round(1 + (_n * 17) % 240 / 10.0, 1)
+        else:
+            _w['durationHours'] = 0
+    else:
+        _w['acceptTime'] = _w['arriveTime'] = _w['finishTime'] = ''
+        _w['durationHours'] = 0
+
+    # ⑤ 支付状态跟状态走：取消了的单不可能是已支付（旧数据有 2 张这样的矛盾单）
+    if _w['feeType'] != '收费':
+        _w['payStatus'] = '无需支付'
+    elif _w['status'] == '已取消':
+        _w['payStatus'] = '未支付'
+    elif _w['status'] in ('已完工', '已评价', '已关闭', '待确认'):
+        _w['payStatus'] = '已挂账' if _n % 5 == 0 else '已支付'
+    else:
+        _w['payStatus'] = '未支付'
+
+    # ⑥ 派单方式：只有「付费入户 + 还没派出去」才进抢单池，公区与免费单一律后台指派
+    _paid = _w['feeType'] == '收费'
+    if _paid and not _w['assignee'] and _w['status'] == '待派单':
+        _w['dispatchMode'] = '抢单'
+    elif _paid:
+        _w['dispatchMode'] = '自动派单'
+    else:
+        _w['dispatchMode'] = '后台指派'
+
+# 固定 8 张「待派单的付费入户单」：抢单页必须有东西可抢，且内容固定，评审时题面不变
+# （P01 七张演示抢单，P03 一张演示「跨项目不能抢」）
+GRAB_FIX = [
+    ('P01', 3, '下水道堵塞', '厨房下水返味并有积水，业主希望上午上门', '紧急'),
+    ('P01', 41, '空调不制冷', '卧室挂机开机半小时不制冷，出风常温', '紧急'),
+    ('P01', 79, '门锁故障', '入户门锁芯转动卡滞，钥匙拔不出来', '普通'),
+    ('P01', 117, '水管漏水', '阳台洗衣机龙头接口渗水，地砖已湿', '普通'),
+    ('P01', 155, '电路故障', '客厅插座跳闸，复位后又跳', '普通'),
+    ('P01', 193, '门窗损坏', '次卧推拉窗关不严，风大时响', '普通'),
+    ('P01', 231, '照明不亮', '卫生间镜前灯不亮，换过灯泡仍不亮', '普通'),
+    ('P03', 5, '水管漏水', '灶台下软管接头持续渗水，已关小阀门', '普通'),
+]
+_P01_H = [x for x in HOUSES if x['communityId'] == 'P01']
+_P03_H = [x for x in HOUSES if x['communityId'] == 'P03']
+for _k, (_cid, _idx, _cat, _desc, _pri) in enumerate(GRAB_FIX, start=1):
+    _pool = _P01_H if _cid == 'P01' else _P03_H
+    _h = _pool[_idx % len(_pool)]
+    _mat, _lab = price_of(_cat)
+    _created = datetime(2026, 10, 20, 8, 5) + timedelta(minutes=(_k - 1) * 27)
+    _n = 150 + _k
+    WORK_ORDERS.append({
+        'woId': 'WO%06d' % _n, 'woNo': 'BX2026%05d' % _n, 'communityId': _cid,
+        'houseId': _h['houseId'], 'houseName': _h['fullName'],
+        'ownerId': _h['ownerId'],
+        'ownerName': next((o['name'] for o in OWNERS if o['ownerId'] == _h['ownerId']), ''),
+        'ownerPhone': next((o['phone'] for o in OWNERS if o['ownerId'] == _h['ownerId']), ''),
+        'type': '入户维修', 'category': _cat, 'source': '小程序' if _k % 2 else '电话',
+        'priority': _pri, 'status': '待派单',
+        'title': _cat + ('，请安排上门' if _k > 1 else '，请尽快处理'),
+        'description': _desc, 'images': _k % 3, 'createTime': dts(_created),
+        'dispatchMode': '抢单', 'assignee': '', 'assigneePhone': '',
+        'acceptTime': '', 'arriveTime': '', 'finishTime': '', 'durationHours': 0,
+        'slaHours': 8 if _pri == '紧急' else 24, 'isOverdue': False,
+        'feeType': '收费', 'materialFee': _mat, 'laborFee': _lab,
+        'totalFee': money(_mat + _lab),
+        'payStatus': '未支付', 'prepaid': True, 'addons': [],
+        'priceCode': PRICE_BY_CAT[_cat]['code'],
+        'score': 0, 'evalTags': [], 'evaluate': '',
+        'remark': '业主已下单并预付，现场增项需业主确认后合并结算' if _cid == 'P01' else '跨项目：翡翠城的师傅不应看到这张单',
+        'isPublic': False,
+    })
+
+
 # ============================================================ 6. 设备 / 物联
 DEV_TYPE = [('门禁', 18), ('车闸', 8), ('摄像头', 26), ('电梯', 12), ('消防主机', 3), ('水电表', 7), ('环境传感器', 5), ('边缘网关', 3)]
 DEV_STATUS = [('在线', 74), ('离线', 10), ('告警', 10), ('故障', 3), ('维保中', 3)]
@@ -828,6 +959,83 @@ for i in range(1, 121):
 for e in EMPLOYEES:
     e['monthlySalary'] = money(e['baseSalary'] * random.uniform(1.15, 1.55))
 
+# ---- 员工紧急联系人（2026-11-04）----
+# 用**独立随机流**（SEED+91）：如果在主序列里多调几次 person_name() / 随机数，
+# 后面所有实体的随机流会整体后移，几千行 mock 全部变掉（第 51 批补 leaderEmpId 时踩过）。
+# 所以这里另开一个 Random 实例，只影响员工表自己。
+_R91 = random.Random(SEED + 91)
+_EMERGENCY_REL = [('配偶', 45), ('父亲', 20), ('母亲', 20), ('子女', 8), ('兄弟姐妹', 5), ('其他', 2)]
+
+
+def _pickw_rng(rng, pairs):
+    tot = sum(w for _, w in pairs)
+    x = rng.uniform(0, tot)
+    for v, w in pairs:
+        x -= w
+        if x <= 0:
+            return v
+    return pairs[-1][0]
+
+
+def _phone_rng(rng):
+    return '1%s%09d' % (rng.choice('35789'), rng.randint(0, 999999999))
+
+
+# GIVEN 里没有性别标注，按常用字手工分一次。
+_GIVEN_F = set('芳 娜 秀英 敏 静 丽 艳 娟 秀兰 霞 桂英 红 玉兰 雪 婷 欣 悦 梓涵 雨欣 若曦 佳怡 淑珍 丽华 海燕 春梅 秀芳 秀珍 雅静 琳'.split())
+_GIVEN_M_ONLY = [g for g in GIVEN if g not in _GIVEN_F]
+_GIVEN_F_ONLY = [g for g in GIVEN if g in _GIVEN_F]
+
+# ---- 姓名与性别对齐（2026-11-04）----
+# gender 原来是独立随机抽的，于是出现「雷志强·女」「韩娟·男」这种姓名与性别矛盾的档案。
+# 紧急联系人要按性别选「配偶 / 父亲 / 母亲」，不先对齐等于把矛盾放大成一眼可见。
+# 只改 gender 这一列，不碰随机流，所以其他实体不受影响。
+for _e in EMPLOYEES:
+    _given = _e['name'][1:]
+    if _given in _GIVEN_F:
+        _e['gender'] = '女'
+    elif _given in _GIVEN_M_ONLY:
+        _e['gender'] = '男'
+
+
+def _contact_name(rng, rel, self_gender, avoid):
+    """按关系挑性别合适的名字；配偶取异性（演示数据不制造歧义）"""
+    if rel == '父亲':
+        pool = _GIVEN_M_ONLY
+    elif rel == '母亲':
+        pool = _GIVEN_F_ONLY
+    elif rel == '配偶':
+        pool = _GIVEN_F_ONLY if self_gender == '男' else _GIVEN_M_ONLY
+    else:
+        pool = GIVEN
+    for _ in range(24):
+        cand = rng.choice(SUR) + rng.choice(pool)
+        if cand != avoid:
+            return cand
+    return rng.choice(SUR) + rng.choice(pool)
+
+
+for _e in EMPLOYEES:
+    _rel = _pickw_rng(_R91, _EMERGENCY_REL)
+    _e['emergencyContact'] = _contact_name(_R91, _rel, _e['gender'], _e['name'])
+    _e['emergencyRelation'] = _rel
+    _e['emergencyPhone'] = _phone_rng(_R91)
+
+# ---- 关键岗位组织归位（2026-11-03）----
+# 原来 orgId 是完全随机抽的，于是出现「总经理挂在翡翠城项目部」，
+# OA 审批就变成「总经理向项目经理报批」这种不成立的链路。
+# 只把 5 个人挪到该在的位置，其余不动，避免部门人数分布整体漂移。
+_PM_ORGS = ['O-P01', 'O-P02', 'O-P03']
+_pm_i = 0
+for _e in EMPLOYEES:
+    if _e['position'] == '总经理':
+        _e['orgId'] = 'O-HEAD'
+    elif _e['position'] == '财务主管':
+        _e['orgId'] = 'O-FIN'
+    elif _e['position'] == '项目经理':
+        _e['orgId'] = _PM_ORGS[_pm_i % len(_PM_ORGS)]
+        _pm_i += 1
+
 
     if e['position'] in ('维修工', '工程主管') and random.random() < 0.6:
         e['certificates'] = [{'name': pick(['低压电工证', '高压电工证', '电梯安全员', '消防设施操作员']),
@@ -964,12 +1172,181 @@ for _spt_plan in sorted(_SPT_PATTERN):
             'hitEmployees': [_spt_who for _, _spt_who in _spt_issues] if _spt_done else [],
             'conflictFlag': _spt_done and _spt_n > 0 and (_spt_plan, _spt_wk) in _SPT_CONFLICT,
         })
+# ============================================================ 8.5 房屋用途与使用状态（2026-11-02）
+# 需求：用途新增「公寓」；使用状态按现场《房屋状态》看板的六态统一。
+#
+# 旧数据只有 5 个状态，而且混了两个维度：「自住/出租」说的是居住关系，
+# 「空置/装修中/限制使用」说的是进度。六态是"交付 → 装修 → 入住"一条线上切出来的。
+# 迁移因此顺手修掉一处旧数据的不自洽：**住着人的房子却是毛坯**（自住 152 套 + 出租 58 套）。
+# 房子租出去了却写着毛坯，物业费照收、上门维修却进不了门，评审一眼能看出是假数据。
+R_HOUSE = random.Random(SEED + 79)
+
+# ① 用途：锦绣家园 6 栋整体转公寓（旧改公寓）。
+#    按住宅标准计费，面积与已生成的账单都不动——账单是按 area × 单价算的，
+#    这里只改标签，不碰数据来源，否则历史账单会与房屋对不上。
+_APT_BUILDING = 'B0602'
+for _h in HOUSES:
+    if _h['buildingId'] == _APT_BUILDING:
+        _h['usage'] = '公寓'
+        _h['houseType'] = '公寓（大开间）'
+
+# ② 六态迁移
+for _h in HOUSES:
+    _old = _h['useStatus']
+    if _old in ('自住', '出租'):
+        # 住人的房子不可能是毛坯：装修标准提到简装（只改标签，面积与账单不变）
+        if _h['decoration'] == '毛坯':
+            _h['decoration'] = '简装修'
+        _h['useStatus'] = '已入住'
+    elif _old == '装修中':
+        _h['useStatus'] = '正在装修'
+    else:  # 空置 / 限制使用
+        if _h['decoration'] == '毛坯':
+            _h['useStatus'] = '已交房未装修'
+        elif R_HOUSE.random() < 0.45:
+            _h['useStatus'] = '装修未入住'
+        else:
+            _h['useStatus'] = '空置房'
+    # 未入住的房子不该有《入住日期》——旧逻辑是"非空置就有"，迁移后要清掉
+    if _h['useStatus'] != '已入住':
+        _h['checkinDate'] = None
+
+# ③ 新一期 7 栋：已售未交付（20 套）。
+#    「未交房」在建账上必须与其它状态分开：**未交付不计物业费**，所以这批房屋不生成账单。
+#    放在账单 / 缴费 / 工单生成之后追加，天然不会被算进去，也不会污染收缴率。
+_NEW_B = 'B0702'
+_NEW_U = 2
+_NEW_F = 10
+_C02 = next(c for c in COMMUNITIES if c['communityId'] == 'P02')
+BUILDINGS.append({
+    'buildingId': _NEW_B, 'communityId': 'P02', 'buildingNo': '07', 'name': '7栋',
+    'usage': '住宅', 'unitCount': _NEW_U, 'floorCount': _NEW_F, 'houseCount': _NEW_U * _NEW_F,
+    'structure': '框架', 'hasElevator': True,
+    'deliverDate': '2027-03-31',            # 未到交付日
+    'buildArea': round(_NEW_U * _NEW_F * 98 * 1.35, 2),
+    'stewardEmpId': EMPLOYEES[0]['empId'] if EMPLOYEES else '',
+})
+for _u in range(1, _NEW_U + 1):
+    UNITS.append({
+        'unitId': 'U07%s02' % _u,
+        'buildingId': _NEW_B, 'communityId': 'P02', 'unitNo': str(_u),
+        'name': '%d单元' % _u, 'floorCount': _NEW_F, 'housePerFloor': 1, 'elevatorCount': 1,
+    })
+    for _f in range(1, _NEW_F + 1):
+        _room = '%02d%02d' % (_f, 1)
+        HOUSES.append({
+            'houseId': 'H02%s%s%s' % ('07', _u, _room),
+            'communityId': 'P02', 'buildingId': _NEW_B,
+            'unitId': 'U07%s02' % _u,
+            'room': _room, 'floor': _f, 'seq': 1,
+            'fullName': '%s 7栋%d单元%s' % (_C02['name'], _u, _room),
+            'shortName': 'P02-07%d-%s' % (_u, _room),
+            'usage': '住宅', 'houseType': '三室两厅',
+            'area': round(118.0 + (_f % 3) * 6.5, 2), 'innerArea': round(118.0 * 0.82, 2),
+            'orientation': '朝南',
+            'decoration': '毛坯',
+            'deliverStatus': '未交房',
+            'useStatus': '未交房',
+            'propertyStatus': '未办理',
+            'ownerId': '', 'tenantId': '',
+            'checkinDate': None, 'certNo': '',
+            'deliverDate': '', 'decorationViolation': '无', 'decorationResult': '',
+            'stewardEmpId': '',
+        })
+
+# 房屋数变了：社区 / 楼栋的人头要重算，否则「社区房屋数」与台账对不上
+for _c in COMMUNITIES:
+    _c['houseCount'] = sum(1 for h in HOUSES if h['communityId'] == _c['communityId'])
+for _b in BUILDINGS:
+    _b['houseCount'] = sum(1 for h in HOUSES if h['buildingId'] == _b['buildingId'])
+
+print('  [SEED+79] 房屋：公寓 %d 套 / 未交房 %d 套；状态分布 %s'
+      % (sum(1 for h in HOUSES if h['usage'] == '公寓'),
+         sum(1 for h in HOUSES if h['useStatus'] == '未交房'),
+         {k: sum(1 for h in HOUSES if h['useStatus'] == k)
+          for k in ['已入住', '装修未入住', '正在装修', '已交房未装修', '未交房', '空置房']}))
+
+# ============================================================ 8.6 租客类型：个人 / 公司（2026-11-02）
+# 需求：租客区分「个人」与「公司」，两套字段、两套校验、两套完整度口径。
+#
+# 谁更可能是公司租客，不用猜：**商铺与公寓的实际承租方几乎都是企业**，
+# 住宅里只有少量「企业宿舍」。所以按房屋用途定，而不是随机撒——
+# 随机撒的后果是"住宅 501 由成都市味知香餐饮有限公司承租"，评审一眼看出是假数据。
+R_TENANT = random.Random(SEED + 80)
+
+# 统一社会信用代码字符集（GB 32100-2015：去掉易混淆的 I O S V Z，共 31 位）
+_CC_CHARS = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+_CC_W = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+
+
+def _credit_code(seq):
+    """生成**校验位正确**的统一社会信用代码：91（工商·企业）+ 5101xx + 9 位主体码 + 校验位。
+
+    用真算法而不是随便编 18 位：前端和契约两边都有校验，编的数字会被自己的校验拦住，
+    到时候只能把校验关掉——那校验就等于没有。
+    """
+    org = ''.join(_CC_CHARS[(seq * 7 + i * 11 + 3) % 31] for i in range(9))
+    body = '915101' + '%02d' % (seq % 20 + 1) + org
+    total = sum(_CC_CHARS.index(c) * w for c, w in zip(body, _CC_W))
+    check = 31 - total % 31
+    return body + _CC_CHARS[0 if check == 31 else check]
+
+
+# 品牌 + 经营类目（类目枚举与前端字典一致）
+_COMPANIES = [
+    ('味知香', '餐饮'), ('蜀香源', '餐饮'), ('优选便利', '零售'), ('博学教育', '教育培训'),
+    ('洁美家政', '生活服务'), ('恒信办公', '办公'), ('康宁口腔', '医疗健康'), ('天府茶社', '餐饮'),
+]
+_LEASE_PURPOSE = {'商业': ['经营', '经营', '办公'], '公寓': ['办公', '经营', '宿舍'], '住宅': ['宿舍', '办公']}
+_REG_ADDR = ['成都市锦江区红星路三段 %d 号', '成都市武侯区科华北路 %d 号', '成都市高新区天府大道 %d 号',
+             '成都市青羊区人民中路 %d 号']
+
+HOUSE_OF = {h['houseId']: h for h in HOUSES}
+_company_no = 0
+for _t in TENANTS:
+    _h = HOUSE_OF[_t['houseId']]
+    # 商铺 / 公寓一律公司；住宅每 7 个里挑 1 个（企业宿舍）
+    _is_company = _h['usage'] in ('商业', '公寓') or (int(_t['tenantId'][2:]) % 7 == 0)
+    if not _is_company:
+        _t['tenantType'] = '个人'
+        continue
+
+    _brand, _cat = _COMPANIES[_company_no % len(_COMPANIES)]
+    _suffix = {'餐饮': '餐饮', '零售': '商贸', '教育培训': '教育', '生活服务': '服务',
+               '办公': '科技', '医疗健康': '医疗'}[_cat]
+    _t['tenantType'] = '公司'
+    _t['companyName'] = '成都%s%s有限公司' % (_brand, _suffix)
+    # name 是"承租主体"的统一显示字段：公司时等于公司名，列表与详情主标题不用分支
+    _t['name'] = _t['companyName']
+    _t['creditCode'] = _credit_code(_company_no + 1)
+    _t['legalPerson'] = person_name()
+    _t['legalPersonPhone'] = phone()
+    _t['agentName'] = person_name()
+    _t['agentPhone'] = phone()
+    _t['agentIdCard'] = idcard()
+    _t['businessCategory'] = _cat
+    _t['leasePurpose'] = R_TENANT.choice(_LEASE_PURPOSE.get(_h['usage'], ['经营']))
+    _t['regAddress'] = R_TENANT.choice(_REG_ADDR) % R_TENANT.randint(1, 199)
+    _t['establishDate'] = ds(date(R_TENANT.randint(2010, 2023), R_TENANT.randint(1, 12), R_TENANT.randint(1, 28)))
+    _t['employeeCount'] = R_TENANT.randint(3, 40)
+    # 公司主体不押个人身份证：idCard 留空，主体凭证是信用代码；经办人的证件单独存 agentIdCard
+    _t['idCard'] = ''
+    _t['relation'] = '企业承租'
+    _t['residents'] = _t['employeeCount']
+    _t['faceRegistered'] = False
+    _company_no += 1
+
+print('  [SEED+80] 租客：公司 %d / 个人 %d（公司集中于商铺与公寓）'
+      % (sum(1 for t in TENANTS if t['tenantType'] == '公司'),
+         sum(1 for t in TENANTS if t['tenantType'] == '个人')))
+
 # ============================================================ 9. 看板聚合指标
 def pct(a, b): return round(a / b * 100, 1) if b else 0.0
 
 total_house = len(HOUSES)
-vacant = sum(1 for h in HOUSES if h['useStatus'] == '空置')
-rent = sum(1 for h in HOUSES if h['useStatus'] == '出租')
+# 六态之后没有「空置」「出租」这两档：空置看「空置房」，出租看 tenantId（居住关系由它派生）
+vacant = sum(1 for h in HOUSES if h['useStatus'] == '空置房')
+rent = sum(1 for h in HOUSES if h.get('tenantId'))
 cur_amt = sum(b['payable'] for b in BILLS if b['period'] == CUR)
 cur_paid = sum(b['paidAmount'] for b in BILLS if b['period'] == CUR)
 overdue_amt = sum(b['unpaid'] for b in BILLS if b['status'] == '逾期')
@@ -1203,6 +1580,46 @@ for _type, _subs, _n in CONTRACT_PLAN:
         })
 CONTRACTS.sort(key=lambda x: (x['type'], x['contractId']))
 
+# ---------------------------------------------------------- 合同收入分类（2026-11-02 · 独立随机流 SEED+82）
+# 为什么要这一层：85 份合同里有 62 份是**支出**（外包 30 / 采购 20 / 劳动 12），
+# 3 份「物业服务」的乙方也是外包供应商。如果无差别套「合同金额 − 公共收益 = 商业合作收入」，
+# 会凭空多出 1000 多万"收入"。所以逐份标方向，而不是按 type 推 —— 同类型确实两向。
+_R82 = random.Random(SEED + 82)
+
+# 公共收益比例：按「占用了多少共有部位」给，比例不是拍出来的
+_PUBLIC_REV_RATE = {
+    '广告位租赁': (0.60, 0.78),   # 电梯轿厢 / 门禁 / 道闸广告：业主分成最高
+    '商铺租赁': (0.38, 0.55),     # 共有商铺，按招商约定分成
+    '车位租赁': (0.50, 0.72),     # 公共车位收益属业主共有（民法典 282 条）
+    '房屋租赁': (0.0, 0.0),       # 物业自有/代管房源，不产生公共收益
+}
+
+for _c in CONTRACTS:
+    if _c['type'] == '租赁':
+        _c['incomeCategory'] = '多种经营'
+        _lo_r, _hi_r = _PUBLIC_REV_RATE.get(_c['subtype'], (0.0, 0.0))
+        _rate = _R82.uniform(_lo_r, _hi_r) if _hi_r > 0 else 0.0
+        _c['publicRevenue'] = money(_c['amount'] * _rate)
+        _c['publicRevenueNote'] = ('业主分成 %.0f%%' % (_rate * 100)) if _rate > 0 else '房源为物业自有 / 代管，不涉共有部位'
+    elif _c['type'] == '物业服务':
+        # 前期物业服务合同 = 物业费收入（主营，不进多种经营）；
+        # 其余「物业服务 / 顾问服务」的乙方是外包供应商，实际是支出
+        _c['incomeCategory'] = '主营业务' if _c['subtype'] == '前期物业服务合同' else '不计入'
+        _c['publicRevenue'] = 0
+        _c['publicRevenueNote'] = ''
+    else:
+        _c['incomeCategory'] = '不计入'
+        _c['publicRevenue'] = 0
+        _c['publicRevenueNote'] = ''
+
+_inc_stat = {}
+for _c in CONTRACTS:
+    _k = _c['incomeCategory']
+    _inc_stat[_k] = _inc_stat.get(_k, 0) + 1
+print('  [合同收入] ' + ' / '.join('%s %d 份' % (k, v) for k, v in sorted(_inc_stat.items()))
+      + '；多种经营公共收益合计 %.2f 万'
+      % (sum(c['publicRevenue'] for c in CONTRACTS if c['incomeCategory'] == '多种经营') / 10000))
+
 # ---------------------------------------------------------- 公告通知
 NOTICE_PLAN = [
     ('停水停电', ['关于 {c} 计划性停水的通知', '{c} 停电检修通知', '二次供水水箱清洗停水通知'], 2.0),
@@ -1349,6 +1766,50 @@ for _tid, _pos, _src in [('O-P02-T3', '安保主管', 'O-P01'), ('O-P03-T2', '�
         _team['leader'] = _cand['name']
         _fix_leaders.add(_cand['name'])
 
+# ============================================================ 组织负责人校正（2026-11-03 第 51 批 · 计划管理前置）
+# 背景：`leader` 原本是自由文本，有 9 个组织的负责人写的是**员工表里不存在的人名**
+#      （周建国 / 谢文博 / 梁雅静 / 罗天佑 / 张振华 / 李春梅 / 陈瑞），
+#      另有一个班组的负责人（万军）已离职。计划管理要按「我负责哪几个部门」反查，
+#      按姓名扫会扫空；而且员工表里有两个「宋杰」（EM0017 客服主管 / EM0040 保安），
+#      按姓名反查还会串号。
+# 做法：补 `leaderEmpId` 作为**权威引用**，`leader` 姓名改由员工表回填、降级为展示快照。
+#      不改成多值数组 —— 第 52 批做「负责人关系表」时再扩，届时只换 leadsOf() 的实现，
+#      页面不用动。这里只做赋值、不 append，重跑脚本安全。
+# 多部门案例（两个，覆盖两个层级）：
+#       ① EM0001 雷志强 集团总经理 → 兼管 O-ROOT + O-HEAD（默认角色 R-GM 登录即可看到两个选项）
+#       ② EM0017 宋杰  客服主管 → O-P03-T1（本组）+ O-P01-T1（原负责人离职代管，班组级）
+_LEADER_EMP = {
+    'O-ROOT': 'EM0001',     # 雷志强 总经理
+    'O-HEAD': 'EM0001',     # 总部职能中心由集团总经理兼管
+    'O-FIN': 'EM0002',      # 何淑珍（总经理岗，兼财务负责人）
+    'O-HR': 'EM0107',       # 赵磊 人事专员
+    'O-QS': 'EM0115',       # 史秀英 品质专员（运营管理部）
+    'O-ENG': 'EM0068',      # 戴红 工程主管
+    'O-P01': 'EM0008',      # 徐悦 项目经理
+    'O-P02': 'EM0009',      # 汪文博 项目经理
+    'O-P03': 'EM0010',      # 杜若曦 项目经理
+    'O-P01-T1': 'EM0017',   # 宋杰 代管（原负责人万军已离职）
+    'O-P01-T2': 'EM0064',   # 苏春梅
+    'O-P01-T3': 'EM0034',   # 胡建国
+    'O-P01-T4': 'EM0051',   # 周伟
+    'O-P02-T1': 'EM0019',   # 段浩
+    'O-P02-T2': 'EM0069',   # 薛淼然
+    'O-P02-T3': 'EM0035',   # 向建华
+    'O-P02-T4': 'EM0049',   # 钱文博
+    'O-P03-T1': 'EM0017',   # 宋杰本人所在组
+    'O-P03-T2': 'EM0065',   # 谢佳怡
+    'O-P03-T3': 'EM0039',   # 范鑫
+    'O-P03-T4': 'EM0048',   # 段娟
+}
+_EMP_BY_ID = {e['empId']: e for e in EMPLOYEES}
+for _o in ORGS:
+    _eid = _LEADER_EMP.get(_o['orgId'])
+    _emp = _EMP_BY_ID.get(_eid) if _eid else None
+    if not _emp:
+        continue
+    _o['leaderEmpId'] = _eid
+    _o['leader'] = _emp['name']
+
 # --- 权限项字典：域 → 功能 → 操作（E 域权限矩阵的列定义，与 pages.js 路由一一对应） ---
 PERM_GROUPS = [
     ('a', 'A 房产与业主', [
@@ -1375,6 +1836,8 @@ PERM_GROUPS = [
         ('cashier', 'PC 收银台', ('view', 'edit'), '/b/cashier'),
         ('feeItems', '收费科目', ('view',), '/b/fee-items'),
         ('feeDash', '费用驾驶舱', ('view',), '/b/dashboard'),
+        # 多种经营收入单独一个权限位：收入结构比收缴数据更敏感，收银员该看收缴、不该看经营毛利
+        ('multiRevenue', '多种经营收入', ('view',), '/b/multi-revenue'),
     ]),
     ('c', 'C 办公协同', [
         ('employees', '员工档案', ('view', 'edit'), '/c/employee'),
@@ -1382,6 +1845,11 @@ PERM_GROUPS = [
         ('contracts', '合同管理', ('view', 'edit'), '/c/contracts'),
         ('notices', '公告通知', ('view', 'edit'), '/c/notices'),
         ('workbench', '办公工作台', ('view',), '/c/workbench'),
+        # 办公资产（2026-11-04）：与 D 域「设备台账」分开 —— 那边是门禁/摄像头这类 IoT 设备，
+        # 这边是电脑/桌椅/工具这类可被个人领用的办公物品。分类单独一个权限位：
+        # 定标准的人和录台账的人不一定同一个。
+        ('assets', '资产台账', ('view', 'edit'), '/c/assets'),
+        ('assetCats', '资产分类', ('view', 'edit'), '/c/asset-categories'),
     ]),
     ('d', 'D 物联', [
         ('devices', '设备台账', ('view', 'edit'), '/d/devices'),
@@ -1396,6 +1864,7 @@ PERM_GROUPS = [
         ('downloads', '下载中心', ('view',), '/e/downloads'),
         # 2026-10-29 补：数据访问日志（敏感字段查看 + 导出留痕，只增不删）
         ('accessLog', '数据访问日志', ('view',), '/e/access-log'),
+        ('oaFlow', '审批流配置', ('view', 'edit'), '/e/flow-config'),
         # 2026-10-30 补：口径自检（不变量红绿灯，运维/开发用）
         ('audit', '口径自检', ('view',), '/e/audit'),
         # 2026-10-30 夜补：月结反结（推翻已封账结果）。
@@ -1408,10 +1877,20 @@ PERM_GROUPS = [
         # 2026-10-30 夜补：高敏权限变更的审批（按钮级，无路由）。
         # 只给总经理与财务主管，且**不能审批自己提交的**——双人原则，一个人批不了自己的提权
         ('permApprove', '权限变更审批', ('view', 'edit'), ''),
+        # 2026-11-02 补：业主标签字典维护。
+        # **刻意放 e 域而不是 a 域**：项目经理对 a 域是通配（a.* view/edit），
+        # 放 a 域等于每个项目经理都能改全公司的标签字典；而字典是全公司共用的口径，
+        # 改一个词条会影响所有项目的筛选与报表分组 —— 维护权归平台，使用（打标签）留在 a 域。
+        # 楼栋管家只有 a.owners.edit（打标签），**没有**这条：能选不能改，正是需求要的效果
+        ('ownerTags', '业主标签字典', ('view', 'edit'), '/a/owner-tags'),
     ]),
     ('f', 'F 现场运营', [
         ('workorders', '工单列表', ('view', 'edit'), '/f/workorders'),
         ('woDetail', '派单与处理', ('view', 'edit'), '/f/wo-detail'),
+        # 商业服务项目 = 工单收费的价目字典：会改价的人和会派单的人不是同一个，权限分开
+        ('serviceItems', '商业服务项目', ('view', 'edit'), '/f/service-items'),
+        # 工时积分：会记的人（工程主管/项目经理）与只会看的人（客服）分开
+        ('woPoints', '工时积分', ('view', 'edit'), '/f/wo-detail'),
         ('inspectPlans', '巡检计划', ('view', 'edit'), '/f/inspect-plans'),
         ('inspectTasks', '巡检任务', ('view', 'edit'), '/f/inspect-tasks'),
         ('inspect', '巡检任务执行', ('view', 'exec'), '/f/inspect'),
@@ -1422,6 +1901,13 @@ PERM_GROUPS = [
         # 2026-10-29 补：整改闭环（品质督导开单 → 部门经理整改 → 督导复核）+ 主管发现问题数考核表
         ('rectify', '整改闭环', ('view', 'edit'), '/f/rectify'),
         ('supFinding', '主管发现问题数', ('view',), '/f/sup-finding'),
+        # 2026-11-03 新增：部门计划管理。三个操作分开是有意的 ——
+        # 提报（edit）是部门负责人的事，结案评分（eval）是上级 / 运营的事，
+        # 合成一个 edit 就会出现"自己提报、自己打分"。
+        ('plans', '部门计划', ('view', 'edit', 'eval'), '/f/plans'),
+        # 2026-11-03 第 54 批：计划模板（考核项的唯一源）。
+        # 与 plans 分开：能定考核标准的是运营管理部，能报计划的是部门负责人。
+        ('planTpl', '计划模板', ('view', 'edit'), '/f/plan-templates'),
     ]),
 ]
 PERMISSIONS = []
@@ -1454,17 +1940,20 @@ def _expand(rules):
 # --- 角色：权限按业务规则显式定义，不用随机（权限是要评审的，不能随机） ---
 ROLE_SPEC = [
     ('R-GM', '集团总经理', '集团', '全部项目', [], ['总经理'],
-     '集团经营负责人，全量查看与关键审批', [('*', '*', ('view', 'edit'))]),
+     '集团经营负责人，全量查看与关键审批', [('*', '*', ('view', 'edit', 'eval'))]),
     ('R-PM', '项目经理', '项目', '本项目', [], ['项目经理'],
      '单项目第一责任人，统筹收费、工单与现场，不含人事与工资',
      [('a', '*', ('view', 'edit')),
       ('e', 'accessLog', ('view',)),
-      ('b', 'bills|payments|feeDash|feeItems', ('view',)),
+      ('b', 'bills|payments|feeDash|feeItems|multiRevenue', ('view',)),
       ('c', 'notices', ('view', 'edit')), ('c', 'contracts', ('view',)),
       ('d', '*', ('view',)),
       ('e', 'reports|downloads', ('view',)),
-      ('f', 'workorders|woDetail|inspectTasks|qualityRecords', ('view', 'edit')),
+      ('f', 'workorders|woDetail|serviceItems|woPoints|inspectTasks|qualityRecords', ('view', 'edit')),
       ('f', 'rectify', ('view', 'edit')),
+      # 2026-11-03：项目经理审本项目部下属班组的月度计划，并给结案评分
+      ('f', 'plans', ('view', 'edit', 'eval')),
+      ('f', 'planTpl', ('view',)),
       ('a', 'stewards', ('view', 'edit')),
       ('e', 'audit', ('view',)),
       ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval|supFinding', ('view',))]),
@@ -1476,7 +1965,8 @@ ROLE_SPEC = [
       ('e', 'downloads', ('view',)),
       ('f', 'inspectTasks', ('view',)),
       ('f', 'inspect', ('view', 'exec')),
-      ('f', 'workorders|woDetail', ('view', 'edit'))]),
+      ('f', 'workorders|woDetail', ('view', 'edit')),
+      ('f', 'serviceItems|woPoints', ('view',))]),
     ('R-CHG', '收银员', '项目', '本项目', [], ['收银员'],
      '前台收费与开票：可收款，不可改账单金额；租户到场代缴时可补充租户信息',
      [('a', 'owners|houses', ('view',)),
@@ -1485,7 +1975,8 @@ ROLE_SPEC = [
       # 2026-10-29：租户信息由业主维护，但「代缴物业费时补充」落点在前台 → 收银员需要租户读写
       ('a', 'tenants', ('view', 'edit')),
       ('b', 'cashier', ('view', 'edit')), ('b', 'bills', ('view', 'edit')),
-      ('b', 'payments|feeItems|feeDash', ('view',)),
+      ('f', 'serviceItems', ('view',)),
+      ('b', 'payments|feeItems|feeDash|multiRevenue', ('view',)),
       # 2026-10-30：收银员要能自己日结（现金实点 + 差异说明）
       ('b', 'dailyClose', ('view', 'edit')),
       ('e', 'downloads', ('view',))]),
@@ -1508,6 +1999,8 @@ ROLE_SPEC = [
       ('e', 'downloads', ('view',)),
       ('f', 'inspectTasks', ('view',)),
       ('f', 'inspect', ('view', 'exec')),
+      ('f', 'serviceItems', ('view',)),
+      ('f', 'woPoints', ('view', 'edit')),
       ('f', 'workorders|woDetail', ('view', 'edit'))]),
     ('R-QS', '品质督导', '集团', '指定项目', ['P01', 'P03'], ['品质专员'],
      '跨项目巡检与评分，负责整改闭环（仅翡翠城 + 星光天地）',
@@ -1519,24 +2012,34 @@ ROLE_SPEC = [
       ('f', 'qualityEval', ('view', 'edit')),
       ('f', 'rectify', ('view', 'edit')),
       ('f', 'supFinding', ('view',)),
+      # 2026-11-03：运营管理部是计划的复核方与评分方，不给 edit（不能替部门写计划）
+      ('f', 'plans', ('view', 'eval')),
+      # 运营管理部维护考核标准（模板），但不替部门写计划
+      ('f', 'planTpl', ('view', 'edit')),
       ('f', 'inspectTasks|qualityRecords|quality', ('view', 'edit'))]),
     ('R-HR', '人事专员', '集团', '全部项目', [], ['人事专员'],
      '人事、薪资与合同台账维护，可分配角色',
-     [('c', 'employees|payroll|contracts', ('view', 'edit')),
+     [('c', 'employees|payroll|contracts|assets|assetCats', ('view', 'edit')),
       # 人事维护员工手机/证件，需要明文；同时可查数据访问日志（员工隐私被谁看过）
       ('a', 'sensitive', ('view',)),
-      ('e', 'org', ('view', 'edit')), ('e', 'reports|downloads|accessLog|audit|permLog', ('view',))]),
+      ('e', 'org', ('view', 'edit')), ('e', 'reports|downloads|accessLog|audit|permLog', ('view',)),
+      # 2026-11-02：人事专员兼管平台字典（业主标签词条）。与 a.owners.edit 是两件事：
+      # 前者是"这个词条叫什么、还启用不启用"，后者是"给这个业主打哪个标签"
+      ('e', 'ownerTags', ('view', 'edit'))]),
     ('R-STW', '楼栋管家', '项目', '责任范围', [], ['楼栋管家'],
      '按楼栋/单元责任范围管理业主资料、租户信息与欠费催缴；范围外一条不可见',
      [('a', 'owners|houses|tenants', ('view', 'edit')),
       # 楼管要联系业主，范围内必须能看手机号；每一次揭示都写访问日志（范围外仍看不到）
       ('a', 'sensitive', ('view',)),
+      # 2026-11-02：楼管要在业主 360 上打标签，就得先进得去这一页。
+      # 只给 view：360 页是聚合看板，改资料走业主档案列表（那里他有 edit）
+      ('a', 'owner360', ('view',)),
       ('b', 'bills|payments', ('view',)),
       ('f', 'workorders|woDetail', ('view', 'edit')),
       ('a', 'stewards', ('view',)),
       ('e', 'downloads', ('view',))]),
     ('R-SEC', '部门经理', '项目', '本部门', [], ['客服主管', '工程主管', '安保主管', '环境主管'],
-     '班组长级：只做现场核验与监督，不承担一线作业；监督模板与计划由品质督导下发',
+     '班组长级：负责本班组现场核验、监督，以及本班组月度计划的提报与执行（不含评分，评价由上级与运营做）',
      [('a', 'houses|owners|vehicles', ('view',)),
       ('a', 'sensitive', ('view',)),
       ('b', 'bills|payments', ('view',)),
@@ -1546,6 +2049,9 @@ ROLE_SPEC = [
       ('f', 'inspectTemplates', ('view',)),
       ('f', 'rectify', ('view', 'edit')),
       ('f', 'supFinding', ('view',)),
+      # 2026-11-03：计划的提报与进度填写归班组长；eval 不给 —— 自己评自己不算评价
+      ('f', 'plans', ('view', 'edit')),
+      ('f', 'planTpl', ('view',)),
       ('a', 'stewards', ('view',)),
       ('e', 'downloads', ('view',))]),
     ('R-CLN', '环境保洁', '项目', '本项目', [], ['保洁员', '绿化员'],
@@ -1570,6 +2076,7 @@ ROLE_SPEC = [
      '只管人事档案与合同，不含薪资：能看员工手机/证件（每次揭示留痕），看不到任何工资金额',
      [('a', 'sensitive', ('view',)),
       ('c', 'employees|contracts', ('view', 'edit')),
+      ('e', 'oaFlow', ('view',)),
       ('e', 'org', ('view',)), ('e', 'reports|downloads', ('view',))]),
     ('R-VIEW', '只读观察员', '集团', '全部项目', [], [],
      '外部审计 / 集团巡查，全量只读、不留操作',
@@ -1722,7 +2229,7 @@ _EMP_BY_ID = {e['empId']: e for e in EMPLOYEES}
 _LEADERS = [e['name'] for e in _EMP if e['position'] in ('项目经理', '客服主管', '工程主管', '财务主管')] or _EMP_NAME[:20]
 _FINANCE = [e['name'] for e in _EMP if e['position'] in ('财务主管', '会计', '收银员')] or _EMP_NAME[:20]
 
-# ---------- approvals：审批实例（不含合同 / 租约审批 —— Q2 口径未定，维持现状） ----------
+# ---------- approvals：审批实例（合同审批 2026-11-03 起纳入，见下方补齐块） ----------
 # 四类场景：费用减免、报修验收、押金退还、公告发布
 _APP_STATUS = r4_pickw
 _APPROVALS = []
@@ -1791,6 +2298,71 @@ for _bt, _node_tpl in _FLOW_TPL.items():
             'flow': _flow,
         })
 _APPROVALS.sort(key=lambda x: x['applyTime'], reverse=True)
+
+# ---------------------------------------------------------- 合同审批单补齐（2026-11-03 · 独立随机流 SEED+84）
+# 以前 9 份「待审批 / 待生效」的合同**没有对应审批单** —— 点开详情看不到流程，
+# 合同状态与审批单据对不上。现在补齐：节点按金额（≥30 万走三级），
+# flow 生成**完整节点**（未到的写「待处理」），这样详情页能画出「过了几级、卡在哪、后面还有几级」。
+_R84 = random.Random(SEED + 84)
+_ap_seq = max([int(a['approvalId'][2:]) for a in _APPROVALS] or [0])
+_ORG_LEADER = {o['orgId']: o['leader'] for o in ORGS}
+_GM = _ORG_LEADER.get('O-ROOT', '周建国')
+_HEAD_STAFF = [e['name'] for e in _EMP if e['orgId'] == 'O-HEAD'] or _EMP_NAME
+
+for _c in CONTRACTS:
+    if _c['status'] not in ('待审批', '待生效'):
+        continue
+    _nodes = (['合同初审', '法务复核', '总经理审批'] if _c['amount'] >= 300000
+              else ['合同初审', '部门负责人审批'])
+    _passed = _c['status'] == '待生效'
+    # 有些合同 signDate 在未来（seed 允许 _start 落在今天之后），
+    # 审批单不能"未来提交" —— 统一夹到今天之前，节点时间跟着落在过去
+    _apply = min(d(_c['signDate']), TODAY) - timedelta(days=_R84.randint(3, 15))
+    # date 加 timedelta(hours=…) 会丢掉小时（date 只吃 days），所以先转成 datetime
+    _t = datetime.combine(_apply, datetime.min.time()) + timedelta(hours=_R84.randint(8, 10))
+    _apply_str = (_t - timedelta(hours=_R84.randint(2, 6))).strftime('%Y-%m-%d %H:%M')
+    _flow = []
+    for _k, _node in enumerate(_nodes):
+        _t = _t + timedelta(hours=_R84.randint(4, 30))
+        if _passed:
+            if _node == '总经理审批':
+                _h = _GM
+            elif _node == '部门负责人审批':
+                _h = _ORG_LEADER.get(_c['orgId']) or _R84.choice(_LEADERS)
+            else:
+                _h = _R84.choice(_HEAD_STAFF)
+            _flow.append({'node': _node, 'handler': _h, 'action': '同意',
+                          'time': _t.strftime('%Y-%m-%d %H:%M'),
+                          'comment': _R84.choice(['同意', '已核条款，同意', '金额与预算相符，同意', ''])})
+        else:
+            # 待审批：所有节点都挂「待处理」，currentNode 指向第一个 —— 与 api._newContractApproval 同形
+            _flow.append({'node': _node, 'handler': '', 'action': '待处理', 'time': '', 'comment': ''})
+    _ap_seq += 1
+    _APPROVALS.append({
+        'approvalId': 'AP%05d' % _ap_seq,
+        'approvalNo': 'SP-%d-%04d' % (_apply.year, _ap_seq),
+        'bizType': '合同审批',
+        'bizId': _c['contractId'],
+        'changeId': '',
+        'title': '新建合同审批：%s' % _c['name'],
+        'communityId': _c['communityId'],
+        'communityName': _COMM_NAME.get(_c['communityId'], '集团 / 全项目'),
+        'amount': _c['amount'],
+        'applicant': _R84.choice(_HEAD_STAFF),
+        'applicantRole': '合同管理员',
+        'applyTime': _apply_str,
+        'status': '已通过' if _passed else '待审批',
+        'currentNode': '已完成' if _passed else _nodes[0],
+        'urgency': '重要' if _c['amount'] >= 300000 else '普通',
+        'waitHours': 0 if _passed else _R84.randint(2, 72),
+        'flow': _flow,
+    })
+
+_APPROVALS.sort(key=lambda x: x['applyTime'], reverse=True)
+print('  [合同审批] 补齐 %d 张（待审批 %d / 待生效 %d）'
+      % (sum(1 for a in _APPROVALS if a['bizType'] == '合同审批'),
+         sum(1 for a in _APPROVALS if a['bizType'] == '合同审批' and a['status'] == '待审批'),
+         sum(1 for a in _APPROVALS if a['bizType'] == '合同审批' and a['status'] == '已通过')))
 
 # ---------- collectionRecords：催缴记录（B1） ----------
 _DEBT_BILLS = [b for b in BILLS if b['unpaid'] > 0]
@@ -2040,10 +2612,677 @@ print('  [SEED+61] 审批 %d / 催缴 %d / 票据 %d / 表具 %d / 抄表 %d / �
       % (len(_APPROVALS), len(COLLECTION_RECORDS), len(INVOICES), len(METERS), len(METER_READINGS),
          len(ATTENDANCE), len(OPERATION_LOGS), len(PREPAY_ACCOUNTS), len(MAINTENANCE_RECORDS)))
 
+
+# ============================================================ 62. 业主端内容侧（2026-11-01 · 独立随机流 SEED+71）
+# 只新增表，既有 41 张表零改动：所有取值都从已生成的数据里挑（communities/owners/employees/houses）
+_rng = random.Random(SEED + 71)
+
+_POST_TPL = [
+    ('停水通知', '维修施工', '10月24日 09:00-17:00 二供泵房检修，1-3 栋高区停水，请提前储水。', 1),
+    ('电梯年检', '维修施工', '本周三起 1 栋两部电梯分批年检，单梯运行，预计每部 2 小时。', 1),
+    ('秋季消防演练', '安全提示', '本周六上午 10 点在中心广场进行消防演练，欢迎业主到场观摩。', 2),
+    ('垃圾分类投放点调整', '温馨提示', '原 3 号楼东侧投放点合并至西门集中点，投放时间 7:00-9:00 / 18:00-20:00。', 0),
+    ('高空抛物警示', '文明倡导', '近期 5 栋多次出现高空抛物，已加装仰拍监控，请勿以身试法。', 2),
+    ('遛狗请牵绳', '文明倡导', '园区内遛狗请牵绳并随手清理，儿童活动区禁止携宠进入。', 3),
+    ('重阳节敬老活动花絮', '活动花絮', '上周六的重阳茶话会共有 68 位长者参加，感谢志愿者与管家团队。', 4),
+    ('金秋邻里市集回顾', '活动花絮', '两天市集共 32 个摊位，旧物置换 200 余件，下一场定在 11 月中。', 4),
+    ('快递柜扩容', '便民信息', '北门新增 2 组智能柜，超时 24 小时不再收费，取件码短信通知已恢复。', 0),
+    ('地库充电桩上线', '便民信息', 'B1 区 12 个慢充桩已启用，扫码即充，业主价 1.2 元/度。', 0),
+    ('装修施工时间提醒', '温馨提示', '装修施工限工作日 8:30-12:00 / 14:00-18:00，周末及节假日禁止噪音施工。', 1),
+    ('雨季地库防滑', '安全提示', '地库坡道已铺设防滑垫，雨天请减速慢行，注意儿童。', 3),
+    ('亲子运动会报名开启', '活动花絮', '11 月 8 日亲子运动会开始报名，名额 60 组家庭，详见活动页。', 4),
+    ('物业服务费线上缴纳指引', '便民信息', '支持微信一键缴费、合并多房账单，缴费记录可在「家庭账单」查看。', 5),
+    ('中控室 24 小时值守', '温馨提示', '园区中控室 24 小时值守，紧急情况请拨 028-8888 6666 或按单元门禁呼叫。', 5),
+    ('公共区域消杀安排', '维修施工', '每月第二周周三对楼道、电梯轿厢、垃圾房进行消杀，药剂为低毒型。', 1),
+    ('儿童乐园设施检修', '维修施工', '滑梯扶手松动已修复，秋千链条更换完成，欢迎带小朋友来玩。', 2),
+    ('非机动车乱停整治', '文明倡导', '单元门口禁止停放电动车，B1 设有集中充电区，请勿飞线充电。', 3),
+    ('社区图书角开放', '便民信息', '物业服务中心二楼图书角开放，可借阅也可捐书，开放时间 9:00-20:00。', 0),
+    ('冬季供暖试水', '维修施工', '11 月 5 日起分区分批试水，请留人在家并检查暖气阀门。', 1),
+    ('业主开放日', '活动花絮', '本月业主开放日参观配电房与水泵房，20 位业主参加，问答记录已公示。', 4),
+    ('快递代收点搬迁', '便民信息', '原东门代收点迁至物业服务中心一楼，营业时间不变。', 5),
+    ('园区绿化补植', '温馨提示', '本周对中心花坛补植时花，新栽区域请勿踩踏。', 3),
+    ('门禁系统升级', '维修施工', '下周起门禁支持手机开门，需在「我的-门禁钥匙」完成绑定。', 0),
+]
+
+NEIGHBOR_POSTS = []
+_pub_emps = [e for e in EMPLOYEES if e['position'] in ('客服专员', '客服主管', '楼栋管家', '项目经理')]
+for i, (title, cat, content, cover) in enumerate(_POST_TPL, 1):
+    cm = COMMUNITIES[i % len(COMMUNITIES)]
+    emp = _pub_emps[i % len(_pub_emps)]
+    day = TODAY - timedelta(days=(i * 3) % 40)
+    NEIGHBOR_POSTS.append({
+        'postId': 'NP%04d' % i,
+        'communityId': cm['communityId'],
+        'communityName': cm['name'],
+        'category': cat,
+        'title': title,
+        'content': content,
+        'images': _rng.randint(0, 3),
+        'cover': cover,
+        'author': emp['name'],
+        'authorRole': '物业服务中心',
+        'publishTime': dts(datetime.combine(day, datetime.min.time()).replace(hour=_rng.randint(9, 19), minute=_rng.choice([0, 15, 30, 45]))),
+        'status': '已发布' if i <= 22 else '草稿',
+        'top': i in (1, 3, 13),
+        'likeCount': _rng.randint(0, 68),
+        'commentCount': 0,
+        'viewCount': _rng.randint(40, 620),
+    })
+NEIGHBOR_POSTS.sort(key=lambda x: x['publishTime'], reverse=True)
+
+_COMMENT_TPL = [
+    '收到，谢谢提醒，会提前储水。',
+    '电梯年检能不能错开早晚高峰？',
+    '上次的市集很热闹，希望多办几次。',
+    '我们这层的投放点也希望能保留。',
+    '已经报修了，师傅来得挺快。',
+    '遛狗不牵绳确实该管一管。',
+    '充电桩终于有了，价格也合理。',
+    '请问图书角可以捐童书吗？',
+    '地库坡道雨天确实滑，谢谢处理。',
+    '这个活动孩子很喜欢，下次还报名。',
+    '物业辛苦了，点赞。',
+    '能不能把停水通知提前两天发？',
+    '我们家老人参加了茶话会，很开心。',
+    '建议增加儿童游乐区的座椅。',
+    '门禁手机开门什么时候能用？',
+]
+_post_ids = [p['postId'] for p in NEIGHBOR_POSTS if p['status'] == '已发布']
+POST_COMMENTS = []
+_cidx = 0
+for i in range(60):
+    pid = _post_ids[i % len(_post_ids)]
+    o = OWNERS[_rng.randrange(len(OWNERS))]
+    house = next((h for h in HOUSES if h['houseId'] == (o['houseIds'][0] if o['houseIds'] else '')), None)
+    _cidx += 1
+    at = TODAY - timedelta(days=_rng.randint(0, 12))
+    POST_COMMENTS.append({
+        'commentId': 'PC%04d' % _cidx,
+        'postId': pid,
+        'ownerId': o['ownerId'],
+        'authorName': o['name'][0] + ('**' if len(o['name']) > 2 else '*'),
+        'houseShort': (house['shortName'] if house else ''),
+        'content': _COMMENT_TPL[i % len(_COMMENT_TPL)],
+        'at': dts(datetime.combine(at, datetime.min.time()).replace(hour=_rng.randint(8, 22), minute=_rng.randint(0, 59))),
+        'status': '已发布' if i % 9 else '待审核',
+        'likeCount': _rng.randint(0, 12),
+    })
+for p in NEIGHBOR_POSTS:
+    p['commentCount'] = sum(1 for c in POST_COMMENTS if c['postId'] == p['postId'] and c['status'] == '已发布')
+
+_ACT_TPL = [
+    ('重阳节敬老茶话会', '敬老', '社区活动中心', 60, 0),
+    ('金秋邻里市集', '公益', '中心广场', 200, 0),
+    ('亲子趣味运动会', '亲子', '园区运动场', 60, 30),
+    ('健康义诊进小区', '公益', '物业服务中心一楼', 120, 0),
+    ('业主开放日：走进设备房', '文体', '配电房 / 水泵房', 20, 0),
+    ('消防疏散演练', '公益', '各楼栋', 300, 0),
+    ('中秋灯谜会', '文体', '中心花园', 150, 0),
+    ('儿童跳蚤市集', '亲子', '北门广场', 40, 0),
+    ('成人书法公开课', '文体', '社区活动中心', 24, 0),
+    ('清晨瑜伽公开课', '文体', '园区草坪', 30, 0),
+    ('公益植树日', '公益', '园区东侧绿地', 80, 0),
+    ('岁末邻里联欢会', '文体', '社区会所', 200, 50),
+]
+ACTIVITIES = []
+for i, (title, typ, place, cap, fee) in enumerate(_ACT_TPL, 1):
+    cm = COMMUNITIES[i % len(COMMUNITIES)]
+    start = TODAY + timedelta(days=(i * 5) % 45 - 20)
+    st = datetime.combine(start, datetime.min.time()).replace(hour=_rng.choice([9, 10, 14, 15, 19]))
+    status = '报名中' if start >= TODAY else '已结束'
+    ACTIVITIES.append({
+        'activityId': 'AC%04d' % i,
+        'communityId': cm['communityId'],
+        'communityName': cm['name'],
+        'title': title,
+        'type': typ,
+        'cover': i % 6,
+        'startAt': dts(st),
+        'endAt': dts(st + timedelta(hours=2)),
+        'place': place,
+        'capacity': cap,
+        'fee': money(fee),
+        'organizer': '物业服务中心',
+        'needRealname': True,
+        'status': status,
+        'desc': '%s。请提前 10 分钟到场签到，名额有限，报名后如不能参加请提前取消。' % title,
+        'views': _rng.randint(30, 400),
+    })
+
+ACTIVITY_ENROLLMENTS = []
+_eidx = 0
+for a in ACTIVITIES:
+    n = min(a['capacity'], _rng.randint(6, 26))
+    for _ in range(n):
+        o = OWNERS[_rng.randrange(len(OWNERS))]
+        house = next((h for h in HOUSES if h['houseId'] == (o['houseIds'][0] if o['houseIds'] else '')), None)
+        _eidx += 1
+        ACTIVITY_ENROLLMENTS.append({
+            'enrollId': 'AE%04d' % _eidx,
+            'activityId': a['activityId'],
+            'ownerId': o['ownerId'],
+            'name': o['name'],
+            'phone': o['phone'],
+            'houseShort': (house['shortName'] if house else ''),
+            'people': _rng.randint(1, 3),
+            'at': dts(datetime.combine(a['startAt'][:10] and d(a['startAt'][:10]) - timedelta(days=_rng.randint(1, 6)),
+                                      datetime.min.time()).replace(hour=_rng.randint(9, 21), minute=_rng.randint(0, 59))),
+            'status': '已签到' if a['status'] == '已结束' else '已报名',
+        })
+    a['enrolled'] = len(ACTIVITY_ENROLLMENTS) and sum(1 for e in ACTIVITY_ENROLLMENTS if e['activityId'] == a['activityId'])
+
+_SURVEY_TPL = [
+    ('2026 年度物业服务满意度调查', '问卷', ['很满意', '满意', '一般', '不满意']),
+    ('地库充电桩选址意见征集', '投票', ['B1 东区', 'B1 西区', '地面北门', '地面东门']),
+    ('门禁改造方案意见征集', '投票', ['人脸识别', '手机蓝牙', '实体卡+手机', '保持现状']),
+    ('社区活动偏好问卷', '问卷', ['亲子', '文体', '公益', '健康讲座']),
+    ('文明养宠公约（民意征集）', '投票', ['同意', '有保留意见', '不同意']),
+    ('公共收益使用方向意见征集', '投票', ['公共设施维修', '绿化提升', '活动经费', '冲抵物业费']),
+]
+SURVEYS = []
+for i, (title, typ, opts) in enumerate(_SURVEY_TPL, 1):
+    cm = COMMUNITIES[i % len(COMMUNITIES)]
+    start = TODAY - timedelta(days=10 + i)
+    total = _rng.randint(80, 320)
+    weights = [_rng.randint(10, 60) for _ in opts]
+    ssum = sum(weights)
+    votes = [int(total * w / ssum) for w in weights]
+    SURVEYS.append({
+        'surveyId': 'SV%04d' % i,
+        'communityId': cm['communityId'],
+        'communityName': cm['name'],
+        'title': title,
+        'type': typ,
+        'desc': '本次为业主意见征集，结果用于物业改进服务，不构成《民法典》意义上的业主共同决定。',
+        'startAt': ds(start),
+        'endAt': ds(start + timedelta(days=14)),
+        'status': '进行中' if start + timedelta(days=14) >= TODAY else '已结束',
+        'multi': False,
+        'anonymous': True,
+        'totalVotes': sum(votes),
+        'options': [{'key': 'A%d' % (j + 1), 'label': lb, 'votes': votes[j]} for j, lb in enumerate(opts)],
+    })
+
+SURVEY_VOTES = []
+_vidx = 0
+for s in SURVEYS:
+    for _ in range(_rng.randint(5, 10)):
+        o = OWNERS[_rng.randrange(len(OWNERS))]
+        _vidx += 1
+        SURVEY_VOTES.append({
+            'voteId': 'VO%04d' % _vidx,
+            'surveyId': s['surveyId'],
+            'ownerId': o['ownerId'],
+            'optionKeys': [pick(s['options'])['key']],
+            'at': dts(datetime.combine(TODAY - timedelta(days=_rng.randint(0, 9)), datetime.min.time()).replace(hour=_rng.randint(9, 21))),
+        })
+
+_SH_TPL = [
+    ('九成新婴儿推车，实木餐桌转让', '母婴', 380, 1280),
+    ('宜家书柜（两门）自提', '家具', 120, 699),
+    ('跑步机 家用静音款', '家电', 850, 2999),
+    ('iPad 第 9 代 64G 带壳', '数码', 1350, 2499),
+    ('儿童自行车 16 寸', '母婴', 160, 458),
+    ('布艺沙发 三人位', '家具', 400, 2600),
+    ('滚筒洗衣机 8 公斤', '家电', 700, 2399),
+    ('电钢琴 88 键 带琴架', '其他', 1200, 3600),
+    ('儿童绘本 60 册打包', '图书', 90, 600),
+    ('空气炸锅 4.5L', '家电', 130, 399),
+    ('人体工学椅 网布', '家具', 320, 1099),
+    ('露营天幕+折叠桌套装', '其他', 260, 900),
+    ('鱼缸 60cm 含过滤', '其他', 180, 680),
+    ('民谣吉他 41 寸', '其他', 300, 880),
+    ('微波炉 20L 转盘式', '家电', 100, 329),
+    ('登山鞋 42 码 仅试穿', '其他', 200, 799),
+    ('婴儿床+床垫', '母婴', 260, 980),
+    ('书架式音箱 一对', '数码', 420, 1280),
+    ('儿童书桌 可升降', '家具', 280, 899),
+    ('绿植 龟背竹 大盆', '其他', 60, 180),
+]
+SECONDHAND_ITEMS = []
+for i, (title, cat, price, origin) in enumerate(_SH_TPL, 1):
+    o = OWNERS[_rng.randrange(len(OWNERS))]
+    house = next((h for h in HOUSES if h['houseId'] == (o['houseIds'][0] if o['houseIds'] else '')), None)
+    cm = next((c for c in COMMUNITIES if house and c['communityId'] == house['communityId']), COMMUNITIES[0])
+    SECONDHAND_ITEMS.append({
+        'itemId': 'SH%04d' % i,
+        'communityId': cm['communityId'],
+        'communityName': cm['name'],
+        'title': title,
+        'category': cat,
+        'price': money(price),
+        'originPrice': money(origin),
+        # 成色跟标题对齐：标题里写了"九成新/全新"就别再随机成别的（列表页会自相矛盾）
+        'condition': ('全新' if '全新' in title else
+                      '九成新' if '九成新' in title else
+                      '八成新' if '八成新' in title else
+                      '七成新' if '七成新' in title else
+                      '几乎全新' if '仅试穿' in title else
+                      pick(['几乎全新', '九成新', '八成新'])),
+        'cover': i % 6,
+        'images': _rng.randint(1, 4),
+        'desc': '自用闲置，功能正常，成色见实拍。可小区内自提，介意议价勿扰。',
+        'sellerName': o['name'][0] + '**',
+        'sellerHouse': (house['shortName'] if house else ''),
+        'wechat': 'wx_' + str(_rng.randint(100000, 999999)),
+        'publishAt': dts(datetime.combine(TODAY - timedelta(days=_rng.randint(0, 20)), datetime.min.time()).replace(hour=_rng.randint(9, 22))),
+        'status': '在售' if i % 11 else '已售',
+        'views': _rng.randint(20, 380),
+        'wants': _rng.randint(0, 45),
+        'source': '物业代发',
+    })
+
+_LIFE_TPL = [
+    ('家政保洁', '日常保洁（2 小时）', 135, '次', 120, '洁净家政'),
+    ('家政保洁', '深度保洁（4 小时）', 328, '次', 240, '洁净家政'),
+    ('家电清洗', '油烟机深度清洗', 158, '台', 90, '洁净家政'),
+    ('家电清洗', '空调挂机清洗', 120, '台', 70, '洁净家政'),
+    ('家电清洗', '洗衣机筒清洁', 99, '台', 60, '阳光洗衣'),
+    ('维修安装', '水电维修上门', 80, '次', 50, '安心开锁'),
+    ('维修安装', '开锁换锁芯', 150, '次', 40, '安心开锁'),
+    ('维修安装', '灯具/五金安装', 60, '次', 40, '安心开锁'),
+    ('搬家服务', '小件搬家（3 公里内）', 260, '次', 120, '乐家搬家'),
+    ('绿植养护', '绿植上门养护', 88, '次', 60, '绿意园艺'),
+    ('消杀服务', '除四害上门', 168, '次', 90, '康泰消杀'),
+    ('洗衣服务', '衣物干洗（5 件起）', 20, '件', 0, '阳光洗衣'),
+]
+MERCHANTS = [
+    {'merchantId': 'MC0001', 'name': '洁净家政', 'category': '家政保洁', 'rating': 4.9, 'monthlySales': 186, 'address': '翡翠城 北门商铺 1-3', 'phone': '028-8866 1001', 'tags': ['认证商家', '可开票'], 'status': '合作中'},
+    {'merchantId': 'MC0002', 'name': '阳光洗衣', 'category': '洗衣洗护', 'rating': 4.7, 'monthlySales': 320, 'address': '翡翠城 西门商铺 2-1', 'phone': '028-8866 1002', 'tags': ['认证商家', '当日取送'], 'status': '合作中'},
+    {'merchantId': 'MC0003', 'name': '安心开锁', 'category': '维修安装', 'rating': 4.8, 'monthlySales': 96, 'address': '翡翠城 南门商铺 1-1', 'phone': '028-8866 1003', 'tags': ['认证商家', '24 小时'], 'status': '合作中'},
+    {'merchantId': 'MC0004', 'name': '乐家搬家', 'category': '搬家服务', 'rating': 4.6, 'monthlySales': 54, 'address': '天府大道南段 1266 号', 'phone': '028-8866 1004', 'tags': ['认证商家'], 'status': '合作中'},
+    {'merchantId': 'MC0005', 'name': '绿意园艺', 'category': '绿植养护', 'rating': 4.8, 'monthlySales': 41, 'address': '翡翠城 花房', 'phone': '028-8866 1005', 'tags': ['认证商家'], 'status': '合作中'},
+    {'merchantId': 'MC0006', 'name': '康泰消杀', 'category': '消杀服务', 'rating': 4.5, 'monthlySales': 28, 'address': '天府三街 88 号', 'phone': '028-8866 1006', 'tags': ['认证商家', '持证'], 'status': '合作中'},
+]
+_MER = {m['name']: m for m in MERCHANTS}
+LIFE_SERVICES = []
+for i, (cat, name, price, unit, dur, prov) in enumerate(_LIFE_TPL, 1):
+    m = _MER[prov]
+    LIFE_SERVICES.append({
+        'serviceId': 'LS%04d' % i,
+        'category': cat,
+        'name': name,
+        'price': money(price),
+        'unit': unit,
+        'duration': dur,
+        'merchantId': m['merchantId'],
+        'provider': m['name'],
+        'rating': m['rating'],
+        'monthlySales': max(1, m['monthlySales'] // 6),
+        'cover': i % 6,
+        'desc': '%s，由%s提供，物业认证商家，服务完成后可评价。' % (name, m['name']),
+        'status': '可预约' if i <= 8 else '即将开放',
+    })
+
+print('  [SEED+71] 邻里动态 %d / 评论 %d / 活动 %d / 报名 %d / 问卷 %d / 投票 %d / 闲置 %d / 生活服务 %d / 商户 %d'
+      % (len(NEIGHBOR_POSTS), len(POST_COMMENTS), len(ACTIVITIES), len(ACTIVITY_ENROLLMENTS),
+         len(SURVEYS), len(SURVEY_VOTES), len(SECONDHAND_ITEMS), len(LIFE_SERVICES), len(MERCHANTS)))
+
+# ============================================================ 客户画像补充（2026-11-02 · 独立随机流 SEED+77）
+# 依据《忆通物业客户画像细分表模板(2025.5.13)》的列补字段。
+# 纪律：**动的是既有表的行，不是新建表**，所以随机流必须隔离——用独立 RNG，
+#      主随机流一个数都不消耗，其余 39 张表逐字不变（否则账单/工单会全部漂移）。
+R_PROFILE = random.Random(SEED + 77)
+
+_OCCUPATIONS = ['企业职员', '工程师', '教师', '医生', '公务员', '个体经营', '自由职业', '退休']
+_EMPLOYERS = ['成都恒信科技有限公司', '四川中远建设集团', '成都市第七人民医院', '高新区实验小学',
+              '西南物流有限公司', '中国银行成都分行', '自营（个体工商户）', '—']
+_JOB_TITLES = ['部门经理', '工程师', '教师', '主治医师', '科员', '店长', '顾问', '—']
+_HOBBIES = ['棋牌', '广场舞', '书法', '摄影', '钓鱼', '羽毛球', '旅游', '茶艺', '健身', '阅读']
+# 2026-11-02 调分布：原来 8 项里只有 3 个「无」（六成有宠），养宠家庭标签会刷到 400+，'无' 提到 6/8
+_PETS = ['无', '无', '无', '无', '无', '无', '小型犬（泰迪）', '猫（英短）']
+_POSITIVE = ['', '连续三年按时缴费', '积极参与社区活动', '担任楼栋志愿者', '配合度高，报修后主动反馈', '']
+_NEGATIVE = ['', '', '', '多次占用消防通道', '夜间噪音被投诉 1 次', '欠费催缴响应慢', '']
+
+for _o in OWNERS:
+    _o['ownerCategory'] = R_PROFILE.choices(
+        ['常住', '候鸟', '投资', '出租业主'], weights=[58, 12, 15, 15])[0]
+    # 敏感三项：经济状况 / 政治面貌 / 负面信息（默认脱敏，见 SENSITIVE_FIELDS）
+    _o['economicLevel'] = R_PROFILE.choices(['优渥', '良好', '一般', '困难'], weights=[12, 48, 33, 7])[0]
+    _o['politicalStatus'] = R_PROFILE.choices(['中共党员', '共青团员', '群众', '民主党派'], weights=[18, 9, 70, 3])[0]
+    _o['negativeNotes'] = R_PROFILE.choice(_NEGATIVE)
+    # 结婚纪念日：约 2/3 有（其余空串，不要给假日期）
+    _o['weddingDate'] = ''
+    if R_PROFILE.random() < 0.66:
+        _o['weddingDate'] = ds(date(R_PROFILE.randint(1978, 2018), R_PROFILE.randint(1, 12), R_PROFILE.randint(1, 28)))
+    _job = R_PROFILE.choice(_OCCUPATIONS)
+    _o['occupation'] = _job
+    if _job == '退休':
+        _o['employer'] = '—'
+        _o['jobTitle'] = '—'
+        _o['workAddress'] = ''
+    else:
+        _o['employer'] = R_PROFILE.choice(_EMPLOYERS)
+        _o['jobTitle'] = R_PROFILE.choice(_JOB_TITLES)
+        _o['workAddress'] = '%s%s%d号' % (
+            R_PROFILE.choice(['成都市高新区', '成都市武侯区', '成都市锦江区', '成都市金牛区']),
+            R_PROFILE.choice(['天府大道', '科华北路', '人民南路', '蜀汉路']),
+            R_PROFILE.randint(1, 399))
+    _o['hobbies'] = '、'.join(R_PROFILE.sample(_HOBBIES, R_PROFILE.randint(0, 3))) if R_PROFILE.random() < 0.7 else ''
+    _o['pets'] = R_PROFILE.choice(_PETS)
+    _o['positiveNotes'] = R_PROFILE.choice(_POSITIVE)
+    # 家庭成员：Excel 的家庭成员/与业主关系由既有 members 表承担，这里只补"同住"标记，避免两套口径
+    for _m in MEMBERS:
+        if _m['ownerId'] == _o['ownerId']:
+            _m['liveTogether'] = R_PROFILE.random() < 0.78
+
+_COMM_DELIVER = {c['communityId']: c.get('deliverDate') or '2016-06-30' for c in COMMUNITIES}
+for _h in HOUSES:
+    # 未交房的房屋不参与：没有交付日期（写未来日期会让"已交付 3 年"这类算错），
+    # 也不可能"违规装修"（还没拿钥匙）。仍然消耗两次随机数，保证其余房屋的取值不漂移。
+    _undelivered = _h['deliverStatus'] == '未交房'
+    _base = _COMM_DELIVER.get(_h['communityId'], '2016-06-30')
+    _by, _bm, _bd = (int(x) for x in _base.split('-'))
+    _d_off = R_PROFILE.randint(0, 150)
+    if not _undelivered:
+        _h['deliverDate'] = ds(date(_by, _bm, _bd) + timedelta(days=_d_off))
+    # 是否违规装修：房屋级口径（业主可能同时拥有多套房，违规是某套房的事）
+    _v = R_PROFILE.choices(['无', '疑似', '已认定', '已整改'], weights=[88, 5, 5, 2])[0]
+    if _undelivered:
+        _v = '无'
+    _h['decorationViolation'] = _v
+    _h['decorationResult'] = '' if _v == '无' else R_PROFILE.choice([
+        '已下发整改通知，业主已承诺 15 日内拆除',
+        '已上报城管，待联合处理',
+        '整改完成并复查通过',
+        '待现场复核',
+    ])
+
+print('  [SEED+77] 客户画像补充：业主 %d（画像 12 字段）／房屋 %d（交付与装修 3 字段）'
+      % (len(OWNERS), len(HOUSES)))
+
+# ============================================================ 业主标签（2026-11-02）
+# 标签是**人工打的**，不是算出来的。但「长期欠费」「投诉频繁」这类如果跟账单、工单对不上，
+# 第一次评审就会被指出来（"这人不欠费为什么挂着长期欠费"）。所以：
+#   · 能由数据判定的，一律按真实数据派生 —— 标签与业务数据永远自洽；
+#   · 纯主观的（意见领袖、社区志愿者），用独立随机流少量分配。
+# 独立随机流 SEED+78：主随机流一个数都不消耗，重跑只影响 owners 与 ownerTags 两张表。
+R_TAG = random.Random(SEED + 78)
+
+# 字典：tagId / 名称 / 分类 / 颜色 / 是否启用 / 排序 / 口径说明
+# 分类四档：关怀（要主动找的人）· 风险（要盯住的事）· 价值（能带动的资源）· 行为（画像补充）
+TAG_SPEC = [
+    ('OT01', '重点关怀', '关怀', 'red', True, 1, '独居老人、高龄、军烈属等需要定期问候的业主；楼管每月至少联系一次'),
+    ('OT02', '独居老人', '关怀', 'orange', True, 2, '65 岁以上且同住成员为 0。突发情况无人发现，是物业最该主动看的一类'),
+    ('OT03', '家有婴幼儿', '关怀', 'orange', True, 3, '有 0–6 岁子女同住；噪音投诉处理、电梯检修时段要提前告知'),
+    ('OT04', '投诉频繁', '风险', 'red', True, 4, '近 12 个月投诉建议类工单 ≥1 条。不是差评标签，是"沟通方式要换"的信号'),
+    ('OT05', '长期欠费', '风险', 'red', True, 5, '欠费 ≥500 元且最长逾期 ≥30 天，按账单实时判定'),
+    ('OT06', '违规装修', '风险', 'orange', True, 6, '名下有房屋处于「已认定」违规装修；由房屋级状态派生，房子整改完标签应撤'),
+    ('OT07', '法律纠纷', '风险', 'red', False, 7, '涉诉业主。**已停用**：新标签不再可选，已打的保留——历史事实不该因为词条停用就消失'),
+    ('OT08', '意见领袖', '价值', 'blue', True, 8, '业主群里有影响力、愿意牵头的人；征求意见、试点新服务先找他们'),
+    ('OT09', '优质业主', '价值', 'green', True, 9, '信用 A 级且无欠费；可作为正面案例，也适合推荐增值服务'),
+    ('OT10', '社区志愿者', '价值', 'cyan', True, 10, '参与过社区志愿活动，可加入楼栋共治'),
+    ('OT11', '活跃APP用户', '行为', 'cyan', True, 11, '近 30 天登录业主端 ≥8 次；新功能灰度优先放给这批人'),
+    ('OT12', '养宠家庭', '行为', 'gray', True, 12, '登记有宠物；电梯宠物提示、遛狗时段管理的对象'),
+]
+
+_BY_TAGID = defaultdict(lambda: [])
+_today_d = TODAY
+_unpaid, _od = defaultdict(float), defaultdict(int)
+for _b in BILLS:
+    if _b.get('ownerId'):
+        _unpaid[_b['ownerId']] += _b.get('unpaid') or 0
+        _od[_b['ownerId']] = max(_od[_b['ownerId']], _b.get('overdueDays') or 0)
+_complaint = defaultdict(int)
+for _w in WORK_ORDERS:
+    if _w.get('type') == '投诉建议' and _w.get('ownerId'):
+        _complaint[_w['ownerId']] += 1
+_mem_cnt, _has_kid = defaultdict(int), set()
+for _m in MEMBERS:
+    _mem_cnt[_m['ownerId']] += 1
+    if _m.get('relation') == '子女':
+        _has_kid.add(_m['ownerId'])
+_house_by_id = {h['houseId']: h for h in HOUSES}
+
+def _age_of(o):
+    y, m, d = (int(x) for x in o['birthday'].split('-'))
+    return (_today_d - date(y, m, d)).days // 365
+
+for _o in OWNERS:
+    _oid = _o['ownerId']
+    _age = _age_of(_o)
+    _tags = []
+    # —— 派生：与账单 / 工单 / 房屋 / 成员数据严格一致 ——
+    if _age >= 65 and _mem_cnt[_oid] == 0:
+        _tags.append('OT02')
+    if _age >= 70 or _unpaid[_oid] >= 3000 or ('OT02' in _tags):
+        _tags.append('OT01')
+    if _oid in _has_kid and _age <= 45:
+        _tags.append('OT03')
+    if _complaint[_oid] >= 1:
+        _tags.append('OT04')
+    if _unpaid[_oid] >= 500 and _od[_oid] >= 30:
+        _tags.append('OT05')
+    if any(_house_by_id.get(i, {}).get('decorationViolation') == '已认定' for i in _o['houseIds']):
+        _tags.append('OT06')
+    if _o.get('pets') and _o['pets'] != '无':
+        _tags.append('OT12')
+    if _o.get('creditLevel') == 'A' and _unpaid[_oid] == 0 and R_TAG.random() < 0.12:
+        _tags.append('OT09')
+    if _o.get('appRegistered') and R_TAG.random() < 0.10:
+        _tags.append('OT11')
+    # —— 主观：随机少量（意见领袖 / 志愿者 / 已停用的法律纠纷） ——
+    if R_TAG.random() < 0.045:
+        _tags.append('OT08')
+    if R_TAG.random() < 0.03:
+        _tags.append('OT10')
+    _o['tagIds'] = sorted(set(_tags))
+    for _t in _o['tagIds']:
+        _BY_TAGID[_t].append(_oid)
+
+# 停用的词条也要有历史使用者：3 位业主挂着「法律纠纷」，用来演示"停用后已打的不消失"
+for _oid in [x['ownerId'] for x in OWNERS[:3]]:
+    if 'OT07' not in next(o for o in OWNERS if o['ownerId'] == _oid)['tagIds']:
+        next(o for o in OWNERS if o['ownerId'] == _oid)['tagIds'].append('OT07')
+        _BY_TAGID['OT07'].append(_oid)
+
+OWNER_TAGS = [{
+    'tagId': tid, 'name': name, 'category': cat, 'color': color,
+    'builtin': True,           # 系统内置：可以改名/停用，不可删除（删了历史标签就成孤儿）
+    'enabled': enabled,
+    'sort': sort, 'desc': desc,
+    'ownerCount': len(_BY_TAGID[tid]),
+} for tid, name, cat, color, enabled, sort, desc in TAG_SPEC]
+
+print('  [SEED+78] 业主标签：词条 %d（启用 %d）／已打标签 %d 人次（%d 位业主有标签）'
+      % (len(OWNER_TAGS), sum(1 for t in OWNER_TAGS if t['enabled']),
+         sum(len(o['tagIds']) for o in OWNERS), sum(1 for o in OWNERS if o['tagIds'])))
+
+# ============================================================ 营业执照影像件（2026-11-02 · 独立随机流 SEED+81）
+# 公司核验核的是营业执照：已核验的公司必须"有据可查"，否则演示里点开一个已核验的
+# 公司租户，却在"缺影像件"——评审第一眼就会问"那你怎么核过的"。
+# 用独立随机流，主随机流一个数都不消耗；重跑只影响 tenants 表这一列。
+R_LIC = random.Random(SEED + 81)
+_LIC_KIND = ['营业执照正本', '营业执照副本', '营业执照变更页']
+_lic_seeded = 0
+for _t in TENANTS:
+    if _t.get('tenantType') != '公司':
+        continue
+    _n = 0
+    if _t.get('verifyStatus') == '已核验':
+        _n = R_LIC.choice([1, 1, 2])
+    else:
+        _n = R_LIC.choice([0, 1])
+    if not _n:
+        continue
+    _brand = _t['companyName'][2:].replace('有限公司', '')
+    _t['licenseFiles'] = [{
+        'fileId': 'LF%06d%02d' % (200000 + _lic_seeded * 3 + _i, _i + 1),
+        'name': '%s-%s.%s' % (_brand, _LIC_KIND[_i], 'pdf' if _i == 0 else 'jpg'),
+        'size': R_LIC.randint(420_000, 2_600_000),
+        'type': 'application/pdf' if _i == 0 else 'image/jpeg',
+        'uploadedAt': ds(date(R_LIC.randint(2025, 2026), R_LIC.randint(1, 10), R_LIC.randint(1, 28))) + ' 10:%02d' % R_LIC.randint(0, 59),
+        'uploadedBy': '物业前台',
+    } for _i in range(_n)]
+    _lic_seeded += 1
+
+print('  [SEED+81] 营业执照影像件：%d 家公司有件（共 %d 张）；已核验公司全部有据可查'
+      % (_lic_seeded, sum(len(t.get('licenseFiles') or []) for t in TENANTS)))
+
+# ============================================================ 工单类型拆分（2026-11-02 · 不消耗随机数）
+# 两件事：
+#   ① 「入户维修」从**报修分类**里拆出来，成为独立业务类型「商业服务」——
+#      以前它既是工单类型、又靠工单数据 distinct 出分类，公共与入户还共用同一批"维修品类"，
+#      于是「电梯异常」（部位）和「下水道堵塞」（工种）并列在一个下拉里；
+#   ② 公共区域维修的分类改成**设施部位**口径，商业服务保持**维修品类**口径。
+# 只改分类与类型，**不动金额**：金额已按价目表回填，改它会让历史账单与工单对不上。
+_PUBLIC_CAT_MAP = {
+    '电梯异常': '电梯',
+    '水管漏水': '给排水', '下水道堵塞': '给排水',
+    '照明不亮': '公区照明',
+    '电路故障': '配电',
+    '瓷砖空鼓': '土建', '墙面开裂': '土建',
+    '门窗损坏': '门窗五金', '门锁故障': '门窗五金',
+    '空调不制冷': '公共设备',
+}
+
+# 价格快照：工单记下"下单那一刻"的服务名称与成本，字典改价不回溯
+try:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'repairPrices.json'),
+              encoding='utf-8') as _pf:
+        _PRICE_DOC = json.load(_pf)
+    _PRICE_BY_CODE = {i['code']: i for i in _PRICE_DOC.get('items', [])}
+except Exception:
+    _PRICE_BY_CODE = {}
+
+_wo_retyped = 0
+for _w in WORK_ORDERS:
+    if _w.get('type') == '入户维修':
+        _w['type'] = '商业服务'
+        _wo_retyped += 1
+    if _w.get('type') == '公共区域维修':
+        _w['category'] = _PUBLIC_CAT_MAP.get(_w['category'], _w['category'])
+    _p = _PRICE_BY_CODE.get(_w.get('priceCode') or '') if _w.get('type') == '商业服务' else None
+    _w['serviceName'] = _p['name'] if _p else ''
+    _w['serviceCost'] = _p['cost'] if _p else 0
+    _w['isPublic'] = _w['type'] == '公共区域维修'
+
+print('  [工单拆分] 「入户维修」→「商业服务」%d 单；公共单分类改为设施部位（%d 单）'
+      % (_wo_retyped, sum(1 for w in WORK_ORDERS if w['type'] == '公共区域维修')))
+
+# ============================================================ 公共区域工时积分（2026-11-02 · 独立随机流 SEED+83）
+# 只有公共区域维修有积分：商业服务按人工费提成，重复激励会让师傅挑单。
+# 本期只记录积分，不做绩效折算 —— 但规则版本 / 归属期间 / 结算状态三样先摆好，
+# 否则以后接绩效要改数据模型。
+_R83 = random.Random(SEED + 83)
+_POINT_W = {
+    '电梯': 1.5, '公共设备': 1.4, '配电': 1.3, '给排水': 1.2, '道闸门禁': 1.2,
+    '土建': 1.1, '公区照明': 1.0, '门窗五金': 1.0, '环境其他': 0.8,
+}
+_pt_done = 0
+_pt_points = 0.0
+for _w in WORK_ORDERS:
+    if _w['type'] != '公共区域维修':
+        continue
+    if _w['status'] not in ('已完工', '已评价', '已关闭'):
+        continue
+    if not _w.get('assignee'):
+        continue
+    _h = float(_w.get('durationHours') or 0)
+    if _h <= 0.2:
+        _h = _R83.uniform(0.5, 2.5)
+    _h = round(min(_h, 8), 2)
+    _wt = _POINT_W.get(_w['category'], 1.0)
+    _pts = round(_h * 10 * _wt, 1)
+    _w['laborHours'] = _h
+    _w['laborPoints'] = _pts
+    _w['laborPointWeight'] = _wt
+    _w['pointRuleVersion'] = 'POINT-2026-11-01'
+    _w['pointsPeriod'] = (_w.get('finishTime') or _w['createTime'])[:7]
+    _w['pointsStatus'] = '待结算'
+    _w['pointsBy'] = '工程主管'
+    _w['pointsAt'] = _w.get('finishTime') or _w['createTime']
+    _pt_done += 1
+    _pt_points += _pts
+print('  [工时积分] 公共区域已完工 %d 单记录积分，合计 %.1f 分（权重 %s…）'
+      % (_pt_done, _pt_points, '电梯 1.5'))
+
+
+# ============================================================ 员工端演示补数（2026-11-04）
+# 为什么补：审批单是按项目随机分布的，**P01 一张「项目经理审批」都没有**（全在第 2/3 项目），
+# 监督任务里 P01 也没有「待执行」的（苏春梅 6 条都已完成）。
+# 员工端要按项目演示"我这个身份能看到什么"，缺这两类就演不出来。
+# 纪律：**纯新增，不改既有记录**，且不消耗 PRNG（不影响其余表）。
+_COMM_P01 = next(c for c in COMMUNITIES if c['communityId'] == 'P01')
+_APPROVALS_P01_ADDED = 0
+for _w in [x for x in WORK_ORDERS if x['communityId'] == 'P01' and x['status'] in ('已完工', '已评价')][:2]:
+    _APPROVALS.append({
+        'approvalId': 'AP%05d' % (len(_APPROVALS) + 1),
+        'approvalNo': 'SP-%d-%04d' % (TODAY.year, len(_APPROVALS) + 1),
+        'bizType': '报修验收',
+        'bizId': _w['woId'],
+        'title': '%s：%s' % (_w['houseName'] or _w['woNo'], _w['title'][:22]),
+        'communityId': 'P01',
+        'communityName': _COMM_P01['name'],
+        'amount': money(_w.get('totalFee') or 0),
+        'applicant': _w['assignee'] or '孙德海',
+        'applicantRole': '维修工',
+        'applyTime': ds(TODAY - timedelta(days=2)) + ' 09:20',
+        'status': '待审批',
+        'currentNode': '项目经理审批',
+        'urgency': '普通',
+        'waitHours': 18,
+        'flow': [{'node': '项目经理审批', 'handler': '', 'action': '待处理', 'time': '', 'comment': ''}],
+    })
+    _APPROVALS_P01_ADDED += 1
+
+# 工程组监督任务：P01 缺「待执行」的监督任务，员工端的监督核验屏会没有可做对象
+# （模板/被检班组/执行人全部取真实数据：TP-SUP-ENG + O-P01-T2 + 该组正职 苏春梅）
+if not any(t['communityId'] == 'P01' and t['taskType'] == '监督' and t['status'] == '待执行' for t in INSPECT_TASKS):
+    _sup_plan = next((p for p in INSPECT_PLANS if p['communityId'] == 'P01' and p.get('post') == '工程'), INSPECT_PLANS[0])
+    INSPECT_TASKS.append({
+        'taskId': 'IT%05d' % (len(INSPECT_TASKS) + 1),
+        'planId': _sup_plan['planId'],
+        'planName': '工程组达标监督',
+        'post': '工程',
+        'communityId': 'P01',
+        'executor': '苏春梅',
+        'templateId': 'TP-SUP-ENG',
+        'taskType': '监督',
+        'targetPost': '工程',
+        'targetDept': 'O-P01-T2',
+        'executorOrgId': 'O-P01-T2',
+        'scheduledDate': ds(TODAY),
+        'scheduledTime': '09:00',
+        'status': '待执行',
+        'doneTime': '',
+        'duration': 0,
+        'itemCount': 5,
+        'normalCount': 0,
+        'issueCount': 0,
+        'photos': 0,
+        'checkinType': 'GPS围栏',
+        'checkedIn': False,
+        'gps': '104.0616027,30.517111',
+        'score': 0,
+        'refWoId': '',
+        'reviewer': '',
+        'reviewScore': 0,
+        'reviewTime': '',
+        'issueItems': [],
+        'hitEmployees': [],
+        'conflictFlag': False,
+    })
+
+
+# 组织负责人与员工档案对齐（2026-11-04）
+# 原数据里 O-P01-T1（翡翠城客服组）的正职写成「宋杰」，但宋杰的档案在 O-P03 —— 关系表与档案互相矛盾。
+# 员工端按负责人关系表判定"谁能审"，这条不一致会让 P01 的客服主管单落到一个不在本项目的人身上。
+# 修正：P01 的客服主管是汪磊（EM0018），把他归到客服组并作为该组正职。
+for _e in EMPLOYEES:
+    if _e['empId'] == 'EM0018':
+        _e['orgId'] = 'O-P01-T1'
+for _o in ORGS:
+    if _o['orgId'] == 'O-P01-T1':
+        _o['leader'] = '汪磊'
+        _o['leaderEmpId'] = 'EM0018'
+
 # ============================================================ 输出
 DATA = {
     'orgs': ORGS, 'communities': COMMUNITIES, 'buildings': BUILDINGS, 'units': UNITS, 'houses': HOUSES,
     'owners': OWNERS, 'members': MEMBERS, 'tenants': TENANTS, 'parkings': PARKINGS, 'vehicles': VEHICLES,
+    # 业主标签字典（2026-11-02）：业主只存 tagIds，词条改名/停用不动业主表
+    'ownerTags': OWNER_TAGS,
     # 楼栋责任范围（2026-10-29 · 楼管按范围管业主资料与催缴）
     'buildingStewards': BUILDING_STEWARDS,
     'passRecords': PASS_RECORDS,
@@ -2061,6 +3300,12 @@ DATA = {
     'meters': METERS, 'meterReadings': METER_READINGS, 'attendance': ATTENDANCE,
     'operationLogs': OPERATION_LOGS, 'prepayAccounts': PREPAY_ACCOUNTS,
     'maintenanceRecords': MAINTENANCE_RECORDS,
+    # 业主端内容侧（2026-11-01 · 独立随机流 SEED+71：邻里 / 活动 / 问卷 / 闲置 / 生活服务）
+    'neighborPosts': NEIGHBOR_POSTS, 'postComments': POST_COMMENTS,
+    'activities': ACTIVITIES, 'activityEnrollments': ACTIVITY_ENROLLMENTS,
+    'surveys': SURVEYS, 'surveyVotes': SURVEY_VOTES,
+    'secondhandItems': SECONDHAND_ITEMS,
+    'lifeServices': LIFE_SERVICES, 'merchants': MERCHANTS,
 }
 META = {'generatedAt': '2026-10-21', 'seed': SEED,
         'counts': {k: len(v) if isinstance(v, list) else 'object' for k, v in DATA.items()}}
@@ -2100,7 +3345,7 @@ _dp_bal = money(sum(x['balance'] for x in DECORATION_DEPOSITS))
 print('  装修押金 %d 笔：收 ¥%s / 退 ¥%s / 扣 ¥%s / 在账 ¥%s'
       % (len(DECORATION_DEPOSITS), format(_dp_amt, ','), format(_dp_ref, ','),
          format(_dp_ded, ','), format(_dp_bal, ',')))
-print('  权限码 %d 条（新增 5 条：资产驾驶舱 / 业主360 / 巡检执行 / 报表中心 / 下载中心）'
+print('  权限码 %d 条（2026-11-02 新增：商业服务项目 2 条 / 此前：资产驾驶舱 / 业主360 / 巡检执行 / 报表中心 / 下载中心）'
       % len(PERMISSIONS))
 tb = next(o for o in OWNERS if o['name'] == '张建国')
 for nm in ['张建国', '李秀兰', '王浩然', '赵春梅']:

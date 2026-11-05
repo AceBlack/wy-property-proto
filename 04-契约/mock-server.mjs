@@ -20,14 +20,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/* OA 单据与流程定义**不复制一份**：直接读原型的 utils/oa.js，
+   避免"前端改了字段、mock 还是旧的"这类只在联调时才发现的问题 */
+import { OA_FLOW_DEFS, OA_FORM_DEFS, ASSIGNEE_TYPES, ROLE_CODES } from '../03-原型/src/utils/oa.js'
 const readJson = p => JSON.parse(fs.readFileSync(path.join(__dirname, p), 'utf8'))
 
 /* ------------------------------ 数据 ------------------------------ */
 const owners = readJson('fixtures/owners.json')
+const ownerTags = readJson('fixtures/ownerTags.json')
 const houses = readJson('fixtures/houses.json')
 const bills = readJson('fixtures/bills.json')
 const payments = readJson('fixtures/payments.json')
 const workOrders = readJson('fixtures/work-orders.json')
+const serviceItems = readJson('fixtures/serviceItems.json')
 const employees = readJson('fixtures/employees.json')
 const tenants = readJson('fixtures/tenants.json')
 const inspectTasks = readJson('fixtures/inspect-tasks.json')
@@ -37,6 +43,7 @@ const communities = readJson('fixtures/communities.json')
 const contracts = readJson('fixtures/contracts.json')
 const notices = readJson('fixtures/notices.json')
 const orgs = readJson('fixtures/orgs.json')
+const orgLeaders = readJson('fixtures/org-leaders.json')
 const roles = readJson('fixtures/roles.json')
 const payrolls = readJson('fixtures/payrolls.json')
 const permissions = readJson('fixtures/permissions.json')
@@ -81,7 +88,9 @@ const USERS = {
   steward: {
     password: '123456', empId: stewardEmpId, name: (EMP.get(stewardEmpId) || {}).name || '楼栋管家',
     roleId: 'R-STW', roleName: '楼栋管家',
-    permissions: ['a.owners.view', 'a.sensitive.view', 'b.bills.view', 'f.workorders.view'],
+    /* 与种子里 R-STW 一致：楼管能改范围内的业主资料（含打标签），
+       但**没有** e.ownerTags.edit —— 字典由平台维护，楼管只能选不能改 */
+    permissions: ['a.owners.view', 'a.owners.edit', 'a.sensitive.view', 'b.bills.view', 'f.workorders.view'],
     dataScope: '责任范围', communities: stewardCommunities, houseIds: stewardsHouses
   },
   /* 员工自助视角：数据范围「仅本人」。用来验证工资表**不会把全表下发再让前端藏**——
@@ -215,6 +224,11 @@ function houseNameOf(houseId) {
 function ownerDebt(ownerId) {
   return r2(bills.filter(b => b.ownerId === ownerId).reduce((s, b) => s + (b.unpaid || 0), 0))
 }
+/**
+ * 画像里的三项个人敏感信息：列表回掩码，详情回明文（详情由 `/owners/{id}` 且要 a.sensitive.view）。
+ * 经济状况 / 政治面貌是**枚举**，按手机号那样保留前后位没有意义，直接整值遮蔽。
+ */
+const maskEnum = v => (v ? '***' : '')
 function ownerRow(o, { mask = true } = {}) {
   const hs = houses.filter(h => h.ownerId === o.ownerId)
   return {
@@ -223,6 +237,9 @@ function ownerRow(o, { mask = true } = {}) {
     idCard: mask ? maskId(o.idCard) : o.idCard,
     phoneRedacted: mask,
     idCardRedacted: mask,
+    economicLevel: mask ? maskEnum(o.economicLevel) : o.economicLevel,
+    politicalStatus: mask ? maskEnum(o.politicalStatus) : o.politicalStatus,
+    negativeNotes: mask ? maskEnum(o.negativeNotes) : o.negativeNotes,
     houseCount: hs.length,
     houseNames: hs.map(h => h.fullName),
     debtAmount: ownerDebt(o.ownerId),
@@ -262,6 +279,10 @@ function woRow(w) {
   const h = HOUSE.get(w.houseId)
   return {
     ...w,
+    /* 新旧两个字段名同时给：业主端 / 员工端按 priceCode 索引价目，契约里叫 serviceItemCode */
+    serviceItemCode: w.serviceItemCode || w.priceCode || '',
+    serviceName: w.serviceName || '',
+    serviceCost: Number(w.serviceCost) || 0,
     buildingId: h ? h.buildingId : '',
     unitId: h ? h.unitId : '',
     _ver: verOf('wo', w.woId)
@@ -269,26 +290,83 @@ function woRow(w) {
 }
 
 /* ------------------------------ 租户 / 巡检 / 整改 派生 ------------------------------ */
-/** 完整度 8 项；核验门槛 5 项（实名与人脸属于核验结果，不作门槛，否则永远验不过） */
-const TENANT_REQUIRED = [
+/**
+ * 完整度：个人 / 公司**两套口径**（各 8 项）。
+ * 拿个人的 8 项去量公司租户，它永远缺"与业主关系""居住人数"，完整度上不去——
+ * 报表里就会出现"公司租户全部不达标"，而其实资料早齐了。
+ */
+const TENANT_REQUIRED_PERSON = [
   ['name', '姓名'], ['phone', '手机号'], ['idCard', '证件号'], ['relation', '与业主关系'],
   ['residents', '居住人数'], ['emergencyContact', '紧急联系人'],
   ['certified', '实名认证'], ['faceRegistered', '人脸录入']
 ]
-const TENANT_BASIC = TENANT_REQUIRED.filter(([k]) => !['certified', 'faceRegistered', 'emergencyContact'].includes(k))
+const TENANT_REQUIRED_COMPANY = [
+  ['companyName', '公司名称'], ['creditCode', '统一社会信用代码'],
+  ['legalPerson', '法定代表人'], ['legalPersonPhone', '法人电话'],
+  ['agentName', '经办人'], ['agentPhone', '经办人手机'],
+  ['businessCategory', '经营类目'], ['regAddress', '注册地址']
+]
+const TENANT_BASIC_PERSON = TENANT_REQUIRED_PERSON
+  .filter(([k]) => !['certified', 'faceRegistered', 'emergencyContact'].includes(k))
+const TENANT_BASIC_COMPANY = ['companyName', 'creditCode', 'legalPerson', 'agentName', 'agentPhone']
 
 function tenantCompleteness(t) {
-  const miss = keys => keys.filter(([k,]) => {
+  const isCo = (t.tenantType || '个人') === '公司'
+  const req = isCo ? TENANT_REQUIRED_COMPANY : TENANT_REQUIRED_PERSON
+  const basicKeys = isCo ? TENANT_BASIC_COMPANY : TENANT_BASIC_PERSON.map(([k]) => k)
+  const empty = k => {
     const v = t[k]
-    return (k === 'certified' || k === 'faceRegistered') ? !v : (k === 'residents' ? !(Number(v) > 0) : !String(v ?? '').trim())
-  }).map(([, label]) => label)
-  const missing = miss(TENANT_REQUIRED)
-  const missingBasic = miss(TENANT_BASIC)
-  return {
-    total: TENANT_REQUIRED.length, filled: TENANT_REQUIRED.length - missing.length, missing,
-    rate: Math.round((TENANT_REQUIRED.length - missing.length) / TENANT_REQUIRED.length * 1000) / 10,
-    basicTotal: TENANT_BASIC.length, basicFilled: TENANT_BASIC.length - missingBasic.length, missingBasic
+    if (k === 'certified' || k === 'faceRegistered') return !v
+    if (k === 'residents') return !(Number(v) > 0)
+    return !String(v ?? '').trim()
   }
+  const missing = req.filter(([k]) => empty(k)).map(([, label]) => label)
+  const missingBasic = req.filter(([k]) => basicKeys.includes(k) && empty(k)).map(([, label]) => label)
+  const licenseCount = (t.licenseFiles || []).length
+  return {
+    total: req.length, filled: req.length - missing.length, missing,
+    rate: Math.round((req.length - missing.length) / req.length * 1000) / 10,
+    basicTotal: basicKeys.length, basicFilled: basicKeys.length - missingBasic.length, missingBasic,
+    /* 影像件单列：不进 8 项分母，但决定能不能核验（见契约 TenantCompleteness.licenseReady） */
+    licenseRequired: isCo, licenseCount, licenseReady: !isCo || licenseCount > 0
+  }
+}
+
+/* 营业执照影像件规则：与前端 TENANT_FILE_RULES 同口径 */
+const FILE_RULES = {
+  maxCount: 3, maxSizeMB: 5,
+  types: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  typeText: 'JPG / PNG / WEBP / PDF'
+}
+function checkFile(body, existing = []) {
+  const name = String(body?.name || '').trim()
+  if (!name) return '文件名不能为空'
+  const type = String(body?.type || '').toLowerCase()
+  if (!FILE_RULES.types.includes(type)) return `只支持 ${FILE_RULES.typeText}，当前文件是 ${type || '未知格式'}`
+  const size = Number(body?.size) || 0
+  if (!size) return '文件是空的，请重新选择'
+  if (size > FILE_RULES.maxSizeMB * 1024 * 1024) {
+    return `单张不能超过 ${FILE_RULES.maxSizeMB} MB（当前 ${(size / 1024 / 1024).toFixed(1)} MB）`
+  }
+  if (existing.length >= FILE_RULES.maxCount) return `最多 ${FILE_RULES.maxCount} 张（正本 / 副本 / 变更页足够），请先删掉一张`
+  if (existing.some(f => f.name === name && Number(f.size) === size)) return '这张已经传过了'
+  return ''
+}
+
+/* 统一社会信用代码校验（GB 32100-2015）——字符集去掉 I O S V Z，31 位加权 */
+const CC_CHARS = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+const CC_W = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+function creditCodeCheck(code) {
+  const v = String(code || '').trim().toUpperCase()
+  if (!v) return '统一社会信用代码必填'
+  if (v.length !== 18) return '统一社会信用代码应为 18 位'
+  const bad = [...v].find(c => !CC_CHARS.includes(c))
+  if (bad) return `统一社会信用代码含非法字符「${bad}」（不含 I O S V Z）`
+  const sum = [...v.slice(0, 17)].reduce((acc, c, i) => acc + CC_CHARS.indexOf(c) * CC_W[i], 0)
+  const chk = 31 - (sum % 31)
+  const expect = CC_CHARS[chk === 31 ? 0 : chk]
+  if (v[17] !== expect) return `统一社会信用代码校验位不对（应为 ${expect}）`
+  return ''
 }
 function tenantRow(t, { mask = true } = {}) {
   const h = HOUSE.get(t.houseId)
@@ -299,6 +377,8 @@ function tenantRow(t, { mask = true } = {}) {
     idCard: mask ? maskId(t.idCard) : t.idCard,
     phoneRedacted: mask,
     idCardRedacted: mask,
+    /* 影像件一律给数组，不要 undefined：前端 `t.licenseFiles.length` 直接渲染会炸 */
+    licenseFiles: (t.licenseFiles || []).map(f => ({ ...f })),
     houseName: h ? h.fullName : '',
     communityId: h ? h.communityId : '',
     ownerName: o ? o.name : '',
@@ -386,11 +466,127 @@ on('GET', '/owners', (ctx) => {
       if (q.vf === 'multi' && hs.length <= 1) return false
       if (q.vf === 'unverified' && o.certified) return false
       if (q.vf === 'noface' && o.faceRegistered) return false
+      /* 标签筛选：必须在分页前做。放在 map 之后筛，返回的永远是"本页 20 条里命中那几条" */
+      if (q.tagId && !(o.tagIds || []).includes(q.tagId)) return false
       return true
     })
     .map(o => ownerRow(o, { mask: true }))
   return page(list, q)
 })
+/* ---------------- 业主标签字典 ---------------- */
+const TAG_OWNER_COUNT = () => {
+  const m = new Map()
+  for (const o of owners) for (const t of (o.tagIds || [])) m.set(t, (m.get(t) || 0) + 1)
+  return m
+}
+const tagOut = (t) => ({ ...t, ownerCount: TAG_OWNER_COUNT().get(t.tagId) || 0 })
+
+on('GET', '/owner-tags', (ctx) => {
+  /* 只要求 a.owners.view：楼管要打标签，就必须先能读到"有哪些可选"。
+     要求字典维护权的话，选择弹层对楼管会是一个空列表。 */
+  requirePerm(ctx.user, 'a.owners.view', '缺少权限位 a.owners.view：无权读取业主标签字典')
+  const q = ctx.query
+  const list = ownerTags
+    .filter(t => (q.enabled === 'all' ? true : q.enabled === 'true' ? t.enabled : q.enabled === 'false' ? !t.enabled : t.enabled))
+    .filter(t => eq(t.category, q.category))
+    .filter(t => kwHit([t.name, t.desc, t.tagId], q.kw))
+    .slice()
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(tagOut)
+  return { rows: list }
+})
+
+on('GET', '/owner-tags/stats', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.view', '缺少权限位 a.owners.view：无权读取业主标签字典')
+  const use = TAG_OWNER_COUNT()
+  const tagged = owners.filter(o => (o.tagIds || []).length).length
+  return {
+    total: ownerTags.length,
+    enabled: ownerTags.filter(t => t.enabled).length,
+    disabled: ownerTags.filter(t => !t.enabled).length,
+    used: ownerTags.filter(t => (use.get(t.tagId) || 0) > 0).length,
+    taggedOwners: tagged,
+    untaggedOwners: owners.length - tagged
+  }
+})
+
+on('POST', '/owner-tags', (ctx) => {
+  /* 维护字典是 e 域的权限，不是 a 域：楼管能选不能改 */
+  requirePerm(ctx.user, 'e.ownerTags.edit', '缺少权限位 e.ownerTags.edit：标签字典由平台维护，不是楼管改的')
+  const b = ctx.body || {}
+  const name = String(b.name || '').trim()
+  if (name.length < 2) throw invalid('标签名称至少 2 个字')
+  /* 停用的词条也算占用：否则会出现一个启用一个停用的两个「重点关怀」，打标签的人分不清 */
+  if (ownerTags.some(t => t.name === name)) {
+    throw conflictUnique(`标签「${name}」已存在（含已停用词条）`)
+  }
+  if (!['关怀', '风险', '价值', '行为'].includes(b.category)) throw invalid('分类只能是 关怀 / 风险 / 价值 / 行为')
+  const seq = ownerTags.reduce((m, t) => Math.max(m, Number(String(t.tagId).replace(/\D/g, '')) || 0), 0) + 1
+  const rec = {
+    tagId: 'OT' + String(seq).padStart(2, '0'),
+    name, category: b.category, color: b.color || 'blue',
+    builtin: false, enabled: true,
+    sort: ownerTags.reduce((m, t) => Math.max(m, t.sort || 0), 0) + 1,
+    desc: String(b.desc || '').trim(), ownerCount: 0
+  }
+  ownerTags.push(rec)
+  ctx.status = 201
+  return { ...rec }
+})
+
+on('PATCH', '/owner-tags/{tagId}', (ctx) => {
+  requirePerm(ctx.user, 'e.ownerTags.edit', '缺少权限位 e.ownerTags.edit：标签字典由平台维护')
+  const t = ownerTags.find(x => x.tagId === ctx.params.tagId)
+  if (!t) throw notFound('标签不存在')
+  const b = ctx.body || {}
+  if (b.tagId !== undefined && b.tagId !== t.tagId) throw invalid('tagId 不可修改：业主表引用它，改了历史标签就成孤儿')
+  if (b.name !== undefined) {
+    const n = String(b.name).trim()
+    if (n.length < 2) throw invalid('标签名称至少 2 个字')
+    if (ownerTags.some(x => x.tagId !== t.tagId && x.name === n)) throw conflictUnique(`标签「${n}」已存在`)
+    t.name = n
+  }
+  if (b.category !== undefined) {
+    if (!['关怀', '风险', '价值', '行为'].includes(b.category)) throw invalid('分类只能是 关怀 / 风险 / 价值 / 行为')
+    t.category = b.category
+  }
+  if (b.color !== undefined) t.color = b.color
+  if (b.desc !== undefined) t.desc = String(b.desc).trim()
+  if (b.sort !== undefined) t.sort = Number(b.sort) || 0
+  if (b.enabled !== undefined) t.enabled = !!b.enabled
+  return tagOut(t)
+})
+
+on('POST', '/owners/{ownerId}/tags', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.edit', '缺少权限位 a.owners.edit：打标签属于业主资料维护')
+  const o = OWNER.get(ctx.params.ownerId)
+  if (!o) throw notFound('业主不存在')
+  if (!inScopeOwner(ctx.user, o.ownerId)) throw forbidden('该业主不在你的数据范围内')
+  const tagId = String((ctx.body || {}).tagId || '')
+  const t = ownerTags.find(x => x.tagId === tagId)
+  if (!t) throw notFound('标签不存在')
+  /* 停用只拦"新打"，不拦"已打的保留"，也不拦"摘掉" */
+  if (!t.enabled) throw new ApiError(409, 40919, `标签「${t.name}」已停用，不能再打；已打过的不受影响`)
+  o.tagIds = o.tagIds || []
+  if (o.tagIds.includes(tagId)) throw new ApiError(409, 40920, `「${o.name}」已经有「${t.name}」标签`)
+  o.tagIds.push(tagId)
+  return { ownerId: o.ownerId, tagIds: [...o.tagIds], tag: tagOut(t) }
+})
+
+on('DELETE', '/owners/{ownerId}/tags/{tagId}', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.edit', '缺少权限位 a.owners.edit：去标签属于业主资料维护')
+  const o = OWNER.get(ctx.params.ownerId)
+  if (!o) throw notFound('业主不存在')
+  if (!inScopeOwner(ctx.user, o.ownerId)) throw forbidden('该业主不在你的数据范围内')
+  o.tagIds = o.tagIds || []
+  if (!o.tagIds.includes(ctx.params.tagId)) {
+    const t = ownerTags.find(x => x.tagId === ctx.params.tagId)
+    throw new ApiError(404, 40409, `「${o.name}」没有「${t ? t.name : ctx.params.tagId}」标签`)
+  }
+  o.tagIds = o.tagIds.filter(x => x !== ctx.params.tagId)
+  return { ownerId: o.ownerId, tagIds: [...o.tagIds] }
+})
+
 on('GET', '/owners/{ownerId}', (ctx) => {
   const o = OWNER.get(ctx.params.ownerId)
   if (!o) throw notFound('业主不存在')
@@ -415,9 +611,23 @@ on('PATCH', '/owners/{ownerId}', (ctx) => {
   if (!o) throw notFound('业主不存在')
   if (!inScopeOwner(ctx.user, o.ownerId)) throw forbidden('该业主不在你的数据范围内')
   const { field, value, ver: expect } = ctx.body || {}
-  const ALLOWED = ['name', 'phone', 'email', 'emergencyContact', 'emergencyPhone', 'creditLevel', 'remark']
+  /* 客户画像 12 项与基础信息一样走内联编辑；枚举当场校验，脏值不进库 */
+  const ALLOWED = ['name', 'phone', 'email', 'emergencyContact', 'emergencyPhone', 'creditLevel', 'remark',
+    'ownerCategory', 'economicLevel', 'politicalStatus', 'weddingDate', 'employer', 'jobTitle',
+    'occupation', 'workAddress', 'hobbies', 'pets', 'positiveNotes', 'negativeNotes']
+  const ENUMS = {
+    ownerCategory: ['常住', '候鸟', '投资', '出租业主'],
+    economicLevel: ['优渥', '良好', '一般', '困难'],
+    politicalStatus: ['中共党员', '共青团员', '群众', '民主党派']
+  }
   if (!ALLOWED.includes(field)) throw bad(`字段 ${field} 不支持内联编辑`)
   if (expect !== undefined && Number(expect) !== verOf('owner', o.ownerId)) throw conflictVer()
+  if (ENUMS[field] && value !== '' && !ENUMS[field].includes(value)) {
+    throw invalid(`${field} 取值非法，只能是 ${ENUMS[field].join(' / ')}`)
+  }
+  if (field === 'weddingDate' && value && !/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    throw invalid('结婚纪念日格式应为 YYYY-MM-DD')
+  }
   if (field === 'phone') {
     const dup = owners.find(x => x.ownerId !== o.ownerId && x.phone === value)
     if (dup) throw conflictUnique(`手机号「${value}」已存在，不能重复录入`)
@@ -695,6 +905,2130 @@ function woFilter(u, q) {
       return true
     })
 }
+/* ---------------- OA 审批（2026-11-03） ----------------
+ * 与「业务实体 + 审批单」的区别：OA 单据**没有业务实体**，内容全在 formData。
+ * 所以这里不新建表 —— 复用 approvals，只是 bizId 留空。
+ *
+ * 本期边界：批准即结束，不落业务结果。
+ */
+const oaRequests = []          /* 内存态：OA 单不进 fixtures，跑了才有 */
+let AP_SEQ = 100               /* 从 100 起，避免与样例里的 AP0009x 撞号 */
+const oaFlows = OA_FLOW_DEFS.map(f => ({
+  ...f,
+  baseNodes: f.baseNodes.map(n => ({ ...n })),
+  overNodes: f.overNodes.map(n => ({ ...n })),
+  inFlight: 0
+}))
+const oaFlowOf = bizType => oaFlows.find(f => f.bizType === bizType) || null
+
+const ROLE_POSITION_MAP = {
+  finance: ['财务主管', '会计'], legal: ['会计'], contract: ['会计'], gm: ['总经理'], admin: ['人事专员', '人事主管']
+}
+/** 审批人解析：一律走负责人关系表（在期正职 → 在期代理），副职不参与 */
+function resolveAssignee(node, applicant) {
+  switch (node.assigneeType) {
+    case 'orgLeader':
+      return orgLeaderName(applicant.orgId)
+    case 'projectManager': {
+      let org = orgs.find(o => o.orgId === applicant.orgId)
+      for (let i = 0; org && org.type !== '项目' && org.parentId && i < 8; i++) {
+        org = orgs.find(o => o.orgId === org.parentId)
+      }
+      if (org && org.type === '项目') return orgLeaderName(org.orgId)
+      return orgLeaderName('O-ROOT')
+    }
+    case 'directSuperior':
+      return applicant.manager || orgLeaderName(applicant.orgId)
+    case 'role': {
+      const poss = ROLE_POSITION_MAP[node.roleCode] || []
+      const e = employees.find(x => poss.includes(x.position) && x.status !== '离职')
+      return e ? e.name : ''
+    }
+    case 'deptHead':
+      return orgLeaderName(node.orgId)
+    default:
+      return ''
+  }
+}
+
+function oaNodesFor(bizType, amount) {
+  const f = oaFlowOf(bizType)
+  if (!f) return []
+  const over = Number(f.amountThreshold) > 0 && Number(amount) > Number(f.amountThreshold)
+  return (over && f.overNodes.length ? f.overNodes : f.baseNodes)
+}
+
+function oaFormCheck(bizType, formData = {}) {
+  const def = OA_FORM_DEFS.find(f => f.bizType === bizType)
+  if (!def) return `未知单据类型：${bizType}`
+  for (const f of def.fields) {
+    const v = formData[f.key]
+    const empty = v === undefined || v === null || String(v).trim() === ''
+    if (f.required && empty) return `请填写${f.label}`
+    if (empty) continue
+    if (f.type === 'number' || f.type === 'money') {
+      const n = Number(v)
+      if (!Number.isFinite(n)) return `${f.label}必须是数字`
+      if (f.min !== undefined && n < f.min) return `${f.label}不能小于 ${f.min}`
+      if (f.max !== undefined && n > f.max) return `${f.label}不能大于 ${f.max}`
+    }
+    if (f.maxlength && String(v).length > f.maxlength) return `${f.label}不超过 ${f.maxlength} 字`
+    if (f.type === 'select' && f.options && !f.options.includes(v)) return `${f.label}取值不合法`
+  }
+  for (const f of def.fields) {
+    if (f.role !== 'periodEnd') continue
+    if (formData[f.after] && formData[f.key] && String(formData[f.key]) <= String(formData[f.after])) {
+      return `${f.label}必须晚于开始时间`
+    }
+  }
+  return ''
+}
+
+const oaSummaryOf = (def, fd = {}) => (def.summaryKeys || [])
+  .map(k => {
+    const f = def.fields.find(x => x.key === k)
+    const v = fd[k]
+    if (v === undefined || v === null || v === '') return ''
+    return f && f.type === 'money' ? `¥${Number(v).toLocaleString('en-US')}` : String(v)
+  })
+  .filter(Boolean).join(' · ')
+
+const oaRow = a => ({ ...a, waitText: ['待审批', '审批中'].includes(a.status) ? `已等 ${a.waitHours} 小时` : a.status })
+
+on('GET', '/oa/forms', () => OA_FORM_DEFS)
+
+on('GET', '/oa/requests', (ctx) => {
+  const q = ctx.query || {}
+  const list = oaRequests
+    .filter(a => !q.status || a.status === q.status)
+    .filter(a => !q.bizType || a.bizType === q.bizType)
+    .filter(a => !q.kw || `${a.title}${a.approvalNo}`.toLowerCase().includes(String(q.kw).toLowerCase()))
+    .map(oaRow)
+  return page(list, q)
+})
+
+on('POST', '/oa/requests', (ctx) => {
+  const b = ctx.body || {}
+  const def = OA_FORM_DEFS.find(f => f.bizType === b.bizType)
+  if (!def) throw new ApiError(422, 42211, `不支持的单据类型：${b.bizType}`)
+  const bad = oaFormCheck(b.bizType, b.formData || {})
+  if (bad) throw new ApiError(422, 42211, bad)
+
+  /* USERS 里只有 empId/name/roleName，岗位与部门要从员工档案补 */
+  const emp = EMP.get(ctx.user.empId) || {}
+  const applicant = {
+    empId: ctx.user.empId, name: ctx.user.name,
+    position: emp.position || '客服专员',
+    orgId: emp.orgId || 'O-HEAD',
+    manager: emp.manager || ''
+  }
+  const amountField = def.fields.find(f => f.role === 'amount')
+  const amount = amountField ? Number((b.formData || {})[amountField.key]) || 0 : 0
+  const nodes = oaNodesFor(b.bizType, amount)
+  if (!nodes.length) throw new ApiError(422, 42212, '该单据没有配置审批流')
+
+  AP_SEQ += 1
+  const ap = {
+    approvalId: 'AP' + String(AP_SEQ).padStart(5, '0'),
+    approvalNo: `SP-${DATA_DATE.slice(0, 4)}-${String(AP_SEQ).padStart(4, '0')}`,
+    bizType: b.bizType, bizId: '', changeId: '',
+    title: `${b.bizType} · ${oaSummaryOf(def, b.formData || {})}`,
+    formData: { ...(b.formData || {}) },
+    files: Array.isArray(b.files) ? b.files : [],
+    communityId: (b.formData || {}).communityId || '',
+    communityName: (b.formData || {}).communityId ? communityNameOf(b.formData.communityId) : '集团 / 全项目',
+    amount,
+    applicant: applicant.name, applicantRole: applicant.position,
+    applicantEmpId: applicant.empId, applicantOrgId: applicant.orgId,
+    applicantOrgName: (orgs.find(o => o.orgId === applicant.orgId) || {}).name || '',
+    applyTime: DATA_DATE,
+    status: '待审批', currentNode: nodes[0].name,
+    urgency: b.urgency || def.urgentDefault || '普通',
+    waitHours: 0,
+    flow: nodes.map(n => {
+      const list = resolveAssignees(n, applicant)
+      return {
+        node: n.name,
+        signMode: n.signMode || 'single',
+        handler: list[0]?.name || '',
+        approvers: list.map(p => ({
+          name: p.name, empId: p.empId || '', duty: p.duty || '',
+          action: '待处理', time: '', comment: ''
+        })),
+        action: '待处理', time: '', comment: '', limitHours: n.limitHours || 24,
+        skipNote: list[0]?.note || ''
+      }
+    })
+  }
+  oaRequests.unshift(ap)
+  const f = oaFlowOf(b.bizType)
+  if (f) f.inFlight += 1
+  return { ...ap }
+})
+
+/**
+ * 审批动作。契约里一直没有这一条 —— 之前只有"发起 / 撤回"，
+ * 审批是在页面里点完就完了，后端拿不到规格。会签必须有它才能落地：
+ * 一次「同意」只签掉一个人，全部签完才推进下一级。
+ */
+on('POST', '/oa/requests/{approvalId}/action', (ctx) => {
+  const a = oaRequests.find(x => x.approvalId === ctx.params.approvalId)
+  if (!a) throw notFound('审批单不存在')
+  if (!['待审批', '审批中'].includes(a.status)) {
+    throw new ApiError(409, 40928, `当前「${a.status}」，已结束无法处理`)
+  }
+  const b = ctx.body || {}
+  const action = String(b.action || '')
+  if (!['同意', '驳回'].includes(action)) throw bad('action 只能是 同意 / 驳回')
+  const idx = a.flow.findIndex(n => n.action === '待处理')
+  if (idx < 0) throw new ApiError(409, 40928, '没有待处理节点')
+  const node = a.flow[idx]
+  const approvers = Array.isArray(node.approvers) ? node.approvers : []
+  const isSign = approvers.length > 0
+  const mode = node.signMode || 'single'
+  const comment = String(b.comment || '')
+
+  /* 会签先找"我这一份"；角色身份对不上时按第一份代签并注明 */
+  let mine = null
+  let proxy = ''
+  if (isSign) {
+    mine = approvers.find(p => p.action === '待处理' && p.name === ctx.user.name) || null
+    if (!mine) {
+      mine = approvers.find(p => p.action === '待处理') || null
+      if (mine) proxy = `（代 ${mine.name} 处理）`
+    }
+  }
+
+  if (action === '驳回') {
+    if (isSign && mine) {
+      mine.action = '驳回'; mine.time = DATA_DATE
+      mine.comment = (comment || '不符合要求') + proxy
+    }
+    node.action = '驳回'
+    node.handler = mine?.name || node.handler || ctx.user.name
+    node.time = DATA_DATE
+    node.comment = comment || '不符合要求'
+    for (const p of approvers) {
+      if (p.action === '待处理') { p.action = '已跳过'; p.comment = '同节点已驳回' }
+    }
+    a.status = '已驳回'; a.currentNode = '已完成'
+    return { ...a }
+  }
+
+  if (isSign && mine) { mine.action = '同意'; mine.time = DATA_DATE; mine.comment = (comment || '同意') + proxy }
+  else { node.action = '同意'; node.handler = node.handler || ctx.user.name; node.time = DATA_DATE; node.comment = comment || '同意' }
+
+  const pending = isSign ? approvers.filter(p => p.action === '待处理') : []
+  const passed = !isSign || mode === 'any' || pending.length === 0
+  if (!passed) {
+    a.status = '审批中'
+    const done = approvers.filter(p => p.action !== '待处理').length
+    a.currentNode = `${node.node}（会签 ${done}/${approvers.length}）`
+    node.handler = pending[0].name
+    return { ...a }
+  }
+  if (isSign) {
+    node.action = '同意'
+    node.handler = mine?.name || approvers[0]?.name || ''
+    node.time = DATA_DATE
+    node.comment = mode === 'any' && approvers.length > 1 ? '或签：一人同意即通过' : `会签：${approvers.length} 人全部同意`
+    if (mode === 'any') {
+      for (const p of approvers) {
+        if (p.action === '待处理') { p.action = '已跳过'; p.comment = '或签，他人已同意' }
+      }
+    }
+  }
+  const next = a.flow[idx + 1]
+  if (next) { next.action = '待处理'; a.status = '审批中'; a.currentNode = next.node }
+  else { a.status = '已通过'; a.currentNode = '已完成' }
+  return { ...a }
+})
+
+on('POST', '/oa/requests/{approvalId}/withdraw', (ctx) => {
+  const a = oaRequests.find(x => x.approvalId === ctx.params.approvalId)
+  if (!a) throw notFound('审批单不存在')
+  if (a.status !== '待审批') {
+    throw new ApiError(409, 40928, `当前「${a.status}」，只有还没人处理的单子可以撤回`)
+  }
+  const first = a.flow.find(n => n.action === '待处理')
+  if (first) {
+    first.action = '撤回'; first.handler = a.applicant; first.time = DATA_DATE
+    first.comment = ctx.body?.reason || '申请人撤回'
+  }
+  a.status = '已撤回'; a.currentNode = '已完成'
+  const f = oaFlowOf(a.bizType)
+  if (f) f.inFlight = Math.max(0, f.inFlight - 1)
+  return { ...a }
+})
+
+on('GET', '/oa/flows', () => oaFlows.map(f => ({ ...f, inFlight: oaRequests.filter(r => r.bizType === f.bizType && ['待审批', '审批中'].includes(r.status)).length })))
+
+on('PUT', '/oa/flows/{bizType}', (ctx) => {
+  const f = oaFlowOf(ctx.params.bizType)
+  if (!f) throw notFound('单据类型不存在')
+  const b = ctx.body || {}
+  const clean = nodes => (nodes || []).map((n, i) => ({
+    key: n.key || 'n' + (i + 1),
+    name: String(n.name || '').trim() || `节点 ${i + 1}`,
+    assigneeType: n.assigneeType || 'orgLeader',
+    roleCode: n.roleCode || '', orgId: n.orgId || '',
+    /* 签署方式：只有「部门负责人」来源真正生效，其他来源等价于单人 */
+    signMode: ['single', 'all', 'any'].includes(n.signMode) ? n.signMode : 'single',
+    limitHours: Math.max(1, Number(n.limitHours) || 24),
+    allowReject: n.allowReject !== false
+  }))
+  if (b.baseNodes) {
+    const list = clean(b.baseNodes)
+    if (!list.length) throw new ApiError(422, 42212, '至少保留一个审批节点')
+    f.baseNodes = list
+  }
+  if (b.overNodes !== undefined) f.overNodes = clean(b.overNodes)
+  if (b.amountThreshold !== undefined) f.amountThreshold = Math.max(0, Number(b.amountThreshold) || 0)
+  if (b.note !== undefined) f.note = String(b.note)
+  if (f.overNodes.length && !f.amountThreshold) {
+    throw new ApiError(422, 42212, '配了金额分支节点，但阈值是 0，这套节点永远走不到')
+  }
+  return { ...f }
+})
+
+/* ================= 组织负责人（H 域 · 2026-11-03 第 52 批） =================
+ * 一个部门可以有多个负责人：正职唯一、副职可多个、代理必须带结束日期。
+ * 审批只认正职，正职空缺才落到在期代理；副职是分工，不参与审批。
+ * `orgs.leader` 只是展示快照，判断"谁是审批人"必须读这张表。
+ */
+const ORG_DUTY = ['正职', '副职', '代理']
+let OL_SEQ = orgLeaders.length
+
+const relState = r => {
+  if (r.startDate && r.startDate > DATA_DATE) return '未生效'
+  if (r.endDate && r.endDate < DATA_DATE) return '已结束'
+  return '在期'
+}
+const relActive = r => relState(r) === '在期'
+
+const leadersOfOrg = orgId => orgLeaders
+  .filter(r => r.orgId === orgId)
+  .map(r => {
+    const e = EMP.get(r.empId) || {}
+    const state = relState(r)
+    return {
+      ...r, name: e.name || r.empId, position: e.position || '',
+      empStatus: e.status || '', state, active: state === '在期'
+    }
+  })
+  .sort((a, b) => ({ 正职: 0, 代理: 1, 副职: 2 }[a.duty] - { 正职: 0, 代理: 1, 副职: 2 }[b.duty]))
+
+/** 部门当前审批人：在期正职 → 在期代理（结束日最晚的）→ 快照兜底 */
+function rankingLeader(orgId) {
+  const list = leadersOfOrg(orgId).filter(r => r.active)
+  const zheng = list.find(r => r.duty === '正职')
+  if (zheng) return zheng
+  const proxies = list.filter(r => r.duty === '代理')
+  if (!proxies.length) return null
+  return proxies.sort((a, b) => String(b.endDate || '9999').localeCompare(String(a.endDate || '9999')))[0]
+}
+function orgLeaderName(orgId) {
+  return rankingLeader(orgId)?.name || (orgs.find(o => o.orgId === orgId) || {}).leader || ''
+}
+
+/** 把当前审批人回写到 orgs.leader 快照（组织树、被检班组都读它） */
+function syncOrgLeaderSnapshot(orgId) {
+  const o = orgs.find(x => x.orgId === orgId)
+  if (!o) return
+  const hit = rankingLeader(orgId)
+  o.leaderEmpId = hit ? hit.empId : ''
+  o.leader = hit ? hit.name : ''
+}
+
+on('GET', '/orgs/{orgId}/leaders', (ctx) => {
+  if (!orgs.some(o => o.orgId === ctx.params.orgId)) throw notFound('组织不存在')
+  return leadersOfOrg(ctx.params.orgId)
+})
+
+on('GET', '/employees/leader-options', () => employees
+  .filter(e => e.status !== '离职')
+  .map(e => ({
+    empId: e.empId, name: e.name, position: e.position, orgId: e.orgId,
+    orgName: (orgs.find(o => o.orgId === e.orgId) || {}).name || '', status: e.status
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'zh')))
+
+on('PUT', '/orgs/{orgId}/leaders', (ctx) => {
+  const orgId = ctx.params.orgId
+  if (!orgs.some(o => o.orgId === orgId)) throw notFound('组织不存在')
+  const list = Array.isArray((ctx.body || {}).leaders) ? ctx.body.leaders : []
+
+  const clean = list.map((x, i) => {
+    const emp = EMP.get(x.empId)
+    if (!emp) throw new ApiError(422, 42213, `第 ${i + 1} 行员工不存在`)
+    if (emp.status === '离职') throw new ApiError(422, 42213, `「${emp.name}」已离职，不能设为负责人`)
+    if (!ORG_DUTY.includes(x.duty)) throw new ApiError(422, 42214, '职责只能是正职 / 副职 / 代理')
+    const startDate = String(x.startDate || '')
+    const endDate = String(x.endDate || '')
+    if (startDate && endDate && endDate < startDate) {
+      throw new ApiError(422, 42213, '结束日期不能早于开始日期')
+    }
+    if (x.duty === '代理' && !endDate) {
+      throw new ApiError(422, 42213, '代理必须填结束日期（到期自动失效，不需要人工收回）')
+    }
+    return {
+      id: x.id || '', empId: x.empId, duty: x.duty,
+      startDate, endDate, note: String(x.note || '').trim()
+    }
+  })
+  const zheng = clean.filter(x => x.duty === '正职' && relActive(x))
+  if (zheng.length > 1) throw new ApiError(409, 40927, '同一部门只能有一个在期正职')
+
+  const others = orgLeaders.filter(r => r.orgId !== orgId)
+  orgLeaders.length = 0
+  orgLeaders.push(...others)
+  for (const x of clean) {
+    if (x.id) {
+      const old = orgLeaders.find(r => r.id === x.id)
+      if (old) { Object.assign(old, x); continue }
+    }
+    OL_SEQ += 1
+    orgLeaders.push({ id: 'OL' + String(OL_SEQ).padStart(4, '0'), orgId, ...x })
+  }
+  syncOrgLeaderSnapshot(orgId)
+  return leadersOfOrg(orgId)
+})
+
+/* ================= 计划模板（T 域 · 2026-11-03 第 54 批） =================
+ * 考核项的唯一源：五套业务模板 + 一个职能兜底。填报人不改模板，只填实际完成情况。
+ *
+ * 三条口径与原型完全一致（2026-11-05 第 60 批起模板里不再有权重）：
+ *   ① 模板只管「考什么、怎么算分」，**权重在计划里由提报人填**；
+ *   ② 校验只看内容完整性：名称、适用类型、量化段与重点段不能为空；
+ *   ③ 提报时整份拷贝成快照，模板改动不影响已经提报的计划。
+ */
+const planTpls = readJson('fixtures/plan-templates.json')
+let TPL_SEQ = 0
+
+const TPL_SECTIONS = [
+  { key: 'q', name: '量化指标' },
+  { key: 'm', name: '监控指标' },
+  { key: 'k', name: '重点工作计划' }
+]
+const tplR2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+/** 模板校验：返回错误清单而不是抛第一个 —— 页面要一次列全，改一处试一次太慢 */
+/** 模板校验只关心「考什么」：权重不在模板里了（第 60 批搬到计划上） */
+function planTplCheck(t) {
+  const errs = []
+  const items = (t.items || []).filter(i => i.enabled !== false)
+
+  if (!String(t.name || '').trim()) errs.push('模板名称不能为空')
+  if (!['项目', '班组', '职能'].includes(t.matchType)) errs.push('适用类型只能选项目 / 班组 / 职能')
+  if (t.matchType === '班组' && !/^[1-4]$/.test(String(t.matchSuffix || ''))) {
+    errs.push('适用班组要指定是哪一个（T1 客服 / T2 工程 / T3 秩序 / T4 环境）')
+  }
+  for (const sec of TPL_SECTIONS) {
+    const rows = items.filter(i => i.section === sec.key)
+    if (rows.some(i => !String(i.name || '').trim())) errs.push(`${sec.name}有条目没填名称`)
+    if (rows.some(i => String(i.name || '').trim().length > 40)) errs.push(`${sec.name}有条目名称超过 40 字`)
+    /* 量化段和重点段是计分主体；监控段允许为空 */
+    if (sec.key !== 'm' && !rows.length) errs.push(`${sec.name}至少要有一条考核项`)
+  }
+  return { ok: errs.length === 0, errs }
+}
+
+const tplRow = (t) => {
+  const items = t.items || []
+  const by = k => items.filter(i => i.section === k)
+  const chk = planTplCheck(t)
+  return {
+    ...t,
+    qCount: by('q').length, mCount: by('m').length, kCount: by('k').length,
+    totalCount: items.length,
+    checkOk: chk.ok, checkErrs: chk.errs
+  }
+}
+
+const tplOf = id => planTpls.find(t => t.tplId === id)
+const tplMust = (id) => {
+  const t = tplOf(id)
+  if (!t) throw notFound('计划模板不存在')
+  return t
+}
+
+function tplCleanItems(items = []) {
+  const used = new Set()
+  return items.map((x) => {
+    let id = x.itemId || ''
+    if (!id || used.has(id)) { TPL_SEQ += 1; id = 'PI' + String(TPL_SEQ).padStart(4, '0') }
+    used.add(id)
+    return {
+      itemId: id,
+      section: ['q', 'm', 'k'].includes(x.section) ? x.section : 'k',
+      name: String(x.name || '').trim(),
+      standard: String(x.standard || '').trim(),
+      direction: x.direction === -1 ? -1 : 1,
+      targetDefault: (x.targetDefault === '' || x.targetDefault === undefined || x.targetDefault === null)
+        ? '' : Number(x.targetDefault),
+      unit: String(x.unit || '').trim(),
+      enabled: x.enabled !== false
+    }
+  })
+}
+
+/* 注意 /plan-templates/match 必须注册在 /plan-templates/{tplId} 之前 ——
+   同一段数时先注册的赢，否则 tplId 会收到字符串 'match'（第 52 批踩过）。 */
+on('GET', '/plan-templates/match', (ctx) => {
+  const orgId = String((ctx.query || {}).orgId || '')
+  const o = orgs.find(x => x.orgId === orgId)
+  if (!o) throw notFound('组织不存在')
+  const on = planTpls.filter(t => t.enabled)
+  let hit = null
+  if (o.type === '项目') hit = on.find(t => t.matchType === '项目')
+  else if (o.type === '班组') {
+    const sfx = String(orgId).split('-T')[1] || ''
+    hit = on.find(t => t.matchType === '班组' && t.matchSuffix === sfx)
+      || on.find(t => t.matchType === '职能')
+  } else hit = on.find(t => t.matchType === '职能')
+  return hit ? tplRow(hit) : null
+})
+
+on('GET', '/plan-templates/stats', () => {
+  const rows = planTpls.map(tplRow)
+  return {
+    total: rows.length,
+    enabled: rows.filter(t => t.enabled).length,
+    disabled: rows.filter(t => !t.enabled).length,
+    items: rows.reduce((s, t) => s + t.totalCount, 0),
+    broken: rows.filter(t => !t.checkOk).length
+  }
+})
+
+on('GET', '/plan-templates', (ctx) => {
+  const q = ctx.query || {}
+  const kw = String(q.kw || '')
+  return planTpls
+    .filter(t => !q.onlyEnabled || t.enabled)
+    .filter(t => !kw || `${t.name}${t.desc}${t.items.map(i => i.name).join('')}`.includes(kw))
+    .map(tplRow)
+})
+
+on('GET', '/plan-templates/{tplId}', (ctx) => tplRow(tplMust(ctx.params.tplId)))
+
+on('POST', '/plan-templates', (ctx) => {
+  if (!planPerm(ctx.user, 'f.planTpl.edit')) throw forbidden('没有计划模板维护权限')
+  const b = ctx.body || {}
+  const items = tplCleanItems(b.items)
+  const draft = {
+    name: String(b.name || '').trim(),
+    desc: String(b.desc || '').trim(),
+    matchType: b.matchType || '班组',
+    matchSuffix: String(b.matchSuffix || ''),
+    items
+  }
+  const chk = planTplCheck(draft)
+  if (!chk.ok) throw new ApiError(422, 42214, chk.errs[0])
+
+  const same = planTpls.find(t => t.matchType === draft.matchType && String(t.matchSuffix) === String(draft.matchSuffix))
+  if (same) throw new ApiError(409, 40929, `已经有一个「${same.name}」管这一类部门了，同一类不能配两个模板`)
+
+  const t = {
+    tplId: 'PT' + String(planTpls.length + 1).padStart(2, '0'),
+    ...draft, enabled: true, version: 1,
+    updatedAt: DATA_DATE, updatedBy: ctx.user.name
+  }
+  planTpls.push(t)
+  return tplRow(t)
+})
+
+on('PATCH', '/plan-templates/{tplId}', (ctx) => {
+  if (!planPerm(ctx.user, 'f.planTpl.edit')) throw forbidden('没有计划模板维护权限')
+  const t = tplMust(ctx.params.tplId)
+  const b = ctx.body || {}
+  const draft = {
+    name: b.name !== undefined ? String(b.name).trim() : t.name,
+    desc: b.desc !== undefined ? String(b.desc).trim() : t.desc,
+    matchType: b.matchType !== undefined ? b.matchType : t.matchType,
+    matchSuffix: b.matchSuffix !== undefined ? String(b.matchSuffix) : t.matchSuffix,
+    items: b.items !== undefined ? tplCleanItems(b.items) : t.items
+  }
+  const chk = planTplCheck(draft)
+  if (!chk.ok) throw new ApiError(422, 42214, chk.errs[0])
+  Object.assign(t, draft, {
+    version: (t.version || 1) + 1,
+    updatedAt: DATA_DATE,
+    updatedBy: ctx.user.name
+  })
+  return tplRow(t)
+})
+
+on('PATCH', '/plan-templates/{tplId}/enabled', (ctx) => {
+  if (!planPerm(ctx.user, 'f.planTpl.edit')) throw forbidden('没有计划模板维护权限')
+  const t = tplMust(ctx.params.tplId)
+  t.enabled = !!(ctx.body || {}).enabled
+  t.updatedAt = DATA_DATE
+  t.updatedBy = ctx.user.name
+  return tplRow(t)
+})
+
+/* ================= 办公资产（K 域 · 2026-11-04 第 58 批） =================
+ * 与 D 域「设备台账」不是一回事：那边管门禁/摄像头这类 IoT 设备（看「在不在线」），
+ * 这里管电脑/桌椅/工具这类可被个人领用的办公物品（看「值多少、在哪个部门」）。
+ *
+ * 口径（后端实现时别丢）：
+ *  ① `assetNo` 服务端生成、**永不可改** —— 标签已经贴在实物上；
+ *  ② 分类改名**不回写资产**：资产上存 catName / catPath 快照；
+ *  ③ 分类最多两级，改上级不能挂到自己的子孙下，同级不能重名；
+ *  ④ 有子分类或有资产的分类不给删（409/40927），只能停用；
+ *  ⑤ `status` 是**描述性字段**，本期无单据流，不能拿它推断「资产在哪」；
+ *  ⑥ 扫码公开接口 `/public/assets/{token}` **免登录**，只回白名单字段：
+ *     使用部门可以给，使用人姓名 / 原值 / 供应商 / 序列号 / 备注一律不给。
+ */
+const assetCats = readJson('fixtures/asset-categories.json')
+const assets = readJson('fixtures/assets.json')
+
+const ASSET_STATUS_LIST = ['闲置', '在用', '报废']
+const ASSET_LOG = []          /* 变更记录：{ logId, assetId, at, by, field, fieldLabel, before, after } */
+let AL_SEQ = 0
+let AS_SEQ = assets.length
+let AC_SEQ = assetCats.length
+
+const ASSET_FIELD_LABEL = {
+  name: '名称', catId: '分类', assetCode: '资产编码', brand: '品牌', model: '型号', sn: '序列号',
+  buyDate: '购置日期', price: '购置原值', vendor: '供应商', warrantyEnd: '保修到期',
+  holderEmpId: '使用人', orgId: '使用部门', location: '存放位置', status: '状态', remark: '备注',
+  files: '设备图片'
+}
+
+/* ---------------- 设备图片（附件） ----------------
+ * 存在资产的 `files` 里（kind='image'），不单独开表：图片脱离资产没有意义。
+ * 三条限制与原型同一套数字：最多 6 张、单张 ≤ 5MB、只收 jpeg/png/webp/gif。
+ * 后端实现时注意：真实系统应存对象存储的 URL，**不要**把 base64 塞进数据库行里。
+ */
+const ASSET_FILE_MAX = 6
+const ASSET_FILE_MAX_SIZE = 5 * 1024 * 1024
+
+function assetCleanFiles(list, user) {
+  const arr = Array.isArray(list) ? list : []
+  if (arr.length > ASSET_FILE_MAX) throw invalid(`设备图片最多 ${ASSET_FILE_MAX} 张，先删掉几张再传`)
+  return arr.map((f, i) => {
+    const name = String(f.name || '').trim()
+    if (!name) throw invalid(`第 ${i + 1} 张图片没有文件名`)
+    const url = String(f.url || '')
+    /* svg 只可能来自种子示例图；上传口子不开，但数据层要认 */
+    const okUrl = /^data:image\/(jpeg|png|webp|gif|svg\+xml);base64,/i.test(url) || /^https?:\/\//i.test(url)
+    if (!okUrl) throw invalid(`「${name}」不是有效的图片数据，请重新选择文件`)
+    const size = Number(f.size) || 0
+    if (size > ASSET_FILE_MAX_SIZE) {
+      throw invalid(`「${name}」${(size / 1024 / 1024).toFixed(1)}MB，超过 ${ASSET_FILE_MAX_SIZE / 1024 / 1024}MB 上限`)
+    }
+    return {
+      fileId: String(f.fileId || `AF${Date.now().toString(36)}${i}`),
+      kind: 'image', name, url, size,
+      mime: String(f.mime || '').trim(),
+      at: String(f.at || DATA_DATE),
+      by: String(f.by || (user && user.name) || '')
+    }
+  })
+}
+
+/** 日志里只写张数和文件名：base64 写进去会把变更记录撑成乱码 */
+const assetFilesBrief = list => {
+  const arr = Array.isArray(list) ? list : []
+  return arr.length ? `${arr.length} 张：${arr.map(f => f.name).join('、')}` : ''
+}
+
+const catOf = catId => assetCats.find(c => c.catId === catId) || null
+
+function catPathOf(catId) {
+  const chain = []
+  let cur = catOf(catId)
+  let guard = 0
+  while (cur && guard++ < 6) {
+    chain.unshift(cur.name)
+    cur = cur.parentId ? catOf(cur.parentId) : null
+  }
+  return chain.join(' / ')
+}
+
+function catDepthOf(catId) {
+  let n = 0
+  let cur = catOf(catId)
+  let guard = 0
+  while (cur && guard++ < 6) { n += 1; cur = cur.parentId ? catOf(cur.parentId) : null }
+  return n
+}
+
+function assetsUnder(catId) {
+  const ids = new Set([catId])
+  let added = true
+  while (added) {
+    added = false
+    for (const c of assetCats) {
+      if (c.parentId && ids.has(c.parentId) && !ids.has(c.catId)) { ids.add(c.catId); added = true }
+    }
+  }
+  return assets.filter(a => ids.has(a.catId))
+}
+
+function assetCatRow(c) {
+  const kids = assetCats.filter(x => x.parentId === c.catId)
+  return {
+    ...c,
+    catPath: catPathOf(c.catId),
+    depth: catDepthOf(c.catId),
+    leaf: kids.length === 0,
+    childCount: kids.length,
+    assetCount: assets.filter(a => a.catId === c.catId).length,
+    assetCountAll: assetsUnder(c.catId).length,
+    canDelete: kids.length === 0 && assets.every(a => a.catId !== c.catId)
+  }
+}
+
+function assetHolderName(empId) {
+  const e = employees.find(x => x.empId === empId)
+  return e ? e.name : ''
+}
+
+function assetOrgName(orgId) {
+  return orgId ? ((orgs.find(o => o.orgId === orgId) || {}).name || orgId) : ''
+}
+
+function assetRow(a) {
+  return {
+    ...a,
+    holderName: assetHolderName(a.holderEmpId),
+    orgName: assetOrgName(a.orgId),
+    catName: a.catName || (catOf(a.catId)?.name || ''),
+    catPath: a.catPath || catPathOf(a.catId),
+    logs: ASSET_LOG.filter(l => l.assetId === a.assetId)
+  }
+}
+
+function assetLog(a, field, label, before, after, by) {
+  AL_SEQ += 1
+  ASSET_LOG.unshift({
+    logId: 'AL' + String(AL_SEQ).padStart(5, '0'),
+    assetId: a.assetId, at: `${DATA_DATE} 10:00`, by: by || '',
+    field, fieldLabel: label, before: String(before ?? ''), after: String(after ?? '')
+  })
+}
+
+/* ---------------- 分类 ---------------- */
+on('GET', '/asset-categories/tree', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  return assetCatTreeOf()
+})
+
+on('GET', '/asset-categories', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  return assetCats.map(assetCatRow).sort((a, b) => (a.parentId || '').localeCompare(b.parentId || '') || a.sort - b.sort)
+})
+
+function assetCatTreeOf() {
+  const all = assetCats.map(assetCatRow).sort((a, b) => (a.sort - b.sort) || a.name.localeCompare(b.name, 'zh'))
+  const byId = new Map(all.map(c => [c.catId, { ...c, children: [] }]))
+  const roots = []
+  for (const n of byId.values()) {
+    if (n.parentId && byId.has(n.parentId)) byId.get(n.parentId).children.push(n)
+    else roots.push(n)
+  }
+  return roots
+}
+
+on('GET', '/asset-categories/options', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const out = []
+  const walk = (nodes, depth) => {
+    for (const n of nodes) {
+      out.push({ value: n.catId, label: `${depth ? '　'.repeat(depth) : ''}${n.name}`, depth, disabled: !n.enabled })
+      walk(n.children || [], depth + 1)
+    }
+  }
+  walk(assetCatTreeOf(), 0)
+  return out
+})
+
+on('GET', '/asset-categories/{catId}', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const c = catOf(ctx.params.catId)
+  if (!c) throw notFound('分类不存在')
+  return assetCatRow(c)
+})
+
+function assertCatPayload(body, catId) {
+  const name = String(body.name || '').trim()
+  if (!name) throw invalid('分类名称不能为空')
+  if (name.length > 12) throw invalid('分类名称不超过 12 个字')
+  const pid = String(body.parentId || '')
+  if (pid) {
+    if (!catOf(pid)) throw notFound('上级分类不存在')
+    if (catDepthOf(pid) >= 2) throw invalid('分类最多 2 级：三级分类在录入时选不出来，实际也用不到')
+  }
+  if (catId && pid) {
+    let walker = catOf(pid)
+    let guard = 0
+    while (walker && guard++ < 8) {
+      if (walker.catId === catId) throw invalid('不能把分类挂到它自己的下级里（会形成环）')
+      walker = walker.parentId ? catOf(walker.parentId) : null
+    }
+  }
+  const dup = assetCats.find(c => c.catId !== catId && (c.parentId || '') === pid && c.name === name)
+  if (dup) throw invalid(`同级已存在「${name}」（${dup.catId}），换个名字或改上级`)
+  return { name, parentId: pid, prefix: String(body.prefix || '').trim().toUpperCase(), sort: Number(body.sort) || 10, note: String(body.note || '').trim() }
+}
+
+on('POST', '/asset-categories', (ctx) => {
+  requirePerm(ctx.user, 'c.assetCats.edit', '缺少权限位 c.assetCats.edit：无权维护资产分类')
+  const p = assertCatPayload(ctx.body || {})
+  AC_SEQ += 1
+  const rec = { catId: 'AC' + String(AC_SEQ).padStart(4, '0'), ...p, enabled: true, createdAt: DATA_DATE }
+  assetCats.push(rec)
+  return assetCatRow(rec)
+})
+
+on('PATCH', '/asset-categories/{catId}', (ctx) => {
+  requirePerm(ctx.user, 'c.assetCats.edit', '缺少权限位 c.assetCats.edit：无权维护资产分类')
+  const c = catOf(ctx.params.catId)
+  if (!c) throw notFound('分类不存在')
+  const p = assertCatPayload(ctx.body || {}, c.catId)
+  Object.assign(c, p)
+  return assetCatRow(c)
+})
+
+on('POST', '/asset-categories/{catId}/toggle', (ctx) => {
+  requirePerm(ctx.user, 'c.assetCats.edit', '缺少权限位 c.assetCats.edit：无权维护资产分类')
+  const c = catOf(ctx.params.catId)
+  if (!c) throw notFound('分类不存在')
+  c.enabled = !c.enabled
+  return assetCatRow(c)
+})
+
+on('POST', '/asset-categories/{catId}/remove', (ctx) => {
+  requirePerm(ctx.user, 'c.assetCats.edit', '缺少权限位 c.assetCats.edit：无权维护资产分类')
+  const c = catOf(ctx.params.catId)
+  if (!c) throw notFound('分类不存在')
+  const kids = assetCats.filter(x => x.parentId === c.catId)
+  if (kids.length) throw new ApiError(409, 40927, `「${c.name}」下还有 ${kids.length} 个子分类，先删或移走子分类`)
+  const used = assets.filter(a => a.catId === c.catId).length
+  if (used) throw new ApiError(409, 40927, `「${c.name}」下还有 ${used} 件资产，先把资产改成别的分类（或停用分类）`)
+  assetCats.splice(assetCats.findIndex(x => x.catId === c.catId), 1)
+  return { catId: c.catId, removed: true }
+})
+
+/* ---------------- 资产 ---------------- */
+on('GET', '/assets', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const q = ctx.query || {}
+  let list = assets.map(assetRow)
+  if (q.catId) {
+    const hit = new Set(assetsUnder(q.catId).map(a => a.assetId))
+    list = list.filter(a => hit.has(a.assetId))
+  }
+  if (q.status) list = list.filter(a => a.status === q.status)
+  if (q.orgId) list = list.filter(a => a.orgId === q.orgId)
+  if (q.kw) {
+    const k = String(q.kw)
+    list = list.filter(a => `${a.name}${a.assetNo}${a.assetCode}${a.sn}${a.brand}${a.model}${a.holderName}${a.location}`.includes(k))
+  }
+  list.sort((a, b) => String(b.buyDate || '').localeCompare(String(a.buyDate || '')) || a.assetNo.localeCompare(b.assetNo))
+  return page(list, q)
+})
+
+on('GET', '/assets/summary', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const rows = assets.map(assetRow)
+  const totalValue = Math.round(rows.reduce((s, a) => s + (Number(a.price) || 0), 0) * 100) / 100
+  const byStatus = ASSET_STATUS_LIST.map(s => ({ status: s, count: rows.filter(a => a.status === s).length }))
+  return {
+    total: rows.length,
+    totalValue,
+    idle: byStatus.find(x => x.status === '闲置').count,
+    inUse: byStatus.find(x => x.status === '在用').count,
+    scrapped: byStatus.find(x => x.status === '报废').count,
+    byStatus,
+    warrantySoon: 0,
+    warrantyExpired: 0,
+    catCount: assetCats.filter(c => c.enabled).length,
+    noCat: 0
+  }
+})
+
+on('GET', '/assets/by-category', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  return assetCats
+    .filter(c => !assetCats.some(x => x.parentId === c.catId))
+    .map(c => ({
+      catId: c.catId, name: c.name, catPath: catPathOf(c.catId), depth: catDepthOf(c.catId),
+      count: assets.filter(a => a.catId === c.catId).length,
+      value: Math.round(assets.filter(a => a.catId === c.catId).reduce((s, a) => s + (Number(a.price) || 0), 0) * 100) / 100
+    }))
+    .filter(x => x.count > 0)
+    .sort((a, b) => b.count - a.count)
+})
+
+on('GET', '/assets/{assetId}', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const a = assets.find(x => x.assetId === ctx.params.assetId)
+  if (!a) throw notFound('资产不存在')
+  return assetRow(a)
+})
+
+on('POST', '/assets', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.edit', '缺少权限位 c.assets.edit：无权维护资产')
+  const b = ctx.body || {}
+  const name = String(b.name || '').trim()
+  if (!name) throw invalid('资产名称不能为空')
+  const cat = catOf(String(b.catId || ''))
+  if (!cat) throw invalid('请选择资产分类')
+  if (!cat.enabled) throw invalid(`分类「${cat.name}」已停用，换一个分类或先启用它`)
+  const status = String(b.status || '闲置')
+  if (!ASSET_STATUS_LIST.includes(status)) throw invalid(`状态只能是 ${ASSET_STATUS_LIST.join(' / ')}`)
+
+  AS_SEQ += 1
+  const year = String(DATA_DATE).slice(0, 4)
+  const prefix = `ZC${year}`
+  const max = assets
+    .filter(a => String(a.assetNo).startsWith(prefix))
+    .reduce((m, a) => Math.max(m, Number(String(a.assetNo).slice(prefix.length)) || 0), 0)
+  const assetNo = prefix + String(max + 1).padStart(4, '0')
+  const id = 'AS' + String(AS_SEQ).padStart(4, '0')
+  /* 16 位 token：与编号无关。编号能顺序推，token 不能 —— 否则改一个字符就能枚举全公司的资产 */
+  const rawTok = Buffer.from(id + assetNo + DATA_DATE).toString('base64url').replace(/[^A-Za-z0-9]/g, '')
+  const seqTok = (rawTok + 'XDkb3mQz9fHn7RtaBcEf').slice(0, 16)
+
+  const rec = {
+    assetId: id,
+    assetNo,
+    name,
+    catId: cat.catId,
+    catName: cat.name,
+    catPath: catPathOf(cat.catId),
+    assetCode: String(b.assetCode || '').trim(),
+    brand: String(b.brand || '').trim(),
+    model: String(b.model || '').trim(),
+    sn: String(b.sn || '').trim(),
+    buyDate: String(b.buyDate || ''),
+    price: b.price === '' || b.price === undefined ? null : Number(b.price),
+    vendor: String(b.vendor || '').trim(),
+    warrantyEnd: String(b.warrantyEnd || ''),
+    holderEmpId: String(b.holderEmpId || ''),
+    orgId: String(b.orgId || ''),
+    location: String(b.location || '').trim(),
+    status,
+    remark: String(b.remark || '').trim(),
+    files: assetCleanFiles(b.files, ctx.user),
+    qrToken: seqTok,
+    createdAt: `${DATA_DATE} 10:00`,
+    createdBy: ctx.user.name || '',
+    _ver: 1
+  }
+  assets.push(rec)
+  assetLog(rec, 'create', '新增资产', '', `${name}（${assetNo}）`, ctx.user.name)
+  return assetRow(rec)
+})
+
+on('PATCH', '/assets/{assetId}', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.edit', '缺少权限位 c.assets.edit：无权维护资产')
+  const a = assets.find(x => x.assetId === ctx.params.assetId)
+  if (!a) throw notFound('资产不存在')
+  const b = ctx.body || {}
+  if (b.ver !== undefined && Number(b.ver) !== Number(a._ver || 1)) {
+    throw new ApiError(409, 40901, '该资产已被他人修改，请刷新后重试')
+  }
+  if (b.assetNo !== undefined && String(b.assetNo) !== String(a.assetNo)) {
+    throw invalid('资产编号不可修改：标签已贴在实物上，改号会让日志与纸标签对不上')
+  }
+  if (b.status !== undefined && !ASSET_STATUS_LIST.includes(String(b.status))) {
+    throw invalid(`状态只能是 ${ASSET_STATUS_LIST.join(' / ')}`)
+  }
+  if (b.catId !== undefined) {
+    const cat = catOf(String(b.catId))
+    if (!cat) throw invalid('分类不存在')
+    if (!cat.enabled) throw invalid(`分类「${cat.name}」已停用，换一个分类或先启用它`)
+    b.catName = cat.name
+    b.catPath = catPathOf(cat.catId)
+  }
+  for (const [k, v] of Object.entries(b)) {
+    if (k === 'ver' || !(k in ASSET_FIELD_LABEL) && k !== 'catName' && k !== 'catPath') continue
+    const before = a[k]
+    /* 图片按 fileId + 名称 + url 比：只比 fileId 的话，「同一个 fileId 换了内容」
+       会被当成没改动而跳过校验（换成 PDF 也能溜过去）；顺序变了不算改动。 */
+    const sig = list => (list || []).map(f => `${f.fileId}|${f.name}|${f.url}`)
+    const same = k === 'files'
+      ? JSON.stringify(sig(before)) === JSON.stringify(sig(v))
+      : (before ?? '') === (v ?? '')
+    if (same) continue
+    if (ASSET_FIELD_LABEL[k]) {
+      let bShow = before
+      let aShow = v
+      if (k === 'holderEmpId') { bShow = assetHolderName(before); aShow = assetHolderName(v) }
+      if (k === 'orgId') { bShow = assetOrgName(before); aShow = assetOrgName(v) }
+      if (k === 'catId') { bShow = a.catName || ''; aShow = b.catName || catOf(v)?.name || '' }
+      if (k === 'files') { bShow = assetFilesBrief(before); aShow = assetFilesBrief(v) }
+      assetLog(a, k, ASSET_FIELD_LABEL[k], bShow, aShow, ctx.user.name)
+    }
+    a[k] = k === 'files' ? assetCleanFiles(v, ctx.user) : v
+  }
+  a._ver = Number(a._ver || 1) + 1
+  return assetRow(a)
+})
+
+on('POST', '/assets/labels', (ctx) => {
+  requirePerm(ctx.user, 'c.assets.view', '缺少权限位 c.assets.view：无权查看资产')
+  const ids = Array.isArray((ctx.body || {}).assetIds) ? ctx.body.assetIds : []
+  return assets.filter(a => ids.includes(a.assetId)).map(a => ({
+    assetId: a.assetId, assetNo: a.assetNo, name: a.name,
+    catName: a.catName || '', qrToken: a.qrToken, scanUrl: `/scan/${a.qrToken}`
+  }))
+})
+
+/* ---------------- 扫码公开接口（免登录） ---------------- */
+on('GET', '/public/assets/{token}', (ctx) => {
+  /* 故意不 requirePerm：扫码的人可能是访客、供应商，或者手机上没登录。
+     边界由「只回这 7 个字段」保证，不靠登录态。 */
+  const a = assets.find(x => x.qrToken === ctx.params.token)
+  if (!a) throw new ApiError(404, 40410, '未找到该资产')
+  return {
+    ok: true,
+    scrapped: a.status === '报废',
+    asset: {
+      name: a.name,
+      assetNo: a.assetNo,
+      catPath: a.catPath || catPathOf(a.catId),
+      status: a.status,
+      orgName: assetOrgName(a.orgId) || '—',
+      location: a.location || '—',
+      warrantyEnd: a.warrantyEnd || '—',
+      warrantyExpired: !!a.warrantyEnd && String(a.warrantyEnd) < DATA_DATE
+    }
+  }
+})
+
+/* ================= 部门计划（G 域 · 2026-11-03 第 56 批 · 模板驱动） =================
+ * 与原型同一套口径，写成服务端视角：
+ *   - (planMonth, orgId) 唯一，已驳回的不占位（可以重提）；
+ *   - 提报主体 = 该组织负责人，服务端必须重新校验，不能只信前端下拉；
+ *   - 条目由模板铺开（提报时整份拷贝成快照），权重合计 100 卡在提交、不卡草稿；
+ *   - 状态：草稿 → 审批中 → 已批准 → 执行中 → 待复评 → 已结案；
+ *   - 复评必须等「提交完成情况」，按状态卡，不靠调用方自觉；
+ *   - 审核阶段运营管理部可直接改考核项（不走驳回），改动逐条进 reviseLog。
+ *
+ * 算分只有一处实现（planTargetOf / planSelfScoreOf / planItemCalc / planTotalsOf）：
+ *   否决 = 目标 × 95%，挑战 = 目标 × 105%（逆向镜像）；
+ *   自评 = 5 ×（实际 − 否决）/（挑战 − 否决），夹 1–5；
+ *   加权 = 分 × 权重/100；总分 = 自评合计 × 20% + 复评合计 × 80%。
+ */
+const deptPlans = readJson('fixtures/dept-plans.json')
+const PLAN_STATUS = ['草稿', '审批中', '已批准', '已驳回', '执行中', '待复评', '已结案']
+const PLAN_TASK_STATUS = ['未开始', '进行中', '已完成', '延期']
+const PLAN_SCORE_RULE = { rejectRate: 0.95, challengeRate: 1.05, min: 1, max: 5, selfWeight: 0.2, reviewWeight: 0.8 }
+
+const planPerm = (u, code) => (u.permissions || []).includes('*') || (u.permissions || []).includes(code)
+
+/** 这个人负责哪几个部门（正职 / 副职 / 在期代理都算）—— 提报主体校验用 */
+function leadsOfUser(u) {
+  const home = (EMP.get(u.empId) || {}).orgId || ''
+  return orgLeaders
+    .filter(r => r.empId === u.empId && relActive(r))
+    .map(r => ({
+      orgId: r.orgId,
+      orgName: ((orgs.find(o => o.orgId === r.orgId) || {}).name) || '',
+      duty: r.duty,
+      isPrimary: home === r.orgId
+    }))
+}
+const planInvalid = msg => new ApiError(422, 42212, msg)
+
+/** 按组织匹配模板（与原型 planTplForOrg 同口径） */
+function planTplOfOrg(orgId) {
+  const o = orgs.find(x => x.orgId === orgId)
+  if (!o) return null
+  const on = planTpls.filter(t => t.enabled)
+  if (o.type === '项目') return on.find(t => t.matchType === '项目') || null
+  if (o.type === '班组') {
+    const sfx = String(orgId).split('-T')[1] || ''
+    return on.find(t => t.matchType === '班组' && t.matchSuffix === sfx)
+      || on.find(t => t.matchType === '职能') || null
+  }
+  return on.find(t => t.matchType === '职能') || null
+}
+
+/**
+ * 自审绕过：解析出的审批人等于申请人时，沿组织链向上找第一个不是自己的负责人。
+ * 项目经理给自己项目提计划，第一节点「项目经理审批」解析到的就是他本人，
+ * 不跳升流程直接死锁。
+ */
+function planAssignee(node, applicant) {
+  const raw = resolveAssignee(node, applicant)
+  if (!raw || raw !== applicant.name) return { name: raw, note: '' }
+  let cur = orgs.find(o => o.orgId === applicant.orgId)
+  const seen = new Set([applicant.orgId])
+  for (let i = 0; cur && cur.parentId && i < 8; i++) {
+    if (seen.has(cur.parentId)) break
+    seen.add(cur.parentId)
+    cur = orgs.find(o => o.orgId === cur.parentId)
+    if (cur.leader && cur.leader !== applicant.name) {
+      return { name: cur.leader, note: `原审批人为本人，已跳升至${cur.name}负责人` }
+    }
+  }
+  return { name: '', note: '上级链上没有其他负责人，需手动指派' }
+}
+
+/**
+ * 会签 / 或签：一个节点解析出**全部**审批人。
+ * 只有「部门负责人」来源支持多签，对象是本部门全部在期负责人（正职 + 副职 + 代理），
+ * 并排除申请人本人 —— 自己不能给自己签；排除后没人就沿组织链向上找。
+ */
+function resolveAssignees(node, applicant) {
+  const mode = node.signMode || 'single'
+  if (mode === 'single' || node.assigneeType !== 'orgLeader') {
+    const hit = planAssignee(node, applicant)
+    return hit.name ? [{ name: hit.name, empId: '', duty: '', note: hit.note }] : []
+  }
+  const same = leadersOfOrg(applicant.orgId).filter(r => r.active && r.name !== applicant.name)
+  if (same.length) return same.map(r => ({ name: r.name, empId: r.empId, duty: r.duty, note: '' }))
+  let cur = orgs.find(o => o.orgId === applicant.orgId)
+  const seen = new Set([applicant.orgId])
+  for (let i = 0; cur && cur.parentId && i < 8; i++) {
+    if (seen.has(cur.parentId)) break
+    seen.add(cur.parentId)
+    cur = orgs.find(o => o.orgId === cur.parentId)
+    const up = leadersOfOrg(cur.orgId).filter(r => r.active && r.name !== applicant.name)
+    if (up.length) {
+      return up.map(r => ({
+        name: r.name, empId: r.empId, duty: r.duty,
+        note: `本部门没有其他负责人，已跳升至${cur.name}`
+      }))
+    }
+  }
+  return []
+}
+const planStatusErr = msg => new ApiError(409, 40926, msg)
+const planDupErr = msg => new ApiError(409, 40925, msg)
+
+function planTargetOf(item = {}) {
+  const t = Number(item.target)
+  const dir = item.direction === -1 ? -1 : 1
+  if (!Number.isFinite(t) || t <= 0) return { reject: null, challenge: null, usable: false }
+  return {
+    reject: r2(dir > 0 ? t * PLAN_SCORE_RULE.rejectRate : t * PLAN_SCORE_RULE.challengeRate),
+    challenge: r2(dir > 0 ? t * PLAN_SCORE_RULE.challengeRate : t * PLAN_SCORE_RULE.rejectRate),
+    usable: true
+  }
+}
+
+function planSelfScoreOf(item = {}) {
+  if (item.section !== 'q') return num(item.selfScore)
+  const { reject, challenge, usable } = planTargetOf(item)
+  if (!usable) return num(item.selfScore)
+  const a = Number(item.actual)
+  if (item.actual === '' || item.actual === null || item.actual === undefined || !Number.isFinite(a)) return 0
+  const den = Math.abs(challenge - reject)
+  if (!den) return 0
+  const raw = item.direction === -1 ? (reject - a) : (a - reject)
+  return Math.min(PLAN_SCORE_RULE.max, Math.max(PLAN_SCORE_RULE.min, 5 * raw / den))
+}
+
+const planWeightedOf = (score, weight) => r2(num(score) * num(weight) / 100)
+
+function planItemCalc(item = {}) {
+  if (item.section === 'm') {
+    return {
+      selfScore: null, reviewScore: null,
+      selfWeighted: r2(item.selfWeighted), reviewWeighted: r2(item.reviewWeighted)
+    }
+  }
+  const self = planSelfScoreOf(item)
+  const review = num(item.reviewScore)
+  return {
+    selfScore: r2(self),
+    reviewScore: review ? r2(review) : null,
+    selfWeighted: planWeightedOf(self, item.weight),
+    reviewWeighted: review ? planWeightedOf(review, item.weight) : 0
+  }
+}
+
+function planTotalsOf(items = []) {
+  let self = 0
+  let review = 0
+  for (const it of items) {
+    const c = planItemCalc(it)
+    self += c.selfWeighted
+    review += c.reviewWeighted
+  }
+  self = r2(self)
+  review = r2(review)
+  return {
+    selfTotal: self,
+    reviewTotal: review,
+    total: r2(self * PLAN_SCORE_RULE.selfWeight + review * PLAN_SCORE_RULE.reviewWeight)
+  }
+}
+
+/** 权重步长：只能按 5% 调（与原型 PLAN_WEIGHT_STEP 同口径） */
+const PLAN_WEIGHT_STEP = 5
+const onStep = n => {
+  const v = num(n)
+  return Number.isFinite(v) && Math.abs(v / PLAN_WEIGHT_STEP - Math.round(v / PLAN_WEIGHT_STEP)) < 1e-9
+}
+
+/**
+ * 权重校验：**两条规则**（第 60 批）。
+ *   ① 每一项必须是 5 的倍数（业务上只按 5% 调）；
+ *   ② 各项合计正好 100%。
+ * 非 5 的倍数先报：两项都错时先说合计，人会去调数字，而真正该做的是把 12 改成 10 / 15。
+ */
+function planWeightCheck(items = []) {
+  const sumOf = k => r2(items.filter(i => i.section === k).reduce((s, i) => s + num(i.weight), 0))
+  const qs = sumOf('q')
+  const ks = sumOf('k')
+  const ms = sumOf('m')
+  const total = r2(qs + ks)
+  const diff = r2(100 - total)
+  const scorable = items.filter(i => i.section === 'q' || i.section === 'k')
+  const errs = []
+  if (ms !== 0) errs.push('监控指标的权重必须为 0（只扣分不占权重）')
+
+  const offStep = scorable.filter(i => !onStep(i.weight))
+  if (offStep.length) {
+    const names = offStep.slice(0, 3).map(i => `「${i.name}」${i.weight}%`).join('、')
+    errs.push(`${names}${offStep.length > 3 ? ` 等 ${offStep.length} 项` : ''}不是 ${PLAN_WEIGHT_STEP} 的倍数，权重只能按 ${PLAN_WEIGHT_STEP}% 调`)
+  }
+
+  if (!scorable.length) {
+    errs.push('至少要有一条量化指标或重点工作，否则没有可计分的内容')
+  } else if (Math.abs(diff) > 0.01) {
+    errs.push(diff > 0
+      ? `各项权重合计 ${total}%，还差 ${diff}% 才到 100%`
+      : `各项权重合计 ${total}%，超出 ${r2(-diff)}%（必须正好 100%）`)
+  }
+
+  const maxItems = Math.round(100 / PLAN_WEIGHT_STEP)
+  if (scorable.length > maxItems) {
+    errs.push(`计分项共 ${scorable.length} 条，每项至少 ${PLAN_WEIGHT_STEP}%，最多只能有 ${maxItems} 条（先在模板里合并或删减）`)
+  }
+  return { qs, ks, ms, total, diff, ok: errs.length === 0, msg: errs.join('；') }
+}
+
+const planGradeOf = (s) => {
+  const n = num(s)
+  return n >= 4.5 ? 'A' : (n >= 3.75 ? 'B' : (n >= 3.0 ? 'C' : 'D'))
+}
+
+const planTaskStatus = t => {
+  if (t.actual !== '' && t.actual !== null && t.actual !== undefined) return '已完成'
+  if (t.selfScore) return '进行中'
+  if (t.dueDate && t.dueDate < DATA_DATE) return '延期'
+  return '未开始'
+}
+
+const planFinishRate = p => {
+  const items = (p.items || []).filter(i => i.section !== 'm')
+  if (!items.length) return 0
+  const sum = items.reduce((s, i) => s + planItemCalc(i).selfWeighted, 0)
+  return r2(Math.min(100, sum / 5 * 100))
+}
+
+const planRow = (p) => {
+  const items = (p.items || []).map(t => ({
+    ...t, execStatus: planTaskStatus(t), ...planItemCalc(t)
+  }))
+  const wc = planWeightCheck(items)
+  const totals = planTotalsOf(items)
+  const done = p.status === '已结案'
+  const running = ['已批准', '执行中'].includes(p.status)
+  return {
+    ...p,
+    items,
+    tasks: items,
+    weightTotal: wc.total,
+    weightQs: wc.qs,
+    weightKs: wc.ks,
+    weightDiff: wc.diff,
+    weightOk: wc.ok,
+    weightMsg: wc.msg,
+    finishRate: planFinishRate({ ...p, items }),
+    doneCount: items.filter(t => t.execStatus === '已完成').length,
+    lateCount: items.filter(t => t.execStatus === '延期').length,
+    taskCount: items.length,
+    itemCount: items.length,
+    selfTotal: totals.selfTotal,
+    reviewTotal: totals.reviewTotal,
+    totalScore: done ? totals.total : 0,
+    score: done ? totals.total : 0,
+    grade: done ? planGradeOf(totals.total) : '',
+    canProgress: running,
+    canReview: p.status === '待复评'
+  }
+}
+
+const planOf = id => deptPlans.find(p => p.planId === id)
+const planMust = (id) => {
+  const p = planOf(id)
+  if (!p) throw notFound('计划不存在')
+  return p
+}
+const planUnique = (month, orgId, exceptId) =>
+  deptPlans.find(p => p.planMonth === month && p.orgId === orgId && p.status !== '已驳回' && p.planId !== exceptId) || null
+
+function planCleanItems(items = [], planId = 'PL') {
+  return items.map((t, i) => ({
+    taskId: t.taskId || `${planId}-I${String(i + 1).padStart(2, '0')}`,
+    itemId: String(t.itemId || ''),
+    section: ['q', 'm', 'k'].includes(t.section) ? t.section : 'k',
+    name: String(t.name || '').trim(),
+    content: String(t.content || '').trim(),
+    standard: String(t.standard || '').trim(),
+    /* 夹在 0–100：负数会让加权分为负，而校验只比合计，负数能靠加总凑过去 */
+    weight: Math.min(100, Math.max(0, r2(t.weight))),
+    direction: t.direction === -1 ? -1 : 1,
+    unit: String(t.unit || '').trim(),
+    target: (t.target === '' || t.target === undefined || t.target === null) ? '' : num(t.target),
+    dueDate: String(t.dueDate || '').slice(0, 10),
+    files: Array.isArray(t.files) ? t.files : [],
+    actual: (t.actual === undefined || t.actual === null) ? '' : t.actual,
+    actualNote: String(t.actualNote || '').trim(),
+    selfScore: (t.selfScore === null || t.selfScore === undefined || t.selfScore === '') ? null : num(t.selfScore),
+    selfWeighted: r2(t.selfWeighted),
+    reviewScore: (t.reviewScore === null || t.reviewScore === undefined || t.reviewScore === '') ? null : num(t.reviewScore),
+    reviewWeighted: r2(t.reviewWeighted),
+    remark: String(t.remark || '').trim(),
+    progress: Math.min(100, Math.max(0, num(t.progress))),
+    execStatus: '未开始',
+    finishAt: String(t.finishAt || ''),
+    score: 0,
+    evalRemark: ''
+  }))
+}
+
+function planPayload(b, u, existing) {
+  const planMonth = String(b.planMonth || '').trim()
+  if (!/^\d{4}-\d{2}$/.test(planMonth)) throw planInvalid('请选择计划月份（YYYY-MM）')
+  const orgId = String(b.orgId || '').trim()
+  if (!orgId) throw planInvalid('请选择提报部门')
+  if (!leadsOfUser(u).some(l => l.orgId === orgId)) {
+    throw forbidden('你不是该部门的负责人，不能以它的名义提报计划')
+  }
+  const items = planCleanItems(b.items || b.tasks || [], existing ? existing.planId : 'PL')
+  if (!items.length) throw planInvalid('计划至少要有 1 条考核项')
+  if (items.some(t => !t.name)) throw planInvalid('考核项名称不能为空')
+  return { planMonth, orgId, items }
+}
+
+on('GET', '/dept-plans', (ctx) => {
+  const q = ctx.query || {}
+  const list = deptPlans
+    .filter(p => !q.planMonth || p.planMonth === q.planMonth)
+    .filter(p => !q.orgId || p.orgId === q.orgId)
+    .filter(p => !q.projectId || p.projectId === q.projectId)
+    .filter(p => !q.status || p.status === q.status)
+    .filter(p => !q.kw || `${p.orgName}${p.submitterName}${p.planId}${(p.items || []).map(i => i.name).join('')}`.includes(q.kw))
+    .map(planRow)
+    .sort((a, b) => (a.planMonth === b.planMonth ? String(a.orgPath).localeCompare(String(b.orgPath)) : b.planMonth.localeCompare(a.planMonth)))
+  return list
+})
+
+on('GET', '/dept-plans/stats', (ctx) => {
+  const q = ctx.query || {}
+  let list = deptPlans.map(planRow)
+  if (q.planMonth) list = list.filter(p => p.planMonth === q.planMonth)
+  if (q.projectId) list = list.filter(p => p.projectId === q.projectId)
+
+  const statusCount = s => list.filter(p => p.status === s).length
+  const closed = list.filter(p => p.status === '已结案')
+  const totalItems = list.reduce((s, p) => s + p.items.length, 0)
+  const execMap = new Map(PLAN_TASK_STATUS.map(s => [s, 0]))
+  for (const p of list) for (const it of p.items) execMap.set(it.execStatus, (execMap.get(it.execStatus) || 0) + 1)
+
+  const gmap = new Map()
+  for (const p of list) {
+    const key = p.projectId || 'HEAD'
+    const cur = gmap.get(key) || {
+      key, name: key === 'HEAD' ? '总部职能' : ((orgs.find(o => o.orgId === key) || {}).name || ''),
+      plans: 0, tasks: 0, doneTasks: 0, lateTasks: 0, closed: 0, scoreSum: 0, finishSum: 0
+    }
+    cur.plans += 1
+    cur.tasks += p.items.length
+    cur.doneTasks += p.doneCount
+    cur.lateTasks += p.lateCount
+    cur.finishSum += p.finishRate
+    if (p.status === '已结案') { cur.closed += 1; cur.scoreSum += p.totalScore }
+    gmap.set(key, cur)
+  }
+  const byOrg = [...gmap.values()].map(g => ({
+    ...g,
+    avgScore: g.closed ? r2(g.scoreSum / g.closed) : 0,
+    avgFinish: g.plans ? Math.round(g.finishSum / g.plans * 10) / 10 : 0
+  }))
+
+  const scores = closed.map(p => p.totalScore)
+  const byGrade = [
+    { grade: 'A', label: '优秀', min: 4.5, max: 5.01 },
+    { grade: 'B', label: '良好', min: 3.75, max: 4.5 },
+    { grade: 'C', label: '合格', min: 3.0, max: 3.75 },
+    { grade: 'D', label: '待改进', min: 0, max: 3.0 }
+  ].map(b => ({ ...b, count: scores.filter(x => x >= b.min && x < b.max).length }))
+
+  return {
+    total: list.length,
+    planCount: list.length,
+    totalItems,
+    taskCount: totalItems,
+    closed: closed.length,
+    closedCount: closed.length,
+    pendingCount: list.filter(p => ['已批准', '执行中', '待复评'].includes(p.status)).length,
+    draftCount: statusCount('草稿'),
+    rejectedCount: statusCount('已驳回'),
+    pendingReview: statusCount('待复评'),
+    avgScore: scores.length ? r2(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+    avgFinish: list.length ? Math.round(list.reduce((s, p) => s + p.finishRate, 0) / list.length * 10) / 10 : 0,
+    lateTasks: list.reduce((s, p) => s + p.lateCount, 0),
+    byStatus: PLAN_STATUS.map(s => ({ status: s, count: statusCount(s) })),
+    byOrg,
+    byExec: PLAN_TASK_STATUS.map(s => ({ status: s, count: execMap.get(s) || 0 })),
+    byGrade
+  }
+})
+
+on('GET', '/dept-plans/exists', (ctx) => {
+  const q = ctx.query || {}
+  const p = deptPlans.find(x => x.planMonth === q.planMonth && x.orgId === q.orgId && x.status !== '已驳回')
+  return p ? planRow(p) : null
+})
+
+on('GET', '/dept-plans/{planId}', (ctx) => planRow(planMust(ctx.params.planId)))
+
+on('POST', '/dept-plans', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.edit')) throw forbidden('当前角色没有计划维护权限（f.plans.edit）')
+  const { planMonth, orgId, items } = planPayload(ctx.body || {}, u, null)
+  const dup = planUnique(planMonth, orgId, null)
+  if (dup) throw planDupErr(`「${(orgs.find(o => o.orgId === orgId) || {}).name}」${planMonth} 已有计划（${dup.planId}），一个部门一个月只能有一份`)
+
+  const tpl = planTplOfOrg(orgId)
+  const org = orgs.find(o => o.orgId === orgId) || {}
+  const emp = EMP.get(u.empId) || {}
+  const id = 'PL' + planMonth.replace('-', '') + String(deptPlans.filter(p => p.planMonth === planMonth).length + 1).padStart(3, '0')
+  const wc = planWeightCheck(items)
+  const p = {
+    planId: id,
+    planMonth,
+    orgId,
+    orgName: org.name || '',
+    orgPath: org.name || '',
+    orgType: org.type || '',
+    projectId: org.type === '项目' ? orgId : (org.parentId || ''),
+    headcount: 0,
+    tplId: (ctx.body || {}).tplId || (tpl ? tpl.tplId : ''),
+    tplName: (ctx.body || {}).tplName || (tpl ? tpl.name : ''),
+    tplVersion: (ctx.body || {}).tplVersion || (tpl ? tpl.version : 0),
+    submitterEmpId: u.empId,
+    submitterName: u.name,
+    submitterPosition: emp.position || u.roleName,
+    submitterDuty: '正职',
+    submitterOrgId: emp.orgId || '',
+    submitterOrgName: ((orgs.find(o => o.orgId === emp.orgId) || {}).name) || '',
+    submitAt: DATA_DATE,
+    status: '草稿',
+    oaId: '', approveAt: '', approveBy: '', approveNote: '',
+    reviseLog: [],
+    items: items.map((t, i) => ({ ...t, taskId: `${id}-I${String(i + 1).padStart(2, '0')}` })),
+    weightTotal: wc.total,
+    weightOk: wc.ok,
+    finishRate: 0, selfTotal: 0, reviewTotal: 0, totalScore: 0, score: 0, grade: '',
+    evalAt: '', evalBy: '',
+    summary: String((ctx.body || {}).summary || ''),
+    logs: [{ at: DATA_DATE, by: u.name, action: '创建草稿', note: `以${org.name}负责人身份 · 模板 ${tpl ? tpl.name : '—'}` }]
+  }
+  deptPlans.push(p)
+  return planRow(p)
+})
+
+on('PATCH', '/dept-plans/{planId}', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.edit')) throw forbidden('当前角色没有计划维护权限（f.plans.edit）')
+  const p = planMust(ctx.params.planId)
+  if (!['草稿', '已驳回'].includes(p.status)) {
+    throw planStatusErr(`计划已「${p.status}」，不能再改考核项（已批准的内容不能被事后修改）`)
+  }
+  const { planMonth, orgId, items } = planPayload({ ...ctx.body, planMonth: p.planMonth, orgId: p.orgId }, u, p)
+  const dup = planUnique(planMonth, orgId, p.planId)
+  if (dup) throw planDupErr(`「${p.orgName}」${planMonth} 已有计划（${dup.planId}）`)
+  const wc = planWeightCheck(items)
+  p.items = items.map((t, i) => ({ ...t, taskId: t.taskId || `${p.planId}-I${String(i + 1).padStart(2, '0')}` }))
+  p.status = '草稿'
+  p.approveNote = ''
+  p.weightTotal = wc.total
+  p.weightOk = wc.ok
+  p.summary = String((ctx.body || {}).summary || p.summary || '')
+  p.logs.push({ at: DATA_DATE, by: u.name, action: '保存草稿', note: `${items.length} 项考核项 · 权重合计 ${wc.total}%` })
+  return planRow(p)
+})
+
+on('POST', '/dept-plans/{planId}/submit', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.edit')) throw forbidden('当前角色没有计划维护权限（f.plans.edit）')
+  const p = planMust(ctx.params.planId)
+  if (!['草稿', '已驳回'].includes(p.status)) throw planStatusErr(`计划已「${p.status}」，不能重复提报`)
+  if (!leadsOfUser(u).some(l => l.orgId === p.orgId)) throw forbidden('你不是该部门的负责人，不能替它提报')
+
+  const wc = planWeightCheck(p.items)
+  if (!wc.ok) throw planInvalid(`权重校验不通过：${wc.msg}`)
+  const noTarget = p.items.filter(i => i.section === 'q' && (i.target === '' || !Number.isFinite(Number(i.target))))
+  if (noTarget.length) throw planInvalid(`量化指标要填目标值：${noTarget.map(i => i.name).join('、')}`)
+  if (p.items.some(i => !i.dueDate)) throw planInvalid('每条都要填完成时间')
+  const dup = planUnique(p.planMonth, p.orgId, p.planId)
+  if (dup) throw planDupErr(`该部门 ${p.planMonth} 已有计划在流程中`)
+
+  /* 审批链按**提报部门**解析，不按人事归属 */
+  const nodes = oaNodesFor('计划审批', 0)
+  if (!nodes.length) throw new ApiError(422, 42212, '计划审批没有配置审批流')
+  const emp = EMP.get(u.empId) || {}
+  const applicant = {
+    empId: u.empId, name: u.name, position: emp.position || u.roleName,
+    orgId: p.orgId, manager: emp.manager || ''
+  }
+  AP_SEQ += 1
+  const ap = {
+    approvalId: 'AP' + String(AP_SEQ).padStart(5, '0'),
+    approvalNo: `SP-${DATA_DATE.slice(0, 4)}-${String(AP_SEQ).padStart(4, '0')}`,
+    bizType: '计划审批', bizId: p.planId, changeId: '',
+    title: `计划审批 · ${p.orgName} ${Number(p.planMonth.slice(5))} 月工作计划（${p.items.length} 项）`,
+    formData: { planMonth: p.planMonth, orgName: p.orgName, taskCount: p.items.length, weightTotal: wc.total },
+    files: [], communityId: p.projectId ? p.projectId.replace('O-', '') : '',
+    communityName: p.projectId ? communityNameOf(p.projectId.replace('O-', '')) : '集团 / 全项目',
+    amount: 0,
+    applicant: u.name, applicantRole: applicant.position,
+    applicantEmpId: u.empId, applicantOrgId: emp.orgId || '',
+    applicantOrgName: ((orgs.find(o => o.orgId === emp.orgId) || {}).name) || '',
+    scopeOrgId: p.orgId, scopeOrgName: p.orgName,
+    applyTime: DATA_DATE, status: '待审批', currentNode: nodes[0].name,
+    urgency: '普通', waitHours: 0,
+    flow: nodes.map(n => {
+      const hit = planAssignee(n, applicant)
+      return {
+        node: n.name, handler: hit.name, action: '待处理', time: '', comment: '',
+        limitHours: n.limitHours || 24, skipNote: hit.note
+      }
+    })
+  }
+  oaRequests.unshift(ap)
+  p.status = '审批中'
+  p.oaId = ap.approvalId
+  p.submitAt = DATA_DATE
+  p.logs.push({ at: DATA_DATE, by: u.name, action: '提交审批', note: ap.approvalNo })
+  return { ...planRow(p), approval: ap }
+})
+
+on('POST', '/dept-plans/{planId}/withdraw', (ctx) => {
+  const p = planMust(ctx.params.planId)
+  if (p.status !== '审批中') throw planStatusErr('只有审批中的计划可以撤回')
+  if (p.oaId) {
+    const ap = oaRequests.find(a => a.approvalId === p.oaId)
+    if (ap) { ap.status = '已撤回'; ap.currentNode = '已完成' }
+  }
+  p.status = '草稿'
+  p.logs.push({ at: DATA_DATE, by: ctx.user.name, action: '撤回', note: '退回草稿可继续编辑' })
+  return planRow(p)
+})
+
+/** 执行阶段：填一条的实际完成情况（量化填数值、监控填扣分、重点填文字+自评 1–5） */
+on('PATCH', '/dept-plans/{planId}/items/{taskId}', (ctx) => {
+  const p = planMust(ctx.params.planId)
+  if (!['已批准', '执行中'].includes(p.status)) {
+    throw planStatusErr(`计划「${p.status}」不能填完成情况`)
+  }
+  const t = p.items.find(x => x.taskId === ctx.params.taskId)
+  if (!t) throw notFound('考核项不存在')
+  const b = ctx.body || {}
+
+  if (b.actual !== undefined) t.actual = b.actual
+  if (b.actualNote !== undefined) t.actualNote = String(b.actualNote || '').trim()
+  if (b.selfScore !== undefined) {
+    /* 量化项目标有效时分数由公式定，不接受手填 —— 否则等于自己定分 */
+    const { usable } = planTargetOf(t)
+    if (!(t.section === 'q' && usable)) {
+      t.selfScore = b.selfScore === '' || b.selfScore === null ? null : Math.min(5, Math.max(1, num(b.selfScore)))
+    }
+  }
+  if (b.selfWeighted !== undefined && t.section === 'm') t.selfWeighted = r2(b.selfWeighted)
+  if (b.remark !== undefined) t.remark = String(b.remark || '').trim()
+  if (b.files !== undefined && Array.isArray(b.files)) t.files = b.files
+
+  t.progress = (t.actual !== '' && t.actual !== null) ? 100 : 0
+  t.execStatus = planTaskStatus(t)
+  t.finishAt = t.execStatus === '已完成' ? (t.finishAt || DATA_DATE) : ''
+  if (p.status === '已批准') {
+    p.status = '执行中'
+    p.logs.push({ at: DATA_DATE, by: ctx.user.name, action: '开始执行', note: `填报「${t.name}」` })
+  }
+  p.finishRate = planFinishRate(p)
+  return planRow(p)
+})
+
+/** 审核阶段运营管理部直接改考核项（不走驳回），改动逐条进 reviseLog */
+on('PATCH', '/dept-plans/{planId}/items', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.eval') && !planPerm(u, 'f.plans.edit')) {
+    throw forbidden('当前角色没有审核权限（f.plans.eval）')
+  }
+  const p = planMust(ctx.params.planId)
+  if (p.status !== '审批中') throw planStatusErr(`计划「${p.status}」不在审核中，不能改`)
+  const next = planCleanItems((ctx.body || {}).items || [], p.planId)
+  if (!next.length) throw planInvalid('至少保留 1 条考核项')
+  const before = new Map(p.items.map(i => [i.taskId || i.itemId, i]))
+  const log = []
+
+  next.forEach((it, i) => {
+    const key = it.taskId || it.itemId
+    const old = before.get(key)
+    if (!old) { log.push({ field: '新增', item: it.name, before: '', after: '', at: DATA_DATE, by: u.name }); return }
+    if (old.name !== it.name) log.push({ field: '名称', item: old.name, before: old.name, after: it.name, at: DATA_DATE, by: u.name })
+    if (String(old.target) !== String(it.target) && it.section === 'q') {
+      log.push({ field: '目标值', item: it.name, before: old.target, after: it.target, at: DATA_DATE, by: u.name })
+    }
+    if (r2(old.weight) !== r2(it.weight)) {
+      log.push({ field: '权重', item: it.name, before: old.weight, after: it.weight, at: DATA_DATE, by: u.name })
+    }
+    if ((old.standard || '') !== (it.standard || '')) {
+      log.push({ field: '评价标准', item: it.name, before: old.standard, after: it.standard, at: DATA_DATE, by: u.name })
+    }
+    it.taskId = it.taskId || `${p.planId}-I${String(i + 1).padStart(2, '0')}`
+  })
+  p.items.filter(o => !next.some(n => (n.taskId || n.itemId) === (o.taskId || o.itemId)))
+    .forEach(o => log.push({ field: '删除', item: o.name, before: o.name, after: '', at: DATA_DATE, by: u.name }))
+
+  p.items = next
+  p.reviseLog = [...(p.reviseLog || []), ...log]
+  p.logs.push({
+    at: DATA_DATE, by: u.name, action: '审核修改',
+    note: log.length ? `调整 ${log.length} 项：${log.map(l => `${l.item}·${l.field}`).join('、')}` : '无调整'
+  })
+  return planRow(p)
+})
+
+/** 审核通过并下发：改完直接进执行 */
+on('POST', '/dept-plans/{planId}/approve', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.eval')) throw forbidden('当前角色没有审核权限（f.plans.eval）')
+  const p = planMust(ctx.params.planId)
+  if (p.status !== '审批中') throw planStatusErr(`计划「${p.status}」不在审核中`)
+  const wc = planWeightCheck(p.items)
+  if (!wc.ok) throw planInvalid(`权重校验不通过：${wc.msg}`)
+
+  p.status = '已批准'
+  p.approveAt = DATA_DATE
+  p.approveBy = u.name
+  p.approveNote = String((ctx.body || {}).comment || '')
+  if (p.oaId) {
+    const ap = oaRequests.find(a => a.approvalId === p.oaId)
+    if (ap) {
+      ap.status = '已通过'
+      ap.currentNode = '已完成'
+      ap.flow.forEach(n => {
+        if (n.action === '待处理') { n.action = '同意'; n.handler = n.handler || u.name; n.time = DATA_DATE; n.comment = n.comment || '审核通过' }
+      })
+    }
+  }
+  p.logs.push({
+    at: DATA_DATE, by: u.name, action: '审核通过',
+    note: `按调整后下发${(p.reviseLog || []).length ? `（累计调整 ${p.reviseLog.length} 项）` : ''}`
+  })
+  return planRow(p)
+})
+
+/** 提交完成情况 → 待复评。**复评必须等这一步** */
+on('POST', '/dept-plans/{planId}/result', (ctx) => {
+  const p = planMust(ctx.params.planId)
+  if (!['已批准', '执行中'].includes(p.status)) throw planStatusErr(`计划「${p.status}」不能提交完成情况`)
+  const unfilled = p.items.filter(i => {
+    if (i.section === 'm') return false
+    if (i.section === 'q') return i.actual === '' || i.actual === null
+    return i.selfScore === null || i.selfScore === undefined
+  })
+  if (unfilled.length) throw planInvalid(`还有 ${unfilled.length} 项没填：${unfilled.map(i => i.name).join('、')}`)
+  p.status = '待复评'
+  p.resultAt = DATA_DATE
+  p.logs.push({ at: DATA_DATE, by: ctx.user.name, action: '提交完成情况', note: '等待运营管理部复评' })
+  return planRow(p)
+})
+
+/** 复评 + 归档：逐项 1–5 分，监控项填扣分 */
+on('POST', '/dept-plans/{planId}/review', (ctx) => {
+  const u = ctx.user
+  if (!planPerm(u, 'f.plans.eval') && !planPerm(u, 'f.plans.edit')) {
+    throw forbidden('当前角色没有复评权限（f.plans.eval）')
+  }
+  const p = planMust(ctx.params.planId)
+  if (p.status !== '待复评') {
+    throw planStatusErr(p.status === '已结案'
+      ? '计划已归档'
+      : `计划「${p.status}」，要等填报人提交完成情况之后才能复评`)
+  }
+  const b = ctx.body || {}
+  const scores = b.scores || {}
+  const deductions = b.deductions || {}
+
+  const missing = p.items.filter(i => i.section !== 'm' && (scores[i.taskId] === undefined || scores[i.taskId] === ''))
+  if (missing.length) throw planInvalid(`还有 ${missing.length} 项没打分：${missing.map(i => i.name).join('、')}`)
+
+  for (const it of p.items) {
+    if (it.section === 'm') {
+      if (deductions[it.taskId] !== undefined && deductions[it.taskId] !== '') {
+        it.reviewWeighted = r2(deductions[it.taskId])
+      }
+      continue
+    }
+    const s = Number(scores[it.taskId])
+    if (!Number.isFinite(s) || s < 1 || s > 5) throw planInvalid(`「${it.name}」评分必须在 1–5 之间`)
+    it.reviewScore = r2(s)
+  }
+  const totals = planTotalsOf(p.items)
+  p.status = '已结案'
+  p.reviewAt = DATA_DATE
+  p.evalAt = DATA_DATE
+  p.evalBy = u.name
+  p.selfTotal = totals.selfTotal
+  p.reviewTotal = totals.reviewTotal
+  p.totalScore = totals.total
+  p.score = totals.total
+  p.grade = planGradeOf(totals.total)
+  p.finishRate = planFinishRate(p)
+  p.summary = String(b.summary || '')
+  p.logs.push({
+    at: DATA_DATE, by: u.name, action: '复评完成',
+    note: `自评 ${totals.selfTotal}×20% + 复评 ${totals.reviewTotal}×80% = ${totals.total}（${p.grade}）`
+  })
+  return planRow(p)
+})
+
+/* ---------------- service items（商业服务项目 · 价目字典） ----------------
+ * 口径与服务端一致：price / cost 由分解项算，不接受入参；停用不删；有在途单不给停用。
+ */
+const SVC_CLOSED = ['已完工', '已评价', '已关闭', '已取消']
+const SVC_LOG = new Map()
+
+function svcUsage() {
+  const m = new Map()
+  for (const w of workOrders) {
+    const code = w.serviceItemCode || w.priceCode
+    if (!code) continue
+    const cur = m.get(code) || { count: 0, inFlight: 0, paid: 0, income: 0, cost: 0 }
+    cur.count += 1
+    if (!SVC_CLOSED.includes(w.status)) cur.inFlight += 1
+    if (w.payStatus === '已支付' || w.payStatus === '已挂账') {
+      cur.paid += 1
+      cur.income += w.totalFee || 0
+    }
+    m.set(code, cur)
+  }
+  return m
+}
+
+function serviceRow(it) {
+  const u = (serviceRow._u || (serviceRow._u = svcUsage())).get(it.code) || { count: 0, inFlight: 0, income: 0 }
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  return {
+    ...it,
+    usedCount: u.count,
+    inFlight: u.inFlight,
+    received: r2(u.income),
+    updatedAt: (SVC_LOG.get(it.code) || [])[0]?.at || '',
+    updatedBy: (SVC_LOG.get(it.code) || [])[0]?.by || ''
+  }
+}
+const resetSvcCache = () => { serviceRow._u = null }
+
+function serviceCheck(p, existing = [], code = '') {
+  const name = String(p?.name || '').trim()
+  if (name.length < 2) return [42201, '项目名称至少 2 个字']
+  if (name.length > 30) return [42201, '项目名称不超过 30 个字']
+  if (!String(p?.category || '').trim()) return [42201, '项目分类必填']
+  const num = (v, label) => {
+    const n = Number(v)
+    if (!Number.isFinite(n) || n < 0) return [null, `${label}必须是不小于 0 的数字`]
+    const r = Math.round(n * 100) / 100
+    return [r, '']
+  }
+  const [material, e1] = num(p.material, '材料费')
+  const [labor, e2] = num(p.labor, '人工费')
+  const [materialCost, e3] = num(p.materialCost, '材料成本')
+  const [laborCost, e4] = num(p.laborCost, '人工成本')
+  if (e1) return [42201, e1]
+  if (e2) return [42201, e2]
+  if (e3) return [42201, e3]
+  if (e4) return [42201, e4]
+  const price = Math.round((material + labor) * 100) / 100
+  const cost = Math.round((materialCost + laborCost) * 100) / 100
+  if (price <= 0) return [42205, '服务价格不能为 0：材料费与人工费至少填一项']
+  if (materialCost > material) return [42205, `材料成本（${materialCost}）不能高于材料费（${material}）`]
+  if (cost >= price) return [42206, `成本价（${cost}）不低于服务价格（${price}），这一项启用就亏本`]
+  if (existing.some(i => i.category === p.category && i.name === name && i.code !== code)) {
+    return [40923, `「${p.category}」下已有同名项目`]
+  }
+  return [null, '', { material, labor, materialCost, laborCost, price, cost }]
+}
+
+on('GET', '/service-items', (ctx) => {
+  resetSvcCache()
+  const q = ctx.query
+  const k = String(q.kw || '').trim()
+  const want = q.enabled === undefined || q.enabled === '' ? true : (q.enabled === 'all' ? null : q.enabled === 'true')
+  const list = serviceItems
+    .filter(i => !q.category || i.category === q.category)
+    .filter(i => want === null || !!i.enabled === want)
+    .filter(i => !k || i.name.includes(k) || i.code.includes(k) || i.category.includes(k))
+    .sort((a, b) => a.sort - b.sort)
+    .map(serviceRow)
+  return page(list, q)
+})
+
+on('GET', '/service-items/summary', () => {
+  resetSvcCache()
+  const rows = serviceItems.map(serviceRow)
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const income = r2(rows.reduce((s, r) => s + r.received, 0))
+  const cost = r2(rows.reduce((s, r) => {
+    const it = serviceItems.find(i => i.code === r.code)
+    return s + (it ? r.received * (it.cost / it.price) : 0)
+  }, 0))
+  return {
+    total: rows.length,
+    enabled: rows.filter(r => r.enabled).length,
+    disabled: rows.filter(r => !r.enabled).length,
+    categories: new Set(serviceItems.map(i => i.category)).size,
+    used: rows.filter(r => r.usedCount > 0).length,
+    orders: rows.reduce((s, r) => s + r.usedCount, 0),
+    settled: [...svcUsage().values()].reduce((s, u) => s + u.paid, 0),
+    income, cost, profit: r2(income - cost),
+    margin: income ? Math.round((income - cost) / income * 1000) / 10 : 0
+  }
+})
+
+on('GET', '/service-items/{code}', (ctx) => {
+  resetSvcCache()
+  const it = serviceItems.find(i => i.code === ctx.params.code)
+  if (!it) throw notFound('服务项目不存在')
+  return serviceRow(it)
+})
+
+function writeServiceItem(p, code) {
+  const [badCode, badMsg, calc] = serviceCheck(p, serviceItems, code)
+  if (badCode) throw new ApiError(badCode === 40923 ? 409 : 422, badCode, badMsg)
+  if (code) {
+    const it = serviceItems.find(i => i.code === code)
+    if (!it) throw notFound('服务项目不存在')
+    const before = { ...it }
+    Object.assign(it, {
+      category: p.category, name: String(p.name).trim(),
+      trade: p.trade || it.trade, unit: p.unit || it.unit,
+      minutes: Math.max(0, Number(p.minutes) || 0),
+      sort: Number(p.sort) || it.sort, desc: p.desc ?? it.desc,
+      ...calc
+    })
+    const diff = []
+    if (before.material !== it.material) diff.push(`材料费 ${before.material} → ${it.material}`)
+    if (before.labor !== it.labor) diff.push(`人工费 ${before.labor} → ${it.labor}`)
+    if (before.materialCost !== it.materialCost) diff.push(`材料成本 ${before.materialCost} → ${it.materialCost}`)
+    if (before.laborCost !== it.laborCost) diff.push(`人工成本 ${before.laborCost} → ${it.laborCost}`)
+    if (diff.length) {
+      const list = SVC_LOG.get(code) || []
+      list.unshift({ action: '改价', by: p.operator || ctxUserName(), at: DATA_DATE, memo: diff.join('；') })
+      SVC_LOG.set(code, list)
+    }
+    resetSvcCache()
+    return serviceRow(it)
+  }
+  const seq = serviceItems.length + 1
+  const it = {
+    code: 'SI' + String(seq).padStart(4, '0'),
+    category: p.category, name: String(p.name).trim(),
+    trade: p.trade || '综合', unit: p.unit || '次',
+    minutes: Math.max(0, Number(p.minutes) || 0),
+    enabled: true, sort: Number(p.sort) || seq * 10, desc: p.desc || '',
+    ...calc
+  }
+  serviceItems.push(it)
+  const list = SVC_LOG.get(it.code) || []
+  list.unshift({ action: '新增', by: p.operator || ctxUserName(), at: DATA_DATE, memo: `服务价 ${it.price} / 成本 ${it.cost}` })
+  SVC_LOG.set(it.code, list)
+  resetSvcCache()
+  return serviceRow(it)
+}
+const ctxUserName = () => '契约测试'
+
+on('POST', '/service-items', (ctx) => writeServiceItem(ctx.body || {}, ''))
+on('PATCH', '/service-items/{code}', (ctx) => writeServiceItem(ctx.body || {}, ctx.params.code))
+on('POST', '/service-items/{code}/toggle', (ctx) => {
+  const it = serviceItems.find(i => i.code === ctx.params.code)
+  if (!it) throw notFound('服务项目不存在')
+  const enabled = ctx.body?.enabled !== false
+  if (!enabled) {
+    const u = svcUsage().get(it.code)
+    if (u && u.inFlight > 0) {
+      throw new ApiError(409, 40924, `还有 ${u.inFlight} 张在途工单在用「${it.name}」，先结单或换项目再停用`)
+    }
+  }
+  it.enabled = enabled
+  const list = SVC_LOG.get(it.code) || []
+  list.unshift({ action: enabled ? '启用' : '停用', by: ctx.body?.operator || ctxUserName(), at: DATA_DATE, memo: '' })
+  SVC_LOG.set(it.code, list)
+  resetSvcCache()
+  return serviceRow(it)
+})
+
+/* ---------------- 工时积分（2026-11-02） ----------------
+ * 只公共区域维修有积分：商业服务按人工费提成，重复激励会让师傅挑单。
+ * 本期只记录，绩效折算未实现；但 ruleVersion / period / status 三样先摆好，
+ * 绩效侧按 empId + period 聚合 laborPointLedger 即可。
+ */
+const POINT_RULE = {
+  version: 'POINT-2026-11-01',
+  basePerHour: 10,
+  weights: {
+    电梯: 1.5, 公共设备: 1.4, 配电: 1.3, 给排水: 1.2, 道闸门禁: 1.2,
+    土建: 1.1, 公区照明: 1.0, 门窗五金: 1.0, 环境其他: 0.8
+  }
+}
+const PERF_CONVERSION_STATE = {
+  implemented: false,
+  ruleVersion: POINT_RULE.version,
+  note: '积分 → 绩效分的折算系数与基准分尚未确定；本期只记录积分并按月归属，绩效侧读 /labor-points/summary 即可'
+}
+const POINT_CLOSED = ['已完工', '已评价', '已关闭']
+const pointWeightOf = cat => POINT_RULE.weights[cat] ?? 1
+const calcPoints = (cat, hours) =>
+  Math.round(Math.max(0, Number(hours) || 0) * POINT_RULE.basePerHour * pointWeightOf(cat) * 10) / 10
+
+const pointLedger = []
+for (const w of workOrders) {
+  if (!w.laborPoints) continue
+  pointLedger.push({
+    ledgerId: 'PL' + String(pointLedger.length + 1).padStart(5, '0'),
+    empId: (employees.find(e => e.name === w.assignee) || {}).empId || '',
+    empName: w.assignee || '',
+    woId: w.woId, woNo: w.woNo, communityId: w.communityId, category: w.category,
+    hours: w.laborHours || 0, weight: w.laborPointWeight || 1, points: w.laborPoints,
+    period: w.pointsPeriod || String(w.finishTime || w.createTime || '').slice(0, 7),
+    ruleVersion: w.pointRuleVersion || POINT_RULE.version,
+    status: w.pointsStatus || '待结算', beforePoints: 0,
+    at: w.pointsAt || w.finishTime || w.createTime, by: w.pointsBy || '工程主管', remark: '样例数据'
+  })
+}
+
+on('GET', '/work-orders/{woId}/labor-points', (ctx) => {
+  const w = workOrders.find(x => x.woId === ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  return pointLedger.filter(e => e.woId === w.woId)
+})
+
+on('POST', '/work-orders/{woId}/labor-points', (ctx) => {
+  const w = workOrders.find(x => x.woId === ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (w.type !== '公共区域维修') {
+    throw new ApiError(422, 42210, '只有公共区域维修记录工时积分 —— 商业服务按人工费提成，重复激励会让师傅挑单')
+  }
+  if (!w.assignee) throw new ApiError(422, 42210, '还没派单，先派单再记工时')
+  if (!POINT_CLOSED.includes(w.status)) {
+    throw new ApiError(409, 40926, `工单当前「${w.status}」，完工后才能记工时积分`)
+  }
+  if (w.pointsStatus === '已结算') {
+    throw new ApiError(409, 40927, `${w.pointsPeriod} 已结算，积分不能再改（要改走冲正）`)
+  }
+  const h = Number(ctx.body?.hours)
+  if (!Number.isFinite(h) || h <= 0) throw new ApiError(422, 42210, '工时必须大于 0')
+  if (h > 24) throw new ApiError(422, 42210, '单张工单工时不能超过 24 小时，跨天的请拆单')
+
+  const weight = pointWeightOf(w.category)
+  const points = calcPoints(w.category, h)
+  const period = String(w.finishTime || w.createTime || DATA_DATE).slice(0, 7)
+  const before = w.laborPoints || 0
+
+  Object.assign(w, {
+    laborHours: Math.round(h * 100) / 100, laborPoints: points, laborPointWeight: weight,
+    pointRuleVersion: POINT_RULE.version, pointsPeriod: period, pointsStatus: '待结算',
+    pointsBy: ctx.body?.operator || ctx.user.name, pointsAt: DATA_DATE
+  })
+  /* 重记时旧流水标「已作废」而不是删除：绩效争议要看得到改过几次 */
+  for (const e of pointLedger) {
+    if (e.woId === w.woId && e.status !== '已作废') e.status = '已作废'
+  }
+  const rec = {
+    ledgerId: 'PL' + String(pointLedger.length + 1).padStart(5, '0'),
+    empId: (employees.find(e => e.name === w.assignee) || {}).empId || '',
+    empName: w.assignee || '', woId: w.woId, woNo: w.woNo, communityId: w.communityId,
+    category: w.category, hours: Math.round(h * 100) / 100, weight, points, period,
+    ruleVersion: POINT_RULE.version, status: '待结算', beforePoints: before,
+    at: DATA_DATE, by: ctx.body?.operator || ctx.user.name, remark: ctx.body?.remark || ''
+  }
+  pointLedger.unshift(rec)
+  bumpVer('wo', w.woId)
+  return { workOrder: woRow(w), ledger: { ...rec } }
+})
+
+on('GET', '/labor-points/summary', (ctx) => {
+  const empId = String(ctx.query.empId || '')
+  const period = String(ctx.query.period || '')
+  const list = pointLedger.filter(e =>
+    e.status !== '已作废' && (!empId || e.empId === empId) && (!period || e.period === period))
+  const m = new Map()
+  for (const e of list) {
+    const key = e.empId + '|' + e.period
+    const cur = m.get(key) || { empId: e.empId, empName: e.empName, period: e.period, orders: 0, hours: 0, points: 0 }
+    cur.orders += 1
+    cur.hours = r2(cur.hours + e.hours)
+    cur.points = Math.round((cur.points + e.points) * 10) / 10
+    m.set(key, cur)
+  }
+  return { rows: [...m.values()].sort((a, b) => b.points - a.points), perfConversion: PERF_CONVERSION_STATE }
+})
+
+/* ---------------- 多种经营收入报表（2026-11-02） ---------------- */
+const MR_DONE = ['已完工', '已评价', '已关闭']
+const COOP_STATUS = ['履行中', '即将到期', '已到期']
+
+/** 当年与合同期重叠的月数；跨年合同不会把整年收入挤进签约当年 */
+function yearCoverMonths(c, year) {
+  const ys = new Date(`${year}-01-01`)
+  const ye = new Date(`${year}-12-31`)
+  const a = new Date(String(c.startDate || '').slice(0, 10))
+  const b = new Date(String(c.endDate || '').slice(0, 10))
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0
+  const from = a > ys ? a : ys
+  const to = b < ye ? b : ye
+  if (to < from) return 0
+  return Math.min(12, Math.round((to - from) / 86400000 / 30.44 * 10) / 10)
+}
+const reportYear = q => Number(q.year) || Number(String(DATA_DATE).slice(0, 4))
+const csOf = (q) => {
+  const rows = workOrders.filter(w => w.type === '商业服务' && MR_DONE.includes(w.status)
+    && (!q.communityId || w.communityId === q.communityId))
+  const paid = rows.filter(w => w.payStatus === '已支付' || w.payStatus === '已挂账')
+  const r2n = n => Math.round((Number(n) || 0) * 100) / 100
+  return {
+    count: rows.length,
+    income: r2n(rows.reduce((s2, w) => s2 + (w.totalFee || 0), 0)),
+    paid: r2n(paid.reduce((s2, w) => s2 + (w.totalFee || 0), 0)),
+    cost: r2n(rows.reduce((s2, w) => s2 + (w.serviceCost || 0), 0)),
+    profit: r2n(rows.reduce((s2, w) => s2 + (w.totalFee || 0) - (w.serviceCost || 0), 0))
+  }
+}
+const coOf = (q) => {
+  const year = reportYear(q)
+  const rows = contracts.filter(c => c.incomeCategory === '多种经营' && COOP_STATUS.includes(c.status)
+    && (!q.communityId || c.communityId === q.communityId))
+  let income = 0
+  let pub = 0
+  let annual = 0
+  let count = 0
+  for (const c of rows) {
+    const cover = yearCoverMonths(c, year)
+    if (!cover) continue
+    count += 1
+    annual += annualRevenueOf(c)
+    income += annualRevenueOf(c) * cover / 12
+    const m = contractMonthsOf(c)
+    if (m) pub += Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0) / m * 12 * cover / 12
+  }
+  return { count, income: r2(income), publicRevenue: r2(pub), annualTotal: r2(annual) }
+}
+
+on('GET', '/reports/multi-revenue', (ctx) => {
+  const q = ctx.query || {}
+  const cs = csOf(q)
+  const co = coOf(q)
+  const total = r2(cs.income + co.income)
+  return {
+    total,
+    service: { count: cs.count, income: cs.income, cost: cs.cost, profit: cs.profit },
+    cooperation: { count: co.count, income: co.income, publicRevenue: co.publicRevenue, annualTotal: co.annualTotal },
+    share: {
+      service: total ? Math.round(cs.income / total * 1000) / 10 : 0,
+      cooperation: total ? Math.round(co.income / total * 1000) / 10 : 0
+    }
+  }
+})
+
+on('GET', '/reports/multi-revenue/monthly', (ctx) => {
+  const q = ctx.query || {}
+  const year = reportYear(q)
+  const buckets = []
+  for (let m = 1; m <= 12; m += 1) {
+    buckets.push({ month: `${m}月`, key: `${year}-${String(m).padStart(2, '0')}`, service: 0, cooperation: 0 })
+  }
+  const idx = new Map(buckets.map(b => [b.key, b]))
+  for (const w of workOrders) {
+    if (w.type !== '商业服务' || !MR_DONE.includes(w.status)) continue
+    if (q.communityId && w.communityId !== q.communityId) continue
+    const b = idx.get(String(w.finishTime || w.createTime || '').slice(0, 7))
+    if (b) b.service += w.totalFee || 0
+  }
+  for (const c of contracts) {
+    if (c.incomeCategory !== '多种经营' || !COOP_STATUS.includes(c.status)) continue
+    if (q.communityId && c.communityId !== q.communityId) continue
+    const a = new Date(String(c.startDate || '').slice(0, 10))
+    const b2 = new Date(String(c.endDate || '').slice(0, 10))
+    for (const b of buckets) {
+      const ms = new Date(`${b.key}-01`)
+      const me = new Date(`${b.key}-01`)
+      me.setMonth(me.getMonth() + 1)
+      me.setDate(0)
+      const from = a > ms ? a : ms
+      const to = b2 < me ? b2 : me
+      if (to < from) continue
+      const days = (to - from) / 86400000 + 1
+      b.cooperation += annualRevenueOf(c) * (days / 365)
+    }
+  }
+  const months = Number(q.months) || 12
+  return buckets
+    .map(b => ({ ...b, service: r2(b.service), cooperation: r2(b.cooperation), total: r2(b.service + b.cooperation) }))
+    .slice(-months)
+})
+
+on('GET', '/reports/multi-revenue/by-project', (ctx) => {
+  const q = ctx.query || {}
+  const year = reportYear(q)
+  const m = new Map()
+  const touch = id => {
+    const key = id || '__all__'
+    if (!m.has(key)) m.set(key, { communityId: id || '', communityName: id ? communityNameOf(id) : '集团 / 全项目', service: 0, cooperation: 0 })
+    return m.get(key)
+  }
+  for (const w of workOrders) {
+    if (w.type !== '商业服务' || !MR_DONE.includes(w.status)) continue
+    if (q.communityId && w.communityId !== q.communityId) continue
+    touch(w.communityId).service += w.totalFee || 0
+  }
+  for (const c of contracts) {
+    if (c.incomeCategory !== '多种经营' || !COOP_STATUS.includes(c.status)) continue
+    if (q.communityId && c.communityId !== q.communityId) continue
+    const cover = yearCoverMonths(c, year)
+    if (!cover) continue
+    touch(c.communityId).cooperation += annualRevenueOf(c) * cover / 12
+  }
+  return [...m.values()]
+    .map(x => ({ ...x, service: r2(x.service), cooperation: r2(x.cooperation), total: r2(x.service + x.cooperation) }))
+    .sort((a, b) => b.total - a.total)
+})
+
+on('GET', '/reports/multi-revenue/contracts', (ctx) => {
+  const q = ctx.query || {}
+  const year = reportYear(q)
+  return contracts
+    .filter(c => c.incomeCategory === '多种经营' && COOP_STATUS.includes(c.status)
+      && (!q.communityId || c.communityId === q.communityId))
+    .map(c => {
+      const cover = yearCoverMonths(c, year)
+      return {
+        contractId: c.contractId, contractNo: c.contractNo, name: c.name, subtype: c.subtype,
+        partyB: c.partyB, communityName: c.communityId ? communityNameOf(c.communityId) : '集团 / 全项目',
+        amount: c.amount, publicRevenue: c.publicRevenue || 0,
+        contractMonths: contractMonthsOf(c), annualRevenue: annualRevenueOf(c),
+        coverMonths: cover, income: r2(annualRevenueOf(c) * cover / 12)
+      }
+    })
+    .filter(x => x.coverMonths > 0)
+    .sort((a, b) => b.income - a.income)
+})
+
 on('GET', '/work-orders', (ctx) => {
   assertInScope(ctx.user, ctx.query)
   const list = woFilter(ctx.user, ctx.query).map(woRow)
@@ -733,6 +3067,52 @@ on('PATCH', '/work-orders/{woId}', (ctx) => {
   bumpVer('wo', w.woId)
   return woRow(w)
 })
+on('POST', '/work-orders', (ctx) => {
+  const p = ctx.body || {}
+  const type = p.type || '报事'
+  if (!['公共区域维修', '商业服务', '报事', '投诉建议', '咨询', '其他'].includes(type)) {
+    throw bad(`type 只能是 公共区域维修 / 商业服务 / 报事 / 投诉建议 / 咨询 / 其他`)
+  }
+  let svc = null
+  if (type === '商业服务') {
+    if (!p.serviceItemCode) throw new ApiError(422, 42207, '商业服务工单要选服务项目：价格与服务范围都写在项目里')
+    svc = serviceItems.find(i => i.code === p.serviceItemCode)
+    if (!svc) throw notFound('服务项目不存在')
+    if (!svc.enabled) throw new ApiError(409, 40924, `「${svc.name}」已停用，请另选项目或先启用`)
+  }
+  if (type === '公共区域维修' && !String(p.category || '').trim()) {
+    throw new ApiError(422, 42207, '公共区域维修要选设施部位（电梯 / 给排水 / 土建…）')
+  }
+  if (!String(p.title || '').trim()) throw bad('工单标题必填')
+  const seq = workOrders.length + 1
+  const wo = {
+    woId: 'WO' + String(seq).padStart(6, '0'),
+    woNo: 'BX' + String(2026) + String(seq).padStart(5, '0'),
+    communityId: p.communityId || 'P01',
+    houseId: p.houseId || '', houseName: p.houseName || '',
+    ownerId: p.ownerId || '', ownerName: p.ownerName || '',
+    type, category: svc ? svc.category : (p.category || ''),
+    source: p.source || '前台', priority: p.priority || '普通', status: '待派单',
+    title: p.title, description: p.description || '',
+    dispatchMode: '待派单', assignee: '', createTime: DATA_DATE,
+    acceptTime: '', arriveTime: '', finishTime: '',
+    /* 金额一律按项目快照写死：字典改价不回溯 */
+    feeType: svc ? '收费' : '免费',
+    materialFee: svc ? svc.material : 0,
+    laborFee: svc ? svc.labor : 0,
+    totalFee: svc ? svc.price : 0,
+    serviceCost: svc ? svc.cost : 0,
+    priceCode: svc ? svc.code : '',
+    serviceName: svc ? svc.name : '',
+    payStatus: svc ? '未支付' : '无需支付',
+    score: 0, isPublic: type === '公共区域维修', slaHours: p.priority === '特急' ? 4 : (p.priority === '紧急' ? 8 : 24),
+    _ver: 1
+  }
+  workOrders.unshift(wo)
+  resetSvcCache()
+  return woRow(wo)
+})
+
 on('POST', '/work-orders/batch', (ctx) => {
   const ids = ctx.body?.woIds
   const patchData = ctx.body?.patch || {}
@@ -804,6 +3184,10 @@ on('POST', '/tenants/{tenantId}/verify', (ctx) => {
     e.details = miss.map(k => ({ id: t.tenantId, reason: `缺 ${k}` }))
     throw e
   }
+  /* 公司核的是营业执照原件：没有影像件就没有核验依据 */
+  if (pass && (t.tenantType || '个人') === '公司' && !(t.licenseFiles || []).length) {
+    throw new ApiError(422, 42203, '公司租户核验前需先上传营业执照影像件（正本或副本）')
+  }
   t.verifyStatus = pass ? '已核验' : '信息不全'
   if (pass) t.certified = true          /* 核验含实名；人脸另行录入 */
   t.verifiedBy = ctx.body?.verifier || ctx.user.name
@@ -839,6 +3223,102 @@ on('POST', '/tenants/{tenantId}/move-out', (ctx) => {
   bumpVer('tenant', t.tenantId)
   return tenantRow(t, { mask: false })
 })
+/* 营业执照影像件：公司核验的依据。原型只登记元数据，文件本身不落库 */
+on('POST', '/tenants/{tenantId}/license-files', (ctx) => {
+  const t = tenants.find(x => x.tenantId === ctx.params.tenantId)
+  if (!t) throw notFound('租户不存在')
+  if (t.status === '已搬离') throw invalid('已搬离的租户记录不可修改')
+  if ((t.tenantType || '个人') !== '公司') throw invalid('只有公司租户需要营业执照影像件')
+  const files = t.licenseFiles || []
+  const bad = checkFile(ctx.body, files)
+  if (bad) {
+    const dup = bad.includes('传过')
+    throw dup ? new ApiError(409, 40922, bad) : new ApiError(422, 42204, bad)
+  }
+  const rec = {
+    fileId: `LF${String(Date.now()).slice(-6)}${String(files.length + 1).padStart(2, '0')}`,
+    name: String(ctx.body.name).trim(),
+    size: Number(ctx.body.size) || 0,
+    type: String(ctx.body.type).toLowerCase(),
+    uploadedAt: DATA_DATE,
+    uploadedBy: ctx.body?.operator || ctx.user.name
+  }
+  t.licenseFiles = [...files, rec]
+  bumpVer('tenant', t.tenantId)
+  return { files: t.licenseFiles.map(f => ({ ...f })), file: { ...rec } }
+})
+on('DELETE', '/tenants/{tenantId}/license-files/{fileId}', (ctx) => {
+  const t = tenants.find(x => x.tenantId === ctx.params.tenantId)
+  if (!t) throw notFound('租户不存在')
+  if (t.status === '已搬离') throw invalid('已搬离的租户记录不可修改')
+  const files = t.licenseFiles || []
+  if (!files.some(f => f.fileId === ctx.params.fileId)) throw notFound('营业执照影像件不存在或已被删除')
+  t.licenseFiles = files.filter(f => f.fileId !== ctx.params.fileId)
+  bumpVer('tenant', t.tenantId)
+  return { files: t.licenseFiles.map(f => ({ ...f })) }
+})
+
+/**
+ * 换承租主体：个人 ↔ 公司。
+ * 一次性做完「迁移联系人 / 清另一套字段 / 撤销人脸 / 复位核验」，不留半截状态。
+ */
+on('POST', '/tenants/{tenantId}/change-type', (ctx) => {
+  const t = tenants.find(x => x.tenantId === ctx.params.tenantId)
+  if (!t) throw notFound('租户不存在')
+  if (t.status === '已搬离') throw invalid('已搬离的租户不能换承租主体，请重新登记')
+  const to = ctx.body?.toType
+  const from = t.tenantType || '个人'
+  if (!['个人', '公司'].includes(to)) throw bad('toType 只能是 个人 / 公司')
+  if (to === from) throw new ApiError(409, 40921, `该租户已经是「${to}」，无需转换`)
+  const reason = String(ctx.body?.reason || '').trim()
+  if (reason.length < 4) throw invalid('换承租主体要写清原因（至少 4 个字），这条记录将来要用来解释"为什么换过"')
+  const patch = ctx.body?.patch || {}
+  if (to === '公司') {
+    const companyName = String(patch.companyName ?? t.companyName ?? '').trim()
+    const creditCode = String(patch.creditCode ?? t.creditCode ?? '').trim().toUpperCase()
+    if (companyName.length < 2) throw new ApiError(422, 42203, '换为公司要把公司名称填上（至少 2 个字）')
+    const cc = creditCodeCheck(creditCode)
+    if (cc) throw new ApiError(422, 42203, cc)
+    Object.assign(t, {
+      tenantType: '公司', name: companyName, companyName, creditCode,
+      idCard: '', relation: '企业承租',
+      legalPerson: patch.legalPerson ?? '', legalPersonPhone: patch.legalPersonPhone ?? '',
+      agentName: patch.agentName ?? t.name ?? '', agentPhone: patch.agentPhone ?? t.phone ?? '',
+      agentIdCard: patch.agentIdCard ?? t.idCard ?? '',
+      businessCategory: patch.businessCategory ?? '', leasePurpose: patch.leasePurpose ?? '',
+      regAddress: patch.regAddress ?? '', establishDate: patch.establishDate ?? '',
+      employeeCount: Number(patch.employeeCount) || Number(t.residents) || 1
+    })
+  } else {
+    const name = String(patch.name ?? t.name ?? '').trim()
+    const phone = String(patch.phone ?? t.phone ?? '').trim()
+    if (name.length < 2) throw new ApiError(422, 42203, '换为个人要把姓名填上（至少 2 个字）')
+    if (!/^1[3-9]\d{9}$/.test(phone)) throw new ApiError(422, 42203, '换为个人要留一个 11 位手机号，否则现场联系不上')
+    Object.assign(t, {
+      tenantType: '个人', name, phone,
+      idCard: patch.idCard ?? t.agentIdCard ?? '',
+      relation: patch.relation || '承租人',
+      residents: Number(patch.residents) || 1,
+      companyName: '', creditCode: '', legalPerson: '', legalPersonPhone: '',
+      agentName: '', agentPhone: '', agentIdCard: '', businessCategory: '',
+      leasePurpose: '', regAddress: '', establishDate: '', employeeCount: 0,
+      licenseFiles: []
+    })
+  }
+  /* 换主体 = 换证件：人脸与核验都要重来（人脸属于自然人，公司主体没有脸） */
+  t.faceRegistered = false
+  t.certified = false
+  t.verifyStatus = '待核验'
+  t.verifiedBy = ''
+  t.verifiedAt = ''
+  t.typeChangeReason = reason
+  t.typeChangedFrom = from
+  t.updatedBy = ctx.body?.operator || ctx.user.name
+  t.updatedAt = DATA_DATE
+  bumpVer('tenant', t.tenantId)
+  return tenantRow(t, { mask: false })
+})
+
 on('POST', '/tenants/batch-verify', (ctx) => {
   const ids = ctx.body?.tenantIds
   if (!Array.isArray(ids) || !ids.length) throw bad('tenantIds 不能为空')
@@ -851,6 +3331,9 @@ on('POST', '/tenants/batch-verify', (ctx) => {
     if (t.verifyStatus === '已核验') { failed.push({ id, reason: '已核验过' }); continue }
     const miss = tenantCompleteness(t).missingBasic
     if (miss.length) { failed.push({ id, reason: `缺 ${miss.join('、')}` }); continue }
+    if ((t.tenantType || '个人') === '公司' && !(t.licenseFiles || []).length) {
+      failed.push({ id, reason: '缺营业执照影像件' }); continue
+    }
     t.verifyStatus = '已核验'
     t.certified = true
     t.verifiedBy = ctx.body?.operator || ctx.user.name
@@ -1762,12 +4245,43 @@ const CONTRACT_VF = {
 
 const restDaysOf = endDate => daysBetween(DATA_DATE, String(endDate).slice(0, 10))
 
+/** 合同期间月数（与原型 api.js 同口径：30.44 天/月） */
+function contractMonthsOf(c = {}) {
+  const a = String(c.startDate || '').slice(0, 10)
+  const b = String(c.endDate || '').slice(0, 10)
+  if (!a || !b) return 0
+  const days = (new Date(b) - new Date(a)) / 86400000
+  if (!Number.isFinite(days) || days <= 0) return 0
+  return Math.max(1, Math.round(days / 30.44))
+}
+
+/**
+ * 年化商业合作收入 = (合同金额 − 归业主的公共收益) ÷ 期间月数 × 12。
+ * 非多种经营恒为 0 —— 68 份支出合同算进收入会凭空多出 1074 万。
+ */
+function annualRevenueOf(c = {}) {
+  if ((c.incomeCategory || '') !== '多种经营') return 0
+  const m = contractMonthsOf(c)
+  if (!m) return 0
+  const amount = Number(c.amount) || 0
+  const pub = Math.min(Number(c.publicRevenue) || 0, amount)
+  return r2((amount - pub) / m * 12)
+}
+
 /** 合同对外的行：电话一律掩码（相对方是个人时就是个人信息），社区名服务端带出 */
 const contractRow = c => ({
   ...c,
   communityName: c.communityId ? communityNameOf(c.communityId) : '集团层面',
   phone: maskPhone(c.phone),
   restDays: restDaysOf(c.endDate),
+  contractMonths: contractMonthsOf(c),
+  annualRevenue: annualRevenueOf(c),
+  annualPublicRevenue: (() => {
+    if ((c.incomeCategory || '') !== '多种经营') return 0
+    const m = contractMonthsOf(c)
+    if (!m) return 0
+    return r2(Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0) / m * 12)
+  })(),
   changePending: !!c.changePending || contractChanges.some(x => x.contractId === c.contractId && x.status === '待审批')
 })
 
@@ -1777,7 +4291,8 @@ function contractFilter(u, q) {
     .map(contractRow)
     .filter(c => inScopeCommunity(u, c.communityId))
     .filter(c => eq(c.type, q.type) && eq(c.subtype, q.subtype)
-      && eq(c.communityId, q.communityId) && eq(c.status, q.status))
+      && eq(c.communityId, q.communityId) && eq(c.status, q.status)
+      && eq(c.incomeCategory, q.incomeCategory))
     .filter(c => !vf || vf(c))
     .filter(c => kwHit([c.contractNo, c.name, c.partyB, c.contact, c.owner, c.subtype], q.kw))
 }
@@ -1796,7 +4311,17 @@ on('GET', '/contracts/summary', (ctx) => {
     running: rows.filter(c => c.status === '履行中').length,
     expiring: rows.filter(CONTRACT_VF.expiring).length,
     expired: rows.filter(c => c.status === '已到期').length,
-    pending: rows.filter(CONTRACT_VF.pending).length
+    pending: rows.filter(CONTRACT_VF.pending).length,
+    /* 经营口径：合同规模 ≠ 收入规模 */
+    operationCount: rows.filter(c => c.incomeCategory === '多种经营').length,
+    operationAmount: r2(rows.filter(c => c.incomeCategory === '多种经营').reduce((s2, c) => s2 + annualRevenueOf(c), 0)),
+    publicRevenue: r2(rows.filter(c => c.incomeCategory === '多种经营')
+      .reduce((s2, c) => {
+        const m = contractMonthsOf(c)
+        return s2 + (m ? Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0) / m * 12 : 0)
+      }, 0)),
+    expenseCount: rows.filter(c => c.incomeCategory === '不计入').length,
+    mainCount: rows.filter(c => c.incomeCategory === '主营业务').length
   }
 })
 
@@ -1823,6 +4348,17 @@ on('POST', '/contracts', (ctx) => {
   if (miss.length) throw invalid(`缺少必填字段：${miss.join('、')}`)
   if (String(b.endDate) <= String(b.startDate)) throw invalid('结束日期必须晚于开始日期')
   if (!(Number(b.amount) > 0)) throw invalid('合同金额必须大于 0')
+  /* 收入分类与公共收益：非经营合同填公共收益没有意义，且公共收益不能超过合同金额 */
+  const incCat = b.incomeCategory || '不计入'
+  const pub = Number(b.publicRevenue) || 0
+  if (!['主营业务', '多种经营', '不计入'].includes(incCat)) throw invalid('incomeCategory 只能是 主营业务 / 多种经营 / 不计入')
+  if (pub < 0) throw invalid('公共收益金额不能为负数')
+  if (incCat !== '多种经营' && pub > 0) {
+    throw new ApiError(422, 42208, `「${incCat}」的合同不该填公共收益金额 —— 公共收益只来自经营共有部位`)
+  }
+  if (pub > Number(b.amount)) {
+    throw new ApiError(422, 42208, `公共收益金额（${pub}）不能大于合同金额（${b.amount}）`)
+  }
   const seq = contracts.length + 1
   const rec = {
     contractId: 'CT' + String(9000 + seq).slice(1),
@@ -1832,6 +4368,8 @@ on('POST', '/contracts', (ctx) => {
     communityId: b.communityId || '', orgId: b.orgId || '',
     partyB: b.partyB, contact: b.contact || '', phone: b.phone || '',
     amount: r2(Number(b.amount)), payCycle: b.payCycle || '月付',
+    incomeCategory: incCat, publicRevenue: r2(pub),
+    publicRevenueNote: b.publicRevenueNote || '',
     signDate: b.signDate || DATA_DATE, startDate: b.startDate, endDate: b.endDate,
     status: '待审批', owner: ctx.user.name, ownerEmpId: ctx.user.empId || '',
     attachments: 0, remark: b.remark || '',
@@ -2205,6 +4743,11 @@ function empRow(e, { mask = true } = {}) {
     phoneRedacted: mask,
     idCard: mask ? maskId(e.idCard) : e.idCard,
     idCardRedacted: mask,
+    /* 紧急联系人：姓名与关系不脱敏（不是个人号码），电话同手机号一样只给掩码 */
+    emergencyContact: e.emergencyContact || '',
+    emergencyRelation: e.emergencyRelation || '',
+    emergencyPhone: mask ? maskPhone(e.emergencyPhone || '') : (e.emergencyPhone || ''),
+    emergencyPhoneRedacted: mask,
     homeOrgId: e.orgId,
     orgId,
     orgName: (ORG.get(orgId) || {}).name || '-',
@@ -2419,8 +4962,11 @@ on('GET', '/employees/{empId}', (ctx) => {
 
 const EMP_EDITABLE = [
   'position', 'level', 'empType', 'status', 'contractStart', 'contractEnd',
-  'phone', 'idCard', 'socialSecurity', 'regularDate', 'score', 'certificates', 'manager'
+  'phone', 'idCard', 'socialSecurity', 'regularDate', 'score', 'certificates', 'manager',
+  /* 2026-11-04：紧急联系人。与薪资不同，这项越权风险低但漏了代价高，直接开放给有维护权限的角色 */
+  'emergencyContact', 'emergencyRelation', 'emergencyPhone'
 ]
+const EMP_RELATION = ['配偶', '父亲', '母亲', '子女', '兄弟姐妹', '其他']
 /** 这些字段**明确拒绝**而不是静默忽略：静默忽略的结果是前端提示"保存成功"，实际什么都没改 */
 const EMP_READONLY = {
   roleId: '角色走 PATCH /employees/{empId}/role（要留"谁把谁提成主管"的痕迹）',
@@ -2456,6 +5002,15 @@ on('PATCH', '/employees/{empId}', (ctx) => {
   if (sensitive.length && String(reason || '').trim().length < 4) {
     throw invalid(`修改${sensitive.map(k => (k === 'phone' ? '手机号' : '证件号')).join('、')}必须填写原因（至少 4 个字）`)
   }
+  /* 紧急联系人：要么都填、要么都空。只存一半等于没存 —— 出事时打过去不知道该找谁 */
+  const ecName = patch.emergencyContact !== undefined ? String(patch.emergencyContact).trim() : String(e.emergencyContact || '').trim()
+  const ecPhone = patch.emergencyPhone !== undefined ? String(patch.emergencyPhone).trim() : String(e.emergencyPhone || '').trim()
+  const ecRel = patch.emergencyRelation !== undefined ? String(patch.emergencyRelation).trim() : String(e.emergencyRelation || '').trim()
+  if (ecPhone && !/^1[3-9]\d{9}$/.test(ecPhone)) throw invalid('紧急联系电话应为 11 位手机号')
+  if (ecRel && !EMP_RELATION.includes(ecRel)) throw invalid(`与本人关系只能是 ${EMP_RELATION.join(' / ')}`)
+  if (ecPhone && !ecName) throw invalid('填了紧急联系电话，请一并填写联系人姓名（只有号码等于找不到人）')
+  if (ecName && !ecPhone) throw invalid('填了紧急联系人，请一并填写联系电话')
+  if ((ecName || ecPhone) && !ecRel) throw invalid('请选择紧急联系人与本人的关系')
   const beforeRole = roleOfEmp(e)
   const posChanged = patch.position !== undefined && patch.position !== e.position
   for (const k of EMP_EDITABLE) if (patch[k] !== undefined) e[k] = patch[k]
@@ -2483,10 +5038,10 @@ on('POST', '/employees/{empId}/reveal', (ctx) => {
   requirePerm(ctx.user, 'c.employees.view', '缺少权限位 c.employees.view：无权查看员工档案')
   requirePerm(ctx.user, 'a.sensitive.view', '缺少权限位 a.sensitive.view：员工手机 / 证件属个人敏感信息')
   const { fields, reason } = ctx.body || {}
-  if (!Array.isArray(fields) || !fields.length) throw bad('fields 至少一项（phone / idCard）')
-  const LABEL = { phone: '手机号', idCard: '证件号' }
+  if (!Array.isArray(fields) || !fields.length) throw bad('fields 至少一项（phone / idCard / emergencyPhone）')
+  const LABEL = { phone: '手机号', idCard: '证件号', emergencyPhone: '紧急联系电话' }
   const illegal = fields.filter(f => !LABEL[f])
-  if (illegal.length) throw invalid(`不支持揭示 ${illegal.join('、')}，只支持 phone / idCard`)
+  if (illegal.length) throw invalid(`不支持揭示 ${illegal.join('、')}，只支持 phone / idCard / emergencyPhone`)
   const why = String(reason || '').trim()
   if (why.length < 4) throw invalid('请填写揭示原因（至少 4 个字）')
   return {
@@ -3661,6 +6216,8 @@ const orgHeadCount = orgId => {
 const orgRow = o => ({
   orgId: o.orgId, name: o.name, parentId: o.parentId || '', type: o.type,
   leader: o.leader || '', sort: o.sort || 0,
+  /* 负责人列表随组织行下发：组织树与维护表要一次看到"谁是正职、谁在代理" */
+  leaders: leadersOfOrg(o.orgId),
   headcount: orgHeadCount(o.orgId), selfHeadcount: orgSelfCount(o.orgId)
 })
 

@@ -21,7 +21,15 @@ const MAP = {
     已租: 'primary', 已售: 'success', 闲置: 'muted', 不可用: 'danger'
   },
   employee: { 在职: 'success', 试用: 'warning', 离职: 'muted' },
-  house: { 自住: 'primary', 出租: 'success', 空置: 'warning', 装修中: 'info', 限制使用: 'danger' },
+  /* 房屋六态（2026-11-02）：配色对齐现场《房屋状态》看板——
+     已入住绿 / 装修未入住紫 / 正在装修黄 / 已交房未装修靛 / 未交房橙红 / 空置房灰。
+     颜色不是装饰：看板上一眼扫过去要知道哪栋楼基本住满、哪栋还在工地上。 */
+  house: {
+    已入住: 'success', 装修未入住: 'info', 正在装修: 'warning',
+    已交房未装修: 'primary', 未交房: 'danger', 空置房: 'muted'
+  },
+  /* 租客类型：公司用主色（主体是企业，看板上要和"个人"分开扫） */
+  tenantType: { 个人: 'muted', 公司: 'primary' },
   alarmLevel: { 紧急: 'danger', 重要: 'warning', 一般: 'primary', 提示: 'muted' },
   priority: { 特急: 'danger', 紧急: 'warning', 普通: 'info' },
   vehicle: { 正常: 'success', 欠费: 'warning', 黑名单: 'danger', 未授权: 'muted' },

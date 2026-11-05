@@ -1,0 +1,221 @@
+{
+  "easycom": {
+    "autoscan": true
+  },
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "工作台"
+      }
+    },
+    {
+      "path": "pages/tasks/list",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的任务",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/wo/list",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "工单"
+      }
+    },
+    {
+      "path": "pages/msg/list",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "消息"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/tasks/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "任务详情"
+      }
+    },
+    {
+      "path": "pages/tasks/checkin",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "开工打卡"
+      }
+    },
+    {
+      "path": "pages/tasks/exec",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "逐项执行"
+      }
+    },
+    {
+      "path": "pages/tasks/submit",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "提交结果"
+      }
+    },
+    {
+      "path": "pages/wo/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "工单详情"
+      }
+    },
+    {
+      "path": "pages/oa/list",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "审批"
+      }
+    },
+    {
+      "path": "pages/oa/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "审批详情"
+      }
+    },
+    {
+      "path": "pages/oa/apply",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "发起申请"
+      }
+    },
+    {
+      "path": "pages/rectify/list",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "整改闭环"
+      }
+    },
+    {
+      "path": "pages/rectify/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "整改详情"
+      }
+    },
+    {
+      "path": "pages/building/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的楼栋"
+      }
+    },
+    {
+      "path": "pages/attendance/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的考勤"
+      }
+    },
+    {
+      "path": "pages/payroll/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的工资条"
+      }
+    },
+    {
+      "path": "pages/finance/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "费用看板"
+      }
+    },
+    {
+      "path": "pages/tasks/wo-create",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "转工单"
+      }
+    },
+    {
+      "path": "pages/building/house",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "业主与房屋"
+      }
+    },
+    {
+      "path": "pages/building/collect",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "批量催缴"
+      }
+    },
+    {
+      "path": "pages/building/tenant",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "租户档案"
+      }
+    },
+    {
+      "path": "pages/payroll/commission",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的提成"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#f1f2fa",
+    "backgroundColorTop": "#f1f2fa",
+    "backgroundColorBottom": "#f1f2fa",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff"
+  },
+  "tabBar": {
+    "color": "#8a94b0",
+    "selectedColor": "#5b6cff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "fontSize": "11px",
+    "height": "52px",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "工作台"
+      },
+      {
+        "pagePath": "pages/tasks/list",
+        "text": "任务"
+      },
+      {
+        "pagePath": "pages/wo/list",
+        "text": "工单"
+      },
+      {
+        "pagePath": "pages/msg/list",
+        "text": "消息"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  }
+}

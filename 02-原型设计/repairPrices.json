@@ -1,0 +1,449 @@
+{
+ "_note": "维修服务价目 = PC 后台「商业服务项目」字典，业主端下单页、员工端现场增项、提成核算、工单计费四处共用同一份。字段只增不改：material/labor/unit/minutes/code 被两端按名索引，改名会断链。price = material + labor（服务价格对外报价）；cost = materialCost + laborCost（成本价，材料按成本价过账 + 工时成本）。",
+ "version": "2026-11-02",
+ "laborHourCost": 48,
+ "_laborHourCostNote": "维修师傅小时成本（含社保与管理分摊），用于算 laborCost；改这一项不影响对外报价",
+ "tradeOpts": [
+  "水暖",
+  "电工",
+  "木工",
+  "空调",
+  "泥瓦",
+  "综合",
+  "电梯"
+ ],
+ "chargeMode": {
+  "_note": "付费入户维修的收费时点：下单先付(material+labor)，现场增项由业主确认后合并到同一订单后付。",
+  "prepayWhenOrder": true,
+  "addonPaidOnSite": true
+ },
+ "publicCategories": [
+  {
+   "code": "PC01",
+   "name": "电梯",
+   "desc": "轿厢、层门、按钮与五方对讲的故障报修；困人应急处置由维保单位 30 分钟内到场",
+   "sort": 10,
+   "enabled": true
+  },
+  {
+   "code": "PC02",
+   "name": "给排水",
+   "desc": "楼道、地下室、屋面的渗漏与积水；公共管道堵塞与阀门更换",
+   "sort": 20,
+   "enabled": true
+  },
+  {
+   "code": "PC03",
+   "name": "公区照明",
+   "desc": "楼道、地库、园区路灯与应急照明的灯具与线路",
+   "sort": 30,
+   "enabled": true
+  },
+  {
+   "code": "PC04",
+   "name": "配电",
+   "desc": "配电箱、电表箱、公共插座与线路；涉及停电的按特急处理",
+   "sort": 40,
+   "enabled": true
+  },
+  {
+   "code": "PC05",
+   "name": "土建",
+   "desc": "地砖、墙砖、台阶、散水、护栏的破损与空鼓",
+   "sort": 50,
+   "enabled": true
+  },
+  {
+   "code": "PC06",
+   "name": "门窗五金",
+   "desc": "单元门、防火门、闭门器、门禁读头的五金与开合",
+   "sort": 60,
+   "enabled": true
+  },
+  {
+   "code": "PC07",
+   "name": "公共设备",
+   "desc": "中央空调、新风、水泵、消防设施的运行异常（专业维保另派）",
+   "sort": 70,
+   "enabled": true
+  },
+  {
+   "code": "PC08",
+   "name": "道闸门禁",
+   "desc": "车行道闸、人行闸机、可视对讲的故障",
+   "sort": 80,
+   "enabled": true
+  },
+  {
+   "code": "PC09",
+   "name": "环境其他",
+   "desc": "绿化、景观水系、垃圾房、公共标识等非设备类问题",
+   "sort": 90,
+   "enabled": true
+  }
+ ],
+ "serviceCategories": [
+  {
+   "code": "SC01",
+   "name": "水管漏水",
+   "desc": "角阀、软管、明管渗漏；不含暗管开墙（另计拆旧与修复）",
+   "sort": 10,
+   "enabled": true
+  },
+  {
+   "code": "SC02",
+   "name": "下水道堵塞",
+   "desc": "台盆、地漏、马桶、厨房立管的疏通；主管道需开挖的另计",
+   "sort": 20,
+   "enabled": true
+  },
+  {
+   "code": "SC03",
+   "name": "电路故障",
+   "desc": "空开跳闸、线路老化、插座无电的排查与更换",
+   "sort": 30,
+   "enabled": true
+  },
+  {
+   "code": "SC04",
+   "name": "照明不亮",
+   "desc": "灯具与光源更换；灯具本身由业主自备或另计",
+   "sort": 40,
+   "enabled": true
+  },
+  {
+   "code": "SC05",
+   "name": "门锁故障",
+   "desc": "门锁检修、锁芯更换、把手与合页调整",
+   "sort": 50,
+   "enabled": true
+  },
+  {
+   "code": "SC06",
+   "name": "门窗损坏",
+   "desc": "门窗五金、滑轨、密封条的调整与更换",
+   "sort": 60,
+   "enabled": true
+  },
+  {
+   "code": "SC07",
+   "name": "空调不制冷",
+   "desc": "挂机/柜机的清洗、加氟、滤网与排水管处理",
+   "sort": 70,
+   "enabled": true
+  },
+  {
+   "code": "SC08",
+   "name": "瓷砖空鼓",
+   "desc": "空鼓、起翘的局部修补（≤2㎡）；大面积重铺另计",
+   "sort": 80,
+   "enabled": true
+  },
+  {
+   "code": "SC09",
+   "name": "墙面开裂",
+   "desc": "裂缝修补与找平（≤1㎡）；涉及结构安全的转工程部评估",
+   "sort": 90,
+   "enabled": true
+  },
+  {
+   "code": "SC10",
+   "name": "其他",
+   "desc": "无法归类的上门服务；检测费可在后续维修中抵扣",
+   "sort": 100,
+   "enabled": true
+  }
+ ],
+ "projects": [
+  {
+   "communityId": "P01",
+   "name": "翡翠城",
+   "enabled": true,
+   "commissionRate": 0.35,
+   "minCommission": 8,
+   "grabArriveMinutes": 15,
+   "abandonLimit": 3,
+   "materialsChargedAtCost": true,
+   "_note": "提成只按人工费计提，材料费按成本价过账、不参与提成"
+  },
+  {
+   "communityId": "P02",
+   "name": "星光天地",
+   "enabled": true,
+   "commissionRate": 0.32,
+   "minCommission": 8,
+   "grabArriveMinutes": 20,
+   "abandonLimit": 3,
+   "materialsChargedAtCost": true
+  },
+  {
+   "communityId": "P03",
+   "name": "锦绣家园",
+   "enabled": true,
+   "commissionRate": 0.3,
+   "minCommission": 8,
+   "grabArriveMinutes": 20,
+   "abandonLimit": 2,
+   "materialsChargedAtCost": true
+  }
+ ],
+ "items": [
+  {
+   "code": "RP-W01",
+   "category": "水管漏水",
+   "name": "角阀/软管更换（含材料）",
+   "trade": "水暖",
+   "material": 35,
+   "labor": 90,
+   "price": 125,
+   "materialCost": 35,
+   "laborCost": 32,
+   "cost": 67,
+   "unit": "次",
+   "minutes": 40,
+   "enabled": true,
+   "sort": 10,
+   "desc": "角阀、软管、明管渗漏；不含暗管开墙（另计拆旧与修复）"
+  },
+  {
+   "code": "RP-W02",
+   "category": "下水道堵塞",
+   "name": "下水道疏通（台盆/地漏）",
+   "trade": "水暖",
+   "material": 0,
+   "labor": 120,
+   "price": 120,
+   "materialCost": 0,
+   "laborCost": 40,
+   "cost": 40,
+   "unit": "次",
+   "minutes": 50,
+   "enabled": true,
+   "sort": 20,
+   "desc": "台盆、地漏、马桶、厨房立管的疏通；主管道需开挖的另计"
+  },
+  {
+   "code": "RP-E01",
+   "category": "电路故障",
+   "name": "线路排查与空开更换",
+   "trade": "电工",
+   "material": 45,
+   "labor": 110,
+   "price": 155,
+   "materialCost": 45,
+   "laborCost": 48,
+   "cost": 93,
+   "unit": "次",
+   "minutes": 60,
+   "enabled": true,
+   "sort": 30,
+   "desc": "空开跳闸、线路老化、插座无电的排查与更换"
+  },
+  {
+   "code": "RP-E02",
+   "category": "照明不亮",
+   "name": "灯具/光源更换（不含灯具）",
+   "trade": "电工",
+   "material": 0,
+   "labor": 60,
+   "price": 60,
+   "materialCost": 0,
+   "laborCost": 20,
+   "cost": 20,
+   "unit": "盏",
+   "minutes": 25,
+   "enabled": true,
+   "sort": 40,
+   "desc": "灯具与光源更换；灯具本身由业主自备或另计"
+  },
+  {
+   "code": "RP-M01",
+   "category": "门锁故障",
+   "name": "门锁检修 / 锁芯更换",
+   "trade": "木工",
+   "material": 60,
+   "labor": 80,
+   "price": 140,
+   "materialCost": 60,
+   "laborCost": 32,
+   "cost": 92,
+   "unit": "次",
+   "minutes": 40,
+   "enabled": true,
+   "sort": 50,
+   "desc": "门锁检修、锁芯更换、把手与合页调整"
+  },
+  {
+   "code": "RP-M02",
+   "category": "门窗损坏",
+   "name": "门窗五金调整",
+   "trade": "木工",
+   "material": 25,
+   "labor": 70,
+   "price": 95,
+   "materialCost": 25,
+   "laborCost": 28,
+   "cost": 53,
+   "unit": "次",
+   "minutes": 35,
+   "enabled": true,
+   "sort": 60,
+   "desc": "门窗五金、滑轨、密封条的调整与更换"
+  },
+  {
+   "code": "RP-A01",
+   "category": "空调不制冷",
+   "name": "空调清洗加氟（挂机）",
+   "trade": "空调",
+   "material": 80,
+   "labor": 150,
+   "price": 230,
+   "materialCost": 80,
+   "laborCost": 56,
+   "cost": 136,
+   "unit": "台",
+   "minutes": 70,
+   "enabled": true,
+   "sort": 70,
+   "desc": "挂机/柜机的清洗、加氟、滤网与排水管处理"
+  },
+  {
+   "code": "RP-T01",
+   "category": "瓷砖空鼓",
+   "name": "瓷砖空鼓修补（≤2㎡）",
+   "trade": "泥瓦",
+   "material": 55,
+   "labor": 130,
+   "price": 185,
+   "materialCost": 55,
+   "laborCost": 72,
+   "cost": 127,
+   "unit": "处",
+   "minutes": 90,
+   "enabled": true,
+   "sort": 80,
+   "desc": "空鼓、起翘的局部修补（≤2㎡）；大面积重铺另计"
+  },
+  {
+   "code": "RP-P01",
+   "category": "墙面开裂",
+   "name": "墙面裂缝修补（≤1㎡）",
+   "trade": "泥瓦",
+   "material": 40,
+   "labor": 100,
+   "price": 140,
+   "materialCost": 40,
+   "laborCost": 64,
+   "cost": 104,
+   "unit": "处",
+   "minutes": 80,
+   "enabled": true,
+   "sort": 90,
+   "desc": "裂缝修补与找平（≤1㎡）；涉及结构安全的转工程部评估"
+  },
+  {
+   "code": "RP-O01",
+   "category": "其他",
+   "name": "上门检测（可抵扣维修费）",
+   "trade": "综合",
+   "material": 0,
+   "labor": 50,
+   "price": 50,
+   "materialCost": 0,
+   "laborCost": 16,
+   "cost": 16,
+   "unit": "次",
+   "minutes": 20,
+   "enabled": true,
+   "sort": 100,
+   "desc": "无法归类的上门服务；检测费可在后续维修中抵扣"
+  }
+ ],
+ "addons": [
+  {
+   "code": "AD-D01",
+   "category": "其他",
+   "name": "拆旧 / 清运",
+   "trade": "综合",
+   "material": 0,
+   "labor": 80,
+   "price": 80,
+   "materialCost": 0,
+   "laborCost": 48,
+   "cost": 48,
+   "unit": "项",
+   "minutes": 60,
+   "enabled": true,
+   "sort": 10,
+   "desc": "拆除旧件并清运垃圾；按项计"
+  },
+  {
+   "code": "AD-D02",
+   "category": "其他",
+   "name": "高空作业（外立面/挑空）",
+   "trade": "综合",
+   "material": 0,
+   "labor": 120,
+   "price": 120,
+   "materialCost": 0,
+   "laborCost": 72,
+   "cost": 72,
+   "unit": "次",
+   "minutes": 90,
+   "enabled": true,
+   "sort": 20,
+   "desc": "外立面、挑空区域的作业；含安全绳与保险"
+  },
+  {
+   "code": "AD-D03",
+   "category": "其他",
+   "name": "夜间 / 节假日加急",
+   "trade": "综合",
+   "material": 0,
+   "labor": 100,
+   "price": 100,
+   "materialCost": 0,
+   "laborCost": 36,
+   "cost": 36,
+   "unit": "次",
+   "minutes": 45,
+   "enabled": true,
+   "sort": 30,
+   "desc": "20:00 后或法定节假日的加急上门"
+  },
+  {
+   "code": "AD-D04",
+   "category": "其他",
+   "name": "超出范围的辅材（玻璃胶/管件等）",
+   "trade": "综合",
+   "material": 60,
+   "labor": 0,
+   "price": 60,
+   "materialCost": 60,
+   "laborCost": 16,
+   "cost": 76,
+   "unit": "份",
+   "minutes": 20,
+   "enabled": true,
+   "sort": 40,
+   "desc": "超出标准配置的辅材，按份计（玻璃胶、管件、膨胀螺栓等）"
+  },
+  {
+   "code": "AD-D05",
+   "category": "其他",
+   "name": "二次上门（业主原因）",
+   "trade": "综合",
+   "material": 0,
+   "labor": 40,
+   "price": 40,
+   "materialCost": 0,
+   "laborCost": 24,
+   "cost": 24,
+   "unit": "次",
+   "minutes": 30,
+   "enabled": true,
+   "sort": 50,
+   "desc": "业主原因导致需再次上门（不在家、未准备好）"
+  }
+ ]
+}

@@ -17,6 +17,9 @@ import { startServer } from './mock-server.mjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const spec = YAML.parse(fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8'))
 const enums = JSON.parse(fs.readFileSync(path.join(__dirname, 'enums.json'), 'utf8')).enums
+/* 权限位总数从 fixture 读：写死数字的结果是每加一条权限码，就有一批无关用例跟着红 */
+const ALL_PERMS_FIX = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/permissions.json'), 'utf8'))
+const ALL_PERMS_TOTAL = ALL_PERMS_FIX.length
 
 /* ============================ mini schema 校验 ============================ */
 const resolveRef = ref => {
@@ -153,6 +156,200 @@ test('业主详情回明文（详情是已授权语境）', async () => {
   assert(!/\*{4}/.test(r.data.owner.phone), `详情不该脱敏：${r.data.owner.phone}`)
   assert(r.data.owner.phoneRedacted === false, 'phoneRedacted 应为 false')
   assert(Array.isArray(r.data.houses), 'houses 应为数组')
+})
+
+test('客户画像字段：列表脱敏三项个人敏感信息，详情回真值', async () => {
+  const r = await call('GET', '/owners', { query: { size: 5 } })
+  for (const row of r.data.rows) {
+    assert(row.ownerCategory, '业主分类应下发（非敏感，用于分群）')
+    eq(row.economicLevel, '***', '家庭经济状况在列表必须掩码')
+    eq(row.politicalStatus, '***', '政治面貌在列表必须掩码')
+    assert(row.negativeNotes === '' || row.negativeNotes === '***', '负面信息在列表必须掩码')
+    assert(typeof row.pets === 'string', '宠物信息是非敏感字段，应原样下发')
+  }
+
+  const detail = await call('GET', `/owners/${r.data.rows[0].ownerId}`)
+  const o = detail.data.owner
+  /* 注意：这行不能以 [ 开头——上一行以 o = ... 结尾，[ 会被当成成员访问（ASI 坑，踩过一次） */
+  const ECON = ['优渥', '良好', '一般', '困难']
+  assert(ECON.includes(o.economicLevel), `详情应回真实枚举：${o.economicLevel}`)
+  assert(o.economicLevel !== '***', '详情不该是掩码')
+  assert(o.politicalStatus !== '***', '政治面貌详情不该是掩码')
+  assert(['常住', '候鸟', '投资', '出租业主'].includes(o.ownerCategory), '分类取值合法')
+
+  const houses = detail.data.houses
+  assert(houses.length > 0, '详情应带名下房屋')
+  assert(houses.every(h => ['无', '疑似', '已认定', '已整改'].includes(h.decorationViolation)),
+    '违规装修挂在房屋上，取值必须在四档内')
+  assert(houses.some(h => h.deliverDate), '交房日期应有值')
+  assert(houses.filter(h => h.decorationViolation !== '无').every(h => h.decorationResult),
+    '非「无」的违规必须有处理结果——只有标记没有结果等于没跟进')
+})
+
+test('画像字段可内联编辑，枚举脏值被拦', async () => {
+  const list = await call('GET', '/owners', { query: { size: 1 } })
+  const id = list.data.rows[0].ownerId
+
+  const okPatch = await call('PATCH', `/owners/${id}`, { body: { field: 'ownerCategory', value: '投资' } })
+  eq(okPatch.status, 200, '合法枚举应 200')
+  eq(okPatch.data.ownerCategory, '投资', '保存后为新值')
+
+  const bad = await call('PATCH', `/owners/${id}`, { body: { field: 'ownerCategory', value: '随便写' } })
+  eq(bad.status, 422, '枚举外的值应 422')
+  assert(/取值非法/.test(bad.message), `提示应说清取值非法：${bad.message}`)
+
+  const badDate = await call('PATCH', `/owners/${id}`, { body: { field: 'weddingDate', value: '2020/01/01' } })
+  eq(badDate.status, 422, '日期格式不对应 422')
+
+  const okDate = await call('PATCH', `/owners/${id}`, { body: { field: 'weddingDate', value: '2015-05-20' } })
+  eq(okDate.data.weddingDate, '2015-05-20', '合法日期应保存')
+
+  /* 改回去，避免影响后续用例 */
+  await call('PATCH', `/owners/${id}`, { body: { field: 'ownerCategory', value: '常住' } })
+})
+
+const owners_total = async () => (await call('GET', '/owners', { query: { size: 1 } })).data.total
+
+test('业主标签字典：默认只回启用的，ownerCount 为全库口径', async () => {
+  const all = await call('GET', '/owner-tags', { query: { enabled: 'all' } })
+  eq(all.status, 200, 'HTTP 状态')
+  assertSchema(all, 'OwnerTagListEnvelope', 'GET /owner-tags')
+  eq(all.data.rows.length, 12, '字典应有 12 个词条')
+  eq(new Set(all.data.rows.map(t => t.tagId)).size, 12, 'tagId 不能重复')
+  assert(all.data.rows.every(t => t.tagId && t.name && t.category && typeof t.ownerCount === 'number'),
+    '每条要有 tagId / name / category / ownerCount')
+
+  /* 默认（不传 enabled）只回启用中：楼管打开选择弹层看到的就是这批 */
+  const on = await call('GET', '/owner-tags')
+  const expected = all.data.rows.filter(t => t.enabled)
+  eq(on.data.rows.length, expected.length, '默认只回启用中的词条')
+  assert(on.data.rows.every(t => t.enabled), '默认结果里不该有停用词条')
+  eq(all.data.rows.filter(t => !t.enabled).length, 1, '种子里有 1 个停用词条（法律纠纷）')
+
+  /* ownerCount 要与业主表对得上：同一个数在哪都得一样 */
+  const tagged = await call('GET', '/owners', { query: { size: 100, tagId: 'OT05' } })
+  const ot05 = all.data.rows.find(t => t.tagId === 'OT05')
+  assert(ot05.ownerCount > 0, '长期欠费应有人')
+  eq(tagged.data.total, ot05.ownerCount, '列表按该标签筛出的总数应等于 ownerCount')
+
+  const byCat = await call('GET', '/owner-tags', { query: { category: '风险' } })
+  assert(byCat.data.rows.length > 0 && byCat.data.rows.every(t => t.category === '风险'), '分类筛选')
+
+  /* 汇总：几个数之间必须自洽，不能各页各算一套 */
+  const st = await call('GET', '/owner-tags/stats')
+  eq(st.status, 200, 'HTTP 状态')
+  assertSchema(st, 'OwnerTagStatsEnvelope', 'GET /owner-tags/stats')
+  eq(st.data.total, all.data.rows.length, '词条总数对得上')
+  eq(st.data.enabled + st.data.disabled, st.data.total, '启用 + 停用 = 总数')
+  assert(st.data.used > 0 && st.data.used <= st.data.total, 'used 在 0..total 之间')
+  eq(st.data.taggedOwners + st.data.untaggedOwners, await owners_total(), '带标签 + 不带 = 业主总数')
+})
+
+test('标签维护：名称唯一（含停用词条）、tagId 不可改、停用只拦新打', async () => {
+  /* ① 新增 */
+  const c = await call('POST', '/owner-tags', {
+    body: { name: '联调临时标签', category: '行为', color: 'cyan', desc: '契约测试用' }
+  })
+  eq(c.status, 201, '新增应 201')
+  assert(/^OT\d+$/.test(c.data.tagId), `tagId 由服务端生成：${c.data.tagId}`)
+  eq(c.data.enabled, true, '新建默认启用')
+  eq(c.data.ownerCount, 0, '新建时还没人用')
+  const newId = c.data.tagId
+
+  /* ② 重名——已停用的词条也算占用，否则会出现两个「重点关怀」分不清 */
+  const dupLive = await call('POST', '/owner-tags', { body: { name: '重点关怀', category: '关怀' } })
+  eq(dupLive.status, 409, '与启用词条重名应 409')
+  eq(dupLive.code, 40902, '业务码 40902')
+  const dupDead = await call('POST', '/owner-tags', { body: { name: '法律纠纷', category: '风险' } })
+  eq(dupDead.status, 409, '与**已停用**词条重名也要 409')
+
+  const short = await call('POST', '/owner-tags', { body: { name: '字', category: '关怀' } })
+  eq(short.status, 422, '名称太短应 422')
+  const badCat = await call('POST', '/owner-tags', { body: { name: '分类不对', category: '其它' } })
+  eq(badCat.status, 422, '分类非法应 422')
+
+  /* ③ 改名 / 改色 / 改说明 */
+  const p1 = await call('PATCH', `/owner-tags/${newId}`, { body: { name: '联调临时标签（改）', color: 'red' } })
+  eq(p1.status, 200, '改词条应 200')
+  eq(p1.data.name, '联调临时标签（改）', '名称已改')
+  eq(p1.data.color, 'red', '颜色已改')
+
+  const idChange = await call('PATCH', `/owner-tags/${newId}`, { body: { tagId: 'OT99' } })
+  eq(idChange.status, 422, 'tagId 不可修改（业主表引用它）')
+
+  const miss = await call('PATCH', '/owner-tags/OT999', { body: { name: '不存在' } })
+  eq(miss.status, 404, '词条不存在应 404')
+
+  /* ④ 停用：不能再新打，但已打的不受影响 */
+  const off = await call('PATCH', `/owner-tags/${newId}`, { body: { enabled: false } })
+  eq(off.data.enabled, false, '已停用')
+
+  const owner = await call('GET', '/owners', { query: { size: 1 } })
+  const oid = owner.data.rows[0].ownerId
+  const blocked = await call('POST', `/owners/${oid}/tags`, { body: { tagId: newId } })
+  eq(blocked.status, 409, '往停用词条打标签应 409')
+  eq(blocked.code, 40919, '业务码 40919')
+
+  /* 停用的词条依然在列表里（历史标签要能解释），但不在默认选项里 */
+  const afterOff = await call('GET', '/owner-tags', { query: { enabled: 'all' } })
+  assert(afterOff.data.rows.some(t => t.tagId === newId), '停用后仍可在「全部」里看到')
+  const def = await call('GET', '/owner-tags')
+  assert(!def.data.rows.some(t => t.tagId === newId), '默认选项里不该再出现')
+})
+
+test('给业主打标签：楼管能打不能改字典，重复打 / 摘不存在都要说清', async () => {
+  const list = await call('GET', '/owners', { query: { size: 5 } })
+  const blank = list.data.rows.find(o => !(o.tagIds || []).length) || list.data.rows[0]
+  const oid = blank.ownerId
+
+  /* ① 打一个启用中的标签 */
+  const add = await call('POST', `/owners/${oid}/tags`, { body: { tagId: 'OT08' } })
+  eq(add.status, 200, '打标签应 200')
+  assertSchema(add, 'OwnerTagIdsEnvelope', 'POST /owners/{id}/tags')
+  assert(add.data.tagIds.includes('OT08'), '返回的完整标签集应包含它')
+  eq(add.data.tag.name, '意见领袖', '响应带词条，前端不用再查一次字典')
+
+  /* ② 重复打：静默成功会让页面看不出到底有没有生效 */
+  const again = await call('POST', `/owners/${oid}/tags`, { body: { tagId: 'OT08' } })
+  eq(again.status, 409, '重复打应 409')
+  eq(again.code, 40920, '业务码 40920')
+
+  /* ③ 词条不存在 */
+  const noTag = await call('POST', `/owners/${oid}/tags`, { body: { tagId: 'OT999' } })
+  eq(noTag.status, 404, '词条不存在应 404')
+
+  /* ④ 摘掉 */
+  const del = await call('DELETE', `/owners/${oid}/tags/OT08`)
+  eq(del.status, 200, '去标签应 200')
+  assert(!del.data.tagIds.includes('OT08'), '返回集里不应再有它')
+
+  /* ⑤ 摘一个本来就没有的：不能静默成功 */
+  const del2 = await call('DELETE', `/owners/${oid}/tags/OT08`)
+  eq(del2.status, 404, '摘不存在的标签应 404')
+  eq(del2.code, 40409, '业务码 40409')
+
+  /* ⑥ 楼管：能打标签（a.owners.edit），但**不能维护字典**（缺 e.ownerTags.edit） */
+  await asRole('steward', async () => {
+    const scoped = await call('GET', '/owners', { query: { size: 1 } })
+    const sid = scoped.data.rows[0].ownerId
+    const ok = await call('POST', `/owners/${sid}/tags`, { body: { tagId: 'OT04' } })
+    eq(ok.status, 200, '楼管在责任范围内应能打标签')
+
+    const noDict = await call('POST', '/owner-tags', { body: { name: '楼管想加的标签', category: '关怀' } })
+    eq(noDict.status, 403, '楼管不该能维护字典')
+    assert(/e\.ownerTags\.edit/.test(noDict.message), `403 要点名缺哪个权限：${noDict.message}`)
+
+    /* 但读字典必须能读到——不然选择弹层是空的 */
+    const dict = await call('GET', '/owner-tags')
+    eq(dict.status, 200, '楼管必须能读字典（打标签的前置）')
+    assert(dict.data.rows.length > 0, '字典不能是空列表')
+  })
+
+  /* ⑦ 没有 a.owners.view 的账号连字典都读不到 */
+  await asRole('staff', async () => {
+    const denied = await call('GET', '/owner-tags')
+    eq(denied.status, 403, '无业主档案权限的账号读不到标签字典')
+  })
 })
 
 test('业主不存在 → 404 / 40401', async () => {
@@ -358,6 +555,465 @@ test('分页：第 2 页与第 1 页不重叠', async () => {
 })
 
 
+/* ---------------- 商业服务项目（2026-11-02 工单拆分） ---------------- */
+
+test('商业服务项目：价目字典口径自洽，默认只回在售', async () => {
+  const r = await call('GET', '/service-items', { query: { size: 100 } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'ServiceItemPageEnvelope', 'GET /service-items')
+  const rows = r.data.rows
+  assert(rows.length > 0, '应有服务项目样例')
+  for (const it of rows) {
+    eq(it.price, Math.round((it.material + it.labor) * 100) / 100, `${it.code} 服务价格应等于材料+人工`)
+    eq(it.cost, Math.round((it.materialCost + it.laborCost) * 100) / 100, `${it.code} 成本价应等于材料成本+人工成本`)
+    assert(it.cost < it.price, `${it.code} 成本应低于服务价格（否则启用即亏本）`)
+    assert(it.enabled === true, `默认列表不该出现停用项：${it.code}`)
+    assert(typeof it.minutes === 'number', `${it.code} 应有标准工时`)
+  }
+  /* 分类过滤：只回该分类 */
+  const cat = rows[0].category
+  const f = await call('GET', '/service-items', { query: { category: cat, size: 100 } })
+  eq(f.data.rows.every(x => x.category === cat), true, `按分类 ${cat} 过滤`)
+})
+
+test('服务项目：price/cost 由服务端算，分解不自洽与亏本都要拦', async () => {
+  /* 传了 price 也不采信：material+labor 才是唯一口径 */
+  const created = await call('POST', '/service-items', {
+    body: {
+      category: '其他', name: '契约测试 · 上门取件', trade: '综合',
+      material: 10, labor: 40, materialCost: 6, laborCost: 20,
+      price: 999, cost: 1, unit: '次', minutes: 30
+    }
+  })
+  eq(created.status, 200, '新增 HTTP 状态')
+  assertSchema(created, 'ServiceItemEnvelope', 'POST /service-items')
+  eq(created.data.price, 50, '服务价格 = 材料 + 人工（忽略入参 price）')
+  eq(created.data.cost, 26, '成本价 = 材料成本 + 人工成本（忽略入参 cost）')
+  assert(/^SI\d+$/.test(created.data.code), `编号由服务端生成：${created.data.code}`)
+
+  const dup = await call('POST', '/service-items', {
+    body: { category: '其他', name: '契约测试 · 上门取件', material: 10, labor: 40, materialCost: 6, laborCost: 20 }
+  })
+  eq(dup.status, 409, '同分类重名 HTTP 状态')
+  eq(dup.code, 40923, '同分类重名业务码')
+
+  const badCost = await call('POST', '/service-items', {
+    body: { category: '其他', name: '契约测试 · 材料亏本', material: 10, labor: 40, materialCost: 30, laborCost: 5 }
+  })
+  eq(badCost.status, 422, '材料成本高于材料费 HTTP 状态')
+  eq(badCost.code, 42205, '材料成本高于材料费业务码')
+
+  const loss = await call('POST', '/service-items', {
+    body: { category: '其他', name: '契约测试 · 亏本项目', material: 0, labor: 30, materialCost: 0, laborCost: 30 }
+  })
+  eq(loss.status, 422, '成本 ≥ 价格 HTTP 状态')
+  eq(loss.code, 42206, '成本 ≥ 价格业务码')
+})
+
+test('服务项目停用：有在途工单不给停；无引用可停且默认列表不再返回', async () => {
+  const list = await call('GET', '/service-items', { query: { size: 100 } })
+  const busy = list.data.rows.find(x => x.inFlight > 0)
+  assert(busy, '样例里应有被在途工单引用的项目')
+  const stop = await call('POST', `/service-items/${busy.code}/toggle`, { body: { enabled: false } })
+  eq(stop.status, 409, '有在途单停用 HTTP 状态')
+  eq(stop.code, 40924, '有在途单停用业务码')
+  assert(stop.message.includes(String(busy.inFlight)), `提示应说清几张：${stop.message}`)
+
+  const idle = list.data.rows.find(x => x.usedCount === 0)
+  if (idle) {
+    const ok2 = await call('POST', `/service-items/${idle.code}/toggle`, { body: { enabled: false } })
+    eq(ok2.status, 200, '无引用项目停用 HTTP 状态')
+    eq(ok2.data.enabled, false, '停用后 enabled=false')
+    const after = await call('GET', '/service-items', { query: { size: 100 } })
+    assert(!after.data.rows.some(x => x.code === idle.code), '默认列表不再返回停用项')
+    const all = await call('GET', '/service-items', { query: { size: 100, enabled: 'all' } })
+    assert(all.data.rows.some(x => x.code === idle.code), 'enabled=all 仍能查到（停用不删）')
+    await call('POST', `/service-items/${idle.code}/toggle`, { body: { enabled: true } })
+  }
+})
+
+test('商业服务工单：必须绑项目，金额按快照，改价不回溯已完工单', async () => {
+  const items = await call('GET', '/service-items', { query: { size: 100 } })
+  const item = items.data.rows.find(x => x.enabled)
+  assert(item, '应有在售项目')
+
+  const noItem = await call('POST', '/work-orders', { body: { type: '商业服务', title: '没选项目的商业服务' } })
+  eq(noItem.status, 422, '未选项目 HTTP 状态')
+  eq(noItem.code, 42207, '未选项目业务码')
+
+  const created = await call('POST', '/work-orders', {
+    body: {
+      type: '商业服务', serviceItemCode: item.code, title: '契约测试 · 商业服务单',
+      communityId: 'P01', houseId: 'H010110101', priority: '普通'
+    }
+  })
+  eq(created.status, 200, '创建 HTTP 状态')
+  const wo = created.data
+  eq(wo.feeType, '收费', '商业服务是收费单')
+  eq(wo.totalFee, item.price, '服务费 = 项目服务价格')
+  eq(wo.serviceCost, item.cost, '成本快照 = 项目成本价')
+  eq(wo.category, item.category, '分类取项目分类')
+  eq(wo.payStatus, '未支付', '新单未支付')
+  eq(wo.serviceItemCode, item.code, '绑定项目编号')
+
+  /* 改价后：新单按新价，老单不动 */
+  const before = item.price
+  const patched = await call('PATCH', `/service-items/${item.code}`, {
+    body: {
+      category: item.category, name: item.name, trade: item.trade,
+      material: item.material, labor: item.labor + 10,
+      materialCost: item.materialCost, laborCost: item.laborCost,
+      unit: item.unit, minutes: item.minutes, sort: item.sort, desc: item.desc
+    }
+  })
+  eq(patched.status, 200, '改价 HTTP 状态')
+  eq(patched.data.price, Math.round((before + 10) * 100) / 100, '改价后服务价格 +10')
+
+  const oldWo = await call('GET', `/work-orders/${wo.woId}`)
+  eq(oldWo.data.workOrder.totalFee, before, '已创建工单的金额不随字典改价变化（快照）')
+  eq(oldWo.data.workOrder.serviceCost, item.cost, '成本快照同样不变')
+
+  /* 公共区域维修：免费 + 必须有设施部位 */
+  const noCat = await call('POST', '/work-orders', { body: { type: '公共区域维修', title: '公共报修没选部位' } })
+  eq(noCat.code, 42207, '公共区域未选部位业务码')
+  const pub = await call('POST', '/work-orders', {
+    body: { type: '公共区域维修', category: '电梯', title: '契约测试 · 公共电梯异响', communityId: 'P01' }
+  })
+  eq(pub.status, 200, '公共区域建单 HTTP 状态')
+  eq(pub.data.feeType, '免费', '公共区域维修免费')
+  eq(pub.data.totalFee, 0, '公共区域不产生费用')
+  eq(pub.data.payStatus, '无需支付', '公共区域无需支付')
+})
+
+/* ---------------- OA 审批底座（2026-11-03） ---------------- */
+
+test('OA 单据定义：六类齐全，字段是「描述」不是固定列', async () => {
+  const r = await call('GET', '/oa/forms')
+  eq(r.status, 200, 'HTTP 状态')
+  assert(Array.isArray(r.data), '返回数组')
+  eq(r.data.length, 6, '六类单据')
+  const types = r.data.map(f => f.bizType)
+  for (const t of ['用车申请', '费用报销', '请假申请', '加班申请', '用印申请', '采购申请']) {
+    assert(types.includes(t), `应包含 ${t}`)
+  }
+  for (const f of r.data) {
+    assertSchema(f, 'OaFormDef', `GET /oa/forms#${f.bizType}`)
+    assert(f.fields.length >= 4, `${f.bizType} 至少 4 个字段`)
+    for (const fd of f.fields) {
+      assert(fd.key && fd.label && fd.type, `${f.bizType} 字段要有 key/label/type`)
+    }
+  }
+  /* 金额字段标记 role=amount：它决定走基础流程还是超额流程 */
+  const exp = r.data.find(f => f.bizType === '费用报销')
+  const amt = exp.fields.find(f => f.role === 'amount')
+  assert(amt && amt.key === 'amount', '费用报销应有 role=amount 的字段')
+  const car = r.data.find(f => f.bizType === '用车申请')
+  eq(car.fields.some(f => f.role === 'amount'), false, '用车申请没有金额字段')
+})
+
+test('OA 发起：表单校验拦在前，金额决定审批级数', async () => {
+  const base = {
+    expenseType: '办公费', happenDate: '2026-11-01', communityId: 'P01',
+    reason: '十月办公用品采购报销'
+  }
+  /* 缺金额 → 422/42211 */
+  const noAmount = await call('POST', '/oa/requests', { body: { bizType: '费用报销', formData: base } })
+  eq(noAmount.status, 422, '缺必填 HTTP 状态')
+  eq(noAmount.code, 42211, '缺必填业务码')
+  assert(noAmount.message.includes('报销金额'), `提示应点名缺哪个字段：${noAmount.message}`)
+
+  /* 未知类型 */
+  const unknown = await call('POST', '/oa/requests', { body: { bizType: '不存在的单据', formData: {} } })
+  eq(unknown.code, 42211, '未知单据类型业务码')
+
+  /* 3000 → 两级（部门负责人 → 财务复核） */
+  const small = await call('POST', '/oa/requests', {
+    body: { bizType: '费用报销', formData: { ...base, amount: 3000 } }
+  })
+  eq(small.status, 200, '发起 HTTP 状态')
+  assertSchema(small, 'OaRequestEnvelope', 'POST /oa/requests')
+  const a1 = small.data
+  eq(a1.bizId, '', 'OA 单据没有业务实体')
+  eq(a1.status, '待审批', '新建即待审批')
+  eq(a1.amount, 3000, '金额取自 role=amount 字段')
+  eq(a1.flow.length, 2, '3000 元走两级')
+  eq(a1.flow[0].node, '部门负责人审批', '第一级是部门负责人')
+  eq(a1.flow[0].action, '待处理', '节点初始为待处理')
+  assert(a1.formData.expenseType === '办公费', 'formData 原样落库')
+  assert(a1.title.includes('办公费'), `标题带摘要：${a1.title}`)
+
+  /* 8000 → 三级（多一级项目经理） */
+  const big = await call('POST', '/oa/requests', {
+    body: { bizType: '费用报销', formData: { ...base, amount: 8000 } }
+  })
+  eq(big.data.flow.length, 3, '8000 元走三级（超 5000 加项目经理）')
+  eq(big.data.flow[2].node, '项目经理审批', '第三级是项目经理')
+
+  /* 请假：结束时间必须晚于开始时间 */
+  const badPeriod = await call('POST', '/oa/requests', {
+    body: { bizType: '请假申请', formData: {
+      leaveType: '事假', startAt: '2026-11-06 09:00', endAt: '2026-11-05 18:00', hours: 8, reason: '测试'
+    } }
+  })
+  eq(badPeriod.code, 42211, '结束早于开始要拦')
+  assert(badPeriod.message.includes('晚于'), `提示要说明先后：${badPeriod.message}`)
+})
+
+test('OA 撤回：只有「待审批」能撤，撤过再撤 409/40928', async () => {
+  const created = await call('POST', '/oa/requests', {
+    body: { bizType: '用车申请', formData: {
+      useAt: '2026-11-05 09:00', destination: '市住建局', passengers: 2, withDriver: '需司机', reason: '递交备案材料'
+    } }
+  })
+  eq(created.status, 200, '发起 HTTP 状态')
+  const id = created.data.approvalId
+
+  const wd = await call('POST', `/oa/requests/${id}/withdraw`, { body: { reason: '行程取消' } })
+  eq(wd.status, 200, '撤回 HTTP 状态')
+  eq(wd.data.status, '已撤回', '状态变已撤回')
+  eq(wd.data.flow[0].action, '撤回', '首个节点记为撤回')
+  eq(wd.data.flow[0].comment, '行程取消', '撤回原因落库')
+
+  const again = await call('POST', `/oa/requests/${id}/withdraw`, { body: {} })
+  eq(again.status, 409, '重复撤回 HTTP 状态')
+  eq(again.code, 40928, '重复撤回业务码')
+
+  const notFound = await call('POST', '/oa/requests/AP99999/withdraw', { body: {} })
+  eq(notFound.status, 404, '不存在的单 HTTP 状态')
+})
+
+test('OA 流程配置：可改节点、空节点与「超额无阈值」都要拦', async () => {
+  const list = await call('GET', '/oa/flows')
+  eq(list.status, 200, 'HTTP 状态')
+  /* 2026-11-03 起多一种「计划审批」：它同样自带业务实体（noForm），只出现在流程配置里 */
+  eq(list.data.length, 8, '八种（6 类 OA + 合同审批 + 计划审批）')
+  const ht = list.data.find(f => f.bizType === '合同审批')
+  assert(ht, '合同审批也纳管')
+  eq(ht.amountThreshold, 300000, '合同审批 30 万阈值（原硬编码）')
+  eq(ht.overNodes.length, 3, '超额走三级')
+
+  const empty = await call('PUT', '/oa/flows/用车申请', { body: { baseNodes: [] } })
+  eq(empty.status, 422, '空节点 HTTP 状态')
+  eq(empty.code, 42212, '空节点业务码')
+
+  const badBranch = await call('PUT', '/oa/flows/用车申请', {
+    body: { amountThreshold: 0, overNodes: [{ name: '多一级', assigneeType: 'orgLeader' }] }
+  })
+  eq(badBranch.status, 422, '超额流程阈值为 0 HTTP 状态')
+  eq(badBranch.code, 42212, '超额流程阈值为 0 业务码')
+
+  /* 正常改：用车从两级改成一级 */
+  const ok = await call('PUT', '/oa/flows/用车申请', {
+    body: {
+      amountThreshold: 0, overNodes: [],
+      baseNodes: [{ name: '部门负责人审批', assigneeType: 'orgLeader', limitHours: 8, allowReject: true }],
+      note: '契约测试：简化为一级'
+    }
+  })
+  eq(ok.status, 200, '改配置 HTTP 状态')
+  eq(ok.data.baseNodes.length, 1, '节点数已变')
+  eq(ok.data.note, '契约测试：简化为一级', '说明落库')
+
+  /* 新单按新流程走：一级 */
+  const created = await call('POST', '/oa/requests', {
+    body: { bizType: '用车申请', formData: {
+      useAt: '2026-11-06 09:00', destination: '分公司', passengers: 1, reason: '对接工作'
+    } }
+  })
+  eq(created.data.flow.length, 1, '新单用新配置（一级）')
+
+  /* 还原，避免影响其他用例 */
+  await call('PUT', '/oa/flows/用车申请', {
+    body: {
+      amountThreshold: 0, overNodes: [],
+      baseNodes: [
+        { name: '部门负责人审批', assigneeType: 'orgLeader', limitHours: 12, allowReject: true },
+        { name: '行政复核', assigneeType: 'role', roleCode: 'admin', limitHours: 8, allowReject: true }
+      ],
+      note: '用车不涉及金额，两级固定'
+    }
+  })
+})
+
+/* ---------------- 合同收入分类 + 多种经营 + 工时积分（2026-11-02） ---------------- */
+
+test('合同收入分类：只有多种经营产生年化收入，支出合同的年化恒为 0', async () => {
+  const r = await call('GET', '/contracts', { query: { size: 100 } })
+  eq(r.status, 200, 'HTTP 状态')
+  const rows = r.data.rows
+  assert(rows.length > 0, '应有合同样例')
+
+  const cats = new Set(rows.map(c => c.incomeCategory))
+  for (const c of cats) {
+    assert(['主营业务', '多种经营', '不计入'].includes(c), `收入分类取值合法：${c}`)
+  }
+  assert(cats.has('多种经营') && cats.has('不计入'), '样例里应同时有经营与支出合同')
+
+  for (const c of rows) {
+    assert(typeof c.contractMonths === 'number' && c.contractMonths > 0, `${c.contractId} 应有期间月数`)
+    if (c.incomeCategory === '多种经营') {
+      /* 年化 = (金额 − 公共收益) ÷ 月数 × 12 */
+      const expect = Math.round((c.amount - c.publicRevenue) / c.contractMonths * 12 * 100) / 100
+      assert(Math.abs(c.annualRevenue - expect) <= 0.02,
+        `${c.contractId} 年化应 = (金额 − 公共收益) ÷ 月数 × 12：${c.annualRevenue} vs ${expect}`)
+      assert(c.publicRevenue <= c.amount, `${c.contractId} 公共收益不得大于合同金额`)
+      assert(c.annualRevenue > 0, `${c.contractId} 经营合同年化应大于 0`)
+    } else {
+      eq(c.annualRevenue, 0, `${c.contractId}（${c.incomeCategory}）年化应恒为 0`)
+      eq(c.publicRevenue || 0, 0, `${c.contractId} 非经营合同不该有公共收益`)
+    }
+  }
+
+  /* 汇总口径：合同总金额 ≠ 收入，经营年化只算 16 份 */
+  const s = await call('GET', '/contracts/summary')
+  eq(s.status, 200, 'summary HTTP 状态')
+  assert(s.data.operationCount > 0 && s.data.operationCount < s.data.total,
+    `经营合同数应少于总数：${s.data.operationCount}/${s.data.total}`)
+  assert(s.data.expenseCount > 0, '应有支出合同数')
+  assert(s.data.operationAmount > 0 && s.data.operationAmount < s.data.amount,
+    `经营年化应小于合同总额：${s.data.operationAmount} vs ${s.data.amount}`)
+
+  /* 按收入分类筛选 */
+  const f = await call('GET', '/contracts', { query: { size: 100, incomeCategory: '多种经营' } })
+  eq(f.data.rows.every(x => x.incomeCategory === '多种经营'), true, '按收入分类筛选')
+})
+
+test('建合同：非经营合同填公共收益、公共收益超合同金额都要拦', async () => {
+  const base = {
+    name: '契约测试 · 广告位租赁', type: '租赁', subtype: '广告位租赁',
+    partyB: '契约测试广告传媒', amount: 120000,
+    startDate: '2026-01-01', endDate: '2027-12-31', payCycle: '季付'
+  }
+  const wrongCat = await call('POST', '/contracts', {
+    body: { ...base, incomeCategory: '不计入', publicRevenue: 30000 }
+  })
+  eq(wrongCat.status, 422, '非经营合同填公共收益 HTTP 状态')
+  eq(wrongCat.code, 42208, '非经营合同填公共收益业务码')
+
+  const tooMuch = await call('POST', '/contracts', {
+    body: { ...base, incomeCategory: '多种经营', publicRevenue: 200000 }
+  })
+  eq(tooMuch.status, 422, '公共收益超合同金额 HTTP 状态')
+  eq(tooMuch.code, 42208, '公共收益超合同金额业务码')
+
+  const ok = await call('POST', '/contracts', {
+    body: { ...base, incomeCategory: '多种经营', publicRevenue: 72000 }
+  })
+  eq(ok.status, 201, '经营合同建档 HTTP 状态（创建返回 201）')
+  const c = ok.data   /* 创建接口回裸对象，不是 { contract } 包装 */
+  eq(c.incomeCategory, '多种经营', '收入分类落库')
+  eq(c.publicRevenue, 72000, '公共收益落库')
+  eq(c.contractMonths, 24, '期间月数（2026-01-01 → 2027-12-31）')
+  /* (120000 − 72000) ÷ 24 × 12 = 24000 */
+  eq(c.annualRevenue, 24000, '年化商业合作收入')
+  eq(c.status, '待审批', '新建合同进审批，不直接生效')
+})
+
+test('多种经营报表：两分项相加 = 合计，月度与明细都对得上', async () => {
+  const r = await call('GET', '/reports/multi-revenue')
+  eq(r.status, 200, '汇总 HTTP 状态')
+  const d = r.data
+  const sum = Math.round((d.service.income + d.cooperation.income) * 100) / 100
+  eq(d.total, sum, '合计 = 商业服务 + 商业合作')
+  assert(d.total > 0, '样例应有多种经营收入')
+  eq(d.share.service + d.share.cooperation, 100, '两分项占比之和为 100（允许 0.1 误差）', 0.2)
+
+  /* 商业服务只算完工单：明细行数应与 count 一致 */
+  const orders = await call('GET', '/reports/multi-revenue/contracts')
+  eq(orders.data.length, d.cooperation.count, '合同明细行数 = 汇总里的合同数')
+
+  /* 月度：合计应等于汇总（同一年、无月份截断） */
+  const m = await call('GET', '/reports/multi-revenue/monthly', { query: { months: 12 } })
+  eq(m.status, 200, '月度 HTTP 状态')
+  eq(m.data.length, 12, '12 个月')
+  const mSum = Math.round(m.data.reduce((s2, x) => s2 + x.total, 0) * 100) / 100
+  /* 汇总里合同收入乘了「当年覆盖月数」，月度逐月摊同样覆盖范围，两边应基本一致 */
+  assert(Math.abs(mSum - d.total) <= Math.max(1, d.total * 0.02),
+    `月度合计与汇总一致：${mSum} vs ${d.total}`)
+
+  /* 合同明细：income = 年化 × 覆盖月数 ÷ 12 */
+  const cs = await call('GET', '/reports/multi-revenue/contracts')
+  eq(cs.status, 200, '合同明细 HTTP 状态')
+  assert(cs.data.length > 0, '应有计入当年的经营合同')
+  for (const c of cs.data) {
+    const expect = Math.round(c.annualRevenue * c.coverMonths / 12 * 100) / 100
+    assert(Math.abs(c.income - expect) <= 0.02, `${c.contractNo} 计入金额应按覆盖月数折算`)
+    assert(c.coverMonths > 0 && c.coverMonths <= 12, `${c.contractNo} 覆盖月数应在 1–12`)
+    assert(c.publicRevenue <= c.amount, `${c.contractNo} 公共收益不得大于合同金额`)
+  }
+
+  /* 项目排行：各项目相加 = 合计 */
+  const bp = await call('GET', '/reports/multi-revenue/by-project')
+  eq(bp.status, 200, '项目排行 HTTP 状态')
+  const bpSum = Math.round(bp.data.reduce((s2, x) => s2 + x.total, 0) * 100) / 100
+  assert(Math.abs(bpSum - d.total) <= Math.max(1, d.total * 0.02), `项目合计与汇总一致：${bpSum} vs ${d.total}`)
+})
+
+test('工时积分：只公共区域可记，积分 = 工时 × 10 × 部位权重，重记留痕', async () => {
+  const list = await call('GET', '/work-orders', { query: { size: 100 } })
+  const rows = list.data.rows
+  const bizWo = rows.find(w => w.type === '商业服务')
+  const pubDone = rows.find(w => w.type === '公共区域维修'
+    && ['已完工', '已评价', '已关闭'].includes(w.status) && w.assignee)
+  const pubOpen = rows.find(w => w.type === '公共区域维修'
+    && !['已完工', '已评价', '已关闭'].includes(w.status) && w.assignee)
+  assert(bizWo && pubDone && pubOpen, '样例里应同时有商业服务、已完工与未完工的公共工单')
+
+  /* 商业服务不给记：它走提成，重复激励 */
+  const bizTry = await call('POST', `/work-orders/${bizWo.woId}/labor-points`, { body: { hours: 1 } })
+  eq(bizTry.status, 422, '商业服务记积分 HTTP 状态')
+  eq(bizTry.code, 42210, '商业服务记积分业务码')
+  assert(bizTry.message.includes('提成'), `提示应说清原因：${bizTry.message}`)
+
+  /* 未完工不给记 */
+  const openTry = await call('POST', `/work-orders/${pubOpen.woId}/labor-points`, { body: { hours: 1 } })
+  eq(openTry.status, 409, '未完工记积分 HTTP 状态')
+  eq(openTry.code, 40926, '未完工记积分业务码')
+
+  /* 工时越界 */
+  const tooLong = await call('POST', `/work-orders/${pubDone.woId}/labor-points`, { body: { hours: 30 } })
+  eq(tooLong.code, 42210, '工时超过 24 小时业务码')
+
+  /* 正常记：土建权重 1.1，3 小时 → 33 分 */
+  const ok = await call('POST', `/work-orders/${pubDone.woId}/labor-points`, {
+    body: { hours: 3, operator: '契约测试' }
+  })
+  eq(ok.status, 200, '记积分 HTTP 状态')
+  const ledger = ok.data.ledger
+  eq(ledger.hours, 3, '工时落库')
+  eq(ledger.weight, 1.1, '部位权重（土建 1.1）')
+  eq(ledger.points, 33, '积分 = 3 × 10 × 1.1')
+  eq(ledger.status, '待结算', '新记录为待结算')
+  eq(ledger.by, '契约测试', '留痕到人')
+  eq(ledger.ruleVersion, 'POINT-2026-11-01', '带规则版本（改权重不回溯）')
+  assert(/^\d{4}-\d{2}$/.test(ledger.period), `归属期间格式：${ledger.period}`)
+
+  /* 工单上的积分字段同步 */
+  const detail = await call('GET', `/work-orders/${pubDone.woId}`)
+  eq(detail.data.workOrder.laborPoints, 33, '工单积分同步')
+  eq(detail.data.workOrder.pointsStatus, '待结算', '工单结算状态同步')
+
+  /* 重记：旧流水标「已作废」，不是删除 */
+  const again = await call('POST', `/work-orders/${pubDone.woId}/labor-points`, { body: { hours: 2 } })
+  eq(again.data.ledger.points, 22, '重记后积分 = 2 × 10 × 1.1')
+  eq(again.data.ledger.beforePoints, 33, '流水记住改前的值')
+  const logs = await call('GET', `/work-orders/${pubDone.woId}/labor-points`)
+  eq(logs.status, 200, '流水 HTTP 状态')
+  assert(logs.data.length >= 2, `流水应保留历史：${logs.data.length} 条`)
+  eq(logs.data.filter(x => x.status !== '已作废').length, 1, '有效流水只有一条（其余已作废）')
+  eq(logs.data[0].points, 22, '最新一条在最前')
+
+  /* 期间汇总（绩效侧读取口）：已作废的不计入 */
+  const sum = await call('GET', '/labor-points/summary', { query: { period: ledger.period } })
+  eq(sum.status, 200, '汇总 HTTP 状态')
+  assert(Array.isArray(sum.data.rows), '汇总返回行数组')
+  const mine = sum.data.rows.find(x => x.empName === pubDone.assignee)
+  assert(mine, `应有 ${pubDone.assignee} 的期间汇总`)
+  assert(mine.points >= 22, `汇总积分应至少含本次 22 分：${mine.points}`)
+  eq(sum.data.perfConversion.implemented, false, '绩效折算本期未实现（结构已预留）')
+  eq(sum.data.perfConversion.ruleVersion, 'POINT-2026-11-01', '折算规则版本可读')
+})
+
 /* ---------------- 第二批：租户 / 巡检 / 整改 ---------------- */
 
 test('租户列表 schema + 掩码 + 默认不含已搬离', async () => {
@@ -386,6 +1042,207 @@ test('租户详情回明文 + 完整度结构', async () => {
   assert(Array.isArray(c.missingBasic), 'missingBasic 应为数组')
 })
 
+test('房屋六态：枚举收敛、公寓存在、未交房不计费', async () => {
+  const hs = await call('GET', '/owners/OW00001/houses')
+  eq(hs.status, 200, 'HTTP 状态')
+
+  /* 六态必须收敛：旧值（自住/出租/空置/装修中/限制使用）一个都不该再出现。
+     这条断言的价值在于「改枚举时漏改某一处」——漏改的那条会以旧值出现在这里。 */
+  const STATUS = ['已入住', '装修未入住', '正在装修', '已交房未装修', '未交房', '空置房']
+  const all = await call('GET', '/houses?size=500').catch(() => null)
+  const rows = all && all.data && all.data.rows ? all.data.rows : []
+  if (rows.length) {
+    const bad = rows.filter(r => !STATUS.includes(r.useStatus))
+    eq(bad.length, 0, `使用状态必须都在六态内，越界：${bad.slice(0, 3).map(r => r.useStatus).join(',')}`)
+    assert(rows.some(r => r.usage === '公寓'), '用途应包含公寓')
+    assert(rows.every(r => ['住宅', '公寓', '商业'].includes(r.usage)), '用途只能是 住宅 / 公寓 / 商业')
+  }
+
+  /* 未交房不计费：这是六态里唯一会改变账务口径的一档 */
+  const undelivered = (rows.length ? rows : []).filter(r => r.useStatus === '未交房')
+  for (const h of undelivered.slice(0, 3)) {
+    const b = await call('GET', '/bills', { query: { houseId: h.houseId, size: 50 } })
+    eq(b.data.total, 0, `未交房房屋不该有账单（${h.fullName}）`)
+  }
+})
+
+test('租客类型：公司字段齐全、信用代码校验位正确、完整度按类型算', async () => {
+  const list = await call('GET', '/tenants', { query: { size: 100 } })
+  eq(list.status, 200, 'HTTP 状态')
+  const rows = list.data.rows
+  assert(rows.length > 0, '应有租户样例')
+
+  const co = rows.filter(r => r.tenantType === '公司')
+  const per = rows.filter(r => r.tenantType === '个人')
+  assert(co.length > 0 && per.length > 0, '个人与公司都要有样例')
+
+  /* 公司：主体名称一致、凭证是信用代码不是身份证、经办人齐全 */
+  for (const c of co) {
+    eq(c.name, c.companyName, `公司租户 name 应等于 companyName（${c.tenantId}）`)
+    eq(c.idCard, '', '公司主体不押个人身份证')
+    assert(/^\d{2}\d{6}/.test(String(c.creditCode || '')), `信用代码格式不对：${c.creditCode}`)
+    assert(c.legalPerson && c.agentName && c.agentPhone, '法人 / 经办人 / 经办人手机都要有')
+    assert(['餐饮', '零售', '教育培训', '生活服务', '办公', '医疗健康', '其他'].includes(c.businessCategory),
+      `经营类目取值非法：${c.businessCategory}`)
+    /* 完整度按公司口径算：8 项里不该出现个人才有的"与业主关系""居住人数" */
+    const miss = c.completeness.missing || []
+    assert(!miss.includes('与业主关系') && !miss.includes('居住人数'),
+      `公司完整度不该用个人口径：${miss.join(',')}`)
+    eq(c.completeness.total, 8, '公司完整度也是 8 项')
+  }
+
+  /* 个人：不带公司字段 */
+  for (const p of per.slice(0, 5)) {
+    eq(p.companyName, undefined, '个人租户不该有 companyName')
+    assert(p.completeness.total === 8, '个人完整度 8 项')
+  }
+
+  /* 信用代码校验位：服务端校验逻辑与数据必须一致（数据是算出来的，不是编的） */
+  const CC = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+  const W = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+  for (const c of co) {
+    const v = c.creditCode
+    const sum = [...v.slice(0, 17)].reduce((acc, ch, i) => acc + CC.indexOf(ch) * W[i], 0)
+    const k = 31 - (sum % 31)
+    eq(v[17], CC[k === 31 ? 0 : k], `信用代码校验位应正确（${v}）`)
+  }
+})
+
+/* 信用代码生成：测试里要造一个"校验位正确"的代码，否则会被接口自己的校验拦住 */
+function mkCreditCode(seq) {
+  const C = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+  const W2 = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+  /* 结构：登记管理部门(1) + 机构类别(1) + 行政区划(4) + 主体标识(9) + 校验(1) = 18 位 */
+  let body = '915101' + String((seq % 20) + 1).padStart(2, '0')
+  for (let i = 0; i < 9; i += 1) body += C[(seq * 7 + i * 11 + 3) % 31]
+  const sum = [...body].reduce((acc, ch, i) => acc + C.indexOf(ch) * W2[i], 0)
+  const k = 31 - (sum % 31)
+  return body + C[k === 31 ? 0 : k]
+}
+
+test('营业执照影像件：没有它公司核验过不去；格式 / 大小 / 重复都拦住', async () => {
+  /* 找一家"基础信息齐但没影像件"的公司；样例里信息不全的一定没件 */
+  const list = await call('GET', '/tenants', { query: { size: 100 } })
+  const co = list.data.rows.filter(t => t.tenantType === '公司')
+  assert(co.length > 0, '样例里应有公司租户')
+  const noFile = co.find(t => (t.licenseFiles || []).length === 0)
+  assert(noFile, '样例里应有一家缺影像件的公司（正是要测的分支）')
+
+  const gate = await call('POST', `/tenants/${noFile.tenantId}/verify`, { body: { pass: true } })
+  eq(gate.status, 422, '缺影像件时核验 HTTP 状态')
+  eq(gate.code, 42203, '缺影像件时业务码')
+
+  const badType = await call('POST', `/tenants/${noFile.tenantId}/license-files`, {
+    body: { name: '执照.txt', size: 1200, type: 'text/plain' }
+  })
+  eq(badType.status, 422, '非白名单格式 HTTP 状态')
+  eq(badType.code, 42204, '非白名单格式业务码')
+
+  const tooBig = await call('POST', `/tenants/${noFile.tenantId}/license-files`, {
+    body: { name: '执照.jpg', size: 9 * 1024 * 1024, type: 'image/jpeg' }
+  })
+  eq(tooBig.status, 422, '超体积 HTTP 状态')
+  assert(tooBig.message.includes('5 MB'), `提示应说明上限：${tooBig.message}`)
+
+  const ok = await call('POST', `/tenants/${noFile.tenantId}/license-files`, {
+    body: { name: '营业执照正本.pdf', size: 820000, type: 'application/pdf', operator: '契约测试' }
+  })
+  eq(ok.status, 200, '上传 HTTP 状态')
+  eq(ok.data.files.length, 1, '应回最新清单')
+  eq(ok.data.files[0].uploadedBy, '契约测试', '留痕到人')
+
+  const dup = await call('POST', `/tenants/${noFile.tenantId}/license-files`, {
+    body: { name: '营业执照正本.pdf', size: 820000, type: 'application/pdf' }
+  })
+  eq(dup.status, 409, '重复上传 HTTP 状态')
+  eq(dup.code, 40922, '重复上传业务码')
+
+  const detail = await call('GET', `/tenants/${noFile.tenantId}`)
+  eq(detail.data.tenant.completeness.licenseReady, true, '有件后核验依据齐备')
+  eq(detail.data.tenant.completeness.licenseCount, 1, '件数')
+  eq(detail.data.tenant.completeness.total, 8, '影像是门槛，不是第 9 项完整度')
+
+  const del = await call('DELETE', `/tenants/${noFile.tenantId}/license-files/${ok.data.files[0].fileId}`)
+  eq(del.status, 200, '删除 HTTP 状态')
+  eq(del.data.files.length, 0, '删到 0 张')
+  const again = await call('POST', `/tenants/${noFile.tenantId}/verify`, { body: { pass: true } })
+  eq(again.code, 42203, '删完后核验又被拦住（不是静默放行）')
+})
+
+test('个人租户不该有营业执照影像件', async () => {
+  const list = await call('GET', '/tenants', { query: { size: 100 } })
+  const per = list.data.rows.find(t => (t.tenantType || '个人') === '个人')
+  const r = await call('POST', `/tenants/${per.tenantId}/license-files`, {
+    body: { name: '营业执照.jpg', size: 400000, type: 'image/jpeg' }
+  })
+  eq(r.status, 422, '个人租户上传执照 HTTP 状态')
+  assert(r.message.includes('公司'), `提示应说明只有公司需要：${r.message}`)
+})
+
+test('换承租主体：原因必填、目标必备信息、换完撤人脸复位核验', async () => {
+  const list = await call('GET', '/tenants', { query: { size: 100 } })
+  const per = list.data.rows.find(t => (t.tenantType || '个人') === '个人' && t.status === '在住')
+  assert(per, '应有个人租户')
+
+  const noReason = await call('POST', `/tenants/${per.tenantId}/change-type`, {
+    body: { toType: '公司', reason: '换' }
+  })
+  eq(noReason.status, 422, '原因太短 HTTP 状态')
+  assert(noReason.message.includes('原因'), `提示应说明要写原因：${noReason.message}`)
+
+  const noName = await call('POST', `/tenants/${per.tenantId}/change-type`, {
+    body: { toType: '公司', reason: '个体户注册成公司，租约转由公司承继' }
+  })
+  eq(noName.status, 422, '缺公司名 HTTP 状态')
+  eq(noName.code, 42203, '缺公司名业务码')
+
+  const code = mkCreditCode(37)
+  const toCo = await call('POST', `/tenants/${per.tenantId}/change-type`, {
+    body: {
+      toType: '公司', reason: '个体户注册成公司，租约转由公司承继', operator: '契约测试',
+      patch: {
+        companyName: '成都纽扣科技有限公司', creditCode: code, legalPerson: '周牧',
+        legalPersonPhone: '13800138001', agentName: per.name, agentPhone: per.phone,
+        businessCategory: '办公'
+      }
+    }
+  })
+  eq(toCo.status, 200, '换公司 HTTP 状态')
+  assertSchema(toCo, 'TenantEnvelope', 'POST /tenants/{id}/change-type')
+  const t2 = toCo.data
+  eq(t2.tenantType, '公司', '类型已换')
+  eq(t2.name, '成都纽扣科技有限公司', '主体名称随公司名')
+  eq(t2.idCard, '', '公司主体不押个人身份证')
+  eq(t2.relation, '企业承租', '关系按公司口径')
+  eq(t2.faceRegistered, false, '换主体要撤销人脸')
+  eq(t2.certified, false, '换主体要重新实名')
+  eq(t2.verifyStatus, '待核验', '换主体要重新核验')
+  eq(t2.licenseFiles.length, 0, '新公司主体还没有影像件（核验会被拦住）')
+
+  const noLicense = await call('POST', `/tenants/${per.tenantId}/verify`, { body: { pass: true } })
+  eq(noLicense.status, 422, '换公司后未传执照就核验')
+  eq(noLicense.code, 42203, '业务码')
+
+  const same = await call('POST', `/tenants/${per.tenantId}/change-type`, {
+    body: { toType: '公司', reason: '再换一次看看', patch: { companyName: '成都纽扣科技有限公司', creditCode: code } }
+  })
+  eq(same.status, 409, '同类型重复转换 HTTP 状态')
+  eq(same.code, 40921, '同类型重复转换业务码')
+
+  const back = await call('POST', `/tenants/${per.tenantId}/change-type`, {
+    body: {
+      toType: '个人', reason: '公司注销，由原经办人个人续租', operator: '契约测试',
+      patch: { name: '周牧', phone: '13800138001' }
+    }
+  })
+  eq(back.status, 200, '换回个人 HTTP 状态')
+  eq(back.data.tenantType, '个人', '类型已换回')
+  eq(back.data.companyName, '', '公司字段清空（不留脏数据）')
+  eq(back.data.creditCode, '', '信用代码清空')
+  eq(back.data.idCard, per.phone === '' ? '' : back.data.idCard, '证件从经办人迁移过来')
+  eq(back.data.relation, '承租人', '关系回到个人口径')
+})
+
 test('核验：门槛缺项 → 422/42202 并点名缺什么', async () => {
   const list = await call('GET', '/tenants', { query: { verifyStatus: '待核验', size: 100 } })
   const bad = list.data.rows.find(t => t.completeness.missingBasic.length > 0)
@@ -398,7 +1255,8 @@ test('核验：门槛缺项 → 422/42202 并点名缺什么', async () => {
 
 test('核验通过 → 已核验 + 实名成立；随后可录人脸，重复录 422', async () => {
   const list = await call('GET', '/tenants', { query: { verifyStatus: '待核验', size: 100 } })
-  const good = list.data.rows.find(t => t.completeness.missingBasic.length === 0 && !t.faceRegistered)
+  const good = list.data.rows.find(t => t.completeness.missingBasic.length === 0 && !t.faceRegistered
+    && ((t.tenantType || '个人') !== '公司' || (t.licenseFiles || []).length > 0))
   assert(good, '应有基础信息齐全的待核验租户')
   const r = await call('POST', `/tenants/${good.tenantId}/verify`, { body: { pass: true, verifier: '契约测试' } })
   eq(r.status, 200, 'HTTP 状态')
@@ -1573,15 +2431,22 @@ test('角色列表：使用人数按岗位反推，与员工域同一口径', as
   eq(pm.userCount, emp.data.total, '角色上的人数必须等于员工域按 roleId 筛出来的条数')
 
   const gm = r.data.rows.find(x => x.roleId === 'R-GM')
-  eq(gm.permCount, 71, '集团总经理应有 71 个权限位')
-  eq(gm.coverage, Math.round(71 / 72 * 100), '覆盖度 = 已授权 / 全部权限位')
+  /* 不写死数字：每加一条权限码都得回来改断言，改漏了就会在无关的批次里红。
+     口径改成「GM 拿全部权限位，除了 op 不在 view/edit 里的那些」（如 f.inspect.exec）——
+     它们是"执行"能力，通配 view/edit 覆盖不到，这是既有设计而不是漏授。 */
+  /* 2026-11-03 起 op 多了 eval（计划结案评分）：它是**管理动作**不是现场执行，
+     总经理 / 项目经理 / 运营管理部都该有，所以排除条件只留 exec。 */
+  const execOnly = ALL_PERMS_FIX.filter(p => p.op === 'exec').length
+  eq(gm.permCount, ALL_PERMS_TOTAL - execOnly,
+    `集团总经理应有除「执行类 op=exec」外的全部权限位（共 ${ALL_PERMS_TOTAL} 减 ${execOnly}）`)
+  eq(gm.coverage, Math.round(gm.permCount / ALL_PERMS_TOTAL * 100), '覆盖度 = 已授权 / 全部权限位')
 })
 
 test('角色详情：矩阵三层、高敏持有、可见范围', async () => {
   const r = await call('GET', '/roles/R-GM')
   eq(r.status, 200, 'HTTP 状态')
   assertSchema(r, 'RoleDetailEnvelope', 'GET /roles/{id}')
-  eq(r.data.matrix.total, 72, '权限位总数应为 72')
+  eq(r.data.matrix.total, ALL_PERMS_TOTAL, '权限位总数应等于权限字典条数')
   eq(r.data.matrix.granted, r.data.role.permCount, '矩阵已授权数应等于角色 permCount')
   eq(r.data.posture.sensitive.length, 5, 'GM 应持有全部 5 类高敏权限')
   eq(r.data.posture.wideScope, true, 'GM 可跨项目')
@@ -2268,6 +3133,865 @@ test('已月结期间的批次受保护：收紧保留期也删不掉', async ()
 
   const ret = await call('GET', '/reports/retention', { query: { keepDays: 1, keepMonths: 1 } })
   eq(ret.data.keepDays, 1, '参数应透出（运维要能确认自己刚才用了什么策略）')
+})
+
+
+/* ============================ 部门计划（G 域） ============================ */
+test('部门计划：三段考核项、权重闭合、5 分制总分', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/dept-plans')
+  eq(r.status, 200, '计划列表 HTTP 状态')
+  const list = r.data
+  eq(list.length, 4, '四份样例计划')
+
+  const p = list.find(x => x.planId === 'PL202610002')
+  assert(!!p, '找到执行中的那份')
+  assert(Array.isArray(p.items) && p.items.length === 15, `条目 15 条（实际 ${p.items.length}）`)
+
+  const sec = k => p.items.filter(i => i.section === k)
+  eq(sec('q').length, 5, '量化 5 条')
+  eq(sec('m').length, 5, '监控 5 条')
+  eq(sec('k').length, 5, '重点 5 条')
+  eq(sec('m').every(i => i.weight === 0), true, '监控段权重全部为 0')
+
+  const qw = sec('q').reduce((s, i) => s + i.weight, 0)
+  const kw = sec('k').reduce((s, i) => s + i.weight, 0)
+  eq(Math.round((qw + kw) * 100) / 100, 100, `量化 ${qw}% + 重点 ${kw}% = 100%`)
+  eq(p.weightOk, true, '权重校验通过')
+
+  const closed = list.find(x => x.status === '已结案')
+  assert(!!closed, '有已结案的计划')
+  assert(closed.totalScore > 0 && closed.totalScore <= 5,
+    `总分是 5 分制（${closed.totalScore}）`)
+  assert(['A', 'B', 'C', 'D'].includes(closed.grade), `档位合法（${closed.grade}）`)
+
+  const expected = Math.round((closed.selfTotal * 0.2 + closed.reviewTotal * 0.8) * 100) / 100
+  eq(closed.totalScore, expected, `总分 = 自评 ${closed.selfTotal}×20% + 复评 ${closed.reviewTotal}×80%`)
+
+  const draft = list.find(x => x.status === '审批中')
+  eq(draft.totalScore, 0, '没归档的不出分')
+})
+
+test('部门计划：同一部门同月只能一份；非负责人不能提报', async () => {
+  token = await login('pm')
+  const model = (await call('GET', '/dept-plans/PL202610001')).data
+  const body = {
+    planMonth: model.planMonth,
+    orgId: model.orgId,
+    items: model.items.map(i => ({ section: i.section, name: i.name, weight: i.weight }))
+  }
+
+  const dup = await call('POST', '/dept-plans', { body })
+  assert([403, 409].includes(dup.status), `重复提报被拦（实际 ${dup.status}）`)
+  if (dup.status === 409) eq(dup.code, 40925, '同月重复用 40925')
+
+  token = await login('gm')
+  const other = await call('POST', '/dept-plans', {
+    body: { planMonth: '2026-10', orgId: 'O-P03', items: [{ section: 'q', name: '测试指标', weight: 100 }] }
+  })
+  assert(other.status === 403, `总经理不是该部门负责人 → 403（实际 ${other.status}）`)
+  assert(String(other.message).includes('负责人'), `提示不是负责人：${other.message}`)
+})
+
+test('部门计划：审核直改留痕；权重不闭合不给下发', async () => {
+  token = await login('gm')
+  const p = (await call('GET', '/dept-plans/PL202610001')).data
+  eq(p.status, '审批中', '样例在审批中')
+
+  const items = p.items.map(i => ({ ...i }))
+  const q = items.find(i => i.section === 'q')
+  const before = q.weight
+  q.weight = 5
+
+  const r = await call('PATCH', `/dept-plans/${p.planId}/items`, { body: { items } })
+  eq(r.status, 200, '审核直改允许保存（不走驳回、不整单拒绝）')
+  eq(r.data.weightOk, false, '但标记权重不闭合')
+  assert(r.data.reviseLog.length > 0, `改动进 reviseLog（${r.data.reviseLog.length} 条）`)
+  assert(String(r.data.reviseLog[0].field).includes('权重'), `记录到字段：${r.data.reviseLog[0].field}`)
+  assert(String(r.data.reviseLog[0].before) === String(before), `记下改前值 ${before}`)
+
+  const app = await call('POST', `/dept-plans/${p.planId}/approve`)
+  assert(app.status === 422, `权重不闭合不能下发（实际 ${app.status}）`)
+  assert(String(app.message).includes('权重'), `说明原因：${app.message}`)
+
+  const back = items.map(i => ({ ...i }))
+  back.find(i => i.section === 'q').weight = before
+  await call('PATCH', `/dept-plans/${p.planId}/items`, { body: { items: back } })
+  const ok2 = await call('POST', `/dept-plans/${p.planId}/approve`)
+  eq(ok2.status, 200, `改回后可以下发（${ok2.status} ${ok2.message || ''}）`)
+  eq(ok2.data.status, '已批准', '状态进执行')
+})
+
+test('部门计划：执行填报 → 自评按公式算 → 提交完成情况后才是待复评', async () => {
+  token = await login('gm')
+  const p = (await call('GET', '/dept-plans/PL202610002')).data
+  eq(p.status, '执行中', '样例是执行中')
+
+  const qItem = p.items.find(i => i.section === 'q')
+  const target = Number(qItem.target)
+  const reject = Math.round(target * 0.95 * 100) / 100
+  const challenge = Math.round(target * 1.05 * 100) / 100
+
+  /* 恰好达到否决值 → 夹下限 1 分 */
+  let r = await call('PATCH', `/dept-plans/${p.planId}/items/${qItem.taskId}`, {
+    body: { actual: reject }
+  })
+  eq(r.status, 200, '填实际值 HTTP 状态')
+  let row = r.data.items.find(i => i.taskId === qItem.taskId)
+  eq(row.selfScore, 1, `实际 = 否决值 → 自评 1 分（${row.selfScore}）`)
+
+  /* 超过挑战值 → 封顶 5 分 */
+  r = await call('PATCH', `/dept-plans/${p.planId}/items/${qItem.taskId}`, {
+    body: { actual: challenge * 1.2 }
+  })
+  row = r.data.items.find(i => i.taskId === qItem.taskId)
+  eq(row.selfScore, 5, `实际超过挑战值 → 自评封顶 5 分（${row.selfScore}）`)
+
+  /* 中间值按比例 */
+  const mid = reject + (challenge - reject) / 2
+  r = await call('PATCH', `/dept-plans/${p.planId}/items/${qItem.taskId}`, {
+    body: { actual: mid }
+  })
+  row = r.data.items.find(i => i.taskId === qItem.taskId)
+  assert(Math.abs(row.selfScore - 2.5) < 0.2, `区间中点约 2.5 分（实际 ${row.selfScore}）`)
+
+  const w = row.weight
+  eq(row.selfWeighted, Math.round(row.selfScore * w) / 100,
+    `加权 = 分 × 权重/100（${row.selfScore} × ${w}% = ${row.selfWeighted}）`)
+
+  const res = await call('POST', `/dept-plans/${p.planId}/result`)
+  assert(res.status === 200 || res.status === 422,
+    `提交完成情况（实际 ${res.status}：可能因仍有项没填被拦）`)
+  if (res.status === 422) {
+    assert(String(res.message).includes('没填'), `提示还差哪些没填：${res.message}`)
+  } else {
+    eq(res.data.status, '待复评', '提交后进入待复评')
+  }
+})
+
+test('部门计划：没提交完成情况不给复评；归档按 20/80 合成', async () => {
+  token = await login('gm')
+
+  /* 上一轮已经下发、但填报人还没提交完成情况 → 直接复评要被状态拦住 */
+  const approved = (await call('GET', '/dept-plans/PL202610001')).data
+  eq(approved.status, '已批准', '样例已下发、未报完成')
+  const blocked = await call('POST', `/dept-plans/${approved.planId}/review`, {
+    body: { scores: {}, deductions: {} }
+  })
+  assert(blocked.status === 409, `已批准但没报完成 → 不能复评（实际 ${blocked.status}）`)
+  eq(blocked.code, 40926, '用 40926 表示状态不允许')
+  assert(String(blocked.message).includes('提交完成情况'), `说清为什么：${blocked.message}`)
+
+  /* 待复评那份：缺项也拦 */
+  const p = (await call('GET', '/dept-plans/PL202610003')).data
+  eq(p.status, '待复评', '样例是待复评')
+
+  const partial = await call('POST', `/dept-plans/${p.planId}/review`, {
+    body: { scores: {}, deductions: {} }
+  })
+  assert(partial.status === 422, `一项没打分 → 422（实际 ${partial.status}）`)
+  assert(String(partial.message).includes('没打分'), `提示缺几项：${partial.message}`)
+
+  const scores = {}
+  const deductions = {}
+  for (const it of p.items) {
+    if (it.section === 'm') deductions[it.taskId] = Number(it.selfWeighted) || 0
+    else scores[it.taskId] = 4
+  }
+  const r = await call('POST', `/dept-plans/${p.planId}/review`, { body: { scores, deductions } })
+  eq(r.status, 200, '复评归档 HTTP 状态')
+  eq(r.data.status, '已结案', '状态已归档')
+  assert(r.data.totalScore > 0 && r.data.totalScore <= 5, `总分在 0–5（${r.data.totalScore}）`)
+
+  const expect = Math.round((r.data.selfTotal * 0.2 + r.data.reviewTotal * 0.8) * 100) / 100
+  eq(r.data.totalScore, expect, '20/80 合成正确')
+
+  const again = await call('POST', `/dept-plans/${p.planId}/review`, { body: { scores, deductions } })
+  assert(again.status === 409, `归档后不能再评（实际 ${again.status}）`)
+})
+
+test('部门计划：统计口径 —— 只算已归档的平均分，总部职能单列', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/dept-plans/stats')
+  eq(r.status, 200, '统计 HTTP 状态')
+  const st = r.data
+
+  eq(st.planCount, 4, '计划数 4')
+  const sum = st.byStatus.reduce((s, x) => s + x.count, 0)
+  eq(sum, st.planCount, '状态分布合计等于计划总数')
+  eq(st.byExec.reduce((s, x) => s + x.count, 0), st.totalItems, '条目执行分布合计等于条目总数')
+  eq(st.byGrade.reduce((s, x) => s + x.count, 0), st.closedCount, '档位分布合计等于已归档数')
+
+  assert(st.avgScore > 0 && st.avgScore <= 5, `平均分是 5 分制（${st.avgScore}）`)
+  const orgNames = st.byOrg.map(o => o.name)
+  assert(orgNames.length > 0, `按项目分组（${orgNames.join('、')}）`)
+})
+
+test('部门计划：权重必须是 5 的倍数、合计正好 100%（多了少了都拦）', async () => {
+  token = await login('pm')
+  const base = (n, w, section) => ({
+    section, name: n, weight: w, target: 100, dueDate: '2026-11-30', actual: ''
+  })
+
+  /* 95%：草稿允许存，提交才卡 */
+  const created = await call('POST', '/dept-plans', {
+    body: {
+      planMonth: '2026-11', orgId: 'O-P01',
+      items: [base('部门预算执行率', 50, 'q'), base('重点工作按期完成率', 40, 'q'), base('月度重点工作', 5, 'k')]
+    }
+  })
+  eq(created.status, 200, `新建草稿 HTTP 状态（${created.message || ''}）`)
+  const planId = created.data.planId
+  eq(created.data.weightTotal, 95, '草稿权重合计 95% 也允许保存')
+  eq(created.data.weightOk, false, '但标记为不闭合')
+  eq(created.data.weightDiff, 5, '派生字段给出还差 5%')
+
+  const less = await call('POST', `/dept-plans/${planId}/submit`)
+  eq(less.status, 422, `95% 提交被拦（实际 ${less.status}）`)
+  assert(String(less.message).includes('还差 5%'), `说明还差多少：${less.message}`)
+
+  /* 52 + 43 + 5 = 100：合计对了，但不是 5 的倍数 —— 这条最容易漏，
+     因为"合计 100"看起来完全正常，只有逐项看才发现 52 这种填法根本不该存在 */
+  const offStep = await call('PATCH', `/dept-plans/${planId}`, {
+    body: {
+      planMonth: '2026-11', orgId: 'O-P01',
+      items: [base('部门预算执行率', 52, 'q'), base('重点工作按期完成率', 43, 'q'), base('月度重点工作', 5, 'k')]
+    }
+  })
+  eq(offStep.status, 200, '非 5 的倍数也能存草稿（不强迫填对才能存）')
+  eq(offStep.data.weightTotal, 100, '合计确实是 100%')
+  eq(offStep.data.weightOk, false, '但 52 / 43 不是 5 的倍数 → 标记不合规')
+  assert(String(offStep.data.weightMsg).includes('5 的倍数'), `说明只能按 5% 调：${offStep.data.weightMsg}`)
+  assert(String(offStep.data.weightMsg).includes('52%'), `点出是哪一项不合规：${offStep.data.weightMsg}`)
+
+  const stepSubmit = await call('POST', `/dept-plans/${planId}/submit`)
+  eq(stepSubmit.status, 422, '非 5 的倍数提交被拦')
+  assert(String(stepSubmit.message).includes('5 的倍数'), `错误里写明步长：${stepSubmit.message}`)
+
+  /* 105%：超出也要说清 */
+  const over = await call('PATCH', `/dept-plans/${planId}`, {
+    body: {
+      planMonth: '2026-11', orgId: 'O-P01',
+      items: [base('部门预算执行率', 60, 'q'), base('重点工作按期完成率', 40, 'q'), base('月度重点工作', 5, 'k')]
+    }
+  })
+  eq(over.status, 200, '改成 105% 也能存草稿')
+  eq(over.data.weightTotal, 105, '合计 105%')
+  const overSubmit = await call('POST', `/dept-plans/${planId}/submit`)
+  eq(overSubmit.status, 422, '105% 提交被拦')
+  assert(String(overSubmit.message).includes('超出 5%'), `说明超出多少：${overSubmit.message}`)
+
+  /* 调回 100% → 可以提交 */
+  const fixed = await call('PATCH', `/dept-plans/${planId}`, {
+    body: {
+      planMonth: '2026-11', orgId: 'O-P01',
+      items: [base('部门预算执行率', 55, 'q'), base('重点工作按期完成率', 40, 'q'), base('月度重点工作', 5, 'k')]
+    }
+  })
+  eq(fixed.data.weightOk, true, '调回 100% 后闭合')
+  const okSubmit = await call('POST', `/dept-plans/${planId}/submit`)
+  eq(okSubmit.status, 200, `100% 提交成功（${okSubmit.message || ''}）`)
+  eq(okSubmit.data.status, '审批中', '进入审批')
+})
+
+test('组织负责人：一部门多负责人，正职/代理/副职与状态都要能看见', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/orgs/O-P01-T3/leaders')
+  eq(r.status, 200, 'HTTP 状态')
+  const list = r.data
+  assert(list.length >= 2, `该部门应有 2 条以上负责关系（实际 ${list.length}）`)
+  for (const x of list) {
+    assert(['正职', '副职', '代理'].includes(x.duty), `职责取值合法：${x.duty}`)
+    assert(['在期', '已结束', '未生效'].includes(x.state), `状态取值合法：${x.state}`)
+    assert(typeof x.name === 'string' && x.name.length > 0, '负责人姓名由服务端补全')
+    eq(x.active, x.state === '在期', 'active 与 state 一致')
+  }
+  /* 正职已离任、代理在期：这正是"代理顶上"的场景 */
+  const zheng = list.find(x => x.duty === '正职')
+  const proxy = list.find(x => x.duty === '代理')
+  assert(zheng && zheng.state === '已结束', '正职应为「已结束」')
+  assert(proxy && proxy.state === '在期', '代理应为「在期」')
+  assert(proxy.endDate, '代理必须带结束日期')
+  /* 排序：正职在前 */
+  eq(list[0].duty, '正职', '列表按职责排序（正职 → 代理 → 副职）')
+
+  const bad = await call('GET', '/orgs/O-NOT-EXIST/leaders')
+  eq(bad.status, 404, '不存在的组织返回 404')
+})
+
+test('组织负责人：正职唯一（40927）与代理必填结束日期（42213）', async () => {
+  token = await login('gm')
+  const cur = await call('GET', '/orgs/O-P02/leaders')
+  const zheng = cur.data.find(x => x.duty === '正职' && x.active)
+  assert(zheng, 'O-P02 应有在期正职')
+
+  /* 再加一个在期正职 → 409 */
+  const dup = await call('PUT', '/orgs/O-P02/leaders', {
+    body: {
+      leaders: [
+        { empId: zheng.empId, duty: '正职' },
+        { empId: 'EM0001', duty: '正职' }
+      ]
+    }
+  })
+  eq(dup.status, 409, '两个在期正职 HTTP 状态')
+  eq(dup.code, 40927, '两个在期正职业务码')
+
+  /* 代理不填结束日期 → 422 */
+  const noEnd = await call('PUT', '/orgs/O-P02/leaders', {
+    body: { leaders: [{ empId: zheng.empId, duty: '正职' }, { empId: 'EM0001', duty: '代理' }] }
+  })
+  eq(noEnd.status, 422, '代理无结束日 HTTP 状态')
+  eq(noEnd.code, 42213, '代理无结束日业务码')
+  assert(noEnd.message.includes('结束日期'), `提示要说清缺什么：${noEnd.message}`)
+
+  /* 结束日期早于开始日期 → 422 */
+  const badRange = await call('PUT', '/orgs/O-P02/leaders', {
+    body: {
+      leaders: [{
+        empId: zheng.empId, duty: '正职',
+        startDate: '2026-10-10', endDate: '2026-10-01'
+      }]
+    }
+  })
+  eq(badRange.code, 42213, '日期倒挂业务码')
+
+  /* 离职员工 → 422 */
+  const left = await call('PUT', '/orgs/O-P02/leaders', {
+    body: { leaders: [{ empId: 'EM0020', duty: '正职' }] }
+  })
+  if (left.status === 422) eq(left.code, 42213, '离职员工不能当负责人')
+})
+
+test('组织负责人：保存后 orgs.leader 快照同步（不能出现两套人名）', async () => {
+  token = await login('gm')
+  const before = await call('GET', '/orgs', { query: { size: 100 } })
+  const org = before.data.rows.find(o => o.orgId === 'O-P03')
+  assert(org, '应有星光天地项目部')
+  const oldLeader = org.leader
+
+  /* 换个正职：把原来的结束掉，换成另一个人 */
+  const put = await call('PUT', '/orgs/O-P03/leaders', {
+    body: {
+      leaders: [
+        { empId: org.leaders.find(x => x.duty === '正职').empId, duty: '正职', endDate: '2026-10-20' },
+        { empId: 'EM0008', duty: '正职', startDate: '2026-10-21' }
+      ]
+    }
+  })
+  eq(put.status, 200, '保存 HTTP 状态')
+  const nowZheng = put.data.find(x => x.duty === '正职' && x.active)
+  assert(nowZheng, '替换后应有在期正职')
+  assert(nowZheng.name !== oldLeader, `在期正职应换人（原 ${oldLeader}）`)
+
+  /* 组织列表上的 leader 必须跟着变 —— 组织树、被检班组读的是它 */
+  const after = await call('GET', '/orgs', { query: { size: 100 } })
+  const org2 = after.data.rows.find(o => o.orgId === 'O-P03')
+  eq(org2.leader, nowZheng.name, 'orgs.leader 快照同步为新正职')
+  assert((org2.leaders || []).length >= 2, '组织行带出完整负责人列表')
+
+  /* 复原有正职，别把后面的用例带脏 */
+  await call('PUT', '/orgs/O-P03/leaders', {
+    body: { leaders: [{ empId: org.leaders.find(x => x.duty === '正职').empId, duty: '正职' }] }
+  })
+})
+
+
+/* ============================ OA 会签（2026-11-03 第 53 批） ============================ */
+test('OA 会签：一次同意只签一人，全部签完才推进下一级', async () => {
+  token = await login('gm')
+  /* 前面的「流程配置」用例会改写节点，这里显式把采购申请设回会签 ——
+     测试之间共享一个服务实例，不能假设配置还是种子里的样子 */
+  await call('PUT', '/oa/flows/采购申请', {
+    body: {
+      amountThreshold: 10000,
+      baseNodes: [
+        { name: '部门负责人审批', assigneeType: 'orgLeader', signMode: 'all', limitHours: 24, allowReject: true },
+        { name: '项目经理审批', assigneeType: 'projectManager', limitHours: 24, allowReject: true }
+      ],
+      overNodes: []
+    }
+  })
+  const created = await call('POST', '/oa/requests', {
+    body: {
+      bizType: '采购申请',
+      formData: {
+        itemName: 'LED 感应灯具', qty: 120, amount: 18600,
+        communityId: 'P01', supplier: '成都恒光照明', reason: '车库灯具老化，夜间照度不足'
+      }
+    }
+  })
+  eq(created.status, 200, '发起 HTTP 状态')
+  const id = created.data.approvalId
+  const n1 = created.data.flow[0]
+  eq(n1.signMode, 'all', '采购申请第一节点是「会签」')
+  assert(Array.isArray(n1.approvers), '节点带 approvers 名单')
+  assert(n1.approvers.length >= 2, `会签名单至少 2 人（实际 ${n1.approvers.length}）`)
+  for (const p of n1.approvers) {
+    eq(p.action, '待处理', `${p.name} 初始待签`)
+    assert(['正职', '副职', '代理'].includes(p.duty), `名单里的人要有职责：${p.duty}`)
+  }
+  /* 名单里不能有申请人自己 */
+  assert(!n1.approvers.some(p => p.name === created.data.applicant), '会签名单排除申请人本人')
+
+  /* 第一次同意：只签掉一个人，单据仍停在当前节点 */
+  const first = await call('POST', `/oa/requests/${id}/action`, { body: { action: '同意', comment: '预算内' } })
+  eq(first.status, 200, '第一次同意 HTTP 状态')
+  eq(first.data.status, '审批中', '签完一人仍「审批中」')
+  assert(first.data.currentNode.includes('会签'), `当前节点标出会签进度：${first.data.currentNode}`)
+  eq(first.data.flow[0].approvers.filter(p => p.action === '同意').length, 1, '只有一个人被签掉')
+  eq(first.data.flow[0].action, '待处理', '节点整体还是待处理')
+  eq(first.data.flow[1].action, '待处理', '下一节点还没轮到')
+
+  /* 把剩下的签完（人数不定，逐个签） */
+  let cur = first.data
+  let guard = 0
+  while (cur.flow[0].action === '待处理' && guard++ < 8) {
+    const r = await call('POST', `/oa/requests/${id}/action`, { body: { action: '同意' } })
+    eq(r.status, 200, `续签第 ${guard} 次`)
+    cur = r.data
+  }
+  eq(cur.flow[0].action, '同意', '全部签完后节点通过')
+  assert(cur.flow[0].comment.includes('会签'), `节点意见注明会签：${cur.flow[0].comment}`)
+  assert(cur.status === '审批中' || cur.status === '已通过', `整单继续推进或完成：${cur.status}`)
+})
+
+test('OA 会签：一人驳回即整单驳回，其余人标「已跳过」', async () => {
+  token = await login('gm')
+  const created = await call('POST', '/oa/requests', {
+    body: {
+      bizType: '采购申请',
+      formData: {
+        itemName: '对讲机', qty: 6, amount: 4800,
+        communityId: 'P01', reason: '安保巡逻通讯设备老化'
+      }
+    }
+  })
+  const id = created.data.approvalId
+  assert(created.data.flow[0].approvers.length >= 2, '会签名单至少 2 人')
+
+  const r = await call('POST', `/oa/requests/${id}/action`, { body: { action: '驳回', comment: '本季度采购额度已用完' } })
+  eq(r.status, 200, '驳回 HTTP 状态')
+  eq(r.data.status, '已驳回', '整单驳回')
+  eq(r.data.currentNode, '已完成', '当前节点收口')
+  const ap = r.data.flow[0].approvers
+  eq(ap.filter(p => p.action === '驳回').length, 1, '只有一个人是驳回')
+  assert(ap.some(p => p.action === '已跳过'), '其余人标「已跳过」（不是凭空消失）')
+  eq(ap.filter(p => p.action === '待处理').length, 0, '不会有人还挂着待处理')
+  assert(r.data.flow[0].comment.includes('采购额度'), '驳回原因留在节点上')
+
+  /* 已结束的单不能再处理 */
+  const again = await call('POST', `/oa/requests/${id}/action`, { body: { action: '同意' } })
+  eq(again.status, 409, '已结束单据 HTTP 状态')
+  eq(again.code, 40928, '已结束单据业务码')
+})
+
+test('OA 会签：单人节点不受影响（没有 approvers 时签完即推进）', async () => {
+  token = await login('gm')
+  const created = await call('POST', '/oa/requests', {
+    body: {
+      bizType: '用车申请',
+      formData: { useAt: '2026-10-22 09:00', destination: '总部职能中心', reason: '送材料' }
+    }
+  })
+  eq(created.status, 200, '发起用车申请')
+  const n1 = created.data.flow[0]
+  eq(n1.signMode, 'single', '用车申请的部门负责人是单人')
+  eq(n1.approvers.length, 1, '单人节点的名单只有一条')
+  const r = await call('POST', `/oa/requests/${created.data.approvalId}/action`, { body: { action: '同意' } })
+  eq(r.status, 200, '同意 HTTP 状态')
+  eq(r.data.flow[0].action, '同意', '单人节点签完即通过')
+  assert(['审批中', '已通过'].includes(r.data.status), `单据继续推进：${r.data.status}`)
+})
+
+/* ============================ 计划模板（T 域） ============================ */
+
+test('计划模板：六套模板，模板里没有权重（第 60 批）', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/plan-templates')
+  eq(r.status, 200, '模板列表 HTTP 状态')
+  const list = r.data
+  eq(list.length, 6, '六套模板（项目 + 四班组 + 职能兜底）')
+
+  const pm = list.find(t => t.tplId === 'PT01')
+  eq(pm.qCount, 5, '量化 5 条')
+  eq(pm.mCount, 5, '监控 5 条')
+  eq(pm.kCount, 5, '重点 5 条')
+  eq('wq' in pm, false, '模板上没有 wq（段权重已取消）')
+  eq('wk' in pm, false, '模板上没有 wk')
+  eq('weightTotal' in pm, false, '模板上没有 weightTotal（权重不在模板里）')
+  eq(pm.items.some(i => 'weight' in i), false, '条目不带宽权重字段')
+
+  const gc = list.find(t => t.tplId === 'PT03')
+  eq(gc.mCount, 6, '工程组监控多一条（年度维保计划完成率）')
+
+  eq(list.filter(t => !t.checkOk).length, 0, '六套模板内容校验全部通过')
+})
+
+test('计划模板：内容不完整整单拒绝（不落半套）', async () => {
+  token = await login('gm')
+  const before = (await call('GET', '/plan-templates/PT01')).data
+
+  /* 删掉全部量化项 —— 这份模板提报出来的计划没有可计分的内容 */
+  const r1 = await call('PATCH', '/plan-templates/PT01', {
+    body: { items: before.items.filter(i => i.section !== 'q') }
+  })
+  assert(r1.status === 422, `量化段删空 → 422（实际 ${r1.status}）`)
+  assert(String(r1.message).includes('至少要有一条考核项'), `错误说明指出缺考核项：${r1.message}`)
+
+  const after = (await call('GET', '/plan-templates/PT01')).data
+  eq(after.version, before.version, '校验失败时版本号不变（没有半截落库）')
+  eq(after.items.length, before.items.length, '条目没有被改掉')
+
+  /* 正常保存：条目整单提交，版本 +1，响应里依然没有权重 */
+  const r2 = await call('PATCH', '/plan-templates/PT01', {
+    body: { desc: '契约测试改过的说明', items: before.items }
+  })
+  eq(r2.status, 200, '内容完整时保存成功')
+  eq(r2.data.version, before.version + 1, '版本号自增')
+  eq('wq' in r2.data, false, '存回来还是没有 wq')
+})
+
+test('计划模板：同一类部门只能有一个模板', async () => {
+  token = await login('gm')
+  const r = await call('POST', '/plan-templates', {
+    body: {
+      name: '重复的项目经理模板', matchType: '项目',
+      items: [
+        { section: 'q', name: '收入' },
+        { section: 'k', name: '重点工作' }
+      ]
+    }
+  })
+  assert(r.status === 409, `同类重复新建 → 409（实际 ${r.status}）`)
+  assert(String(r.message).includes('已经有'), `提示已存在：${r.message}`)
+})
+
+test('计划模板：按组织自动匹配', async () => {
+  token = await login('gm')
+  const pm = (await call('GET', '/plan-templates/match', { query: { orgId: 'O-P01' } })).data
+  eq(pm.tplId, 'PT01', '项目部 → 项目经理模板')
+
+  const cs = (await call('GET', '/plan-templates/match', { query: { orgId: 'O-P01-T1' } })).data
+  eq(cs.tplId, 'PT02', 'T1 班组 → 客服组模板')
+
+  const gc = (await call('GET', '/plan-templates/match', { query: { orgId: 'O-P02-T2' } })).data
+  eq(gc.tplId, 'PT03', 'T2 班组 → 工程组模板')
+
+  const zn = (await call('GET', '/plan-templates/match', { query: { orgId: 'O-FIN' } })).data
+  eq(zn.tplId, 'PT06', '总部部门 → 职能兜底模板')
+})
+
+test('计划模板：停用后不再参与匹配，已提报的不受影响', async () => {
+  token = await login('gm')
+  const off = await call('PATCH', '/plan-templates/PT05/enabled', { body: { enabled: false } })
+  eq(off.status, 200, '停用模板 HTTP 状态')
+  eq(off.data.enabled, false, '模板已停用')
+
+  const hit = (await call('GET', '/plan-templates/match', { query: { orgId: 'O-P01-T4' } })).data
+  assert(hit === null || hit.tplId !== 'PT05', `T4 班组的模板停用后不再匹配到它（实际 ${hit && hit.tplId}）`)
+
+  const all = (await call('GET', '/plan-templates')).data
+  eq(all.filter(t => t.enabled).length, 5, '列表里只剩 5 套启用')
+
+  const back = await call('PATCH', '/plan-templates/PT05/enabled', { body: { enabled: true } })
+  eq(back.data.enabled, true, '可以再启用（停用不等于删除）')
+})
+
+/* ============================ 员工紧急联系人（2026-11-04） ============================ */
+
+test('员工列表：紧急联系电话与手机同口径，只给掩码', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/employees?pageNo=1&size=5')
+  eq(r.status, 200, '列表 HTTP 状态')
+  const row = r.data.rows[0]
+  assert(row.emergencyContact, `有紧急联系人姓名（${row.emergencyContact}）`)
+  assert(row.emergencyRelation, `有与本人关系（${row.emergencyRelation}）`)
+  eq(/\*/.test(row.emergencyPhone), true, `紧急电话是掩码：${row.emergencyPhone}`)
+  eq(row.emergencyPhoneRedacted, true, '标记为已脱敏')
+  eq(/^\d{11}$/.test(row.emergencyPhone), false, '不返回 11 位明文')
+
+  /* 明文只能走 reveal，且必须留痕 */
+  const empId = row.empId
+  const rv = await call('POST', `/employees/${empId}/reveal`, {
+    /* 揭示要填原因（≥4 字）—— 每一次看明文都得说明为什么看 */
+    body: { fields: ['emergencyPhone'], reason: '核验紧急联系电话是否可拨打' }
+  })
+  eq(rv.status, 200, `揭示接口接受 emergencyPhone（${rv.message || ''}）`)
+  /* 返回是 { fields: [{ field, label, value }] }，不是一个扁平对象 */
+  const hit = (rv.data.fields || []).find(x => x.field === 'emergencyPhone') || {}
+  const plain = hit.value || ''
+  eq(/^\d{11}$/.test(plain), true, `揭示得到 11 位明文：${plain}`)
+})
+
+test('员工档案：紧急联系人要么都填、要么都空', async () => {
+  token = await login('gm')
+  const list = await call('GET', '/employees?pageNo=1&size=3')
+  const empId = list.data.rows[0].empId
+  const detail = await call('GET', `/employees/${empId}`)
+  /* 详情是 { employee, role, org, ... }，版本号在 employee 里 */
+  const ver = detail.data.employee._ver
+
+  /* 只有号码没有姓名 —— 出事时打过去不知道该找谁 */
+  const onlyPhone = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '', emergencyPhone: '13900001111' }, ver }
+  })
+  assert(onlyPhone.status === 422, `只有号码被拒（实际 ${onlyPhone.status}）`)
+  assert(String(onlyPhone.message).includes('姓名'), `说明缺什么：${onlyPhone.message}`)
+
+  /* 只有姓名没有号码 —— 等于没留联系方式 */
+  const onlyName = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '李四', emergencyPhone: '' }, ver }
+  })
+  assert(onlyName.status === 422, `只有姓名被拒（实际 ${onlyName.status}）`)
+  assert(String(onlyName.message).includes('电话'), `说明缺什么：${onlyName.message}`)
+
+  /* 关系不在枚举里 */
+  const badRel = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '李四', emergencyRelation: '同事', emergencyPhone: '13900001111' }, ver }
+  })
+  assert(badRel.status === 422, `关系非法被拒（实际 ${badRel.status}）`)
+  assert(String(badRel.message).includes('关系'), `说明哪一项：${badRel.message}`)
+
+  /* 号码位数不对 */
+  const badPhone = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '李四', emergencyRelation: '配偶', emergencyPhone: '1390000' }, ver }
+  })
+  assert(badPhone.status === 422, `号码格式错被拒（实际 ${badPhone.status}）`)
+  assert(String(badPhone.message).includes('11 位'), `说明格式：${badPhone.message}`)
+
+  /* 三项齐填 → 成功，且版本号推进 */
+  const okPatch = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '李四', emergencyRelation: '配偶', emergencyPhone: '13900001111' }, ver }
+  })
+  eq(okPatch.status, 200, `三项齐填保存成功（${okPatch.message || ''}）`)
+  eq(okPatch.data.emergencyContact, '李四', '姓名已落库')
+  eq(okPatch.data.emergencyRelation, '配偶', '关系已落库')
+  eq(/\*/.test(okPatch.data.emergencyPhone), true, `返回仍是掩码：${okPatch.data.emergencyPhone}`)
+  eq(okPatch.data._ver, ver + 1, '版本号推进一次（整包 patch 只推一次）')
+
+  /* 三项全清空 → 允许（新人还没填） */
+  const cleared = await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '', emergencyRelation: '', emergencyPhone: '' }, ver: okPatch.data._ver }
+  })
+  eq(cleared.status, 200, '三项全清空是合法状态（不是必填）')
+  eq(cleared.data.emergencyContact, '', '姓名已清空')
+
+  /* 改回一个有值的，别让后面的用例拿到空档案 */
+  await call('PATCH', `/employees/${empId}`, {
+    body: { patch: { emergencyContact: '李四', emergencyRelation: '配偶', emergencyPhone: '13900001111' }, ver: cleared.data._ver }
+  })
+})
+
+/* ============================ 办公资产（2026-11-04 第 58 批） ============================ */
+
+test('资产分类：两级树、节点带含下级的资产数', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/asset-categories/tree')
+  eq(r.status, 200, '树接口 HTTP 状态')
+  const roots = r.data
+  assert(Array.isArray(roots) && roots.length >= 4, `大类 ${roots.length} 个`)
+  for (const top of roots) {
+    eq(top.depth, 1, `一级分类「${top.name}」depth=1`)
+    assert(Array.isArray(top.children) && top.children.length > 0, `「${top.name}」有子分类`)
+    for (const kid of top.children) {
+      eq(kid.depth, 2, `二级「${kid.name}」depth=2`)
+      eq(kid.childCount, 0, `二级「${kid.name}」不应再有下级`)
+      assert(kid.assetCountAll >= kid.assetCount, `「${kid.name}」含下级数 ≥ 本级数`)
+    }
+    /* 一级的 assetCountAll 必须等于所有子级之和 —— 否则树上的数字是错的 */
+    const sum = top.children.reduce((s, k) => s + k.assetCount, 0)
+    eq(top.assetCountAll, sum + top.assetCount, `「${top.name}」含下级 = 子级之和 + 本级`)
+  }
+
+  const flat = await call('GET', '/asset-categories')
+  eq(flat.status, 200, '扁平列表 HTTP 状态')
+  assert(flat.data.length >= roots.length, '扁平列表不少于根节点数')
+})
+
+test('资产分类：三级被拒 / 同级重名被拒 / 成环被拒', async () => {
+  token = await login('gm')
+  const tree = (await call('GET', '/asset-categories/tree')).data
+  const top = tree[0]
+  const kid = top.children[0]
+
+  /* 三级：往二级下面再挂一级 */
+  const tooDeep = await call('POST', '/asset-categories', {
+    body: { name: '三级测试', parentId: kid.catId }
+  })
+  assert(tooDeep.status === 422, `三级分类被拒（实际 ${tooDeep.status}）`)
+  assert(String(tooDeep.message).includes('三级分类在录入时'), `说明为什么：${tooDeep.message}`)
+
+  /* 同级重名 */
+  const dup = await call('POST', '/asset-categories', {
+    body: { name: kid.name, parentId: top.catId }
+  })
+  assert(dup.status === 422, `同级重名被拒（实际 ${dup.status}）`)
+  assert(String(dup.message).includes('已存在'), `说清冲突的是谁：${dup.message}`)
+
+  /* 把一级挂到自己的子级下面。
+     注意：在「最多两级」的限制下，这一步会**先被深度校验拦住**（挂到二级下面就成三级了），
+     所以服务端的「成环检查」在这条路径上其实走不到 —— 它是防御性代码（万一以后放开三级）。
+     这里只断言"被拒绝"，不锁死是哪一条理由。 */
+  const cycle = await call('PATCH', `/asset-categories/${top.catId}`, {
+    body: { name: top.name, parentId: kid.catId }
+  })
+  assert(cycle.status === 422, `挂到自己的子级下被拒（实际 ${cycle.status}）`)
+  assert(/2 级|环/.test(String(cycle.message)), `拒绝理由合理：${cycle.message}`)
+})
+
+test('资产分类：有资产的分类不给删，只能停用', async () => {
+  token = await login('gm')
+  const tree = (await call('GET', '/asset-categories/tree')).data
+  const withAssets = tree.flatMap(t => t.children).find(k => k.assetCount > 0)
+  assert(!!withAssets, `找到一个挂了资产的分类（${withAssets?.name} ${withAssets?.assetCount} 件）`)
+
+  const del = await call('POST', `/asset-categories/${withAssets.catId}/remove`)
+  assert(del.status === 409, `删除被拒（实际 ${del.status}）`)
+  eq(del.code, 40927, '用 40927 表示"下面还有东西"')
+  assert(String(del.message).includes('件资产'), `说清有几件：${del.message}`)
+
+  /* 停用是允许的，且停用后不能再往里新增资产 */
+  const off = await call('POST', `/asset-categories/${withAssets.catId}/toggle`)
+  eq(off.status, 200, '停用成功')
+  eq(off.data.enabled, false, 'enabled 已置 false')
+
+  const addInto = await call('POST', '/assets', {
+    body: { name: '停用分类下新增测试', catId: withAssets.catId }
+  })
+  assert(addInto.status === 422, `往停用分类里新增被拒（实际 ${addInto.status}）`)
+  assert(String(addInto.message).includes('已停用'), `说明原因：${addInto.message}`)
+
+  await call('POST', `/asset-categories/${withAssets.catId}/toggle`)  /* 复原 */
+})
+
+test('资产：编号服务端生成且不可改；改动逐字段进 logs', async () => {
+  token = await login('gm')
+  const tree = (await call('GET', '/asset-categories/tree')).data
+  const leaf = tree.flatMap(t => t.children).find(k => k.enabled)
+  assert(!!leaf, `拿到一个可用的末级分类（${leaf?.name}）`)
+
+  const created = await call('POST', '/assets', {
+    body: { name: '契约测试用办公椅', catId: leaf.catId, status: '闲置' }
+  })
+  eq(created.status, 200, `新增 HTTP 状态（${created.message || ''}）`)
+  const a = created.data
+  assert(/^ZC\d{8}$/.test(a.assetNo), `编号格式 ZC{年}{4位}：${a.assetNo}`)
+  eq(a.qrToken.length, 16, `token 是 16 位（${a.qrToken}）`)
+  eq(a.catName, leaf.name, '分类名以快照形式落到资产上')
+  eq(a.status, '闲置', '初始状态闲置')
+
+  /* 编号不可改 */
+  const rename = await call('PATCH', `/assets/${a.assetId}`, {
+    body: { assetNo: 'ZC99999999', ver: a._ver }
+  })
+  assert(rename.status === 422, `改编号被拒（实际 ${rename.status}）`)
+  assert(String(rename.message).includes('不可修改'), `说明原因：${rename.message}`)
+
+  /* 改状态 → logs 里应有一条 闲置 → 在用 */
+  const patched = await call('PATCH', `/assets/${a.assetId}`, {
+    body: { status: '在用', ver: a._ver }
+  })
+  eq(patched.status, 200, `改状态 HTTP 状态（${patched.message || ''}）`)
+  eq(patched.data.status, '在用', '状态已改')
+  eq(patched.data._ver, a._ver + 1, '版本号推进一次')
+  const log = (patched.data.logs || []).find(l => l.field === 'status')
+  assert(!!log, '变更记录里有 status 这一条')
+  eq(log.before, '闲置', '记下了改前值')
+  eq(log.after, '在用', '记下了改后值')
+
+  /* 版本号不对 → 409 */
+  const stale = await call('PATCH', `/assets/${a.assetId}`, {
+    body: { status: '闲置', ver: a._ver }
+  })
+  assert(stale.status === 409, `旧版本号被拒（实际 ${stale.status}）`)
+})
+
+test('资产：设备图片作为附件存在资产上（上限 / 类型 / 留痕）', async () => {
+  token = await login('gm')
+  const one = (await call('GET', '/assets', { query: { size: 1 } })).data.rows[0]
+  const img = {
+    fileId: 'AFTEST1', name: 'office.png',
+    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==', size: 2048, mime: 'image/png'
+  }
+
+  const r = await call('PATCH', `/assets/${one.assetId}`, { body: { files: [img], ver: one._ver } })
+  eq(r.status, 200, `上传图片 HTTP 状态（${r.message || ''}）`)
+  eq(r.data.files.length, 1, '图片存在资产的 files 里')
+  eq(r.data.files[0].kind, 'image', 'kind 标成 image（区分附件与图片）')
+  eq(r.data.files[0].name, 'office.png', '文件名保留')
+
+  const log = (r.data.logs || []).find(l => l.field === 'files')
+  assert(!!log, '变更记录里有 files 这一条')
+  eq(log.fieldLabel, '设备图片', '字段名显示「设备图片」')
+  assert(String(log.after).includes('office.png'), `记录写明文件名：${log.after}`)
+  assert(!String(log.after).includes('base64'), '记录里不写图片内容（否则变更记录没法看）')
+
+  const many = Array.from({ length: 7 }, (_, i) => ({ ...img, fileId: 'AFT' + i, name: `p${i}.png` }))
+  const tooMany = await call('PATCH', `/assets/${one.assetId}`, { body: { files: many, ver: r.data._ver } })
+  eq(tooMany.status, 422, `超过 6 张被拒（实际 ${tooMany.status}）`)
+  assert(String(tooMany.message).includes('最多'), `说明上限：${tooMany.message}`)
+
+  const notImage = await call('PATCH', `/assets/${one.assetId}`, {
+    body: { files: [{ ...img, name: '合同.pdf', url: 'data:application/pdf;base64,AAAA' }], ver: r.data._ver }
+  })
+  eq(notImage.status, 422, '非图片被拒（附件区只管图片，扫描件归合同模块）')
+
+  const tooBig = await call('PATCH', `/assets/${one.assetId}`, {
+    body: { files: [{ ...img, fileId: 'AFBIG', size: 6 * 1024 * 1024 }], ver: r.data._ver }
+  })
+  eq(tooBig.status, 422, '单张超过 5MB 被拒')
+  assert(String(tooBig.message).includes('5MB'), `说明上限：${tooBig.message}`)
+
+  /* 扫码公开接口不返回图片：照片背景里常有工位和同事 */
+  const pub = await call('GET', `/public/assets/${r.data.qrToken}`)
+  eq(pub.status, 200, '公开接口可访问')
+  eq('files' in pub.data.asset, false, '公开视图里没有 files')
+  eq('photos' in pub.data.asset, false, '公开视图里也没有 photos')
+})
+
+test('扫码公开接口：免登录，只回白名单字段', async () => {
+  /* 故意用一个「没有任何资产权限」的账号取 token：公开接口不该受它影响 */
+  token = await login('gm')
+  const list = await call('GET', '/assets', { query: { size: 1 } })
+  assert(list.status === 200 && list.data && Array.isArray(list.data.rows),
+    `资产列表可用（HTTP ${list.status} · ${list.message || ''}）`)
+  const one = list.data.rows[0]
+  const detail = await call('GET', `/assets/${one.assetId}`)
+  const qrToken = detail.data.qrToken
+
+  /* 报废资产也要有码可扫：必须在切到无权限账号之前查（staff 没有 c.assets.view） */
+  const scrapped = (await call('GET', '/assets', { query: { status: '报废', size: 1 } })).data.rows[0]
+
+  /* 换工号最小的账号（工程维修，没有 c.assets.*）再来取——能取到就说明不依赖权限 */
+  token = await login('staff')
+  const pub = await call('GET', `/public/assets/${qrToken}`)
+  eq(pub.status, 200, `免登录可取（用无资产权限的账号访问，${pub.message || 'ok'}）`)
+  eq(pub.data.ok, true, 'ok 为 true')
+
+  const view = pub.data.asset
+  const keys = Object.keys(view).sort()
+  console.log('    · 公开字段：', keys.join(', '))
+  for (const k of ['name', 'assetNo', 'catPath', 'status', 'orgName', 'location', 'warrantyEnd']) {
+    assert(k in view, `返回了 ${k}`)
+  }
+  /* 这几项是硬边界：给了就能被利用 */
+  for (const k of ['holderName', 'price', 'vendor', 'sn', 'remark', 'logs']) {
+    assert(!(k in view), `不返回 ${k}`)
+  }
+  eq('holderEmpId' in view, false, '不返回使用人 ID（姓名已经精确到人，ID 更不该给）')
+
+  /* 无效 token：404，且不区分"格式错"与"不存在" */
+  const bad = await call('GET', '/public/assets/aaaaaaaaaaaaaaaa')
+  assert(bad.status === 404, `无效 token 返回 404（实际 ${bad.status}）`)
+  eq(bad.code, 40410, '用 40410')
+
+  /* 报废资产仍可查 */
+  if (scrapped) {
+    const sp = await call('GET', `/public/assets/${scrapped.qrToken}`)
+    eq(sp.status, 200, '报废资产的码仍可打开（不是 404）')
+    eq(sp.data.scrapped, true, 'scrapped 标记为 true')
+  }
 })
 
 /* ============================ 跑 ============================ */

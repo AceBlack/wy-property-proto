@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Hide, View } from '@element-plus/icons-vue'
 import { canViewSensitive, maskSensitive, revealSensitive } from '@/utils/api'
@@ -40,6 +40,15 @@ const tip = computed(() => {
   if (!allowed.value) return '无「敏感字段明文」权限，仅显示脱敏值'
   if (props.readonly) return '脱敏展示'
   return shown.value ? '收起' : '查看明文（会记录查看留痕）'
+})
+
+/* 换了人或换了值就必须收起来。
+   组件实例会被 diff 复用（同一个位置渲染不同人的手机号），
+   不重置的话：点开 A 的明文再切到 B，B 的位置上显示的仍是 A 的号码 ——
+   既是数据错位，又等于绕过了 B 那一次的揭示留痕。 */
+watch(() => [props.value, props.entityId], () => {
+  shown.value = false
+  plainText.value = ''
 })
 
 function toggle() {

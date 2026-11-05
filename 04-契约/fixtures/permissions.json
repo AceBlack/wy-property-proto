@@ -510,6 +510,26 @@
   "route": ""
  },
  {
+  "code": "e.ownerTags.view",
+  "domain": "e",
+  "domainName": "E 组织与权限",
+  "func": "ownerTags",
+  "funcName": "业主标签字典",
+  "op": "view",
+  "opName": "查看",
+  "route": "/a/owner-tags"
+ },
+ {
+  "code": "e.ownerTags.edit",
+  "domain": "e",
+  "domainName": "E 组织与权限",
+  "func": "ownerTags",
+  "funcName": "业主标签字典",
+  "op": "edit",
+  "opName": "操作",
+  "route": "/a/owner-tags"
+ },
+ {
   "code": "f.workorders.view",
   "domain": "f",
   "domainName": "F 现场运营",
@@ -718,5 +738,55 @@
   "op": "view",
   "opName": "查看",
   "route": "/f/sup-finding"
+ },
+ {
+  "code": "f.plans.view",
+  "domain": "f",
+  "domainName": "F 现场运营",
+  "func": "plans",
+  "funcName": "部门计划",
+  "op": "view",
+  "opName": "查看",
+  "route": "/f/plans"
+ },
+ {
+  "code": "f.plans.edit",
+  "domain": "f",
+  "domainName": "F 现场运营",
+  "func": "plans",
+  "funcName": "部门计划",
+  "op": "edit",
+  "opName": "操作",
+  "route": "/f/plans"
+ },
+ {
+  "code": "f.plans.eval",
+  "domain": "f",
+  "domainName": "F 现场运营",
+  "func": "plans",
+  "funcName": "部门计划",
+  "op": "eval",
+  "opName": "操作",
+  "route": "/f/plans"
+ },
+ {
+  "code": "f.planTpl.view",
+  "domain": "f",
+  "domainName": "F 现场运营",
+  "func": "planTpl",
+  "funcName": "计划模板",
+  "op": "view",
+  "opName": "查看",
+  "route": "/f/plan-templates"
+ },
+ {
+  "code": "f.planTpl.edit",
+  "domain": "f",
+  "domainName": "F 现场运营",
+  "func": "planTpl",
+  "funcName": "计划模板",
+  "op": "edit",
+  "opName": "操作",
+  "route": "/f/plan-templates"
  }
 ]

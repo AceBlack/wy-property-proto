@@ -1,0 +1,840 @@
+/* 全局基础样式：只放「所有页面都要用」的东西，页面自己的样式写在各自 scoped 里。 */
+
+page {
+  background: var(--biz-bg-page);
+  color: var(--biz-text-1);
+  font-family: var(--biz-font-family);
+  font-size: 28rpx;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+view,
+text,
+scroll-view,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+/* ---------- 布局容器 ---------- */
+.page {
+  min-height: 100vh;
+  background: var(--biz-bg-page);
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  flex: 1;
+  padding: 24rpx 28rpx 40rpx;
+}
+
+/* 有底部固定操作条时，正文留出高度，避免遮住最后一张卡 */
+.body--with-foot {
+  padding-bottom: 220rpx;
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--biz-bg-card);
+  border-radius: 24rpx;
+  box-shadow: var(--biz-shadow-card);
+  padding: 28rpx;
+}
+
+.card + .card {
+  margin-top: 24rpx;
+}
+
+.card--flat {
+  box-shadow: none;
+  border: 2rpx solid var(--biz-border-light);
+}
+
+/* ---------- 文本 ---------- */
+.t-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--biz-text-1);
+  line-height: 1.35;
+}
+
+.t-sub {
+  font-size: 24rpx;
+  color: var(--biz-text-3);
+}
+
+.t-body {
+  font-size: 28rpx;
+  color: var(--biz-text-2);
+}
+
+.t-strong {
+  font-weight: 600;
+  color: var(--biz-text-1);
+}
+
+.num {
+  font-family: var(--biz-font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.danger {
+  color: var(--biz-danger);
+}
+
+.warn {
+  color: var(--biz-warning);
+}
+
+.ok {
+  color: var(--biz-success);
+}
+
+.muted {
+  color: var(--biz-text-3);
+}
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 分区标题 ---------- */
+.sec-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.sec-hd__t {
+  flex: none;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--biz-text-2);
+  letter-spacing: 0.5rpx;
+  white-space: nowrap;
+}
+
+/* 分区标题右侧的说明：允许换行，但不许把标题挤到折行 */
+.sec-hd__d {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 20rpx;
+  color: var(--biz-text-4);
+  line-height: 1.4;
+  margin-left: 16rpx;
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  transition: transform 0.12s, opacity 0.12s;
+}
+
+.btn--primary {
+  background: var(--biz-primary);
+  color: #fff;
+  box-shadow: var(--biz-shadow-primary);
+}
+
+.btn--primary:active {
+  background: var(--biz-primary-active);
+  transform: scale(0.99);
+}
+
+.btn--ghost {
+  background: var(--biz-primary-light-9);
+  color: var(--biz-primary);
+}
+
+.btn--line {
+  background: #fff;
+  color: var(--biz-text-2);
+  border: 2rpx solid var(--biz-border);
+}
+
+.btn--danger {
+  background: #fff0f0;
+  color: var(--biz-danger);
+  border: 2rpx solid rgba(236, 77, 99, 0.24);
+}
+
+.btn--sm {
+  height: 64rpx;
+  border-radius: 14rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  padding: 0 24rpx;
+}
+
+.btn--disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* ---------- 底部固定操作条 ---------- */
+.footbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 2rpx solid var(--biz-border-light);
+  /* 不能把 constant()/env() 混进 padding 简写：Chrome 不认 constant()，整条声明会失效，
+     结果底部操作条左右内边距变 0、按钮顶到屏幕边缘（踩过一次） */
+  padding: 20rpx 28rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+/* tabBar 页面底部已被 tabBar 占位，操作条上移一档 */
+.footbar--over-tab {
+  bottom: 52px;
+}
+
+/* ---------- 表单 ---------- */
+.input {
+  height: 80rpx;
+  padding: 0 20rpx;
+  background: var(--biz-bg-fill);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--biz-text-1);
+}
+
+.textarea {
+  width: 100%;
+  height: 170rpx;
+  padding: 18rpx 20rpx;
+  background: var(--biz-bg-fill);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--biz-text-1);
+  line-height: 1.5;
+}
+
+/* ---------- 分隔 ---------- */
+.divider {
+  height: 2rpx;
+  background: var(--biz-border-light);
+  margin: 24rpx 0;
+}
+
+.dashed {
+  border-top: 2rpx dashed var(--biz-border);
+  margin: 20rpx 0;
+}
+
+/* ---------- 状态条（断网 / 待同步 / 降级） ---------- */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.45;
+  margin-bottom: 20rpx;
+}
+
+.banner--offline {
+  background: #fff5eb;
+  color: #a35c13;
+  border: 2rpx solid rgba(255, 159, 64, 0.32);
+}
+
+.banner--pending {
+  background: var(--biz-primary-light-9);
+  color: #3f4ee0;
+  border: 2rpx solid var(--biz-primary-light-8);
+}
+
+.banner--info {
+  background: var(--biz-bg-fill);
+  color: var(--biz-text-2);
+  border: 2rpx solid var(--biz-border-light);
+}
+
+.banner__ico {
+  flex: none;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #fff;
+  background: var(--biz-text-3);
+  margin-top: 2rpx;
+}
+
+/* 图标底色按横幅类型给：之前写 background: currentColor 导致白底白字，图标看不见 */
+.banner--offline .banner__ico {
+  background: var(--biz-warning);
+}
+
+.banner--pending .banner__ico {
+  background: var(--biz-primary);
+}
+
+.banner--info .banner__ico {
+  background: var(--biz-text-3);
+}
+
+.banner__ico text {
+  color: #fff;
+}
+
+/* ---------- 进度条 ---------- */
+.bar {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--biz-bg-fill);
+  overflow: hidden;
+}
+
+.bar__in {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--biz-gradient);
+  transition: width 0.25s ease;
+}
+
+/* ---------- 空态 / 加载 ---------- */
+.center-block {
+  padding: 80rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* uni 的 textarea 外面还有一层容器，内层不设高度会退回默认 150px */
+.textarea textarea,
+uni-textarea .uni-textarea-textarea {
+  height: 100%;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   业主端补充（员工端那份是"现场作业"风格，业主端多了几类块：
+   房产卡 / 欠费大数字 / 待办行 / 价目选择 / 星级评价 / 抬头提示）
+   ============================================================ */
+
+/* ---------- 房产卡：首页第一眼要看到"我的哪套房" ---------- */
+.house-card {
+  background: var(--biz-gradient);
+  border-radius: var(--biz-radius-panel);
+  padding: 28rpx;
+  color: #fff;
+  box-shadow: var(--biz-shadow-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.house-card__name {
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.5rpx;
+}
+
+.house-card__meta {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.house-card__switch {
+  position: absolute;
+  right: 24rpx;
+  top: 24rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.house-card__rows {
+  margin-top: 22rpx;
+  display: flex;
+  gap: 14rpx;
+}
+
+.house-card__cell {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 14rpx;
+  padding: 14rpx 16rpx;
+}
+
+.house-card__k {
+  font-size: 20rpx;
+  opacity: 0.85;
+  display: block;
+}
+
+.house-card__v {
+  font-size: 30rpx;
+  font-weight: 700;
+  font-family: var(--biz-font-num);
+  display: block;
+  margin-top: 2rpx;
+}
+
+/* ---------- 待办行：首页三块待办（待缴 / 进行中 / 待确认） ---------- */
+.todo {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx 24rpx;
+  background: var(--biz-bg-card);
+  border-radius: 20rpx;
+  box-shadow: var(--biz-shadow-card);
+}
+
+.todo + .todo {
+  margin-top: 18rpx;
+}
+
+.todo--alert {
+  background: #fff6f7;
+  box-shadow: 0 2rpx 10rpx rgba(236, 77, 99, 0.12);
+  border: 2rpx solid rgba(236, 77, 99, 0.2);
+}
+
+.todo__ico {
+  flex: none;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 700;
+  background: var(--biz-primary-light-9);
+  color: var(--biz-primary);
+}
+
+.todo--alert .todo__ico {
+  background: #ffe7ea;
+  color: var(--biz-danger);
+}
+
+.todo--ok .todo__ico {
+  background: var(--biz-accent-light-9);
+  color: var(--biz-accent-dark);
+}
+
+.todo__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.todo__t {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--biz-text-1);
+  line-height: 1.4;
+}
+
+.todo__d {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: var(--biz-text-3);
+  line-height: 1.45;
+}
+
+.todo__v {
+  flex: none;
+  text-align: right;
+  font-family: var(--biz-font-num);
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--biz-text-1);
+}
+
+.todo__v.danger {
+  color: var(--biz-danger);
+}
+
+.todo__chev {
+  flex: none;
+  width: 14rpx;
+  height: 14rpx;
+  border-top: 3rpx solid var(--biz-text-4);
+  border-right: 3rpx solid var(--biz-text-4);
+  transform: rotate(45deg);
+  margin-left: 4rpx;
+}
+
+/* ---------- 欠费大数字 ---------- */
+.big {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+}
+
+.big__cur {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: inherit;
+}
+
+.big__num {
+  font-family: var(--biz-font-num);
+  font-size: 62rpx;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -1rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.big__suf {
+  font-size: 24rpx;
+  color: var(--biz-text-3);
+  margin-left: 8rpx;
+}
+
+/* ---------- 金额行（原价 / 增项 / 合计 三段） ---------- */
+.sum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  font-size: 26rpx;
+  color: var(--biz-text-2);
+}
+
+.sum-row__k {
+  color: var(--biz-text-3);
+}
+
+.sum-row__v {
+  font-family: var(--biz-font-num);
+  font-weight: 600;
+  color: var(--biz-text-1);
+}
+
+.sum-row--total {
+  border-top: 2rpx dashed var(--biz-border);
+  margin-top: 8rpx;
+  padding-top: 18rpx;
+}
+
+.sum-row--total .sum-row__k {
+  font-size: 27rpx;
+  color: var(--biz-text-1);
+  font-weight: 600;
+}
+
+.sum-row--total .sum-row__v {
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.sum-row--addon .sum-row__v {
+  color: var(--biz-warning);
+}
+
+/* ---------- 选择项（价目 / 时间 / 房产 / 账单） ---------- */
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 22rpx 20rpx;
+  border-radius: 16rpx;
+  background: var(--biz-bg-card);
+  border: 2rpx solid var(--biz-border-light);
+}
+
+.opt + .opt {
+  margin-top: 14rpx;
+}
+
+.opt.is-active {
+  border-color: var(--biz-primary);
+  background: var(--biz-primary-light-9);
+}
+
+.opt__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.opt__t {
+  font-size: 28rpx;
+  color: var(--biz-text-1);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.opt__d {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: var(--biz-text-3);
+  line-height: 1.45;
+}
+
+.opt__v {
+  flex: none;
+  font-family: var(--biz-font-num);
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--biz-text-1);
+}
+
+.opt__check {
+  flex: none;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--biz-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opt.is-active .opt__check {
+  background: var(--biz-primary);
+  border-color: var(--biz-primary);
+}
+
+.opt.is-active .opt__check::after {
+  content: '';
+  width: 12rpx;
+  height: 7rpx;
+  border-left: 3rpx solid #fff;
+  border-bottom: 3rpx solid #fff;
+  transform: rotate(-45deg) translate(1rpx, -1rpx);
+}
+
+/* ---------- 表单：标签 + 输入 ---------- */
+.field {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--biz-border-light);
+}
+
+.field:last-child {
+  border-bottom: none;
+}
+
+.field__k {
+  font-size: 24rpx;
+  color: var(--biz-text-3);
+  margin-bottom: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field__hint {
+  font-size: 21rpx;
+  color: var(--biz-text-4);
+}
+
+.field__input {
+  height: 72rpx;
+  font-size: 30rpx;
+  color: var(--biz-text-1);
+  background: transparent;
+}
+
+.field__input--boxed {
+  background: var(--biz-bg-fill);
+  border-radius: 14rpx;
+  padding: 0 20rpx;
+}
+
+.ph {
+  color: var(--biz-text-4);
+}
+
+/* ---------- 星级 ---------- */
+.stars {
+  display: flex;
+  gap: 16rpx;
+}
+
+.star {
+  font-size: 52rpx;
+  line-height: 1;
+  color: var(--biz-border);
+}
+
+.star.is-on {
+  color: var(--biz-warning);
+}
+
+/* ---------- 标签墙（评价标签 / 快捷填） ---------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.chip {
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--biz-bg-fill);
+  color: var(--biz-text-2);
+  font-size: 24rpx;
+  border: 2rpx solid transparent;
+}
+
+.chip.is-on {
+  background: var(--biz-primary-light-9);
+  color: var(--biz-primary);
+  border-color: var(--biz-primary-light-8);
+  font-weight: 600;
+}
+
+.chip--demo {
+  background: #fff8f0;
+  color: #a35c13;
+  border-color: rgba(255, 159, 64, 0.4);
+}
+
+/* ---------- 演示标注：凡是"不是真实能力"的地方都挂这个，评审不用猜 ---------- */
+.demo-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 20rpx;
+  color: #a35c13;
+  background: #fff8f0;
+  border: 2rpx solid rgba(255, 159, 64, 0.4);
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  line-height: 1.5;
+}
+
+/* ---------- 步骤指示（授权 → 实名 → 绑定） ---------- */
+.auth-steps {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  /* 一条白底的步骤条：登录页的 body 是负 margin 压在渐变头上，不做底色会糊在渐变里 */
+  background: var(--biz-bg-card);
+  border-radius: var(--biz-radius-card);
+  box-shadow: var(--biz-shadow-card);
+  padding: 20rpx 24rpx;
+  margin-bottom: 22rpx;
+}
+
+.auth-step {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 22rpx;
+  color: var(--biz-text-4);
+}
+
+.auth-step__n {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--biz-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  font-family: var(--biz-font-num);
+}
+
+.auth-step.is-now {
+  color: var(--biz-primary);
+  font-weight: 600;
+}
+
+.auth-step.is-now .auth-step__n {
+  background: var(--biz-primary);
+  border-color: var(--biz-primary);
+  color: #fff;
+}
+
+.auth-step.is-done {
+  color: var(--biz-accent-dark);
+}
+
+.auth-step.is-done .auth-step__n {
+  border-color: var(--biz-accent);
+  color: var(--biz-accent-dark);
+}
+
+.auth-step__line {
+  flex: 1;
+  height: 2rpx;
+  background: var(--biz-border-light);
+}
+
+/* ---------- 时间轴里的"待支付"提示条 ---------- */
+.paybar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 16rpx;
+  background: #fff6f7;
+  border: 2rpx solid rgba(236, 77, 99, 0.2);
+}
+
+.paybar__t {
+  font-size: 26rpx;
+  color: var(--biz-danger);
+  font-weight: 600;
+}
+
+.paybar__d {
+  font-size: 21rpx;
+  color: #b04b58;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.paybar__v {
+  font-family: var(--biz-font-num);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--biz-danger);
+}
+
+
+/* ---------- 关键补齐：uni 的 <text> 默认 inline ----------
+   同一容器里连着两个 text（标题 + 说明）会粘成一行，截图里就是
+   "待缴账单4 张未缴"、"翡翠城 1栋1单元0501翡翠城 · 两室一厅" 这种粘连。
+   凡是「标题 + 说明」两行结构的块，都显式 block。 */
+.house-card__name,
+.house-card__meta,
+.todo__t,
+.todo__d,
+.opt__t,
+.opt__d,
+.woc__title,
+.bl__note-t,
+.bl__note-d {
+  display: block;
+}

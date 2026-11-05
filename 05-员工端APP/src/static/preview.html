@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>员工端 · 多屏画廊</title>
+    <link rel="icon" href="data:," />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #0f1424;
+        --panel: #171d31;
+        --line: #262d44;
+        --text: #e7eaf3;
+        --muted: #8b93ab;
+        --accent: #5b6cff;
+        --accent-2: #2ed9a3;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 28px 28px 64px;
+        background: radial-gradient(1200px 600px at 20% -10%, #1b2340 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      header { max-width: 1560px; margin: 0 auto 22px; }
+      h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.5px; }
+      .sub { color: var(--muted); font-size: 13px; line-height: 1.7; }
+      .bar {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .bar .label { color: var(--muted); font-size: 12px; margin-right: 2px; }
+      button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--text);
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button.on { border-color: var(--accent); background: rgba(91, 108, 255, 0.16); color: #c9cfff; }
+      button:hover { border-color: #3a4266; }
+      .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+      h2 {
+        max-width: 1560px;
+        margin: 34px auto 14px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #b9c0d4;
+        letter-spacing: 1px;
+        border-left: 3px solid var(--accent);
+        padding-left: 10px;
+      }
+      .grid {
+        max-width: 1560px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 22px;
+      }
+      .item { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+      .cap { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+      .cap b { font-size: 13px; font-weight: 600; }
+      .cap span { font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+      .cap a { color: var(--accent-2); font-size: 11px; text-decoration: none; }
+      .phone {
+        width: 100%;
+        aspect-ratio: 390 / 844;
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: #f1f2fa;
+        border: 1px solid #2c3450;
+      }
+      .phone .ph {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3bd;
+        font-size: 12px;
+        letter-spacing: 1px;
+      }
+      .phone .ph {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3bd;
+        font-size: 12px;
+        letter-spacing: 1px;
+      }
+      .phone iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 390px;
+        height: 844px;
+        border: 0;
+        transform-origin: top left;
+      }
+      .tip {
+        max-width: 1560px;
+        margin: 26px auto 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      code { background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 5px; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>员工端 · 多屏画廊</h1>
+      <div class="sub">
+        21 屏并排看。每屏都是真实 App（iframe 独立加载），可直接在里面点。<br />
+        同一份 localStorage 决定身份，所以切换身份后<strong>所有屏一起换视角</strong>，便于对比同一模块在不同角色下的样子。
+      </div>
+      <div class="bar">
+        <span class="label">身份</span>
+        <button data-p="zhou-ming">周明 · 一线</button>
+        <button data-p="wang-lei">汪磊 · 班组长</button>
+        <button data-p="mo-rui">莫瑞 · 楼管</button>
+        <button data-p="xu-yue">徐悦 · 项目经理</button>
+        <button id="reload">全部刷新</button>
+        <span class="hint">提示：iframe 数量较多，首屏加载约 2–4 秒</span>
+      </div>
+    </header>
+
+    <div id="groups"></div>
+
+    <div class="tip">
+      画廊本身也在同一份产物里：开发时 <code>/static/preview.html</code>，构建后
+      <code>/static/preview.html</code> 一样可用。截图归档见 <code>screenshots/</code>。
+    </div>
+
+    <script>
+      const GROUPS = [
+        {
+          title: '主线：巡检',
+          items: [
+            ['登录 / 选身份', '/pages/login/index'],
+            ['工作台（班组长）', '/pages/home/index'],
+            ['任务列表', '/pages/tasks/list'],
+            ['任务详情', '/pages/tasks/detail?taskId=IT00106'],
+            ['开工打卡', '/pages/tasks/checkin?taskId=IT00106'],
+            ['逐项执行', '/pages/tasks/exec?taskId=IT00106'],
+            ['异常转工单', '/pages/tasks/wo-create?taskId=IT00106&item=%E6%B6%88%E7%81%AB%E5%99%A8%E5%8E%8B%E5%8A%9B%E8%A1%A8'],
+            ['提交结果', '/pages/tasks/submit?taskId=IT00106']
+          ]
+        },
+        {
+          title: '工单',
+          items: [
+            ['工单列表（可抢/我的）', '/pages/wo/list'],
+            ['工单详情（价目/提成）', '/pages/wo/detail?id=WO000151'],
+            ['待派单（项目经理）', '/pages/wo/detail?id=WO000153']
+          ]
+        },
+        {
+          title: '审批（按节点派活）',
+          items: [
+            ['审批列表', '/pages/oa/list'],
+            ['审批详情', '/pages/oa/detail?id=AP00021'],
+            ['发起申请（配置驱动表单）', '/pages/oa/apply']
+          ]
+        },
+        {
+          title: '整改闭环',
+          items: [
+            ['整改列表', '/pages/rectify/list'],
+            ['整改详情', '/pages/rectify/detail?id=RC0001']
+          ]
+        },
+        {
+          title: '楼栋管家',
+          items: [
+            ['我的楼栋', '/pages/building/index'],
+            ['业主与房屋（标签 · 租户）', '/pages/building/house?houseId=H010111001'],
+            ['租户档案（核验 / 人脸 / 搬离）', '/pages/building/tenant?tenantId=TN00001'],
+            ['批量催缴', '/pages/building/collect']
+          ]
+        },
+        {
+          title: '自助 / 只读 / 权限',
+          items: [
+            ['我的考勤', '/pages/attendance/index'],
+            ['我的工资条', '/pages/payroll/index'],
+            ['我的提成（结算单）', '/pages/payroll/commission'],
+            ['费用看板', '/pages/finance/index'],
+            ['消息', '/pages/msg/list'],
+            ['我的', '/pages/mine/index']
+          ]
+        }
+      ]
+
+      const KEY = 'wy_emp_app_v1'
+      const PERSONA_NAME = {
+        'zhou-ming': '周明',
+        'wang-lei': '汪磊',
+        'mo-rui': '莫瑞',
+        'xu-yue': '徐悦'
+      }
+
+      function currentPersona() {
+        try {
+          return (JSON.parse(localStorage.getItem(KEY) || '{}') || {}).personaId || ''
+        } catch (e) {
+          return ''
+        }
+      }
+
+      function setPersona(id) {
+        let data = {}
+        try {
+          data = JSON.parse(localStorage.getItem(KEY) || '{}') || {}
+        } catch (e) {
+          data = {}
+        }
+        data.personaId = id
+        localStorage.setItem(KEY, JSON.stringify(data))
+        markActive()
+        reloadAll()
+      }
+
+      function markActive() {
+        const cur = currentPersona()
+        document.querySelectorAll('[data-p]').forEach(b => {
+          b.classList.toggle('on', b.dataset.p === cur)
+        })
+      }
+
+      function reloadAll() {
+        document.querySelectorAll('iframe').forEach(f => {
+          try {
+            f.contentWindow.location.reload()
+          } catch (e) {
+            f.src = f.src
+          }
+        })
+      }
+
+      function fit(frame) {
+        const box = frame.parentElement
+        const scale = box.clientWidth / 390
+        frame.style.transform = `scale(${scale})`
+        frame.style.height = `${box.clientWidth * (844 / 390)}px`
+      }
+
+      const root = document.getElementById('groups')
+      GROUPS.forEach(g => {
+        const h2 = document.createElement('h2')
+        h2.textContent = g.title
+        root.appendChild(h2)
+
+        const grid = document.createElement('div')
+        grid.className = 'grid'
+
+        g.items.forEach(([name, path]) => {
+          const item = document.createElement('div')
+          item.className = 'item'
+          const cap = document.createElement('div')
+          cap.className = 'cap'
+          cap.innerHTML = `<b>${name}</b><span>${path.split('?')[0].replace('/pages/', '')}</span><a href="../#${path}" target="_blank">单独打开</a>`
+          const phone = document.createElement('div')
+          phone.className = 'phone'
+          phone.innerHTML = '<div class="ph">载入中…</div>'
+          phone.innerHTML = '<div class="ph">载入中…</div>'
+          const frame = document.createElement('iframe')
+          frame.loading = 'lazy'
+          frame.src = `../#${path}`
+          phone.appendChild(frame)
+          item.appendChild(cap)
+          item.appendChild(phone)
+          grid.appendChild(item)
+
+          frame.addEventListener('load', () => fit(frame))
+        })
+
+        root.appendChild(grid)
+      })
+
+      document.querySelectorAll('[data-p]').forEach(b => {
+        b.addEventListener('click', () => setPersona(b.dataset.p))
+      })
+      document.getElementById('reload').addEventListener('click', reloadAll)
+      window.addEventListener('resize', () => {
+        document.querySelectorAll('iframe').forEach(f => fit(f))
+      })
+
+      markActive()
+      /* 首次进入没有身份时，默认给班组长（模块最全，便于一次看全） */
+      if (!currentPersona()) setPersona('wang-lei')
+      else setTimeout(reloadAll, 200)
+    </script>
+  </body>
+</html>

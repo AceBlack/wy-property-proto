@@ -2,12 +2,13 @@
 // 静态自检（零依赖，可直接进 CI）：node scripts/check.mjs
 //
 // 为什么要有它：页面冒烟能发现"打不开"，但发现不了"数字悄悄错了"。
-// 这里做五类**静态**检查，和 /e/audit 的运行时检查互补：
+// 这里做六类**静态**检查，和 /e/audit 的运行时检查互补：
 //   ① 禁用字面量：曾经引发缺陷的字符串（部分缴费 / 进场 / min-min-width）不得再出现
 //   ② 双份 mock 一致：02-原型设计/mock 与 src/mock 必须逐字节一致（否则改了没同步，页面用旧数据）
 //   ③ 路由 → 组件文件存在：防止删页/改名后留下死路由
 //   ④ 适配层调用的 mock 函数必须真实导出（写过 recalcReportTask → 页面点了才报错）
 //   ⑤ 页面里写死的权限码必须在 permissions.json 存在（拼错一个字母，按钮永远禁用而无人察觉）
+//   ⑥ 计划详情三段表格的列头必须齐全（量化段曾漏掉「复评加权」，合计对但明细查不到来源）
 
 import fs from 'fs'
 import path from 'path'
@@ -66,6 +67,16 @@ if (!fs.existsSync(MOCK_A)) {
   })
   if (diff.length) bad('mock 双份不一致', `需同步：${diff.join('、')}`)
   else ok('mock 双份一致', `${names.length} 个文件逐字节相同`)
+
+  // 维修价目表是手工维护的（seed 不生成），源文件在 02-原型设计/repairPrices.json。
+  // 它必须一起同步：否则 03 改了价目、02 没改，重跑 seed 后工单金额与价目又对不上。
+  const priceA = path.join(ROOT, '..', '02-原型设计', 'repairPrices.json')
+  const priceB = path.join(MOCK_B, 'repairPrices.json')
+  if (!fs.existsSync(priceA) || !fs.existsSync(priceB) || md5(priceA) !== md5(priceB)) {
+    bad('维修价目未同步', '02-原型设计/repairPrices.json 与 src/mock/repairPrices.json 不一致')
+  } else {
+    ok('维修价目已同步', 'repairPrices.json 逐字节相同')
+  }
 }
 
 /* ---------- ③ 路由 → 组件 ---------- */
@@ -119,6 +130,88 @@ for (const f of files) {
 }
 if (unknownPerm.length) bad('权限码不存在（拼错？）', [...new Set(unknownPerm)].slice(0, 6).join('、'))
 else ok('权限码存在性', `${permCodes.size} 个权限码，页面引用全部命中`)
+
+/* ---------- ⑥ 计划详情三段表格的列头必须齐全 ----------
+ * 为什么加这条：第 55 批重写详情页时，三段表格的列是**各自手写的**。
+ * 量化段漏了「复评加权」，而合计卡是对的、页面能正常打开、e2e 也全绿 ——
+ * 只有人眼对着截图才能发现。这里把每段必备的加权列静态断死。
+ *
+ * 另外禁止裸的 `label="加权"`：量化段和重点段是「分 × 权重」，监控段是「扣分本身」，
+ * 三个「加权」摆在一起会让人以为算法相同。
+ */
+const detailFile = path.join(SRC, 'views', 'f', 'PlanDetail.vue')
+const detailSrc = fs.readFileSync(detailFile, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+const PLAN_SECTIONS = [
+  { key: '量化', start: '一、量化指标', need: ['自评加权', '复评加权'] },
+  { key: '监控', start: '二、监控指标', need: ['自评扣分', '复评扣分'] },
+  { key: '重点', start: '三、重点工作计划', need: ['自评加权', '复评加权'] }
+]
+const secStart = PLAN_SECTIONS.map(s => detailSrc.indexOf(s.start))
+const secMissing = PLAN_SECTIONS.filter((_, i) => secStart[i] < 0).map(s => s.start)
+if (secMissing.length) {
+  bad('计划详情三段标题缺失', secMissing.join('、'))
+} else {
+  const colMissing = []
+  PLAN_SECTIONS.forEach((sec, i) => {
+    const from = secStart[i]
+    const to = i + 1 < secStart.length ? secStart[i + 1] : detailSrc.length
+    const labels = [...detailSrc.slice(from, to).matchAll(/label="([^"]+)"/g)].map(m => m[1])
+    for (const name of sec.need) {
+      if (!labels.includes(name)) colMissing.push(`${sec.key}段缺「${name}」`)
+    }
+  })
+  if (colMissing.length) bad('计划详情三段表头不一致', colMissing.join('、'))
+  else ok('计划详情三段表头', PLAN_SECTIONS.map(s => `${s.key}段 ${s.need.join(' + ')}`).join('　'))
+}
+if (/label="加权"/.test(detailSrc)) {
+  bad('列名「加权」语义不明', '量化 / 重点段应写「自评加权」，监控段用「自评扣分」')
+} else {
+  ok('加权列命名', '三段都用「自评加权 / 复评加权 / 自评扣分 / 复评扣分」，无裸「加权」')
+}
+
+/* ---------- ⑦ 计划模板不得再配置权重（第 60 批） ----------
+ * 权重已经从模板搬到计划上：模板只定「考什么」，每项占多少由提报人填、审核可调。
+ * 这条静态检查防的是"改回来一半"：模板页还留着权重输入框、或者 api 的模板条目又长出
+ * weight 字段，页面照样能开、保存也照样成功，但两套权重会同时存在，谁也说不清哪个算数。
+ */
+const tplFile = path.join(SRC, 'views', 'f', 'PlanTemplateList.vue')
+const tplSrc = fs.readFileSync(tplFile, 'utf8')
+const API_SRC = fs.readFileSync(path.join(SRC, 'utils', 'api.js'), 'utf8')
+const tplDomain = API_SRC.slice(
+  API_SRC.indexOf('T 域 · 计划模板'),
+  API_SRC.indexOf('G 域 · 部门计划管理')
+)
+const weightLeak = []
+if (/v-model="(row|ed)\.weight"/.test(tplSrc)) weightLeak.push('模板页仍有权重输入框')
+if (/ed\.wq|ed\.wk|row\.wq|row\.wk/.test(tplSrc)) weightLeak.push('模板页仍有段权重 wq/wk')
+if (/\bweight:/.test(tplDomain)) weightLeak.push('T 域模板条目又长了 weight 字段')
+if (/\bwq:|\bwk:/.test(tplDomain)) weightLeak.push('T 域又出现段权重 wq/wk')
+if (weightLeak.length) bad('计划模板又出现权重配置', weightLeak.join('、'))
+else ok('模板不配权重', '权重只在计划上（模板页无输入、T 域无 weight/wq/wk）')
+
+/* ---------- ⑧ 权重只能按 5% 调（第 60 批补充口径） ----------
+ * 这条约束有三处落点：常量、页面输入框的 step、step-strictly（手输 12 自动归到 10）。
+ * 少任何一处都会出现"界面能填 12、提交被拦"的死角，或者反过来"填了 12 也能提交"。
+ *
+ * 必须**逐个输入框**检查：只判断"文件里出现过"的话，量化表改回 step=1、重点表还留着，
+ * 整体检查仍然通过 —— 第一版规则就是这么漏的。
+ */
+const planFormSrc = fs.readFileSync(path.join(SRC, 'views', 'f', 'PlanForm.vue'), 'utf8')
+const stepLeak = []
+if (!/PLAN_WEIGHT_STEP\s*=\s*5\b/.test(API_SRC)) stepLeak.push('api.js 的 PLAN_WEIGHT_STEP 不是 5')
+const weightInputsOf = src => [...src.matchAll(/<el-input-number\b[^>]*>/g)]
+  .map(m => m[0])
+  .filter(tag => /v-model="row\.weight"/.test(tag))
+for (const [name, src] of [['PlanForm.vue', planFormSrc], ['PlanDetail.vue', detailSrc]]) {
+  const tags = weightInputsOf(src)
+  if (!tags.length) stepLeak.push(`${name} 找不到权重输入框（权重列还在吗？）`)
+  tags.forEach((tag, i) => {
+    if (!/:step="WEIGHT_STEP"/.test(tag)) stepLeak.push(`${name} 第 ${i + 1} 个权重输入框没用 WEIGHT_STEP`)
+    if (!/step-strictly/.test(tag)) stepLeak.push(`${name} 第 ${i + 1} 个权重输入框没开 step-strictly`)
+  })
+}
+if (stepLeak.length) bad('权重 5% 步长约束被破坏', stepLeak.join('、'))
+else ok('权重 5% 步长', `常量 5 + ${weightInputsOf(planFormSrc).length + weightInputsOf(detailSrc).length} 个权重输入框都是 step=WEIGHT_STEP + step-strictly`)
 
 /* ---------- ⑤ 骨架一致性（信息项） ---------- */
 const viewFiles = walk(path.join(SRC, 'views')).filter(f => f.endsWith('.vue'))

@@ -38,6 +38,9 @@ export const PAGES = [
     component: () => import('@/views/a/AssetDashboard.vue') },
   { path: '/a/owner360', name: 'Owner360', title: '业主 360 档案', group: 'a', status: 'done', icon: 'User', desc: '一人多房聚合档案与关联业务',
     component: () => import('@/views/a/Owner360.vue') },
+  // 2026-11-02：业主标签字典（楼管打标签、平台维护词条）。权限位在 e 域：e.ownerTags.view/edit
+  { path: '/a/owner-tags', name: 'OwnerTag', title: '业主标签', group: 'a', status: 'done', icon: 'CollectionTag', desc: '标签词条维护 · 使用人数 · 启停',
+    component: () => import('@/views/a/OwnerTag.vue') },
   // 注：原「车位车牌绑定」/a/parking 已并入 /a/vehicles（见 LEGACY），车牌换绑移入车位详情抽屉
   // ---------- L4 批量生成（第一批：四类列表页，全部继承 shell 模板） ----------
   { path: '/a/owners', name: 'OwnerList', title: '业主档案', group: 'a', status: 'done', icon: 'User', desc: '业主台账 · 认证 · 名下资产',
@@ -57,6 +60,10 @@ export const PAGES = [
   // ---------- B 费用 ----------
   { path: '/b/dashboard', name: 'FeeDashboard', title: '费用驾驶舱', group: 'b', status: 'done', icon: 'DataAnalysis', desc: '应收/实收/欠费/收缴率',
     component: () => import('@/views/b/FeeDashboard.vue') },
+  // 多种经营收入 = 商业服务（收费工单）+ 商业合作（经营性合同），与主营业务并列的一大类公司收入
+  { path: '/b/multi-revenue', name: 'MultiRevenue', title: '多种经营收入', group: 'b', status: 'done', icon: 'TrendCharts',
+    desc: '商业服务 · 商业合作 · 公共收益 · 结构占比',
+    component: () => import('@/views/b/MultiRevenue.vue') },
   { path: '/b/cashier', name: 'Cashier', title: 'PC 收银台', group: 'b', status: 'done', icon: 'Money', desc: '按业主聚合的一人多房合并收费',
     component: () => import('@/views/b/Cashier.vue') },
   { path: '/b/bills', name: 'BillList', title: '账单查询', group: 'b', status: 'done', icon: 'Tickets', desc: '账期 · 科目 · 收缴状态 · 缴费流水',
@@ -86,12 +93,34 @@ export const PAGES = [
     component: () => import('@/views/c/Workbench.vue') },
   { path: '/c/todo', name: 'Todo', title: '待办中心', group: 'c', status: 'done', icon: 'List', desc: '六类待办聚合 · 审批单 · 处理入口',
     component: () => import('@/views/c/Todo.vue') },
+  // 2026-11-03：OA 审批底座 —— 六类单据共用一套引擎，表单配置驱动
+  { path: '/c/oa-apply', name: 'OaApply', title: '发起申请', group: 'c', status: 'done', icon: 'Promotion',
+    desc: '用车 · 报销 · 请假 · 加班 · 用印 · 采购',
+    component: () => import('@/views/c/OaApply.vue') },
+  { path: '/c/oa-mine', name: 'OaMine', title: '我的申请', group: 'c', status: 'done', icon: 'Files',
+    desc: '我提交的单 · 进度 · 撤回',
+    component: () => import('@/views/c/OaMine.vue') },
   { path: '/c/attendance', name: 'Attendance', title: '考勤管理', group: 'c', status: 'done', icon: 'Clock', desc: '月考勤 · 排班 · 异常申诉',
     component: () => import('@/views/c/Attendance.vue') },
   { path: '/c/approval/:id', name: 'ApprovalDetail', title: '审批处理', group: 'c', status: 'done', icon: 'Stamp', hidden: true,
     desc: '同意 / 驳回 / 转办 / 加签 + 流程时间线', component: () => import('@/views/c/ApprovalDetail.vue') },
   { path: '/c/employee', name: 'Employee', title: '员工档案', group: 'c', status: 'done', icon: 'UserFilled', desc: '档案 · 合同 · 证照 · 异动',
     component: () => import('@/views/c/Employee.vue') },
+  /* ---------- 办公资产（2026-11-04 第 58 批）----------
+     与 D 域「设备台账」并列但不同源：那边是门禁/摄像头这类 IoT 设备（看"在不在线"），
+     这里是电脑/桌椅/工具这类可被个人领用的办公物品（看"值多少、在哪个部门"）。 */
+  { path: '/c/assets', name: 'AssetList', title: '资产台账', group: 'c', status: 'done', icon: 'Box',
+    desc: '办公资产 · 分类 · 二维码标签',
+    component: () => import('@/views/c/AssetList.vue') },
+  { path: '/c/assets/new', name: 'AssetNew', title: '新增资产', group: 'c', status: 'done', icon: 'Plus', hidden: true,
+    desc: '录入办公资产 · 保存后生成编号', component: () => import('@/views/c/AssetForm.vue') },
+  { path: '/c/assets/:id/edit', name: 'AssetEdit', title: '编辑资产', group: 'c', status: 'done', icon: 'EditPen', hidden: true,
+    desc: '修改资产 · 变更留痕', component: () => import('@/views/c/AssetForm.vue') },
+  { path: '/c/assets/:id', name: 'AssetDetail', title: '资产详情', group: 'c', status: 'done', icon: 'Document', hidden: true,
+    desc: '基本信息 · 变更记录 · 二维码', component: () => import('@/views/c/AssetDetail.vue') },
+  { path: '/c/asset-categories', name: 'AssetCategory', title: '资产分类', group: 'c', status: 'done', icon: 'Files',
+    desc: '两级分类 · 启停用 · 删除保护',
+    component: () => import('@/views/c/AssetCategory.vue') },
   { path: '/c/payroll', name: 'Payroll', title: '工资表', group: 'c', status: 'done', icon: 'Coin', desc: '薪酬构成 · 月度核算 · 发放',
     component: () => import('@/views/c/Payroll.vue') },
   { path: '/c/contracts', name: 'ContractList', title: '合同管理', group: 'c', status: 'done', icon: 'Document', desc: '五类合同统一台账 · 到期 · 审批',
@@ -103,6 +132,9 @@ export const PAGES = [
     component: () => import('@/views/f/WorkOrderDetail.vue') },
   { path: '/f/workorders', name: 'WorkOrderList', title: '工单列表', group: 'f', status: 'done', icon: 'List', desc: '全量工单 · 状态筛选 · 超时标记',
     component: () => import('@/views/f/WorkOrderList.vue') },
+  // 商业服务项目 = 工单收费的价目字典（入户维修拆出来后的项目目录，可单独维护）
+  { path: '/f/service-items', name: 'ServiceItemList', title: '商业服务项目', group: 'f', status: 'done', icon: 'PriceTag', desc: '项目分类 · 服务价格 · 成本价 · 启停',
+    component: () => import('@/views/f/ServiceItemList.vue') },
   { path: '/f/inspect-plans', name: 'InspectPlanList', title: '巡检计划', group: 'f', status: 'done', icon: 'Calendar', desc: '周期计划 · 模板 · 生成任务',
     component: () => import('@/views/f/InspectPlanList.vue') },
   // 模板是公司级标准：品质督导配置，其他人只读（编辑按钮按 f.inspectTemplates.edit 控制）
@@ -128,6 +160,14 @@ export const PAGES = [
   // 主管发现问题数：独立考核报表（监督任务的检出量、冲突、主动发现率）
   { path: '/f/sup-finding', name: 'SupFindingReport', title: '主管发现问题数', group: 'f', status: 'done', icon: 'TrendCharts', desc: '监督任务 · 检出量 · 申报冲突',
     component: () => import('@/views/f/SupFindingReport.vue') },
+  // 部门计划管理（2026-11-03 第 51 批）：提报 → 审批 → 执行 → 结案评分
+  // 一个部门一个月一份计划，各项权重合计必须正好 100%（提报人填、审核可调）；
+  // 评分**不并入**品质评价、也不接工资核算
+  { path: '/f/plans', name: 'PlanList', title: '部门计划', group: 'f', status: 'done', icon: 'Calendar', desc: '月度计划 · 提报审批 · 执行进度 · 结案评分',
+    component: () => import('@/views/f/PlanList.vue') },
+  // 计划模板：考核项的唯一源。五套（项目经理 + 四班组 + 职能兜底），权重两段合计必须 100%
+  { path: '/f/plan-templates', name: 'PlanTemplateList', title: '计划模板', group: 'f', status: 'done', icon: 'Files', desc: '五套模板 · 条目与权重 · 自动匹配',
+    component: () => import('@/views/f/PlanTemplateList.vue') },
   // ---------- D 物联 ----------
   { path: '/d/dashboard', name: 'IotDashboard', title: '物联驾驶舱', group: 'd', status: 'done', icon: 'Odometer', desc: '设备在线率 · 告警 · 通行',
     component: () => import('@/views/d/IotDashboard.vue') },
@@ -145,6 +185,9 @@ export const PAGES = [
     component: () => import('@/views/e/PermLog.vue') },
   { path: '/e/org', name: 'Org', title: '组织与权限', group: 'e', status: 'done', icon: 'Share', desc: '组织架构 · 角色 · 数据权限',
     component: () => import('@/views/e/Org.vue') },
+  // 2026-11-03：审批流配置（6 类 OA + 合同审批），改完只影响新单
+  { path: '/e/flow-config', name: 'FlowConfig', title: '审批流配置', group: 'e', status: 'done', icon: 'Connection',
+    desc: '节点 · 审批人来源 · 金额分支', component: () => import('@/views/e/FlowConfig.vue') },
   { path: '/e/reports', name: 'Reports', title: '报表中心', group: 'e', status: 'done', icon: 'Tickets',
     desc: '八张报表统一入口 · 明细可导出', component: () => import('@/views/e/Reports.vue') },
   { path: '/e/reports/:code', name: 'ReportView', title: '报表明细', group: 'e', status: 'done', icon: 'Document', hidden: true,
@@ -198,6 +241,13 @@ export const PAGES = [
     desc: '客服代客报事 · 优先级与 SLA', component: () => import('@/views/f/WorkOrderForm.vue') },
   { path: '/b/deposits/new', name: 'DepositNew', title: '登记装修押金', group: 'b', status: 'done', icon: 'CreditCard', hidden: true,
     desc: '押金收取 · 工期校验', component: () => import('@/views/b/DepositForm.vue') },
+  // 部门计划：提报表单与详情（详情用 :id 承接，编辑走 /edit）
+  { path: '/f/plans/new', name: 'PlanNew', title: '提报月度计划', group: 'f', status: 'done', icon: 'Calendar', hidden: true,
+    desc: '选提报部门 · 任务明细 · 各项权重合计须为 100%', component: () => import('@/views/f/PlanForm.vue') },
+  { path: '/f/plans/:id', name: 'PlanDetail', title: '计划详情', group: 'f', status: 'done', icon: 'Calendar', hidden: true,
+    desc: '任务执行 · 审批轨迹 · 结案评分', component: () => import('@/views/f/PlanDetail.vue') },
+  { path: '/f/plans/:id/edit', name: 'PlanEdit', title: '编辑月度计划', group: 'f', status: 'done', icon: 'Calendar', hidden: true,
+    desc: '改任务与权重 · 重新提报', component: () => import('@/views/f/PlanForm.vue') },
 
   // ---------- 全局错误页（403 / 404 / 500）----------
   { path: '/error/403', name: 'Err403', title: '无权限', group: 'shell', status: 'done', icon: 'Lock', hidden: true,

@@ -53,6 +53,8 @@ export const submitContractChange = (contractId, { type, patch = {}, reason = ''
 export const nextContractNo = y => (IS_MOCK ? mock.nextContractNo(y) : '（保存后由系统生成）')
 
 export {
-  CONTRACT_CHANGE_TYPES, contractAttachmentRows, contractChanges, contractPayCycleOpts,
-  contractStatusOpts, contractSubtypeOpts, contractTypeOpts, contractVirtualNodes, pendingContractChanges
+  CONTRACT_CHANGE_TYPES, CONTRACT_INCOME_CATEGORIES, contractAttachmentRows, contractChanges,
+  contractIncomeCheck, contractMonthsOf, contractPayCycleOpts, contractStatusOpts, contractSubtypeOpts,
+  contractTypeOpts, contractVirtualNodes, defaultIncomeCategory, pendingContractChanges,
+  annualRevenueOf, commercialCooperationRevenue, contractApprovalOf, contractApprovalsOf
 } from '@/utils/api'

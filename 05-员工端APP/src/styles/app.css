@@ -1,0 +1,334 @@
+/* 全局基础样式：只放「所有页面都要用」的东西，页面自己的样式写在各自 scoped 里。 */
+
+page {
+  background: var(--biz-bg-page);
+  color: var(--biz-text-1);
+  font-family: var(--biz-font-family);
+  font-size: 28rpx;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+view,
+text,
+scroll-view,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+/* ---------- 布局容器 ---------- */
+.page {
+  min-height: 100vh;
+  background: var(--biz-bg-page);
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  flex: 1;
+  padding: 24rpx 28rpx 40rpx;
+}
+
+/* 有底部固定操作条时，正文留出高度，避免遮住最后一张卡 */
+.body--with-foot {
+  padding-bottom: 220rpx;
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--biz-bg-card);
+  border-radius: 24rpx;
+  box-shadow: var(--biz-shadow-card);
+  padding: 28rpx;
+}
+
+.card + .card {
+  margin-top: 24rpx;
+}
+
+.card--flat {
+  box-shadow: none;
+  border: 2rpx solid var(--biz-border-light);
+}
+
+/* ---------- 文本 ---------- */
+.t-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--biz-text-1);
+  line-height: 1.35;
+}
+
+.t-sub {
+  font-size: 24rpx;
+  color: var(--biz-text-3);
+}
+
+.t-body {
+  font-size: 28rpx;
+  color: var(--biz-text-2);
+}
+
+.t-strong {
+  font-weight: 600;
+  color: var(--biz-text-1);
+}
+
+.num {
+  font-family: var(--biz-font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.danger {
+  color: var(--biz-danger);
+}
+
+.warn {
+  color: var(--biz-warning);
+}
+
+.ok {
+  color: var(--biz-success);
+}
+
+.muted {
+  color: var(--biz-text-3);
+}
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 分区标题 ---------- */
+.sec-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.sec-hd__t {
+  flex: none;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--biz-text-2);
+  letter-spacing: 0.5rpx;
+  white-space: nowrap;
+}
+
+/* 分区标题右侧的说明：允许换行，但不许把标题挤到折行 */
+.sec-hd__d {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 20rpx;
+  color: var(--biz-text-4);
+  line-height: 1.4;
+  margin-left: 16rpx;
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  transition: transform 0.12s, opacity 0.12s;
+}
+
+.btn--primary {
+  background: var(--biz-primary);
+  color: #fff;
+  box-shadow: var(--biz-shadow-primary);
+}
+
+.btn--primary:active {
+  background: var(--biz-primary-active);
+  transform: scale(0.99);
+}
+
+.btn--ghost {
+  background: var(--biz-primary-light-9);
+  color: var(--biz-primary);
+}
+
+.btn--line {
+  background: #fff;
+  color: var(--biz-text-2);
+  border: 2rpx solid var(--biz-border);
+}
+
+.btn--danger {
+  background: #fff0f0;
+  color: var(--biz-danger);
+  border: 2rpx solid rgba(236, 77, 99, 0.24);
+}
+
+.btn--sm {
+  height: 64rpx;
+  border-radius: 14rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  padding: 0 24rpx;
+}
+
+.btn--disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* ---------- 底部固定操作条 ---------- */
+.footbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 2rpx solid var(--biz-border-light);
+  /* 不能把 constant()/env() 混进 padding 简写：Chrome 不认 constant()，整条声明会失效，
+     结果底部操作条左右内边距变 0、按钮顶到屏幕边缘（踩过一次） */
+  padding: 20rpx 28rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+/* tabBar 页面底部已被 tabBar 占位，操作条上移一档 */
+.footbar--over-tab {
+  bottom: 52px;
+}
+
+/* ---------- 表单 ---------- */
+.input {
+  height: 80rpx;
+  padding: 0 20rpx;
+  background: var(--biz-bg-fill);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--biz-text-1);
+}
+
+.textarea {
+  width: 100%;
+  height: 170rpx;
+  padding: 18rpx 20rpx;
+  background: var(--biz-bg-fill);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--biz-text-1);
+  line-height: 1.5;
+}
+
+/* ---------- 分隔 ---------- */
+.divider {
+  height: 2rpx;
+  background: var(--biz-border-light);
+  margin: 24rpx 0;
+}
+
+.dashed {
+  border-top: 2rpx dashed var(--biz-border);
+  margin: 20rpx 0;
+}
+
+/* ---------- 状态条（断网 / 待同步 / 降级） ---------- */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.45;
+  margin-bottom: 20rpx;
+}
+
+.banner--offline {
+  background: #fff5eb;
+  color: #a35c13;
+  border: 2rpx solid rgba(255, 159, 64, 0.32);
+}
+
+.banner--pending {
+  background: var(--biz-primary-light-9);
+  color: #3f4ee0;
+  border: 2rpx solid var(--biz-primary-light-8);
+}
+
+.banner--info {
+  background: var(--biz-bg-fill);
+  color: var(--biz-text-2);
+  border: 2rpx solid var(--biz-border-light);
+}
+
+.banner__ico {
+  flex: none;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #fff;
+  background: var(--biz-text-3);
+  margin-top: 2rpx;
+}
+
+/* 图标底色按横幅类型给：之前写 background: currentColor 导致白底白字，图标看不见 */
+.banner--offline .banner__ico {
+  background: var(--biz-warning);
+}
+
+.banner--pending .banner__ico {
+  background: var(--biz-primary);
+}
+
+.banner--info .banner__ico {
+  background: var(--biz-text-3);
+}
+
+.banner__ico text {
+  color: #fff;
+}
+
+/* ---------- 进度条 ---------- */
+.bar {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: var(--biz-bg-fill);
+  overflow: hidden;
+}
+
+.bar__in {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--biz-gradient);
+  transition: width 0.25s ease;
+}
+
+/* ---------- 空态 / 加载 ---------- */
+.center-block {
+  padding: 80rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* uni 的 textarea 外面还有一层容器，内层不设高度会退回默认 150px */
+.textarea textarea,
+uni-textarea .uni-textarea-textarea {
+  height: 100%;
+  line-height: 1.5;
+}

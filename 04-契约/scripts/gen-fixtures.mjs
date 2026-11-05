@@ -32,14 +32,20 @@ const ownersRaw = read('owners.json')
 const houseRows = houses.slice(0, 160).map(h => pick(h, [
   'houseId', 'communityId', 'buildingId', 'unitId', 'room', 'floor',
   'fullName', 'shortName', 'usage', 'houseType', 'area', 'innerArea',
-  'deliverStatus', 'useStatus', 'propertyStatus', 'ownerId', 'tenantId', 'stewardEmpId'
+  'deliverStatus', 'useStatus', 'propertyStatus', 'ownerId', 'tenantId', 'stewardEmpId',
+  /* 2026-11-02 客户画像补充：交房日期与装修违规挂在房屋上（业主可能有多套房，违规是某套的事） */
+  'deliverDate', 'decorationViolation', 'decorationResult'
 ]))
 const houseIds = new Set(houseRows.map(h => h.houseId))
 
 /* ---------- 业主（列表脱敏由服务端做，fixture 保留真值） ---------- */
 const ownerRows = ownersRaw.slice(0, 60).map(o => pick(o, [
   'ownerId', 'name', 'phone', 'idCard', 'gender', 'ownerType',
-  'certified', 'faceRegistered', 'appRegistered', 'creditLevel', 'registerDate'
+  'certified', 'faceRegistered', 'appRegistered', 'creditLevel', 'registerDate',
+  /* 2026-11-02 客户画像细分表：居住分类 / 职业 / 偏好 / 评价（经济状况、政治面貌、负面信息为敏感字段） */
+  'ownerCategory', 'economicLevel', 'politicalStatus', 'weddingDate',
+  'employer', 'jobTitle', 'occupation', 'workAddress',
+  'hobbies', 'pets', 'positiveNotes', 'negativeNotes'
 ]))
 
 /* ---------- 账单 ---------- */
@@ -82,7 +88,12 @@ const woRows = read('workOrders.json').slice(0, 120).map(w => ({
   ...pick(w, ['woId', 'woNo', 'communityId', 'houseId', 'houseName', 'ownerId', 'ownerName',
     'type', 'category', 'source', 'priority', 'status', 'title', 'description',
     'dispatchMode', 'assignee', 'createTime', 'acceptTime', 'arriveTime', 'finishTime',
-    'feeType', 'payStatus', 'score', 'isPublic']),
+    'feeType', 'payStatus', 'score', 'isPublic',
+    /* 2026-11-02 商业服务：项目编号 / 名称 / 成本快照（改价不回溯，靠这三个字段还原毛利） */
+    'priceCode', 'serviceName', 'serviceCost',
+    /* 2026-11-02 公共区域工时积分：工时 / 积分 / 权重 / 规则版本 / 归属期间 / 结算状态 */
+    'laborHours', 'laborPoints', 'laborPointWeight', 'pointRuleVersion', 'pointsPeriod', 'pointsStatus',
+    'pointsBy', 'pointsAt']),
   slaHours: Number(w.slaHours) || 24,
   materialFee: r2(w.materialFee),
   laborFee: r2(w.laborFee),

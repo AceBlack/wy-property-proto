@@ -1,0 +1,65 @@
+{
+  "easycom": { "autoscan": true },
+  "pages": [
+    { "path": "pages/home/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "首页" } },
+    { "path": "pages/life/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "生活" } },
+    { "path": "pages/neighbor/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "邻里" } },
+    { "path": "pages/mine/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的" } },
+
+    { "path": "pages/login/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "登录" } },
+    { "path": "pages/auth/community", "style": { "navigationStyle": "custom", "navigationBarTitleText": "选择小区" } },
+    { "path": "pages/auth/building", "style": { "navigationStyle": "custom", "navigationBarTitleText": "选择楼栋" } },
+    { "path": "pages/auth/room", "style": { "navigationStyle": "custom", "navigationBarTitleText": "选择房间" } },
+    { "path": "pages/auth/identity", "style": { "navigationStyle": "custom", "navigationBarTitleText": "身份信息" } },
+    { "path": "pages/auth/pending", "style": { "navigationStyle": "custom", "navigationBarTitleText": "房产认证" } },
+
+    { "path": "pages/house/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的房屋" } },
+    { "path": "pages/house/member-form", "style": { "navigationStyle": "custom", "navigationBarTitleText": "添加家庭成员" } },
+    { "path": "pages/house/member-manage", "style": { "navigationStyle": "custom", "navigationBarTitleText": "成员管理" } },
+
+    { "path": "pages/bills/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "家庭账单" } },
+    { "path": "pages/bills/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "账单详情" } },
+    { "path": "pages/bills/record", "style": { "navigationStyle": "custom", "navigationBarTitleText": "缴费记录" } },
+
+    { "path": "pages/utility/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "便民缴费" } },
+    { "path": "pages/utility/recharge", "style": { "navigationStyle": "custom", "navigationBarTitleText": "充值" } },
+    { "path": "pages/utility/accounts", "style": { "navigationStyle": "custom", "navigationBarTitleText": "户号管理" } },
+
+    { "path": "pages/repair/list", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报事报修" } },
+    { "path": "pages/repair/create", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我要报修" } },
+    { "path": "pages/repair/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报修详情" } },
+
+    { "path": "pages/neighbor/post", "style": { "navigationStyle": "custom", "navigationBarTitleText": "动态详情" } },
+    { "path": "pages/neighbor/activity", "style": { "navigationStyle": "custom", "navigationBarTitleText": "活动详情" } },
+    { "path": "pages/neighbor/survey", "style": { "navigationStyle": "custom", "navigationBarTitleText": "参与" } },
+    { "path": "pages/neighbor/secondhand", "style": { "navigationStyle": "custom", "navigationBarTitleText": "闲置详情" } },
+
+    { "path": "pages/life/service", "style": { "navigationStyle": "custom", "navigationBarTitleText": "服务详情" } },
+    { "path": "pages/life/orders", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的订单" } },
+    { "path": "pages/mine/feedback", "style": { "navigationStyle": "custom", "navigationBarTitleText": "客服与反馈" } },
+
+    { "path": "pages/pay/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "待支付" } }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#f1f2fa",
+    "backgroundColorTop": "#f1f2fa",
+    "backgroundColorBottom": "#f1f2fa",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff"
+  },
+  "tabBar": {
+    "color": "#8a94b0",
+    "selectedColor": "#5b6cff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "fontSize": "11px",
+    "height": "52px",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/life/index", "text": "生活" },
+      { "pagePath": "pages/neighbor/index", "text": "邻里" },
+      { "pagePath": "pages/mine/index", "text": "我的" }
+    ]
+  }
+}

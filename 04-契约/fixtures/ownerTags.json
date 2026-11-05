@@ -1,0 +1,134 @@
+[
+ {
+  "tagId": "OT01",
+  "name": "重点关怀",
+  "category": "关怀",
+  "color": "red",
+  "builtin": true,
+  "enabled": true,
+  "sort": 1,
+  "desc": "独居老人、高龄、军烈属等需要定期问候的业主；楼管每月至少联系一次",
+  "ownerCount": 6
+ },
+ {
+  "tagId": "OT02",
+  "name": "独居老人",
+  "category": "关怀",
+  "color": "orange",
+  "builtin": true,
+  "enabled": true,
+  "sort": 2,
+  "desc": "65 岁以上且同住成员为 0。突发情况无人发现，是物业最该主动看的一类",
+  "ownerCount": 5
+ },
+ {
+  "tagId": "OT03",
+  "name": "家有婴幼儿",
+  "category": "关怀",
+  "color": "orange",
+  "builtin": true,
+  "enabled": true,
+  "sort": 3,
+  "desc": "有 0–6 岁子女同住；噪音投诉处理、电梯检修时段要提前告知",
+  "ownerCount": 0
+ },
+ {
+  "tagId": "OT04",
+  "name": "投诉频繁",
+  "category": "风险",
+  "color": "red",
+  "builtin": true,
+  "enabled": true,
+  "sort": 4,
+  "desc": "近 12 个月投诉建议类工单 ≥1 条。不是差评标签，是\"沟通方式要换\"的信号",
+  "ownerCount": 3
+ },
+ {
+  "tagId": "OT05",
+  "name": "长期欠费",
+  "category": "风险",
+  "color": "red",
+  "builtin": true,
+  "enabled": true,
+  "sort": 5,
+  "desc": "欠费 ≥500 元且最长逾期 ≥30 天，按账单实时判定",
+  "ownerCount": 4
+ },
+ {
+  "tagId": "OT06",
+  "name": "违规装修",
+  "category": "风险",
+  "color": "orange",
+  "builtin": true,
+  "enabled": true,
+  "sort": 6,
+  "desc": "名下有房屋处于「已认定」违规装修；由房屋级状态派生，房子整改完标签应撤",
+  "ownerCount": 1
+ },
+ {
+  "tagId": "OT07",
+  "name": "法律纠纷",
+  "category": "风险",
+  "color": "red",
+  "builtin": true,
+  "enabled": false,
+  "sort": 7,
+  "desc": "涉诉业主。**已停用**：新标签不再可选，已打的保留——历史事实不该因为词条停用就消失",
+  "ownerCount": 3
+ },
+ {
+  "tagId": "OT08",
+  "name": "意见领袖",
+  "category": "价值",
+  "color": "blue",
+  "builtin": true,
+  "enabled": true,
+  "sort": 8,
+  "desc": "业主群里有影响力、愿意牵头的人；征求意见、试点新服务先找他们",
+  "ownerCount": 0
+ },
+ {
+  "tagId": "OT09",
+  "name": "优质业主",
+  "category": "价值",
+  "color": "green",
+  "builtin": true,
+  "enabled": true,
+  "sort": 9,
+  "desc": "信用 A 级且无欠费；可作为正面案例，也适合推荐增值服务",
+  "ownerCount": 0
+ },
+ {
+  "tagId": "OT10",
+  "name": "社区志愿者",
+  "category": "价值",
+  "color": "cyan",
+  "builtin": true,
+  "enabled": true,
+  "sort": 10,
+  "desc": "参与过社区志愿活动，可加入楼栋共治",
+  "ownerCount": 0
+ },
+ {
+  "tagId": "OT11",
+  "name": "活跃APP用户",
+  "category": "行为",
+  "color": "cyan",
+  "builtin": true,
+  "enabled": true,
+  "sort": 11,
+  "desc": "近 30 天登录业主端 ≥8 次；新功能灰度优先放给这批人",
+  "ownerCount": 3
+ },
+ {
+  "tagId": "OT12",
+  "name": "养宠家庭",
+  "category": "行为",
+  "color": "gray",
+  "builtin": true,
+  "enabled": true,
+  "sort": 12,
+  "desc": "登记有宠物；电梯宠物提示、遛狗时段管理的对象",
+  "ownerCount": 15
+ }
+]

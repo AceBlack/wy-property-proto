@@ -95,16 +95,19 @@
         <el-col :span="8">
           <el-form-item label="交付状态" prop="deliverStatus">
             <el-select v-model="form.deliverStatus" style="width:100%">
-              <el-option v-for="s in ['已交付', '未交付', '待交付']" :key="s" :label="s" :value="s" />
+              <el-option v-for="s in houseDeliverOpts()" :key="s" :label="s" :value="s" />
             </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="使用状态" prop="useStatus">
-            <el-select v-model="form.useStatus" style="width:100%">
+            <el-select v-model="form.useStatus" style="width:100%" :disabled="form.deliverStatus === '未交房'">
               <el-option v-for="s in houseUseStatusOpts()" :key="s" :label="s" :value="s" />
             </el-select>
           </el-form-item>
+          <div v-if="form.deliverStatus === '未交房'" class="form-tip">
+            未交房的房子还没到交付日，使用状态只能是「未交房」——不计物业费、不进可出租候选
+          </div>
         </el-col>
         <el-col :span="8">
           <el-form-item label="产权状态"><el-input v-model="form.propertyStatus" placeholder="如 已办证" /></el-form-item>
@@ -143,8 +146,8 @@ import { ElMessageBox } from 'element-plus'
 import FormShell from '@/components/FormShell.vue'
 import { useForm } from '@/composables/useForm'
 import {
-  buildingsOf, cashierUnitOpts, communities, communityOpts, getHouseDetail, houseOptions, houseTypeOpts,
-  houseUsageOpts, houseUseStatusOpts, ownerOptions, saveHouse, stewardOfBuilding, stewardOptions
+  buildingsOf, cashierUnitOpts, communities, communityOpts, getHouseDetail, houseDeliverOpts, houseOptions,
+  houseTypeOpts, houseUsageOpts, houseUseStatusOpts, ownerOptions, saveHouse, stewardOfBuilding, stewardOptions
 } from '@/utils/api'
 import { money } from '@/utils/format'
 import { area, intPositive, number, reqSel, room, uniqueIn } from '@/utils/rules'
@@ -157,7 +160,9 @@ const id = computed(() => route.params.id || '')
 const EMPTY = {
   communityId: 'P01', buildingId: '', unitId: '', stewardEmpId: '', room: '', floor: null, houseType: '', orientation: '',
   usage: '住宅', area: null, innerArea: null, chargeArea: null, decoration: '',
-  deliverStatus: '已交付', useStatus: '自住', propertyStatus: '已办证', certNo: '',
+  /* 新房的默认档位：已交付但还没人装、没人住 —— 旧代码这里是「自住」，
+     六态改造后它已经不在枚举里，保存时会被自己的校验拦住（一处漏改就废掉新增房屋） */
+  deliverStatus: '已交付', useStatus: '已交房未装修', propertyStatus: '已办证', certNo: '',
   ownerId: '', remark: ''
 }
 const form = reactive({ ...EMPTY })
@@ -203,6 +208,11 @@ watch(() => form.buildingId, () => {
   syncStewardByBuilding()
 })
 watch(() => form.unitId, () => { if (!filling) syncStewardByBuilding() })
+/* 交付状态决定使用状态的下界：未交房时把六态里唯一合法的一档锁死，别再让人手选错 */
+watch(() => form.deliverStatus, v => {
+  if (v === '未交房') form.useStatus = '未交房'
+  else if (form.useStatus === '未交房') form.useStatus = '已交房未装修'
+})
 const priceText = computed(() => {
   const c = communities.find(x => x.communityId === form.communityId)
   return c ? `${money(c.propertyFee)} 元/㎡·月` : '-'
@@ -265,3 +275,7 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.form-tip { margin: -14px 0 10px; font-size: 12px; line-height: 1.5; color: var(--biz-text-3, #8a90a2); }
+</style>

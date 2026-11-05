@@ -8,7 +8,7 @@
   "positions": [
    "总经理"
   ],
-  "permCount": 71,
+  "permCount": 73,
   "domains": [
    "A 房产与业主",
    "B 费用",
@@ -65,6 +65,8 @@
    "e.monthReopen.view",
    "e.org.edit",
    "e.org.view",
+   "e.ownerTags.edit",
+   "e.ownerTags.view",
    "e.permApprove.edit",
    "e.permApprove.view",
    "e.permLog.view",
@@ -88,7 +90,12 @@
    "f.woDetail.edit",
    "f.woDetail.view",
    "f.workorders.edit",
-   "f.workorders.view"
+   "f.workorders.view",
+   "f.plans.view",
+   "f.plans.edit",
+   "f.plans.eval",
+   "f.planTpl.view",
+   "f.planTpl.edit"
   ]
  },
  {
@@ -384,7 +391,7 @@
   "positions": [
    "人事专员"
   ],
-  "permCount": 14,
+  "permCount": 16,
   "domains": [
    "A 房产与业主",
    "C 办公协同",
@@ -403,6 +410,8 @@
    "e.downloads.view",
    "e.org.edit",
    "e.org.view",
+   "e.ownerTags.edit",
+   "e.ownerTags.view",
    "e.permLog.view",
    "e.reports.view"
   ]
@@ -416,7 +425,7 @@
   "positions": [
    "楼栋管家"
   ],
-  "permCount": 15,
+  "permCount": 16,
   "domains": [
    "A 房产与业主",
    "B 费用",
@@ -426,6 +435,7 @@
   "perms": [
    "a.houses.edit",
    "a.houses.view",
+   "a.owner360.view",
    "a.owners.edit",
    "a.owners.view",
    "a.sensitive.view",
@@ -575,7 +585,7 @@
   "dataScope": "全部项目",
   "communities": [],
   "positions": [],
-  "permCount": 42,
+  "permCount": 43,
   "domains": [
    "A 房产与业主",
    "B 费用",
@@ -613,6 +623,7 @@
    "e.downloads.view",
    "e.monthReopen.view",
    "e.org.view",
+   "e.ownerTags.view",
    "e.permApprove.view",
    "e.permLog.view",
    "e.reports.view",

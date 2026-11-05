@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: 智慧物业后台 API
   version: 0.1.0
-  summary: 原型 → 后台的接口契约（17 个域 104 个接口）
+  summary: 原型 → 后台的接口契约（19 个域 142 个接口）
   description: |
     ## 这份契约是什么
 
@@ -11,8 +11,11 @@ info:
     - 第一批：业主（含房屋归属）→ 账单与缴费（含退款）→ 工单（含 SLA）
     - 第二批：租户（补充 / 核验 / 门禁 / 搬离）→ 巡检任务（执行 / 监督）→ 品质整改闭环
     - 第三批：报表快照（跑批产物）→ 月结（期间关账 / 反结）→ 合同 → 公告 → 员工档案 → 工资表 → 组织与权限
+    - 第四批：**员工端专有**（移动端才有入口）—— 执行页聚合 / 开工打卡 / 巡检转工单 / 接单·转单·完工·回评 / 考勤本人确认与申诉 / 催收跟进
+    - 第五批：**抢单与提成**—— 抢单（并发 409）/ 派单（三档）/ 到场 / 弃单 / 现场增项与业主确认 / 收款码与支付回调 / 我的提成（已结·在途）/ 维修价目 / 批量催缴 / 房屋在住人（租户·成员）
+    - 第六批：**业主小程序（mp）**—— 微信授权与实名 / 绑定房产三态（0/1/N 套）/ 我的房产与账单（含不挂房的车位费）/ 报修下单（下单即见价）/ 待支付订单与模拟支付 / 工单详情与增项确认 / 评价。支付只到"待支付订单 + 模拟成功"，真回调在 `/mp/payments/{payId}/notify`（待补）
 
-    共 91 个路径 / 104 个接口 / 178 个 schema。
+    共 129 个路径 / 142 个接口 / 207 个 schema。
 
     配套物：
     - `mock-server.mjs`：按本契约跑起来的假服务（`npm run mock`，端口 4010）
@@ -66,6 +69,35 @@ tags:
     description: 品质整改闭环
   - name: quality
     description: 品质检查记录（结果台账）
+  - name: mobile
+    description: |
+      员工端（App / H5）专用接口。
+
+      这些接口的共同点：**PC 端没有对应入口**，只服务现场作业。
+      为它们单独列一组，而不是塞进巡检 / 工单域，原因有两个：
+      1. 权限模型不同 —— 一线角色没有 `f.inspect.view` 之外的任何后台权限，
+         靠"把 PC 接口开给移动端"是开不出来的；
+      2. 数据形态不同 —— 移动端要的是**一次请求拿全一屏**（任务 + 模板 + 责任人候选），
+         而 PC 是分三次查，合并反而拖慢后台列表。
+
+      新增能力位（PC 的 72 个权限码里没有）：
+      `c.notices.read` / `c.attendance.self` / `c.payroll.self` /
+      `f.approval.handle` / `f.wo.dispatch` / `f.rectify.recheck`。
+  - name: mp
+    description: |
+      业主小程序（H5 / 微信小程序）专用接口。
+
+      与 `mobile`（员工端）的区别不是端，而是**视角**：
+      员工关心"这单派给谁、到没到场、提成多少"，业主只关心
+      "我要交多少钱、我报的单到哪一步了、这单为什么多收了 80"。
+
+      所以这一组刻意**不含**：工单池 / 抢单 / 派单 / 审批 / 催缴 / 收银台 / 日结 / 发票 / 退款。
+      那些是物业侧与财务侧的能力，出现在业主端就是越权入口。
+
+      三条与 `mobile` 共享的口径（不共享就会两端各说各话）：
+      - 价目只有一份（`repairPrices.json`），业主下单页与员工现场增项读同一个源；
+      - 增项的唯一形状是 `workOrders[].addons[]`，确认后**合并进本单总额**；
+      - 支付只认「已支付」这一个结论，`/mp/payments/{payId}/simulate` 是演示替身。
   - name: employees
     description: |
       员工档案（人事口径：组织、岗位、合同、证照、考勤汇总）。
@@ -214,6 +246,11 @@ paths:
           schema:
             type: string
             enum: ['', debt, unverified, noface, multi]
+        - name: tagId
+          in: query
+          description: |
+            按业主标签筛（如 `OT05` 长期欠费）。**必须服务端过滤**：标签是业主行上的属性，
+            前端在分页结果里再筛，看到的永远是"本页 20 条里有这个标签的那几条"。
       responses:
         '200':
           description: 成功
@@ -226,6 +263,207 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /owner-tags:
+    get:
+      tags: [owners]
+      operationId: listOwnerTags
+      summary: 业主标签字典（打标签的选项来源）
+      description: |
+        **只要求 `a.owners.view`，不要求字典维护权**——这是刻意的：
+        楼栋管家要能给业主打标签，就必须先能读到"有哪些标签可选"。
+        要求 `e.ownerTags.view` 的话，楼管打开选择弹层会是一个空列表。
+
+        默认只回**启用中**的词条（`enabled=false` 的只有维护页要看）。
+        `ownerCount` 是**全库**口径，不是分页口径——同一个词条在不同页面上必须显示同一个数。
+
+        **员工端（管家）的标签选择器也走本接口**，权限同样是 `a.owners.view`。
+        `e.ownerTags.view` 是 PC「业主标签」维护页的**页面级**权限码（能看停用词条与统计），
+        不要拿它来校验本接口 —— 楼管没有这个码，按它校验会让管家端的选择器整个 403。
+        2026-11-05 已与业主方确认，不再两说。
+      parameters:
+        - name: enabled
+          in: query
+          description: 不传 = 只看启用的；传 all = 全部（维护页用）；传 true/false = 精确过滤
+          schema: { type: string, enum: [all, 'true', 'false'] }
+        - name: category
+          in: query
+          schema: { type: string, enum: [关怀, 风险, 价值, 行为] }
+        - $ref: '#/components/parameters/kw'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [owners]
+      operationId: createOwnerTag
+      summary: 新增标签词条
+      description: |
+        需要 `e.ownerTags.edit`（**不是** `a.owners.edit`）：
+        改字典是全公司口径的事，楼管能选不能改。
+
+        名称全库唯一——已停用的词条也算占用，否则会出现两个"重点关怀"，
+        一个启用一个停用，打标签的人分不清该选哪个。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 12 }
+                category: { type: string, enum: [关怀, 风险, 价值, 行为] }
+                color: { type: string, enum: [red, orange, green, blue, cyan, gray] }
+                desc: { type: string, maxLength: 80 }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 名称已存在（409/40902）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { code: 40902, message: '标签「重点关怀」已存在（含已停用词条）' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /owner-tags/stats:
+    get:
+      tags: [owners]
+      operationId: ownerTagStats
+      summary: 标签字典汇总
+      description: |
+        KPI 必须服务端算：字典只有 12 条还好说，但 `taggedOwners` 要扫全量业主，
+        前端在分页结果里数出来的是「本页 20 条里有几个带标签」，比没有更糟。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagStatsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /owner-tags/{tagId}:
+    patch:
+      tags: [owners]
+      operationId: updateOwnerTag
+      summary: 改词条（改名 / 改色 / 排序 / 启停）
+      description: |
+        **`tagId` 不可改**：业主表引用的是它，改了等于把所有已打标签变成孤儿。
+
+        停用（`enabled=false`）的效果是「不能再新打」，**已打上去的不受影响也不消失**：
+        历史事实不该因为词条停用而被抹掉——"这户去年确实涉过诉"不因为现在不统计了就变假。
+        停用前应先看 `ownerCount`，为 0 才能干净停用，否则要告知会影响多少人。
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema: { type: string, example: OT07 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 12 }
+                category: { type: string, enum: [关怀, 风险, 价值, 行为] }
+                color: { type: string, enum: [red, orange, green, blue, cyan, gray] }
+                desc: { type: string, maxLength: 80 }
+                sort: { type: integer }
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: 已保存
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 名称与其它词条冲突（409/40902）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /owners/{ownerId}/tags:
+    post:
+      tags: [owners]
+      operationId: addOwnerTag
+      summary: 给业主打标签
+      description: |
+        只要 `a.owners.edit`（楼管有，且受责任范围约束——范围外的业主直接 403）。
+
+        三条拦截：
+        · 词条已停用 → 409/40919（不能新打，已打过的不受影响）
+        · 已经打过 → 409/40920（重复打不该静默成功，否则页面看不出到底有没有生效）
+        · 词条不存在 → 404
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema: { type: string, example: OW00001 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tagId]
+              properties:
+                tagId: { type: string, example: OT05 }
+      responses:
+        '200':
+          description: 已打上
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagIdsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 词条已停用（40919）/ 已经打过（40920）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { code: 40919, message: '标签「法律纠纷」已停用，不能再打；已打过的不受影响' }
+  /owners/{ownerId}/tags/{tagId}:
+    delete:
+      tags: [owners]
+      operationId: removeOwnerTag
+      summary: 去掉业主的一个标签
+      description: |
+        停用的词条**也可以去掉**——不然挂错了就永远摘不掉（停用只拦"新打"，不拦"摘掉"）。
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema: { type: string, example: OW00001 }
+        - name: tagId
+          in: path
+          required: true
+          schema: { type: string, example: OT02 }
+      responses:
+        '200':
+          description: 已去掉
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerTagIdsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: 业主不存在，或该业主本来就没有这个标签（404/40409）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /owners/{ownerId}:
     get:
       tags: [owners]
@@ -626,6 +864,1813 @@ paths:
           $ref: '#/components/responses/Unprocessable'
 
   # ----------------------------------------------------------- work-orders
+  # --------------------------------------------------------------- service-items
+  /service-items:
+    get:
+      tags: [service-items]
+      operationId: queryServiceItems
+      summary: 商业服务项目列表（价目字典）
+      description: |
+        商业服务的项目目录，也是**工单收费的唯一价源**：业主端下单页、员工端现场增项、
+        提成核算、后台工单计费四处共用同一份。
+
+        口径：`price = material + labor`（服务价格）、`cost = materialCost + laborCost`（成本价，
+        材料按成本价过账 + 工时折算）。两个合计**由服务端算**，请求里传了也忽略 ——
+        否则迟早出现「列表 125 / 详情 124.99」。
+
+        默认只回在售（`enabled` 不传时按 true 过滤），维护页要显式传 `enabled=all`。
+      parameters:
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+        - name: category
+          in: query
+          schema: { type: string }
+          description: 项目分类名（水管漏水 / 下水道堵塞 / …）
+        - name: enabled
+          in: query
+          schema: { type: string, enum: [true, false, all] }
+        - $ref: '#/components/parameters/kw'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceItemPageEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [service-items]
+      operationId: createServiceItem
+      summary: 新增服务项目
+      description: 编号由服务端生成（SI 前缀）；`price/cost` 不接受入参，按分解项计算。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceItemInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /service-items/summary:
+    get:
+      tags: [service-items]
+      operationId: serviceItemSummary
+      summary: 维护页 KPI（与列表同源）
+      description: 项目数 / 在售 / 停用 / 已产生工单 / 商业服务收入 / 成本 / 毛利。收入只算已完工且已结清的单。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ServiceItemSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /service-items/{code}:
+    get:
+      tags: [service-items]
+      operationId: getServiceItem
+      summary: 服务项目详情（含引用单数与改价留痕）
+      parameters:
+        - $ref: '#/components/parameters/serviceItemCode'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [service-items]
+      operationId: updateServiceItem
+      summary: 修改服务项目（改价留痕，不回溯已完工工单）
+      description: |
+        `code` 不可改（业主端 / 员工端按它索引）。价格四项任一变化都会写一条「改价」留痕，
+        并**只影响新单**：已完工工单按当时的快照结算。
+      parameters:
+        - $ref: '#/components/parameters/serviceItemCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceItemInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /service-items/{code}/toggle:
+    post:
+      tags: [service-items]
+      operationId: toggleServiceItem
+      summary: 启用 / 停用服务项目
+      description: |
+        停用**不删除**：历史工单还引着它，删了「这条单当时收的是什么」就查不到了。
+        有在途工单（未完工）时不给停用（409/40924），否则那几张单的价格来源就断了。
+      parameters:
+        - $ref: '#/components/parameters/serviceItemCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  # --------------------------------------------------------------- OA 审批
+  /oa/forms:
+    get:
+      tags: [oa]
+      operationId: listOaForms
+      summary: OA 单据类型与表单字段定义
+      description: |
+        六类单据（用车 / 费用报销 / 请假 / 加班 / 用印 / 采购）的**字段描述**。
+        页面按这份描述渲染表单，不给每种单据写一个页面 —— 加第七种只加一条定义。
+
+        字段类型：`text / textarea / number / money / date / datetime / select / file`。
+        `role: amount` 的字段参与金额条件分支（决定走基础流程还是超额流程）。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/OaFormDef' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /oa/requests:
+    get:
+      tags: [oa]
+      operationId: queryOaRequests
+      summary: 我的申请（OA 单据）
+      description: |
+        只回 OA 单据（bizId 为空、内容存在 formData），不含合同审批等业务单据 ——
+        那些有各自的业务列表页。
+      parameters:
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+        - name: status
+          in: query
+          schema: { type: string, enum: [待审批, 审批中, 已通过, 已驳回, 已撤回] }
+        - name: bizType
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/kw'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OaRequestPageEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [oa]
+      operationId: createOaRequest
+      summary: 发起 OA 申请
+      description: |
+        一次完成两件事：校验表单 + 生成审批单。OA 单据没有业务实体，
+        `bizId` 留空、内容存 `formData` —— 所以"发起"就是"建一张审批单"，没有第二步。
+
+        审批节点按 `bizType` 的流程配置生成，审批人按**规则**解析（部门负责人 / 直属上级 / 指定岗位），
+        解析不出来的节点 `handler` 为空，由审批页显示"待指派"。
+
+        **本期批准即结束**：通过后不生成付款单、不写考勤、不建采购单。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bizType, formData]
+              properties:
+                bizType: { type: string, example: 费用报销 }
+                formData:
+                  type: object
+                  additionalProperties: true
+                  description: 按表单定义提交的键值对
+                urgency: { type: string, enum: [普通, 紧急, 重要] }
+                files:
+                  type: array
+                  items: { type: object }
+                  description: 只登记元数据（文件名/大小/类型），原型不存文件本体
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OaRequestEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /oa/requests/{approvalId}/action:
+    post:
+      tags: [oa]
+      operationId: oaApprovalAction
+      summary: 审批动作（同意 / 驳回）
+      description: |
+        会签节点**一次「同意」只签掉一个人**：名单里还有人待签时，单据仍停在当前节点，
+        `currentNode` 变成「节点名（会签 1/2）」；全部签完才推进下一级。
+
+        - 任一人驳回 → 整单驳回，其余人标 `已跳过`（不是直接删掉 —— 要能看见"谁没签上"）；
+        - 或签（`signMode=any`）：任一人同意即通过，其余人标 `已跳过`；
+        - 单人节点（没有 `approvers`）：行为与以前一致，签完即推进。
+
+        实现提醒：服务端必须按**登录人**匹配名单里的那一份，不能一律签第一个人。
+        本假服务在身份对不上时按第一份代签并在意见里注明「代 XXX 处理」，
+        这是为了原型演示能走通，真实系统应该拒绝并提示"你不是本节点审批人"。
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema: { type: string, example: AP00097 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [同意, 驳回] }
+                comment: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: 成功（返回处理后的审批单）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OaRequestEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 单据已结束（40928）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /oa/requests/{approvalId}/withdraw:
+    post:
+      tags: [oa]
+      operationId: withdrawOaRequest
+      summary: 撤回申请
+      description: |
+        **只有「待审批」（还没人处理）能撤回**。一旦有人受理（审批中）就撤不回 ——
+        要作废只能让审批人驳回，否则"批到一半申请人抽单"会让流程与数据都失真。
+      parameters:
+        - $ref: '#/components/parameters/approvalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OaRequestEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /oa/flows:
+    get:
+      tags: [oa]
+      operationId: listOaFlows
+      summary: 审批流配置（7 种：6 类 OA + 合同审批）
+      description: |
+        每种单据的节点列表 + 金额阈值。合同审批也在这里 ——
+        它的「≥30 万三级」以前硬编码在代码里，收进配置后可以改。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/OaFlowDef' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /oa/flows/{bizType}:
+    put:
+      tags: [oa]
+      operationId: updateOaFlow
+      summary: 修改审批流配置
+      description: |
+        **只影响新提交的单**：在途单的 `flow` 是发起时的快照，回头改配置会让
+        "批到一半换规则"，说不清谁批的算数。
+
+        `overNodes` 非空但阈值为 0 时直接拦（422/42212）—— 那套节点永远走不到，
+        配了等于没配，不如报错。
+      parameters:
+        - name: bizType
+          in: path
+          required: true
+          schema: { type: string, example: 费用报销 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                baseNodes:
+                  type: array
+                  items: { $ref: '#/components/schemas/OaFlowNode' }
+                overNodes:
+                  type: array
+                  items: { $ref: '#/components/schemas/OaFlowNode' }
+                amountThreshold: { type: integer, minimum: 0 }
+                note: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/OaFlowDef' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  # ------------------------------------------------------------ org-leaders
+  /orgs/{orgId}/leaders:
+    get:
+      tags: [orgs]
+      operationId: listOrgLeaders
+      summary: 某组织的负责人列表
+      description: |
+        一个部门可以有多个负责人：**正职唯一、副职可多个、代理必须带结束日期**。
+        返回**全部**关系（含已结束 / 未生效，`state` 字段区分），历史要能看见 ——
+        删掉的话，"这个部门去年谁负责"就永远查不到了。
+
+        `active` 与 `state` 由服务端按当天算，不落库：落库会出现"到期了但没人改"。
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema: { type: string, example: O-P01-T3 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgLeader' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [orgs]
+      operationId: saveOrgLeaders
+      summary: 整组替换某组织的负责人
+      description: |
+        用整组替换而不是逐条增删：编辑弹窗是一次保存的，逐条提交会出现
+        "删了旧的、新的没加上"的中间态。
+
+        三条校验：
+        - **正职唯一**（409/40927）：一个部门两个在期正职，不知道谁签字；
+        - **代理必须填结束日期**（422/42213）：没有到期的代理等于第二个正职；
+        - **离职员工不能设为负责人**（422/42213）：关系还在但审批会落到查无此人。
+
+        保存成功后服务端回写 `orgs.leader` 展示快照 —— 组织树、被检班组读的是它，
+        不回写就会出现"审批走代理、页面显示离任正职"的两套人名。
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leaders]
+              properties:
+                leaders:
+                  type: array
+                  items: { $ref: '#/components/schemas/OrgLeaderInput' }
+      responses:
+        '200':
+          description: 成功（返回替换后的完整列表）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrgLeader' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 同一部门多个在期正职（40927）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /employees/leader-options:
+    get:
+      tags: [employees]
+      operationId: orgLeaderOptions
+      summary: 负责人候选（在职员工全量）
+      description: |
+        不按「主管及以上」过滤：班组负责人可能就是资深师傅，按岗位卡会把人挡在外面。
+        真正的约束是「一个部门只能有一个正职」，不是「谁能当负责人」。
+
+        路径放在员工域而不是 `/orgs/leader-options` —— 后者会被 `/orgs/{orgId}`
+        先匹配掉，orgId 收到字符串 `leader-options`。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        empId: { type: string }
+                        name: { type: string }
+                        position: { type: string }
+                        orgId: { type: string }
+                        orgName: { type: string }
+                        status: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  # ---------------------------------------------------------- plan-templates
+  /plan-templates:
+    get:
+      tags: [plan-templates]
+      operationId: queryPlanTpls
+      summary: 计划模板列表
+      description: |
+        考核项的唯一源：项目经理 + 四个班组 + 职能兜底。
+
+        **模板里没有权重**（2026-11-05 第 60 批）：模板只定「考什么、怎么算分」，
+        「每项占多少」由提报人在新建计划时逐项填，运营管理部审核时可调。
+
+        返回里带派生字段 `qCount / mCount / kCount` 与 `checkOk`（内容是否完整），
+        不要前端再算一遍。
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+          description: 搜模板名 / 考核项名称
+        - name: onlyEnabled
+          in: query
+          schema: { type: boolean, default: false }
+          description: 只返回启用中的（提报表单选模板时用）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateListEnvelope' }
+    post:
+      tags: [plan-templates]
+      operationId: createPlanTpl
+      summary: 新增模板
+      description: |
+        校验不通过**整单拒绝**（422/42214），不做部分保存 ——
+        一份缺了量化段或重点段的模板落库之后，用它提报出来的计划没有可评分的内容，而且是隐性的。
+
+        校验只看内容：名称、适用类型、适用班组、量化段与重点段至少各一条、条目名称非空且不超过 40 字。
+        **不校验权重** —— 模板里没有权重。
+
+        同一类部门只能有一个模板（项目 / T1 / T2 / T3 / T4 / 职能），重复了返回 409/40929。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanTemplateInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateEnvelope' }
+        '409':
+          description: 同一类已有模板
+        '422':
+          description: 字段校验不通过（内容不完整）
+
+  /plan-templates/match:
+    get:
+      tags: [plan-templates]
+      operationId: matchPlanTpl
+      summary: 按组织自动匹配模板
+      description: |
+        项目部 → 项目经理模板；班组按 `-T1~-T4` 对应客服 / 工程 / 秩序 / 环境；
+        总部部门落到「职能通用」兜底。匹配不到返回空值，页面提示去配，
+        **不要静默给一个空模板**（那会提报出一张没有考核项的计划）。
+
+        运营管理部可以在提报页改选模板，所以这是「默认值」不是「锁定值」。
+      parameters:
+        - name: orgId
+          in: query
+          required: true
+          schema: { type: string, example: O-P01-T1 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateEnvelope' }
+
+  /plan-templates/stats:
+    get:
+      tags: [plan-templates]
+      operationId: planTplStats
+      summary: 模板汇总
+      description: 列表页 KPI：模板数、考核项总数、**校验不通过的模板数**（`broken`）。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PlanTemplateStats' }
+
+  /plan-templates/{tplId}:
+    get:
+      tags: [plan-templates]
+      operationId: getPlanTpl
+      summary: 模板详情（含全部条目）
+      parameters:
+        - name: tplId
+          in: path
+          required: true
+          schema: { type: string, example: PT01 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateEnvelope' }
+        '404':
+          description: 模板不存在
+    patch:
+      tags: [plan-templates]
+      operationId: updatePlanTpl
+      summary: 修改模板
+      description: |
+        整单提交：`items` 传全量（增删改都在里面），不做增量合并。
+        保存成功后 `version` 自增 —— 计划提报时记下版本号，
+        半年后能说清「当时用的是哪一版考核标准」。
+
+        模板里**没有权重字段**：权重在计划上，由提报人填、审核阶段可调。
+
+        **不影响已经提报的计划**：提报时整份拷贝成快照。
+      parameters:
+        - name: tplId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanTemplateInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateEnvelope' }
+        '422':
+          description: 字段校验不通过（内容不完整）
+
+  /plan-templates/{tplId}/enabled:
+    patch:
+      tags: [plan-templates]
+      operationId: togglePlanTpl
+      summary: 启用 / 停用模板
+      description: |
+        停用**不删除**：历史计划还引着它，删了追溯就断。
+        停用后新建计划不会再匹配到它，已提报的不受影响。
+      parameters:
+        - name: tplId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanTemplateEnvelope' }
+
+  # ------------------------------------------------------------- assets（办公资产）
+  /asset-categories/tree:
+    get:
+      tags: [assets]
+      operationId: assetCategoryTree
+      summary: 资产分类树（两级，节点带「本级 / 含下级」资产数）
+      description: |
+        **与 D 域「设备台账」不是一回事**：那边管门禁 / 摄像头这类 IoT 设备（看「在不在线」），
+        这里管电脑 / 桌椅 / 工具这类可被个人领用的办公物品（看「值多少、在哪个部门」）。
+        分类最多两级；停用的分类也返回（`enabled: false`），历史资产还挂在上面。
+      responses:
+        '200':
+          description: 成功（数组，不是信封）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssetCategoryNode' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /asset-categories:
+    get:
+      tags: [assets]
+      operationId: listAssetCategories
+      summary: 分类扁平列表（含 path / depth / 资产数）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssetCategory' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [assets]
+      operationId: createAssetCategory
+      summary: 新建分类
+      description: |
+        三条硬规则（都是 422）：
+        ① 最多两级 —— 三级分类在录入时选不出来；
+        ② 同级不能重名 —— 同一层两个「电脑」，录入时选哪个都是错；
+        ③ 改上级不能挂到自己的子孙下（成环）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetCategoryInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AssetCategory' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /asset-categories/options:
+    get:
+      tags: [assets]
+      operationId: assetCategoryOptions
+      summary: 分类下拉选项（带缩进，停用的禁用）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string, example: AC0002 }
+                        label: { type: string, example: '　电脑' }
+                        depth: { type: integer, example: 1 }
+                        disabled: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /asset-categories/{catId}:
+    get:
+      tags: [assets]
+      operationId: getAssetCategory
+      summary: 分类详情
+      parameters:
+        - name: catId
+          in: path
+          required: true
+          schema: { type: string, example: AC0002 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AssetCategory' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [assets]
+      operationId: updateAssetCategory
+      summary: 修改分类（改名 / 改上级 / 排序）
+      description: |
+        **改名不回写资产**：资产上存的是 `catName` / `catPath` 快照，
+        所以「电脑」改叫「笔记本电脑」之后，历史资产仍显示当时的名字。
+      parameters:
+        - name: catId
+          in: path
+          required: true
+          schema: { type: string, example: AC0002 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetCategoryInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AssetCategory' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /asset-categories/{catId}/toggle:
+    post:
+      tags: [assets]
+      operationId: toggleAssetCategory
+      summary: 启用 / 停用分类
+      description: 停用后**不能再往里新增资产**，已有资产保留 —— 停用不删，历史还要能读。
+      parameters:
+        - name: catId
+          in: path
+          required: true
+          schema: { type: string, example: AC0002 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AssetCategory' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /asset-categories/{catId}/remove:
+    post:
+      tags: [assets]
+      operationId: removeAssetCategory
+      summary: 删除分类（有子分类或有资产 → 409）
+      description: |
+        用 POST 而不是 DELETE：DELETE 没有请求体，「为什么删」这个理由无处可放。
+        有子分类或有资产时返回 **409 / 40927**，并说清是几件资产 —— 删掉等于让已有资产指向空分类。
+      parameters:
+        - name: catId
+          in: path
+          required: true
+          schema: { type: string, example: AC0002 }
+      responses:
+        '200':
+          description: 已删除
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      catId: { type: string }
+                      removed: { type: boolean }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /assets:
+    get:
+      tags: [assets]
+      operationId: listAssets
+      summary: 资产列表（按分类含下级 / 状态 / 部门 / 关键字筛选）
+      parameters:
+        - name: catId
+          in: query
+          schema: { type: string }
+          description: 选一级分类时**包含其全部下级**
+        - name: status
+          in: query
+          schema: { type: string, enum: [闲置, 在用, 报废] }
+        - name: orgId
+          in: query
+          schema: { type: string }
+        - name: kw
+          in: query
+          schema: { type: string }
+          description: 匹配名称 / 编号 / 编码 / 序列号 / 品牌 / 型号 / 使用人 / 位置
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items: { $ref: '#/components/schemas/Asset' }
+                      total: { type: integer }
+                      pageNo: { type: integer }
+                      size: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [assets]
+      operationId: createAsset
+      summary: 新增资产（编号与 token 由服务端生成）
+      description: |
+        `assetNo` 形如 `ZC20260001`：**服务端生成、按当年流水递增、永不可改**。
+        原因很直接——标签已经贴在实物上，改号等于让报修记录和纸质标签全部对不上。
+
+        `qrToken` 是 16 位随机串，与编号无关：编号能顺序推，token 不能，
+        否则改一个字符就能枚举出全公司的资产。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetInput' }
+      responses:
+        '200':
+          description: 成功（返回带 assetNo / qrToken 的完整资产）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Asset' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /assets/summary:
+    get:
+      tags: [assets]
+      operationId: assetSummary
+      summary: 资产 KPI（总数 / 购置总值 / 状态分布 / 保修临期）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      totalValue: { type: number, description: 按录入原值合计，**不含折旧**（本期不做净值） }
+                      idle: { type: integer }
+                      inUse: { type: integer }
+                      scrapped: { type: integer }
+                      warrantySoon: { type: integer, description: 30 天内到期 }
+                      warrantyExpired: { type: integer }
+                      catCount: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /assets/by-category:
+    get:
+      tags: [assets]
+      operationId: assetByCategory
+      summary: 按最末级分类汇总（件数 + 原值）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        catId: { type: string }
+                        name: { type: string }
+                        catPath: { type: string }
+                        count: { type: integer }
+                        value: { type: number }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /assets/labels:
+    post:
+      tags: [assets]
+      operationId: assetLabels
+      summary: 批量打印标签的数据（含扫码链接）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetIds]
+              properties:
+                assetIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        assetId: { type: string }
+                        assetNo: { type: string }
+                        name: { type: string }
+                        catName: { type: string }
+                        qrToken: { type: string }
+                        scanUrl: { type: string, example: '/scan/Kyz67CdiKyreXUvS' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /assets/{assetId}:
+    get:
+      tags: [assets]
+      operationId: getAsset
+      summary: 资产详情（含变更记录）
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema: { type: string, example: AS0001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Asset' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [assets]
+      operationId: updateAsset
+      summary: 修改资产（逐字段写变更记录）
+      description: |
+        **`assetNo` 不可改**（422）：标签已贴在实物上。
+        `status` 是**描述性字段**，本期没有领用 / 归还单据，改它只是改描述，不代表流程推进。
+        改动会逐字段写进变更记录（`logs`）—— 没有领用单，这一层就是唯一的「谁在什么时候改了什么」。
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema: { type: string, example: AS0001 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AssetInput'
+                - type: object
+                  properties:
+                    ver:
+                      type: integer
+                      description: 乐观锁版本号（详情里的 `_ver`）；不一致 → 409 / 40901
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Asset' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------- 扫码公开接口（免登录）
+  /public/assets/{token}:
+    get:
+      tags: [public]
+      operationId: publicAssetView
+      security: []
+      summary: 扫码查看资产（**免登录**，只回白名单字段）
+      description: |
+        这个接口**不校验登录态**：扫码的人可能是访客、供应商，或者手机上根本没装这个系统。
+        要求登录等于把这个功能做废。
+
+        边界不靠登录，靠**字段白名单**：
+
+        | 返回 | 不返回 |
+        |---|---|
+        | 名称、编号、分类、状态、**使用部门**、存放位置、保修到期 | 使用人姓名、购置原值、供应商、发票、序列号、备注、变更记录 |
+
+        判断依据是「这个字段暴露出去会不会被利用」：序列号能被拿去伪造保修，
+        原值泄露采购价，供应商暴露商务关系。
+
+        token 无效返回 **404 / 40410**，但不区分「格式错」与「不存在」——
+        区分了就等于告诉别人怎么猜。
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, example: Kyz67CdiKyreXUvS }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/AssetPublicView' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------- dept-plans
+  /dept-plans:
+    get:
+      tags: [dept-plans]
+      operationId: queryDeptPlans
+      summary: 部门计划列表
+      description: |
+        一个部门一个月**一份**计划：`(planMonth, orgId)` 唯一，已驳回的不占位（可以重提）。
+
+        计划的 `items` 是**模板铺开的考核项**（提报时整份拷贝成快照），模板之后怎么改都不影响它。
+        三个派生口径（服务端算，前端不要重算）：
+        - `weightTotal`：各项权重合计，**提交审核时必须正好 100**；草稿允许不闭合（写到一半要能存）；
+          每一项的 `weight` 必须是 **5 的倍数**；
+        - `finishRate`：按自评加权折算（合计满分 5 分），不是条目完成数占比；
+        - `totalScore`：只有已结案才有值，= 自评合计 × 20% + 复评合计 × 80%，**5 分制**。
+      parameters:
+        - name: planMonth
+          in: query
+          schema: { type: string, example: '2026-10' }
+          description: 计划月份（YYYY-MM）
+        - name: orgId
+          in: query
+          schema: { type: string, example: O-P01-T4 }
+          description: 提报部门（组织树节点，班组或项目部都可）
+        - name: projectId
+          in: query
+          schema: { type: string, example: O-P01 }
+          description: 按所属项目筛（总部职能部门的计划不挂在任何项目上）
+        - name: status
+          in: query
+          schema: { type: string, enum: [草稿, 审批中, 已批准, 已驳回, 执行中, 待复评, 已结案] }
+        - name: kw
+          in: query
+          schema: { type: string }
+          description: 搜部门 / 提报人 / 计划号 / 考核项名称
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanPageEnvelope' }
+    post:
+      tags: [dept-plans]
+      operationId: createDeptPlan
+      summary: 新建计划（草稿）
+      description: |
+        服务端必须重新校验 `leadsOfUser(empId)` 是否包含 `orgId`，不能只信前端下拉 ——
+        提报主体错了，整张单都是错的。
+
+        **草稿不强制权重闭合**：写到一半就存是正常动作；提报（`/submit`）时才卡 100。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeptPlanInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '403':
+          description: 不是该部门负责人
+        '409':
+          description: 该部门本月已有计划（40925）
+
+  /dept-plans/stats:
+    get:
+      tags: [dept-plans]
+      operationId: deptPlanStats
+      summary: 计划统计
+      description: |
+        「平均得分」只算已归档的（未归档没分，算进去会把均值拉低）；
+        「完成率」按自评加权折算；总部职能部门的计划单列一组，不硬塞进项目。
+      parameters:
+        - name: planMonth
+          in: query
+          schema: { type: string }
+        - name: projectId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/DeptPlanStats' }
+
+  /dept-plans/exists:
+    get:
+      tags: [dept-plans]
+      operationId: planOfMonth
+      summary: 某部门某月是否已有计划
+      description: 提报表单打开时先查一次，别让人填完才发现重复。没有则返回空值。
+      parameters:
+        - name: planMonth
+          in: query
+          required: true
+          schema: { type: string }
+        - name: orgId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf: [{ $ref: '#/components/schemas/DeptPlan' }]
+
+  /dept-plans/{planId}:
+    get:
+      tags: [dept-plans]
+      operationId: getDeptPlan
+      summary: 计划详情
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string, example: PL202610001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+    patch:
+      tags: [dept-plans]
+      operationId: updateDeptPlan
+      summary: 改草稿
+      description: 只有「草稿 / 已驳回」能改。已批准的内容不能被事后修改（要改用审核直改口）。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeptPlanInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '409':
+          description: 当前状态不能改（40926）
+
+  /dept-plans/{planId}/submit:
+    post:
+      tags: [dept-plans]
+      operationId: submitDeptPlan
+      summary: 提报审批
+      description: |
+        卡三件事：权重闭合、量化项都填了目标值、每条都有完成时间。
+        然后生成 OA 单（`bizType='计划审批'`），审批链**按提报部门解析**，不按人事归属 ——
+        一人管两个部门时，两个部门的项目经理不是同一个人。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tplId: { type: string, description: 运营管理部可以改选模板后提报 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '422':
+          description: 权重或必填项不通过（42212）
+
+  /dept-plans/{planId}/withdraw:
+    post:
+      tags: [dept-plans]
+      operationId: withdrawDeptPlan
+      summary: 撤回
+      description: 只有审批中的能撤，撤回后回到草稿可继续改。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+
+  /dept-plans/{planId}/items/{taskId}:
+    patch:
+      tags: [dept-plans]
+      operationId: savePlanProgress
+      summary: 执行阶段填一条的实际完成情况
+      description: |
+        三段填法不同：
+        - 量化：`actual` 填数值，自评由服务端按公式算（**不接受手填分数**，否则等于自己定分）；
+        - 监控：`actual` 填情况说明，`selfWeighted` 直接填扣分（负数，本期不做上限校验）；
+        - 重点：`actual` 填文字，`selfScore` 填 1–5。
+
+        只有「已批准 / 执行中」能填；第一次填就把状态推到「执行中」。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, example: PL202610002-I01 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actual:
+                  oneOf:
+                    - type: number
+                    - type: string
+                  description: 量化填数值，监控/重点填文字
+                actualNote: { type: string }
+                selfScore: { type: number, description: 仅重点项手填 1–5 }
+                selfWeighted: { type: number, description: 仅监控项，填扣分（负数） }
+                remark: { type: string }
+                files:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '409':
+          description: 当前状态不能填（40926）
+
+  /dept-plans/{planId}/items:
+    patch:
+      tags: [dept-plans]
+      operationId: revisePlanItems
+      summary: 审核阶段直改考核项（运营管理部）
+      description: |
+        **不走驳回再重提**：审核人发现问题当场改，改完直接下发。
+        每一处改动（名称 / 目标值 / 权重 / 评价标准 / 新增删除）记进 `reviseLog`，
+        带改前值、改后值、操作人和时间 —— 半年后有人问"这个月的目标为什么和申报的不一样"，
+        得能答上来。
+
+        直改**不整单拒绝**（可以带着半截改动保存），但 `/approve` 会卡权重闭合。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  description: 全量提交（增删改都在里面），不做增量合并
+                  items: { $ref: '#/components/schemas/DeptPlanItem' }
+      responses:
+        '200':
+          description: 成功，返回带 reviseLog 的计划
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '409':
+          description: 不在审批中（40926）
+
+  /dept-plans/{planId}/approve:
+    post:
+      tags: [dept-plans]
+      operationId: approvePlanToRun
+      summary: 审核通过并下发
+      description: |
+        改完直接进执行，不需要再走一轮审批。会把关联的 OA 单一并收口，
+        否则待办里会一直挂着那张计划审批单。
+
+        下发前**再校验一次权重闭合** —— 直改允许中间状态，下发不允许。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '422':
+          description: 权重不闭合（42212）
+
+  /dept-plans/{planId}/result:
+    post:
+      tags: [dept-plans]
+      operationId: submitPlanResult
+      summary: 提交完成情况 → 待复评
+      description: |
+        填报人月底把实际完成情况填完后调这个。**复评必须等这一步**：
+        服务端按状态卡（不是「待复评」就拒绝复评），不靠调用方自觉。
+
+        还有量化项没填实际值、或重点项没打分，一律 422 并列出是哪几项。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '422':
+          description: 还有项没填（42212）
+
+  /dept-plans/{planId}/review:
+    post:
+      tags: [dept-plans]
+      operationId: reviewDeptPlan
+      summary: 复评 + 归档
+      description: |
+        逐项打分（1–5），监控项填扣分。**不接收单一总分**：总分说不清哪一项出了问题，
+        也没法回看"这项为什么只有 3 分"。
+
+        归档后 `totalScore = 自评合计 × 20% + 复评合计 × 80%`（5 分制），
+        同时落档位 A ≥4.5 / B ≥3.75 / C ≥3.0 / D <3.0。
+
+        本期只记录得分，**不换算绩效工资**。
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scores:
+                  type: object
+                  description: '{ taskId: 1–5 分 }，监控项不用给'
+                  additionalProperties: { type: number }
+                deductions:
+                  type: object
+                  description: '{ taskId: 扣分 }，只对监控项'
+                  additionalProperties: { type: number }
+                summary: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeptPlanEnvelope' }
+        '409':
+          description: 未提交完成情况 / 已归档（40926）
+        '422':
+          description: 缺项或分数越界（42212）
+
+  # --------------------------------------------------------------- labor-points
+  /work-orders/{woId}/labor-points:
+    get:
+      tags: [work-orders]
+      operationId: listLaborPoints
+      summary: 某张工单的积分流水
+      description: 含「已作废」的历史记录 —— 绩效争议时要能看见改过几次、改成什么。
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/LaborPointLedgerEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [work-orders]
+      operationId: saveLaborPoints
+      summary: 记录工时积分（仅公共区域维修）
+      description: |
+        本期**只记录积分，不做绩效折算**。折算系数与基准分待考核办法确定，
+        但流水已带 `ruleVersion` 与 `status`，绩效侧按 `empId + period` 聚合即可。
+
+        为什么只有公共区域：商业服务按人工费提成，已经直接给钱；再叠积分等于同一件事发两次奖，
+        师傅会挑单。公共区域免费、无提成，积分是这块活唯一的激励入口。
+
+        积分 = 工时 × 10 分/时 × 部位权重（电梯 1.5 / 公共设备 1.4 / 配电 1.3 / 给排水与道闸 1.2 /
+        土建 1.1 / 照明门窗 1.0 / 环境 0.8）。权重在记分时快照，后续调权重不回溯。
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hours]
+              properties:
+                hours:
+                  type: number
+                  minimum: 0.1
+                  maximum: 24
+                  description: 实际工时（小时）。超过 24 小时的请拆单——一张单挂 3 天多半是没及时结单
+                operator: { type: string, description: 记入人（工程主管） }
+                remark: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      workOrder: { $ref: '#/components/schemas/WorkOrder' }
+                      ledger: { $ref: '#/components/schemas/LaborPointLedgerEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /labor-points/summary:
+    get:
+      tags: [work-orders]
+      operationId: laborPointSummary
+      summary: 期间积分汇总（绩效侧读取口）
+      description: |
+        按 `empId + period` 聚合有效流水（排除已作废）。**本期的绩效功能不会调用它**，
+        但接口先定下来：将来接入绩效时，绩效模块只读这一个口，不再各自遍历工单。
+
+        积分 → 绩效分的折算**未实现**（`PERF_CONVERSION.implemented = false`），
+        折算系数与基准分由考核办法决定，不由接口层拍。
+      parameters:
+        - name: empId
+          in: query
+          schema: { type: string }
+          description: 按人过滤；不传为全公司
+        - name: period
+          in: query
+          schema: { type: string, example: '2026-10' }
+          description: 归属期间 YYYY-MM；不传为全部期间
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            empId: { type: string }
+                            empName: { type: string }
+                            period: { type: string }
+                            orders: { type: integer }
+                            hours: { type: number }
+                            points: { type: number }
+                      perfConversion:
+                        type: object
+                        description: 折算规则状态；本期恒为未实现
+                        properties:
+                          implemented: { type: boolean }
+                          ruleVersion: { type: string }
+                          note: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  # --------------------------------------------------------------- 多种经营报表
+  /reports/multi-revenue:
+    get:
+      tags: [reports]
+      operationId: multiRevenueReport
+      summary: 多种经营收入汇总（商业服务 + 商业合作）
+      description: |
+        公司收入结构里「多种经营」一大类的汇总，与 `主营业务（物业费）` 并列。
+
+        两个分项的时间口径**不同**，所以不能合成一张明细：
+        · 商业服务 —— **完工确认制**：工单完工才算收入，没做完不产生应收；
+        · 商业合作 —— **合同年化**：(合同金额 − 归业主的公共收益) ÷ 期间月数 × 12，
+          再乘「当年覆盖月数 ÷ 12」，跨年合同不会把整年收入挤进签约当年。
+
+        `publicRevenue` 是归全体业主的部分（民法典 282 条），已在收入中扣除；
+        它单列出来是为了向业主公示时对得上账，不是从收入里再减一次。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer, example: 2026 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: number, description: 多种经营收入合计 }
+                      service:
+                        type: object
+                        properties:
+                          count: { type: integer }
+                          income: { type: number }
+                          cost: { type: number }
+                          profit: { type: number }
+                      cooperation:
+                        type: object
+                        properties:
+                          count: { type: integer }
+                          income: { type: number }
+                          publicRevenue: { type: number }
+                          annualTotal: { type: number }
+                      share:
+                        type: object
+                        properties:
+                          service: { type: number }
+                          cooperation: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /reports/multi-revenue/monthly:
+    get:
+      tags: [reports]
+      operationId: multiRevenueMonthly
+      summary: 多种经营收入月度趋势
+      description: |
+        商业服务按**完工月**入账；商业合作按**合同期内每月摊**（年化 ÷ 12）。
+        所以一份 3 年广告合同会在 36 个月里各出现一次 —— 这才是"收入"而不是"签约额"。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: months
+          in: query
+          schema: { type: integer, default: 12 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month: { type: string }
+                        key: { type: string }
+                        service: { type: number }
+                        cooperation: { type: number }
+                        total: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /reports/multi-revenue/by-project:
+    get:
+      tags: [reports]
+      operationId: multiRevenueByProject
+      summary: 多种经营收入项目排行
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        communityId: { type: string }
+                        communityName: { type: string }
+                        service: { type: number }
+                        cooperation: { type: number }
+                        total: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /reports/multi-revenue/contracts:
+    get:
+      tags: [reports]
+      operationId: multiRevenueContracts
+      summary: 商业合作收入明细（合同口径）
+      description: 只回 `incomeCategory=多种经营` 且计入当年的合同；`income` 已按覆盖月数折算。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        contractId: { type: string }
+                        contractNo: { type: string }
+                        name: { type: string }
+                        subtype: { type: string }
+                        partyB: { type: string }
+                        communityName: { type: string }
+                        amount: { type: number }
+                        publicRevenue: { type: number }
+                        contractMonths: { type: integer }
+                        annualRevenue: { type: number }
+                        coverMonths: { type: number }
+                        income: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /work-orders:
     get:
       tags: [work-orders]
@@ -822,6 +2867,9 @@ paths:
         核验门槛是 **5 项基础信息**（姓名 / 手机 / 证件号 / 与业主关系 / 居住人数）。
         缺项时返回 **422/42202** 并在 `details` 里列出缺哪几项；通过后 `certified=true`（核验含实名）。
         实名与人脸属于核验结果，不作为核验门槛（否则永远验不过）。
+
+        公司租户另有一道**核验前置**：营业执照影像件至少 1 张，没有则 422/42203。
+        公司核的是执照原件，不是人脸——没看过原件就盖"已核验"，核验等于没发生。
       parameters:
         - $ref: '#/components/parameters/tenantId'
       requestBody:
@@ -895,6 +2943,115 @@ paths:
               schema: { $ref: '#/components/schemas/TenantEnvelope' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /tenants/{tenantId}/license-files:
+    post:
+      tags: [tenants]
+      operationId: addTenantLicenseFile
+      summary: 上传营业执照影像件（公司租户）
+      description: |
+        公司核验核的是**营业执照原件**，所以影像件是核验的前置条件，不是装饰：
+        没有影像件时 `POST /tenants/{tenantId}/verify` 直接 422/42203。
+
+        约束：只收 JPG / PNG / WEBP / PDF；单张 ≤ 5 MB；最多 3 张（正本 / 副本 / 变更页）；
+        同名同大小视为重复上传（409/40922）——同一张图传三次不会让"有据可查"更成立。
+
+        原型没有对象存储：这里只登记元数据，文件本身不落库（刷新即失效）。
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, size, type]
+              properties:
+                name: { type: string, description: 原始文件名（含扩展名） }
+                size: { type: integer, description: 字节数 }
+                type: { type: string, enum: [image/jpeg, image/png, image/webp, application/pdf] }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功（回最新的完整清单，页面不用自己拼）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items: { $ref: '#/components/schemas/TenantFile' }
+                  file: { $ref: '#/components/schemas/TenantFile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /tenants/{tenantId}/license-files/{fileId}:
+    delete:
+      tags: [tenants]
+      operationId: removeTenantLicenseFile
+      summary: 删除营业执照影像件
+      description: 删到 0 张后该公司回到"核验依据缺失"，核验会被 422/42203 拦住（不是静默降级）。
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+        - name: fileId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: operator
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items: { $ref: '#/components/schemas/TenantFile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /tenants/{tenantId}/change-type:
+    post:
+      tags: [tenants]
+      operationId: changeTenantType
+      summary: 换承租主体（个人 ↔ 公司）
+      description: |
+        承租主体从个人变成公司（或反过来）是真会发生的：个体户注册成公司、
+        公司注销后由经办人个人续租。原来的做法是"搬离后重新登记"，
+        但那样会把同一段租约、同一条核验记录劈成两条，追溯时对不上。
+
+        变更的**代价**必须说清楚，服务端一次性做完，不留半截状态：
+        - `faceRegistered` 置 false：人脸属于自然人，主体变了就要重新采；
+        - `certified` / `verifyStatus` 复位为 false / 待核验：换主体等于换证件，核验要重做；
+        - 另一套字段清空（个人→公司清姓名/证件；公司→个人清公司资质），旧值写进操作记录；
+        - 联系人迁移：个人→公司把证件号带进 `agentIdCard`；公司→个人把经办人的姓名/手机/证件
+          带成承租人的姓名/手机/证件（经办人通常就是续租的那个人，省一次重复录入）。
+
+        目标类型的必备信息不齐时 422/42203 拒绝，不做"先换类型再补"。
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantTypeChange' }
+      responses:
+        '200':
+          description: 成功（回变更后的租户，含复位后的核验与人脸状态）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /tenants/batch-verify:
     post:
@@ -1016,6 +3173,778 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # --------------------------------------------------------- mobile（员工端）
+  /mobile/tasks/{taskId}/exec:
+    get:
+      tags: [mobile]
+      operationId: mobileInspectExec
+      summary: 员工端执行页聚合数据（任务 + 模板 + 责任员工候选）
+      description: |
+        一屏一请求：任务、模板字段、项目名、监督任务的责任员工候选一次返回。
+        PC 侧对应三次查询（任务详情 / 模板 / 员工列表），合并只为省移动端的往返。
+
+        **责任员工候选**只对监督任务有意义：按被检班组的在职员工来，排除组长本人。
+      x-permission: f.inspect.view
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileExecEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mobile/tasks/{taskId}/checkin:
+    post:
+      tags: [mobile]
+      operationId: mobileCheckin
+      summary: 开工打卡（定位 / NFC / 扫码 / 人工）
+      description: |
+        打卡把任务从「待执行」推进到「执行中」。
+
+        **降级是正式能力，不是异常分支**：地下室、屏蔽房、老年机都会定位失败。
+        拿不到定位时前端置 `manual=true` 并允许提交，服务端必须把 `checkinType` 记为「人工打卡」、
+        打上 `needReview=true`，进入主管复核队列 —— 静默算作正常打卡，等于把这道防线取消。
+
+        H5 没有摄像头扫码能力（`uni.scanCode` 无实现），`type=扫码` 时用 `point` 手填点位编号。
+      x-permission: f.inspect.exec
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [GPS围栏, NFC, 扫码, 人工打卡]
+                gps: { type: string, description: '经度,纬度；人工打卡可为空' }
+                accuracy: { type: number, description: 定位精度（米） }
+                point: { type: string, description: '扫码降级时手填的点位编号' }
+                manual: { type: boolean, default: false, description: 'true = 无法定位，按人工打卡记并需复核' }
+                reason: { type: string, description: '降级原因，写进记录供复核' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InspectTaskEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /inspect-tasks/{taskId}/work-orders:
+    post:
+      tags: [inspect, mobile]
+      operationId: inspectCreateWorkOrder
+      summary: 巡检异常转工单
+      description: |
+        现场发现需要专业处理的问题（设备损坏、安全隐患），就地开单，免二次录入。
+
+        两条口径：
+        1. `source` 固定为「巡检转单」，来源任务号写进描述与 `remark`，工单详情能回连；
+        2. **不改巡检任务状态** —— 任务仍要提交执行结果，否则完成率与异常数会漏统计。
+           服务端只回写 `refWoId`。
+      x-permission: f.inspect.exec + f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InspectWorkOrderRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /work-orders/{woId}/accept:
+    post:
+      tags: [work-orders, mobile]
+      operationId: acceptWorkOrder
+      summary: 接单（待派单 / 已派单 → 处理中）
+      description: |
+        接单人写 `assignee` 与 `acceptTime`，状态转「处理中」，SLA 从受理时间开始算。
+
+        已派给别人的单不能抢：非本人且无 `f.wo.dispatch` 权限 → 409。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /work-orders/{woId}/transfer:
+    post:
+      tags: [work-orders, mobile]
+      operationId: transferWorkOrder
+      summary: 转单（换处理人，回到已派单）
+      description: |
+        转单只换人，不改变流程节点：状态回到「已派单」，`acceptTime` 清空，等对方接。
+        转单原因写进 `remark`，便于追责与统计（谁转给谁、为什么）。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to: { type: string, description: '被转单人姓名' }
+                note: { type: string, description: 转单原因 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /work-orders/{woId}/finish:
+    post:
+      tags: [work-orders, mobile]
+      operationId: finishWorkOrder
+      summary: 完工登记（处理中 → 已完工）
+      description: |
+        `remark` 必填（业主会看到"做了什么"），照片数累加进 `images`。
+        「待确认」是等业主确认的停表态，由业主端触发，不在本接口里。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [remark]
+              properties:
+                remark: { type: string, description: 处理结果，业主可见 }
+                photos: { type: integer, minimum: 0 }
+                arrivedAt: { type: string, description: 到场时间（可选，用于时长统计） }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /work-orders/{woId}/staff-eval:
+    post:
+      tags: [work-orders, mobile]
+      operationId: staffEvalWorkOrder
+      summary: 员工侧回评（业主配合度，内部参考）
+      description: |
+        **不是互评**。员工侧只记三件事：配合度打分、标签（家中无人 / 需二次上门…）、一句备注。
+
+        为什么不做成双向公开评价：一线被差评绑架的代价太高（一个 1 分要跑十单补回来），
+        而业主对服务的评价已经由 `score` / `evalTags` 承担。这条数据只进内部参考，
+        不进业主考核、不在业主端展示，也**不参与**员工绩效考核。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffEvalRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /attendance/{attId}/confirm:
+    post:
+      tags: [mobile]
+      operationId: confirmAttendance
+      summary: 本人确认考勤（待确认 → 正常）
+      description: |
+        月度考勤的本人确认。移动端**只做月度查询 + 确认/申诉**，不做逐日打卡 ——
+        现场到岗留证已经由巡检打卡承担，再造一套日常打卡只会让两处时间对不上。
+      x-permission: c.attendance.self
+      parameters:
+        - name: attId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      attId: { type: string }
+                      status: { type: string, enum: [正常, 待确认, 异常] }
+                      confirmedAt: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /attendance/{attId}/appeal:
+    post:
+      tags: [mobile]
+      operationId: appealAttendance
+      summary: 本人考勤申诉（不改结果，进人事待办）
+      description: |
+        申诉**不自动修改考勤结果**：让员工自己改考勤，等于把考勤作废。
+        服务端只累加 `appealCount`、写 `appealResult=待处理`，由人事核实后处理。
+      x-permission: c.attendance.self
+      parameters:
+        - name: attId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      attId: { type: string }
+                      appealCount: { type: integer }
+                      appealResult: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mobile/collections:
+    post:
+      tags: [mobile]
+      operationId: createCollectionRecord
+      summary: 催收跟进记录（楼栋管家）
+      description: |
+        管家按门牌跟进欠费，一次一条：方式（电话 / 上门 / 短信 / 微信）、结果（承诺还款 / 家中无人 / 拒缴）、
+        备注、下次跟进时间。
+
+        **只管催、不管收**：没有收款动作。谈成了引导业主到小程序缴费或到收银台，
+        移动端出现收款入口就等于绕过了日结与票据。
+      x-permission: a.stewards.view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [houseId, method, result]
+              properties:
+                houseId: { type: string }
+                method: { type: string, enum: [电话, 上门, 短信, 微信] }
+                result: { type: string, enum: [承诺还款, 家中无人, 拒缴, 已说明情况] }
+                note: { type: string, maxLength: 100 }
+                nextAt: { type: string, description: '下次跟进，如「3 天后」或具体日期' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      collectionId: { type: string }
+                      houseId: { type: string }
+                      at: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ================================================ 抢单 / 派单 / 增项 / 收款
+  /work-orders/{woId}/claim:
+    post:
+      tags: [work-orders, mobile]
+      operationId: claimWorkOrder
+      summary: 抢单（付费入户维修，先到先得）
+      description: |
+        **只有付费的入户维修进抢单池**。公区维修没有提成，一律由后台指派，不进池 ——
+        否则师傅会把公区单也抢走，然后发现没钱可拿。
+
+        并发是这里的关键：两个师傅同时点，只能一个人抢到。服务端必须做条件更新
+        （`WHERE status='待派单' AND assignee IS NULL`）；抢不到返回 **409**，
+        并带上已抢到的人 —— 前端不能"点完就当成功"。
+
+        抢到之后要在项目参数 `grabArriveMinutes`（P01 = 15 分钟）内到场，超时记迟到；
+        不去了要走 `/abandon`，会计一次弃单。
+      x-permission: f.workorders.edit（且岗位为维修工 / 工程主管）
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 抢单成功，工单转「处理中」
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 已被别人抢走 / 状态已变（响应体带 assignee 供前端提示）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 40901 }
+                  message: { type: string, example: '手慢了，已被 孙德海 抢走' }
+                  data:
+                    type: object
+                    properties:
+                      woId: { type: string }
+                      assignee: { type: string }
+        '422':
+          description: 该单不是付费入户单，不能抢
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /work-orders/{woId}/dispatch:
+    post:
+      tags: [work-orders, mobile]
+      operationId: dispatchWorkOrder
+      summary: 派单（指派给某个维修工）
+      description: |
+        谁能派（三档，叠加 `f.wo.dispatch`）：
+        - 客服专员：本项目受理单的常规派工；
+        - 班组长（工程 / 客服主管）：本班组的公区单；
+        - 项目经理：跨班组调配、特急单升级、业主点名的付费单。
+
+        **付费单只有项目经理能指派** —— 客服或班组长随手一派就会吃掉师傅的提成，
+        一线会有情绪；付费单的默认路径是进抢单池。
+
+        只能派给有该工种的维修岗（维修工 / 工程主管），且不能跨项目。
+      x-permission: f.wo.dispatch
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to: { type: string, description: 处理人姓名（需为本项目维修岗） }
+                note: { type: string, maxLength: 80 }
+      responses:
+        '200':
+          description: 已派单（等对方接）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /work-orders/{woId}/arrive:
+    post:
+      tags: [work-orders, mobile]
+      operationId: arriveWorkOrder
+      summary: 到场打卡（抢单倒计时的终点）
+      description: |
+        写 `arriveTime`。超过项目配置的 `grabArriveMinutes` 不阻断，但回 `late=true`，
+        服务端记迟到 —— 抢单模式下"抢了不到场"比"不抢"更糟，必须留痕。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功（data.late 表示是否迟到）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /work-orders/{woId}/abandon:
+    post:
+      tags: [work-orders, mobile]
+      operationId: abandonWorkOrder
+      summary: 放弃已抢到的单（记一次弃单）
+      description: |
+        退回「待派单」并累计弃单次数；超过项目 `abandonLimit`（P01 = 3）当日不能再抢。
+        这是抢单模式必需的刹车：没有它，手快的人会把池子清空然后干不完。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功（data.used / data.limit 为当日弃单计数）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /work-orders/{woId}/addons:
+    post:
+      tags: [work-orders, mobile]
+      operationId: addWorkOrderAddon
+      summary: 现场增项（待业主确认）
+      description: |
+        业主下单时已看到价目并预付，所以没有"报价"环节；现场发现额外工作（拆旧清运、高空作业、
+        二次上门）时走这里加项。**加项本身不改单金额**，要等业主确认后才合并 ——
+        否则就是师傅自己给自己加钱。
+
+        金额按价目表的 `code` 取值，服务端不能信客户端传来的金额。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, example: AD-D01, description: 价目表里的增项编码 }
+                qty: { type: integer, minimum: 1, default: 1 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 未接单 / 未到场时不能加项
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /work-orders/{woId}/addons/confirm:
+    post:
+      tags: [work-orders, mobile]
+      operationId: confirmWorkOrderAddons
+      summary: 业主确认增项（合并进本单）
+      description: |
+        业主侧动作。**不能由师傅自己确认**（代他人操作已在交接单里否掉）。
+        业主端上线前，移动端用「业主当面确认」桥接一次，服务端必须记 `confirmedBy`
+        （业主 / 当面确认）与时间戳，便于事后追。
+
+        确认后 `totalFee += 增项合计`，材料费与人工费同步累加，提成基数随人工费变化。
+        有未确认增项时不允许完工 —— 否则会出现"单子结了、钱多了一截没人认"。
+      x-permission: 业主身份（业主端）；员工端只用「当面确认」并在 confirmedBy 里标来源
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /work-orders/{woId}/payment-qr:
+    post:
+      tags: [work-orders, mobile]
+      operationId: createWorkOrderPaymentQr
+      summary: 生成收款码（移动端唯一的收款方式）
+      description: |
+        移动端**不出收银台**：只出示带工单号的收款码，钱直接进项目账户，经手人不碰现金。
+
+        为什么不做现金：现金要配交班、日结、实点与差异说明，等于把收银台搬上手机，
+        风险全压一线。现金仍在 PC 收银台走（`b.cashier.edit` 只给收银 / 财务）。
+      x-permission: f.workorders.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      woId: { type: string }
+                      amount: { type: number }
+                      qrUrl: { type: string, description: 聚合支付二维码内容 }
+                      expireAt: { type: string }
+                      channels:
+                        type: array
+                        items: { type: string, enum: [微信支付, 支付宝] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /work-orders/{woId}/payments:
+    post:
+      tags: [work-orders, mobile]
+      operationId: registerWorkOrderPayment
+      summary: 登记工单收款（支付回调）
+      description: |
+        由支付渠道回调或收银台登记，**不是员工手动标"已收"**。写入后 `payStatus=已支付`，
+        对应提成从「在途」转「已结」。
+
+        挂账（业主不在家、企业月结）走同一接口但 `method=挂账` 且 `reason` 必填 ——
+        挂账的单不计提成，避免"账面收了、实际没到"。
+      x-permission: 系统回调 / b.cashier.edit
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, method]
+              properties:
+                amount: { type: number }
+                method: { type: string, enum: [微信支付, 支付宝, POS刷卡, 现金, 挂账] }
+                transNo: { type: string }
+                reason: { type: string, description: method=挂账 时必填 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mobile/commission:
+    get:
+      tags: [mobile]
+      operationId: myCommission
+      summary: 我的提成（已结 / 在途）
+      description: |
+        提成只按**人工费**计提（材料费是成本，按总额提成等于把成本分给个人），
+        比例与保底来自项目参数 `repairPrices.projects[]`。
+
+        必须把「在途」单独返回：完工但没收到钱的单不结提成，这个数既解释
+        "为什么这单干了钱没到"，也在反向督促师傅盯回款（数据里 39 张收费单有 9 张未付、10 张挂账）。
+      x-permission: c.payroll.self
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, example: '2026-10' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      settleNo: { type: string, description: 结算单号，如 TC202610-01（次月随工资并入） }
+                      settleDay: { type: string, description: 发放时点，如「次月 10 日随工资发放」 }
+                      period: { type: string }
+                      rate: { type: number, description: 人工费计提比例 }
+                      count: { type: integer, description: 本月完成的收费单数 }
+                      settledCount: { type: integer }
+                      pendingCount: { type: integer }
+                      settled: { type: number, description: 已收款 → 已结 }
+                      pending: { type: number, description: 完工未收款 → 在途 }
+                      rows:
+                        type: array
+                        items: { $ref: '#/components/schemas/WorkOrderCommission' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mobile/pricing:
+    get:
+      tags: [mobile]
+      operationId: repairPricing
+      summary: 维修服务价目与项目参数（业主端下单页也用这一份）
+      description: |
+        业主下单看到的价、师傅现场加项、提成核算必须是**同一份数据**，
+        否则会出现"业主看到 120、师傅加了 80、财务算出 240"。所以只留一个源。
+
+        后台在「收费项目 → 维修服务价目」维护；提成比例按项目配，不写死在代码里。
+      x-permission: 公开（业主端需登录）
+      parameters:
+        - name: communityId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      communityId: { type: string }
+                      commissionRate: { type: number }
+                      minCommission: { type: number }
+                      grabArriveMinutes: { type: integer }
+                      abandonLimit: { type: integer }
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/RepairPriceItem' }
+                      addons:
+                        type: array
+                        items: { $ref: '#/components/schemas/RepairPriceItem' }
+
+  /mobile/collections/batch:
+    post:
+      tags: [mobile]
+      operationId: createCollectionBatch
+      summary: 批量催缴（按房屋聚合，生成批次）
+      description: |
+        口径与 PC 催缴工作台一致：按**房屋**聚合（不按账单逐条催）→ 勾选 → 生成一个批次。
+        批次号形如 `CJ20261020-01`，可按批次追溯谁在什么时候催了哪些户。
+
+        两条硬规则：
+        1. 同一户 7 天内催过默认跳过（客户端不给勾，服务端也要拦）—— 否则一天三条短信；
+        2. 只发提醒不收款，收银仍在收银台 / 小程序。
+      x-permission: a.stewards.view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [houseIds, method]
+              properties:
+                houseIds:
+                  type: array
+                  items: { type: string }
+                method: { type: string, enum: [短信, 微信, 电话] }
+                note: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      batchNo: { type: string, example: CJ20261020-01 }
+                      count: { type: integer }
+                      amount: { type: number }
+                      skipped:
+                        type: array
+                        description: 因 7 天内已催而跳过的户
+                        items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mobile/houses/{houseId}/residents:
+    get:
+      tags: [mobile]
+      operationId: houseResidents
+      summary: 房屋在住的人（租户 + 共住成员）
+      description: |
+        楼管现场最高频的动作不是改业主手机号，而是**核实现在住的是谁**。
+        数据现实：160 个租户里 57 户「信息不全」、55 户「待核验」。
+
+        脱敏口径（已确认）：**不返回租金**（合同价属财务 / 项目经理）、**不返回身份证号**，
+        人脸与认证只给布尔值。
+      x-permission: a.owners.view
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      tenants:
+                        type: array
+                        items: { $ref: '#/components/schemas/TenantBrief' }
+                      members:
+                        type: array
+                        items: { $ref: '#/components/schemas/MemberBrief' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # --------------------------------------------------------------- rectify
   /rectify-orders:
@@ -1629,6 +4558,11 @@ paths:
                 contact: { type: string }
                 phone: { type: string }
                 amount: { type: number }
+                incomeCategory:
+                  $ref: '#/components/schemas/ContractIncomeCategory'
+                publicRevenue:
+                  type: number
+                  description: 归业主的公共收益；仅 incomeCategory=多种经营 可填，且不得大于 amount
                 payCycle: { type: string, example: 月付 }
                 signDate: { type: string, format: date }
                 startDate: { type: string, format: date }
@@ -2463,6 +5397,14 @@ paths:
 
         改 `position` 会**清除角色覆盖**并重算角色：调岗了还留着上一任的覆盖角色，
         等于人已经去工程组了，系统还让他批客服的假。
+
+        紧急联系人（`emergencyContact` / `emergencyRelation` / `emergencyPhone`）单独一组规则：
+        - 三项**要么都填、要么都空**（422/42215）—— 只填号码不给姓名，出事时不知道该找谁；
+          只填姓名不给号码，等于没留联系方式；
+        - `emergencyPhone` 必须是 11 位手机号；
+        - `emergencyRelation` 只接受枚举值。
+
+        这一栏存在的唯一目的就是应急，所以**不完整的值不落库**，而不是存下来等以后再补。
       parameters:
         - name: empId
           in: path
@@ -3592,6 +6534,492 @@ paths:
               example: { code: 40902, message: '同级已有「工程组」' }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  # ============================================================
+  # 业主小程序（mp）
+  # ------------------------------------------------------------
+  # `/mp/*` 是业主侧入口，内部复用同一套服务与同一套状态机：
+  #   · 建单走 `POST /mp/orders`，最终落的就是 work-orders 那张表（source=小程序）
+  #   · 增项确认 `POST /mp/orders/{woId}/addons/confirm` 与员工端
+  #     `POST /work-orders/{woId}/addons/confirm` 是**同一个动作**，只是发起人不同
+  #   · 缴费落 `payments`，支付状态只有「已支付」一个结论，不区分前端怎么发起
+  # 不为业主端另建业务规则 —— 否则后台报表和业主看到的数一定对不上。
+  # ============================================================
+  /mp/auth/wechat-login:
+    post:
+      tags: [mp]
+      operationId: mpWechatLogin
+      summary: 微信授权登录（code → 手机号 → 会话）
+      description: |
+        真实流程：`wx.login` 拿 code → 服务端 `code2Session` 换 openid/unionid →
+        手机号授权（`getPhoneNumber`）把 `encryptedData` / `iv` 交给服务端解出手机号。
+
+        **手机号只在服务端解，前端不落明文**；响应里只回脱敏号（`138****8001`）。
+
+        演示环境没有 AppID / 后端，`phone` 字段用于直传（必须同时带 `mock=true`）：
+        生产配置收到 `mock=true` 应直接 422，别让这条分支活到线上。
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, description: wx.login 的 code；真实环境必填 }
+                encryptedData: { type: string, description: 手机号授权的加密串 }
+                iv: { type: string }
+                phone: { type: string, description: 演示直传手机号（真实环境忽略） }
+                mock: { type: boolean, description: 演示标记，生产环境传 true → 422 }
+              required: [mock]
+      responses:
+        '200':
+          description: 成功（返回会话，尚未实名）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpSessionEnvelope' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/auth/realname:
+    post:
+      tags: [mp]
+      operationId: mpRealname
+      summary: 实名认证（姓名 + 证件后四位）
+      description: |
+        只收「姓名 + 证件后四位」，**不收也不存完整证件号**：完整号在物业档案里，
+        由后台维护；业主端只需要够比对的最小信息（少存一点，泄露风险就小一点）。
+
+        这一步只判"信息是否完整、格式是否合法"，**不判"这房是不是你的"** ——
+        房与人的关系在绑定接口里判（实名 = 我是谁，绑定 = 这房是不是我的）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, idCard4]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 12, description: 与房产证一致的姓名 }
+                idCard4: { type: string, pattern: '^\\d{4}$', description: 证件号后四位 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpSessionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/auth/bindings/candidates:
+    get:
+      tags: [mp]
+      operationId: mpBindingCandidates
+      summary: 匹配可绑定房产（命中 0 / 1 / N 套）
+      description: |
+        用会话里的「手机号 + 姓名 + 证件后四位」去比后台预导入的业主档案，**三项全中**才算一致。
+
+        三态是刻意的，不是没做完：
+        - `level=one`：唯一命中，直接确认绑定；
+        - `level=many`：名下多套，逐套绑（绑定的是"我能看哪些房"，不改变产权归属）；
+        - `level=none`：**必须说清哪一项对不上**（`mismatch.phone/name/cert` 三个布尔位），
+          并返回 `steward`（该房楼栋管家）—— "我买了房但绑不上"是业主端最高频的真实问题，
+          藏起来等于把电话全压给一线管家。
+
+        业主端不允许自建房产：房与人的关系由后台档案决定，否则填个房号就能看别人家账。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpBindingCandidatesEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/auth/bindings:
+    post:
+      tags: [mp]
+      operationId: mpBindHouses
+      summary: 确认绑定房产（可多套，逐套绑）
+      description: |
+        只能绑定 `candidates` 返回过的房号：传一个没匹配上的 houseId 要 403，
+        **不能"绑上了再看"，那是越权探测**。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [houseIds]
+              properties:
+                houseIds:
+                  type: array
+                  minItems: 1
+                  items: { type: string, example: H010110501 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpBindingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/me:
+    get:
+      tags: [mp]
+      operationId: mpMe
+      summary: 当前业主 + 已绑房产 + 首页三个数
+      description: |
+        首页一次拿全：身份、已绑房产、"待缴 / 进行中 / 待确认增项"三个数。
+        移动端串三个请求的代价是首屏闪三次，所以这里做聚合读接口（与员工端 `/mobile/tasks/*/exec` 同一思路）。
+
+        **口径**：待缴是「已绑房产 + 本人名下不挂房的车位费」；
+        进行中 = 待派单 / 已派单 / 处理中 / 待确认；待确认增项 = `workOrders[].addons` 里 `confirmed=false` 的条数。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpMeEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/houses/{houseId}:
+    get:
+      tags: [mp]
+      operationId: mpHouseDetail
+      summary: 房屋信息（只读）
+      description: |
+        面积 / 户型 / 交付状态 / 车位，只读。业主端不提供修改入口：
+        房屋基础信息来自产权与交付资料，改它要走后台并留痕。
+      parameters:
+        - $ref: '#/components/parameters/houseId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpHouseEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人已绑的房 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/houses/{houseId}/residents:
+    get:
+      tags: [mp]
+      operationId: mpHouseResidents
+      summary: 本房租户与家庭成员（**业主可见租金**）
+      description: |
+        与楼管口径**相反**：楼管不能看租金（他是代收方，看租金等于知道邻居收入），
+        业主是出租方，**能看自己房的租约金额与租期**。
+
+        身份证一律只回后四位；手机号回掩码。
+      parameters:
+        - $ref: '#/components/parameters/houseId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpResidentsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /mp/houses/{houseId}/tenants:
+    post:
+      tags: [mp]
+      operationId: mpRegisterTenant
+      summary: 业主自助登记租户
+      description: |
+        写入 `source=业主自助`、`verifyStatus=待核验`：业主登记不等于核验通过，
+        门禁授权、人脸录入这些还要物业核验后才生效（否则谁都能给自己开一张门禁卡）。
+      parameters:
+        - $ref: '#/components/parameters/houseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone, leaseStart, leaseEnd]
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                idCard4: { type: string, description: 只收后四位 }
+                leaseStart: { type: string, format: date }
+                leaseEnd: { type: string, format: date }
+                rent: { type: number, description: 月租金（业主可见，楼管不可见） }
+                residents: { type: integer }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/bills:
+    get:
+      tags: [mp]
+      operationId: mpBills
+      summary: 我的账单（按房 / 账期 / 状态）
+      description: |
+        **返回口径**：已绑房产的账单 + 本人名下不挂房的车位费（`houseId` 为空的账单）。
+
+        为什么必须带车位费：车位是独立资产，账单不挂房。只按 houseId 过滤会让业主
+        少看一笔钱（演示数据里李秀兰就漏了 ¥362.52），然后来电话说"我明明交了"。
+
+        欠费口径与 PC 一致：状态为 未缴 / 部分缴 / 逾期 且 `unpaid > 0`；
+        金额取 `unpaid`（部分缴过的只补差额），不是 `amount`。
+      parameters:
+        - name: houseId
+          in: query
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string, example: '2026-10' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/BillStatus' }
+        - name: onlyDebt
+          in: query
+          description: 只看欠费
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpBillListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/pricing:
+    get:
+      tags: [mp]
+      operationId: mpPricing
+      summary: 报修价目（下单页的价格来源）
+      description: |
+        与 `GET /mobile/pricing` 返回**同一份数据**（`repairPrices.json`）：
+        业主端下单页、员工端现场增项、提成核算三处共用一个源，各写一份必然对不上。
+
+        业主端会把它直接展示成"材料 / 人工 / 合计"，所以 `material` 与 `labor` 必须分列，
+        不能只给一个总价 —— 业主最常问的就是"为什么人工比材料贵"。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string, example: P01 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpPricingEnvelope' }
+
+  /mp/orders:
+    post:
+      tags: [mp]
+      operationId: mpCreateOrder
+      summary: 报修下单（下单即见价，下单即预付）
+      description: |
+        业主**下单时就按价目看到总价，没有现场报价环节**（已与业主方确认）。
+        所以 `amount` 由服务端按 `priceCode × qty` 算出来并随响应返回，
+        前端只负责展示 —— 页面自己算钱是"三处金额不一致"的根源。
+
+        提交成功即生成一张待支付订单（项目配置 `prepayWhenOrder=true`），
+        付掉才进派单池；现场若加项，走增项确认后**后付差额**。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [houseId, priceCode, appointDate, appointSlot, description]
+              properties:
+                houseId: { type: string, description: 必须是已绑定的房 }
+                priceCode: { type: string, example: RP-W01 }
+                qty: { type: integer, minimum: 1, maximum: 5, default: 1 }
+                appointDate: { type: string, format: date }
+                appointSlot: { type: string, enum: ['09:00-11:00', '14:00-16:00', '19:00-21:00'] }
+                description: { type: string, maxLength: 120 }
+                photos:
+                  type: array
+                  maxItems: 3
+                  items:
+                    type: object
+                    properties:
+                      kind: { type: string, enum: [photo, placeholder], description: placeholder=设备无相机，记为缺证 }
+                      note: { type: string }
+                mock: { type: boolean, description: 演示标记 }
+      responses:
+        '200':
+          description: 成功（返回工单 + 待支付订单）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpOrderCreatedEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: houseId 不在已绑列表 }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/orders/{woId}:
+    get:
+      tags: [mp]
+      operationId: mpOrderDetail
+      summary: 我的订单详情（进度 / 师傅 / 费用 / 增项 / 支付）
+      description: |
+        一次返回业主在详情页要看的全部：时间线、师傅、费用三段、增项、支付状态。
+
+        **三段金额**是这一屏的重点：`originFee`（材料+人工）、`addonFee`（已确认增项）、
+        `totalFee`（合计）。业主说"怎么就多收了 80"时，页面上要能直接指出来。
+        `paidAmount` 是已预付，`dueFee = totalFee - paidAmount` 是"还要付多少"
+        （增项确认后就是那笔差额，不是重新付一次总额）。
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpOrderDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人房上的单 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/orders/{woId}/addons/confirm:
+    post:
+      tags: [mp]
+      operationId: mpConfirmAddons
+      summary: 业主确认增项（与员工端同一动作）
+      description: |
+        与 `POST /work-orders/{woId}/addons/confirm` 是**同一个动作**，区别只在发起人：
+        员工端是师傅当面确认，业主端是业主自己点确认。
+
+        影响三条：
+        1. 增项金额**合并进本单总额**（不新开一单）；
+        2. 确认后员工端才允许完工（员工端已有拦截，这里不重复实现，只保证状态一致）；
+        3. `payStatus` 若还有差额则回到「未支付」，业主再付的是 `dueFee`。
+
+        幂等：重复确认返回 200 且 `addons` 不变（已确认的保持原 `confirmedAt`）。
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                addonCodes:
+                  type: array
+                  description: 只确认指定的几项；不传表示全部待确认项
+                  items: { type: string, example: AD-D01 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpOrderDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict', description: 已评价 / 已关闭的单不能再确认 }
+        '422': { $ref: '#/components/responses/Unprocessable', description: 没有待确认的增项 }
+
+  /mp/payments:
+    post:
+      tags: [mp]
+      operationId: mpCreatePayment
+      summary: 生成待支付订单（账单缴费 / 报修预付 / 增项补付）
+      description: |
+        三类都走这一个接口，靠 `type` 区分：`bill`（账单，可多张合并）、
+        `wo`（报修预付或增项补付）。
+
+        `amount` **由服务端算**：账单合计 = 所选账单 `unpaid` 之和；
+        报修 = `totalFee - paidAmount`（已预付的不重复收）。前端传金额一律忽略。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string, enum: [bill, wo] }
+                billIds:
+                  type: array
+                  description: type=bill 时必填
+                  items: { type: string }
+                woId: { type: string, description: type=wo 时必填 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpPayOrderEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict', description: 已有待确认增项 / 已结清 }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/payments/{payId}/simulate:
+    post:
+      tags: [mp]
+      operationId: mpSimulatePayment
+      summary: 模拟支付成功（**仅演示，真接入必须替换**）
+      description: |
+        ⚠️ **这是假回调，不是支付能力。**
+
+        真实接入时整条链要换成：
+        1. 服务端调微信「JSAPI 下单」拿 `prepay_id`；
+        2. 前端 `wx.requestPayment` 唤起收银台（前端**不判断成功**，只等回调）；
+        3. 微信异步回调落到 `POST /mp/payments/{payId}/notify`：
+           验签 → 校验金额与订单号 → **幂等**置「已支付」→ 冲账 / 转提成；
+        4. 前端轮询或订阅「订单状态」，只认 `已支付` 这一个结果。
+
+        本接口保留在契约里，是为了让演示能闭环，并在后端实现时明确标记
+        「这个口子在生产环境必须 404」。
+      parameters:
+        - $ref: '#/components/parameters/payId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpSimulateEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 已支付（幂等返回 200 亦可，但不能重复冲账） }
+
+  /mp/orders/{woId}/evaluate:
+    post:
+      tags: [mp]
+      operationId: mpEvaluateOrder
+      summary: 评价工单（评分 + 标签 + 文字）
+      description: |
+        写回 `workOrders` 的 `score` / `evalTags` / `evaluate` / `evaluateAt`，状态转「已评价」。
+        与 PC、员工端的字段是同一组 —— 员工端"我的评价"读的就是这三列。
+
+        只有「已完工」的单能评价；有未确认增项时不允许评价（先把账算清，再谈感受）。
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                tags:
+                  type: array
+                  items: { type: string, enum: [准时上门, 穿着规范, 讲解清楚, 收拾干净, 收费透明, 态度好] }
+                text: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpOrderDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict', description: 未完工 / 已有待确认增项 }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3654,11 +7082,22 @@ components:
       in: path
       required: true
       schema: { type: string, example: WO000001 }
+    approvalId:
+      name: approvalId
+      in: path
+      required: true
+      schema: { type: string, example: AP00097 }
     tenantId:
       name: tenantId
       in: path
       required: true
       schema: { type: string, example: TN00001 }
+    serviceItemCode:
+      name: code
+      in: path
+      required: true
+      description: 服务项目编号（RP- 开头的沿用原价目代号，新建为 SI 前缀）
+      schema: { type: string, example: RP-W01 }
     taskId:
       name: taskId
       in: path
@@ -3731,7 +7170,7 @@ components:
           example: { code: 40401, message: '业主不存在' }
     Conflict:
       description: |
-        状态冲突。十七类，靠业务码区分——**处置方式完全不同，不能合并成一种提示**：
+        状态冲突。二十八类，靠业务码区分——**处置方式完全不同，不能合并成一种提示**：
 
         | 码 | 含义 | 处置 |
         |---|---|---|
@@ -3752,7 +7191,17 @@ components:
         | 40915 | 提交人不能审批自己提交的发放单 | 换人审批 |
         | 40916 | 同一角色已有相同内容的提权申请在审批中 | 等那条 |
         | 40917 | 提交人不能审批自己提交的权限申请 | 换人审批 |
+        | 40919 | 标签已停用，不能再打 | 换一个启用中的词条；已打过的不受影响 |
+        | 40920 | 该业主已有这个标签 | 无需处理 |
         | 40918 | 申请状态不允许该动作 | 看状态 |
+        | 40921 | 已是该租客类型，无需转换 | 无需处理 |
+        | 40922 | 该影像件已上传过 | 无需处理 |
+        | 40923 | 同一分类下服务项目重名 | 改名 |
+        | 40924 | 服务项目还有在途工单，不能停用 | 先结单或换项目 |
+        | 40925 | 所属分类已停用，不能新增项目 | 换个分类或先启用 |
+        | 40926 | 工单未完工，不能记工时积分 | 完工后再记 |
+        | 40927 | 该期间积分已结算，不能再改 | 走冲正 |
+        | 40928 | 审批单已受理，不能撤回 | 让审批人驳回 |
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -3768,7 +7217,22 @@ components:
             alreadyReopened:
               value: { code: 40905, message: '2026-09 已于 2026-10-30 反结，不能重复反结' }
     Unprocessable:
-      description: 业务校验失败（原因必填、金额超限、状态不允许等）
+      description: |
+        业务校验失败（原因必填、金额超限、必备信息缺失等）。按业务码区分：
+
+        | 码 | 含义 | 处置 |
+        |---|---|---|
+        | 42201 | 通用业务校验失败（原因太短、金额超限、状态不允许） | 按消息改 |
+        | 42202 | 核验门槛缺项（`details` 里逐项列出） | 补全后重试 |
+        | 42203 | 换承租主体时目标类型必备信息缺失 / 公司核验缺营业执照影像件 | 按提示补齐 |
+        | 42204 | 影像件不合规（格式 / 大小 / 张数 / 重复） | 按提示重传 |
+        | 42205 | 服务价格分解不自洽（材料成本 > 材料费 / 合计为 0） | 改数值 |
+        | 42206 | 成本价不低于服务价格（启用即亏本） | 调价 |
+        | 42207 | 商业服务未选项目 / 公共区域维修未选设施部位 | 选一项 |
+        | 42208 | 合同金额与公共收益不自洽（公共收益 > 合同金额 / 非经营合同填了公共收益） | 改数值 |
+        | 42210 | 工时积分不适用（非公共区域维修 / 未派单 / 工时越界） | 按提示改 |
+        | 42211 | OA 表单校验失败（必填缺、数值越界、结束早于开始） | 按提示改 |
+        | 42212 | 审批流配置不合法（无节点 / 超额流程阈值为 0） | 改配置 |
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -3837,9 +7301,56 @@ components:
     WoStatus:
       type: string
       enum: [待派单, 已派单, 处理中, 待确认, 已完工, 已关闭, 已评价, 已取消]
+    WoPointsStatus:
+      type: string
+      enum: [待结算, 已结算, 已作废]
+      description: |
+        工时积分的结算状态。
+
+        · `待结算` —— 已记录，等月度绩效核算推进；
+        · `已结算` —— 该期间已核算，积分不能再改（要改走冲正）；
+        · `已作废` —— 同一张单重新记录后，旧流水标为此状态而不是删除，绩效争议时要能看见改过几次。
+
+    LaborPointLedgerEntry:
+      type: object
+      description: |
+        工时积分流水。**这是绩效侧的唯一数据来源**：按 `empId + period` 聚合。
+
+        绩效折算（积分 → 绩效分）本期**未实现**，折算系数与基准分待考核办法确定；
+        但流水已经带上 `ruleVersion` 与 `status`，接的时候不用改数据模型。
+      required: [ledgerId, empId, empName, woId, woNo, category, hours, weight, points, period, ruleVersion, status]
+      properties:
+        ledgerId: { type: string, example: PL00001 }
+        empId: { type: string, description: 工号（绩效按它汇总；工单上只有姓名，服务端反查） }
+        empName: { type: string }
+        woId: { type: string }
+        woNo: { type: string }
+        communityId: { type: string }
+        category: { type: string, description: 设施部位（决定权重） }
+        hours: { type: number, description: 实际工时 }
+        weight: { type: number, description: 记分时的部位权重（快照） }
+        points: { type: number, description: 积分 = hours × 10 × weight }
+        period: { type: string, description: 归属期间 YYYY-MM }
+        ruleVersion: { type: string, example: POINT-2026-11-01 }
+        status: { $ref: '#/components/schemas/WoPointsStatus' }
+        beforePoints: { type: number, description: 重记前的积分（看改动幅度） }
+        at: { type: string, description: 记录时间 }
+        by: { type: string, description: 记入人 }
+        remark: { type: string }
+
     WoType:
       type: string
-      enum: [入户维修, 公共区域维修, 报事, 投诉建议, 咨询, 其他]
+      enum: [公共区域维修, 商业服务, 报事, 投诉建议, 咨询, 其他]
+      description: |
+        工单类型。前两条是**维修线**，也是唯一会产生费用的两条：
+
+        · `公共区域维修` —— 免费。分类按**设施部位**（电梯 / 给排水 / 公区照明 / 配电 / 土建 /
+          门窗五金 / 公共设备 / 道闸门禁 / 环境其他），不生成账单；
+        · `商业服务` —— 收费。**必须**绑定一个服务项目（`/service-items`），价格与服务范围都写在项目里，
+          金额按下单时的快照写入工单，字典改价不回溯。
+
+        「入户维修」已废弃（2026-11-02 拆分为「商业服务」）：它原本既是类型、又和公共区域共用同一套
+        「维修品类」分类，导致「电梯异常」（部位）与「下水道堵塞」（工种）并列在同一个下拉里。
     WoPriority:
       type: string
       enum: [特急, 紧急, 普通, 低]
@@ -3894,6 +7405,54 @@ components:
               description: 数据范围为「指定项目 / 本项目」时的项目清单
 
     # ---------------- 业主 ----------------
+    OwnerTag:
+      type: object
+      required: [tagId, name, category, enabled, ownerCount]
+      properties:
+        tagId:
+          type: string
+          description: 字典键，**不可修改**（业主表引用它）
+          example: OT05
+        name: { type: string, example: 长期欠费 }
+        category:
+          type: string
+          enum: [关怀, 风险, 价值, 行为]
+          description: |
+            四档分类，决定页面上的分组与配色：
+            · 关怀 —— 要主动去找的人（独居、高龄、有婴幼儿）
+            · 风险 —— 要盯住的事（欠费、投诉、违规装修、涉诉）
+            · 价值 —— 能带动的资源（意见领袖、优质业主、志愿者）
+            · 行为 —— 画像补充（活跃 APP、养宠）
+        color: { type: string, enum: [red, orange, green, blue, cyan, gray] }
+        builtin:
+          type: boolean
+          description: 系统内置。内置词条可改名/停用，但**不可删除**（删了历史标签成孤儿）
+        enabled:
+          type: boolean
+          description: 停用后不能再新打；已打上去的保留
+        sort: { type: integer }
+        desc: { type: string, description: 口径说明——写清"这个标签什么情况下打"，避免各人理解不同 }
+        ownerCount:
+          type: integer
+          description: |
+            当前打了该标签的业主数（**全库**口径）。停用前先看它：
+            不为 0 的停用要告知会影响多少人，而不是悄悄停掉
+    OwnerTagIdsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [ownerId, tagIds]
+              properties:
+                ownerId: { type: string }
+                tagIds:
+                  type: array
+                  items: { type: string }
+                  description: 变更后该业主的完整标签集（前端据此整体刷新，不用自己加减）
+                tag: { $ref: '#/components/schemas/OwnerTag' }
+
     Owner:
       type: object
       required: [ownerId, name, phone, houseCount]
@@ -3909,6 +7468,14 @@ components:
         appRegistered: { type: boolean }
         creditLevel: { type: string, example: 'A' }
         registerDate: { type: string, format: date }
+        tagIds:
+          type: array
+          description: |
+            业主标签，存**字典键**不存名称（`OT05` 而不是"长期欠费"）。
+            存名称的话，改一个词条要刷 682 条业主；停用一个词条，历史标签就成孤儿。
+            取值必须是 `GET /owner-tags` 里存在的 tagId；停用的词条**允许保留**在已有业主身上
+            （历史事实不因词条停用而消失），但不允许新打。
+          items: { type: string, example: OT05 }
         houseCount: { type: integer }
         houseNames:
           type: array
@@ -3917,6 +7484,40 @@ components:
         phoneRedacted: { type: boolean, description: true 表示 phone 是掩码 }
         idCardRedacted: { type: boolean }
         _ver: { type: integer, description: 乐观锁版本，PATCH 时回传 }
+
+        # ---------- 客户画像（2026-11-02 · 对齐《客户画像细分表模板》25 列） ----------
+        ownerCategory:
+          type: string
+          enum: [常住, 候鸟, 投资, 出租业主]
+          description: 业主分类。区分"住在这里的人"和"把房子当资产的人"——催缴话术与关怀策略都不同
+        economicLevel:
+          description: |
+            家庭经济状况 · **个人敏感信息**。列表回 `***`（掩码），详情回枚举值且要 `a.sensitive.view`。
+            它决定减免审批时的判断，但也最容易被拿去做差别对待，所以不给全量下发。
+
+            枚举与掩码用 `oneOf` 而不是把 `***` 混进枚举——前者能同时校验"真实取值合法"和
+            "掩码是唯一的掩码形态"，后者会让 `***` 看起来像一个合法选项。
+          oneOf:
+            - { type: string, enum: [优渥, 良好, 一般, 困难] }
+            - { type: string, enum: ['***'] }
+        politicalStatus:
+          description: 政治面貌 · **个人敏感信息**（同 economicLevel 的管控口径与掩码形态）
+          oneOf:
+            - { type: string, enum: [中共党员, 共青团员, 群众, 民主党派] }
+            - { type: string, enum: ['***'] }
+        weddingDate:
+          type: [string, 'null']
+          description: 结婚纪念日（YYYY-MM-DD）；未登记为 null，**不要给假日期**
+        employer: { type: string, description: 单位名称 }
+        jobTitle: { type: string, description: 职务 }
+        occupation: { type: string, description: 职业 }
+        workAddress: { type: string, description: 工作地址 }
+        hobbies: { type: string, description: 兴趣爱好，顿号分隔（原型不做多选结构化） }
+        pets: { type: string, description: 宠物信息 }
+        positiveNotes: { type: string, description: 正面信息（表扬、配合度高一类） }
+        negativeNotes:
+          type: string
+          description: 负面信息 · **个人敏感信息**。写进来就要能被申诉，所以只给有权限的人看
 
     # ---------------- 房屋 ----------------
     House:
@@ -3931,12 +7532,35 @@ components:
         floor: { type: integer }
         fullName: { type: string, example: '翡翠城 1栋1单元0101' }
         shortName: { type: string }
-        usage: { type: string, example: 住宅 }
+        usage:
+          type: string
+          enum: [住宅, 公寓, 商业]
+          description: |
+            用途。**公寓是 2026-11-02 新增**（旧改公寓，按住宅标准计费）。
+            用途与使用状态是两个维度：公寓既可能"已入住"，也可能"未交房"。
         houseType: { type: string, example: 两室一厅 }
         area: { type: number }
         innerArea: { type: number }
-        deliverStatus: { type: string }
-        useStatus: { type: string, example: 自住 }
+        deliverStatus:
+          type: string
+          enum: [已交付, 未交房]
+          description: 交付状态。未交房 = 还没到交付日，**不计物业费、不可出租**
+        useStatus:
+          type: string
+          enum: [已入住, 装修未入住, 正在装修, 已交房未装修, 未交房, 空置房]
+          description: |
+            使用状态（六态，按现场《房屋状态》看板统一）。
+            旧枚举「自住 / 出租 / 空置 / 装修中 / 限制使用」已废弃：
+            它把**居住关系**（自住/出租）和**装修进度**混在一个字段里，两件事永远没法同时表达。
+
+            - `已入住`：有业主自住，或有在住租户（居住关系看 `tenantId`，不看这个字段）
+            - `装修未入住`：装修完工、业主尚未搬入
+            - `正在装修`：施工中
+            - `已交房未装修`：已拿钥匙、还是毛坯
+            - `未交房`：未到交付日，不计费、不可出租
+            - `空置房`：可住但长期无人（旧「限制使用」并入此档）
+
+            口径约束：`已入住` 必须是装修过的房子（毛坯不可入住）；非 `已入住` 不应有 `checkinDate`。
         propertyStatus: { type: string }
         ownerId: { type: [string, 'null'] }
         tenantId:
@@ -3944,6 +7568,20 @@ components:
           description: 在住租户；null / 空串 = 无
         stewardEmpId: { type: string, description: 责任楼管（数据范围的依据） }
         stewardName: { type: string }
+
+        # ---------- 客户画像补充（2026-11-02） ----------
+        deliverDate:
+          type: [string, 'null']
+          description: 交房日期（YYYY-MM-DD）。`deliverStatus` 只是状态，算不了"交付多久了"
+        decorationViolation:
+          type: string
+          enum: [无, 疑似, 已认定, 已整改]
+          description: |
+            是否违规装修 · **挂在房屋上**，不挂业主。一个业主可能同时拥有多套房，
+            违规是某套房的事；挂到人身上，卖房之后这个标记还跟着人走
+        decorationResult:
+          type: string
+          description: 违规处理结果；`decorationViolation=无` 时为空串
 
     # ---------------- 账单 ----------------
     Bill:
@@ -4043,6 +7681,85 @@ components:
         invoiceRedFlushed: { type: boolean, description: 是否同时红冲了发票 }
 
     # ---------------- 工单 ----------------
+    ServiceItem:
+      type: object
+      description: |
+        商业服务项目（价目字典的一行）。
+
+        `price` 与 `cost` 是**冗余的合计列**：列表、排序、报表都直接用它们。
+        每次由 material + labor 现算，迟早出现「这个页面 125、那个页面 124.99」。
+        写入时强制 `price = material + labor`、`cost = materialCost + laborCost`。
+      required: [code, category, name, price, material, labor, cost, materialCost, laborCost, unit, minutes, enabled]
+      properties:
+        code: { type: string, example: RP-W01, description: 编号（业主端 / 员工端按它索引，改名会断链） }
+        category: { type: string, example: 水管漏水, description: 项目分类（维修品类维度） }
+        name: { type: string, example: 角阀/软管更换（含材料） }
+        trade: { type: string, example: 水暖, description: 工种：水暖 / 电工 / 木工 / 空调 / 泥瓦 / 综合 }
+        material: { type: number, description: 材料费（对业主报价构成） }
+        labor: { type: number, description: 人工费（对业主报价构成，也是师傅提成基数） }
+        price: { type: number, description: 服务价格 = material + labor }
+        materialCost: { type: number, description: 材料成本（材料按成本价过账，通常等于 material） }
+        laborCost: { type: number, description: 人工成本 = 工时 × 小时成本 }
+        cost: { type: number, description: 成本价 = materialCost + laborCost }
+        unit: { type: string, example: 次 }
+        minutes: { type: integer, description: 标准工时（分钟），用于排期与人工成本折算 }
+        enabled: { type: boolean, description: 在售 / 停用。停用不删，历史工单仍引用 }
+        sort: { type: integer }
+        desc: { type: string, description: 服务范围说明（包含什么、不包含什么，避免现场加价争议） }
+        usedCount: { type: integer, description: 引用该项目的工单数（派生态） }
+        inFlight: { type: integer, description: 其中未完工的单数；>0 时不允许停用 }
+    ServiceItemInput:
+      type: object
+      description: 新增 / 修改服务项目的入参。`price / cost` **不接受**（由服务端按分解项算）。
+      required: [category, name, material, labor, materialCost, laborCost]
+      properties:
+        category: { type: string }
+        name: { type: string, minLength: 2, maxLength: 30 }
+        trade: { type: string }
+        material: { type: number, minimum: 0 }
+        labor: { type: number, minimum: 0 }
+        materialCost: { type: number, minimum: 0 }
+        laborCost: { type: number, minimum: 0 }
+        unit: { type: string }
+        minutes: { type: integer, minimum: 0 }
+        sort: { type: integer }
+        desc: { type: string }
+    ServiceItemSummary:
+      type: object
+      description: 维护页 KPI。收入只算「已完工且已结清（已支付 / 已挂账）」的工单，金额取快照。
+      properties:
+        total: { type: integer }
+        enabled: { type: integer }
+        disabled: { type: integer }
+        categories: { type: integer }
+        used: { type: integer, description: 被引用过的项目数 }
+        orders: { type: integer, description: 引用工单总数 }
+        settled: { type: integer, description: 已结清单数 }
+        income: { type: number }
+        cost: { type: number }
+        profit: { type: number }
+        margin: { type: number, description: 毛利率百分比 }
+    ServiceItemEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/ServiceItem' }
+    ServiceItemPageEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/ServiceItem' }
+            total: { type: integer }
+            pageNo: { type: integer }
+            size: { type: integer }
+
     WorkOrder:
       type: object
       required: [woId, woNo, communityId, type, priority, status, title, createTime, slaDueAt, slaBreached]
@@ -4075,11 +7792,39 @@ components:
           description: SLA 到期时间，**由服务端按工作日历算好下发**（前端不算，避免两边算法不一致）
         slaUsedHours: { type: number }
         slaBreached: { type: boolean, description: 停表（待确认）期间不计超时 }
+        serviceItemCode:
+          type: string
+          description: |
+            关联的服务项目编号（仅 `type=商业服务`）。与 `priceCode` 是同一个值 ——
+            `priceCode` 是旧名字，保留是为了业主端 / 员工端按它索引价目不断链。
+        serviceName: { type: string, description: 下单时的服务项目名称（快照，字典改名不回溯） }
         feeType: { type: string, enum: [收费, 免费] }
-        materialFee: { type: number }
-        laborFee: { type: number }
-        totalFee: { type: number }
+        materialFee: { type: number, description: 材料费（对业主报价构成，按成本价过账） }
+        laborFee: { type: number, description: 人工费（对业主报价构成，也是师傅提成的基数） }
+        totalFee: { type: number, description: 服务价格 = 材料费 + 人工费（下单时快照） }
+        serviceCost:
+          type: number
+          description: |
+            下单时的成本价快照 = 材料成本 + 人工成本。**只在后台可见**，用于算毛利；
+            不给业主端返回（业主端拿到的 totalFee 就够）。
         payStatus: { type: string, enum: [未支付, 已支付, 已挂账, 无需支付] }
+        laborHours:
+          type: number
+          description: 实际工时（小时）。**仅公共区域维修**记录 —— 商业服务有提成，再叠积分等于同一件事发两次奖
+        laborPoints:
+          type: number
+          description: 工时积分 = 工时 × 基准分/时（10）× 部位权重
+        laborPointWeight:
+          type: number
+          description: 部位权重（电梯 1.5 / 公共设备 1.4 / 配电 1.3 / 给排水与道闸 1.2 / 土建 1.1 / 照明门窗 1.0 / 环境 0.8）
+        pointRuleVersion:
+          type: string
+          description: 记分时的规则版本。调权重不影响已记录的积分（与工单金额快照同理）
+        pointsPeriod:
+          type: string
+          description: 归属期间 YYYY-MM（按完工月）。绩效按自然月核算，积分必须能按期间聚合
+        pointsStatus:
+          $ref: '#/components/schemas/WoPointsStatus'
         score: { type: integer, description: 满意度评分 0..5 }
         isPublic: { type: boolean, description: 是否公共区域工单（无房屋归属） }
         _ver: { type: integer }
@@ -4130,6 +7875,13 @@ components:
 
     # ---------------- 租户 ----------------
     TenantCompleteness:
+      description: |
+        完整度**按租客类型分两套口径**（各 8 项）：
+        · 个人：姓名 / 手机 / 证件 / 实名 / 人脸 / 与业主关系 / 居住人数 / 紧急联系人
+        · 公司：公司名 / 信用代码 / 法人 / 法人电话 / 经办人 / 经办人手机 / 经营类目 / 注册地址
+
+        拿个人那套去量公司租户，公司永远补不满（它没有"与业主关系""居住人数"）；
+        反过来也是一样。两套口径都在服务端算，前端不要各算一套。
       type: object
       required: [total, filled, missing, rate, basicTotal, basicFilled, missingBasic]
       properties:
@@ -4145,14 +7897,78 @@ components:
           type: array
           items: { type: string }
           description: 核验门槛缺项；非空时 verify 会 422
+        licenseRequired:
+          type: boolean
+          description: 该公司是否受"必须有营业执照影像件"约束（个人恒 false）
+        licenseCount: { type: integer, description: 已上传影像件张数 }
+        licenseReady:
+          type: boolean
+          description: |
+            核验依据是否齐备。**不计入 8 项分母**：完整度量的是"信息填全没有"，
+            影像是"能不能核验"，混在一起会让所有公司的完整度同时漂移。
+            为 false 时 verify 会 422/42203。
     Tenant:
       type: object
       required: [tenantId, name, phone, status, verifyStatus, source]
       properties:
         tenantId: { type: string }
-        name: { type: string }
-        phone: { type: string, description: 列表回掩码，详情回明文 }
-        idCard: { type: string }
+        tenantType:
+          type: string
+          enum: [个人, 公司]
+          description: |
+            租客类型。个人与公司是**两套字段、两套校验、两套完整度口径**：
+            公司的身份凭证是统一社会信用代码而不是身份证，核验核的是营业执照而不是人脸，
+            门禁人脸录的是**经办人**而不是"公司"。
+
+            类型在建立时确定，`PATCH` 不允许顺手改；真要换主体走
+            `POST /tenants/{tenantId}/change-type` —— 那条接口会同步撤销人脸、
+            复位核验、清理另一套字段并留痕，不是改一个字符串。
+        name:
+          type: string
+          description: |
+            承租主体名称：个人 = 姓名，公司 = **公司名称**（与 `companyName` 相同）。
+            保留这个字段是为了列表/详情主标题不用按类型分支。
+        phone: { type: string, description: 个人手机 / 公司对外联系电话。列表回掩码，详情回明文 }
+        idCard:
+          type: string
+          description: 个人证件号。**公司主体为空**——公司不押个人身份证，主体凭证是 `creditCode`
+
+        # ---------- 公司租户（2026-11-02）· 仅 tenantType=公司 时有效 ----------
+        companyName: { type: string, description: 公司名称（与 name 相同，便于显式读取） }
+        creditCode:
+          type: string
+          description: |
+            统一社会信用代码（18 位，GB 32100-2015）。服务端做**校验位**校验，
+            不只是查长度：抄错一位的代码看起来完全正常，只有算校验位才能发现。
+        legalPerson: { type: string, description: 法定代表人 }
+        legalPersonPhone: { type: string, description: 法定代表人电话（紧急联络用） }
+        agentName:
+          type: string
+          description: 经办人。**门禁人脸与日常对接都落在这人身上**，不是法定代表人
+        agentPhone: { type: string, description: 经办人手机（11 位） }
+        agentIdCard: { type: string, description: 经办人证件号（敏感字段，按 idCard 同样脱敏） }
+        businessCategory:
+          type: string
+          enum: ['', 餐饮, 零售, 教育培训, 生活服务, 办公, 医疗健康, 其他]
+          description: |
+            经营类目。**个人租户为空串**（这个字段只对公司有意义）。
+            商铺承租必填——它决定消防与排污的管理要求。
+        leasePurpose:
+          type: string
+          enum: ['', 经营, 办公, 仓储, 宿舍]
+          description: |
+            承租用途。**个人租户为空串**。与房屋用途不同：同一套商业房可以租来经营，也可以租来当仓库存货。
+        regAddress: { type: string, description: 注册地址 }
+        establishDate:
+          type: [string, 'null']
+          description: 成立日期（YYYY-MM-DD）。**不能晚于今天**——写未来日期说明执照信息填错了
+        employeeCount: { type: integer, description: 员工人数（办公/经营场所的日常在场人数） }
+        licenseFiles:
+          type: array
+          description: |
+            营业执照影像件（公司租户的核验依据）。个人租户恒为空数组。
+            **至少 1 张才能核验**——没看过原件就盖"已核验"，等于核验没发生。
+          items: { $ref: '#/components/schemas/TenantFile' }
         houseId: { type: string }
         houseName: { type: string }
         communityId: { type: string }
@@ -4177,6 +7993,41 @@ components:
         phoneRedacted: { type: boolean }
         idCardRedacted: { type: boolean }
         _ver: { type: integer }
+
+    TenantFile:
+      type: object
+      description: |
+        营业执照影像件的**元数据**。原型没有对象存储，只登记"传了什么、多大、谁传的"；
+        预览由页面用本地文件生成的临时地址渲染，刷新即失效（真接口换成对象存储的 fileKey）。
+      required: [fileId, name, size, type, uploadedAt, uploadedBy]
+      properties:
+        fileId: { type: string }
+        name: { type: string, description: 原始文件名（含扩展名，用于判断是正本还是副本） }
+        size: { type: integer, description: 字节数 }
+        type:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, application/pdf]
+          description: 白名单只收这四种：执照要能看清国徽与二维码，压缩过的 webp 之外不放开
+        uploadedAt: { type: string }
+        uploadedBy: { type: string }
+
+    TenantTypeChange:
+      type: object
+      description: 换承租主体（个人 ↔ 公司）的请求体
+      required: [toType, reason]
+      properties:
+        toType: { type: string, enum: [个人, 公司] }
+        reason:
+          type: string
+          minLength: 4
+          description: 换主体是有实质后果的动作（人脸撤销 + 重新核验），原因必填且要能看懂
+        operator: { type: string }
+        patch:
+          type: object
+          additionalProperties: true
+          description: |
+            目标类型的字段，与换类型**同一次事务**提交：公司要带 companyName / creditCode /
+            法人 / 经办人；个人要带 name / phone。分开提交会出现"类型换了但主体是空的"的中间态。
 
     # ---------------- 巡检 ----------------
     InspectIssueItem:
@@ -4426,6 +8277,21 @@ components:
           type: string
           description: 证件号，**列表恒为掩码**（前 4 后 4）；明文走 reveal 接口
         idCardRedacted: { type: boolean }
+        emergencyContact:
+          type: string
+          description: 紧急联系人姓名。与本人关系靠 `emergencyRelation` 区分
+          example: 付艳
+        emergencyRelation:
+          type: string
+          enum: ['', 配偶, 父亲, 母亲, 子女, 兄弟姐妹, 其他]
+          description: |
+            与本人关系。**枚举而非自由文本** —— 突发情况先找谁，靠这一栏判断。
+            空字符串 = 未填（三项都空是合法状态：新人还没录）。
+        emergencyPhone:
+          type: string
+          description: 紧急联系电话，**列表恒为掩码**（`188****7048`）；明文走 reveal 接口
+          example: 188****7048
+        emergencyPhoneRedacted: { type: boolean, description: true = 当前是掩码值 }
         homeOrgId:
           type: string
           description: |
@@ -4523,7 +8389,13 @@ components:
         parentId: { type: string, description: 上级组织；集团节点为空串（建树要用） }
         sort: { type: integer, description: 同级排序，小的在前 }
         type: { type: string, enum: [集团, 部门, 项目, 班组] }
-        leader: { type: string }
+        leader:
+          type: string
+          description: 展示快照 = 当前审批人（在期正职，正职空缺时是在期代理）。**不要用它判断权限**
+        leaders:
+          type: array
+          description: 完整负责关系（含已结束 / 未生效）；改负责人走 PUT /orgs/{orgId}/leaders
+          items: { $ref: '#/components/schemas/OrgLeader' }
         headcount: { type: integer, description: 含全部下级的人数（树上的数字） }
         selfHeadcount: { type: integer, description: 只算直接挂在本节点上的人 }
         children:
@@ -5055,6 +8927,206 @@ components:
       description: |
         `即将到期` 是**派生态**（30 天内到期且仍在履行中），由跑批或查询时计算，不是人工设的。
         台账里不该出现"人工标成即将到期"这种数据——那会让续签提醒变成玄学。
+    OaFieldDef:
+      type: object
+      description: |
+        表单字段的**描述**（不是取值）。页面按它渲染控件，所以加字段不用改页面。
+        `role` 是语义标记：`amount` 参与金额条件分支，`periodEnd` 要校验晚于开始时间。
+      required: [key, label, type]
+      properties:
+        key: { type: string, example: amount }
+        label: { type: string, example: 报销金额 }
+        type: { type: string, enum: [text, textarea, number, money, date, datetime, select, file] }
+        required: { type: boolean }
+        maxlength: { type: integer }
+        min: { type: number }
+        max: { type: number }
+        unit: { type: string, example: 小时 }
+        options:
+          type: array
+          items: { type: string }
+          description: select 的候选值
+        opts:
+          type: string
+          description: 特殊候选来源（如 community = 项目列表）
+        default: {}
+        hint: { type: string }
+        role:
+          type: string
+          enum: [amount, periodEnd]
+          description: amount = 参与金额分支；periodEnd = 需晚于 after 指定字段
+        after: { type: string }
+
+    OaFormDef:
+      type: object
+      required: [bizType, code, fields]
+      properties:
+        bizType: { type: string, example: 费用报销 }
+        code: { type: string, example: EXP }
+        icon: { type: string }
+        desc: { type: string }
+        urgentDefault: { type: string }
+        fields:
+          type: array
+          items: { $ref: '#/components/schemas/OaFieldDef' }
+        summaryKeys:
+          type: array
+          items: { type: string }
+          description: 列表/待办里摘要显示的字段（不能把 8 个字段全冲上来）
+
+    OaFlowNode:
+      type: object
+      description: |
+        审批节点。`assigneeType` 是**规则**不是人名 —— 写死"张经理"之后，人一调岗审批就断。
+      required: [name, assigneeType]
+      properties:
+        key: { type: string }
+        name: { type: string, example: 财务复核 }
+        assigneeType:
+          type: string
+          enum: [orgLeader, projectManager, directSuperior, role, deptHead]
+          description: |
+            部门负责人 / 项目经理 / 直属上级 / 指定岗位 / 指定部门负责人。
+            `role` 需同时给 `roleCode`（admin / finance / contract / legal / gm）。
+        roleCode: { type: string }
+        orgId: { type: string }
+        signMode:
+          type: string
+          enum: [single, all, any]
+          description: |
+            签署方式。**只对 `orgLeader` 生效**：
+            - `single` 单人（默认）：一个负责人签完即过；
+            - `all` 会签：本部门正职 + 副职全部同意才过，任一人驳回即整单驳回；
+            - `any` 或签：任一负责人同意即通过（抢办）。
+
+            其他来源（项目经理 / 指定岗位 / 直属上级）天然只有一个对象，配了也等价于单人。
+        limitHours: { type: integer, description: 时限（小时），超时在待办里标红 }
+        allowReject: { type: boolean }
+
+    OaFlowDef:
+      type: object
+      required: [bizType, baseNodes]
+      properties:
+        bizType: { type: string }
+        amountThreshold:
+          type: integer
+          description: |
+            金额阈值。`≤ 阈值`走 `baseNodes`，`> 阈值`走 `overNodes`；
+            阈值为 0 表示不做金额分支。合同审批的「≥30 万三级」就在这里。
+        baseNodes:
+          type: array
+          items: { $ref: '#/components/schemas/OaFlowNode' }
+        overNodes:
+          type: array
+          items: { $ref: '#/components/schemas/OaFlowNode' }
+        note: { type: string, description: 为什么这么配 —— 半年后没人记得 }
+        inFlight: { type: integer, description: 该类型当前在途单数（改配置时要让人知道影响面） }
+
+    OaRequest:
+      type: object
+      description: |
+        OA 审批单。**没有业务实体**：`bizId` 为空，内容全在 `formData`。
+        合同审批等业务单据也有审批单，但那些的 `bizId` 指向合同/工单，不走这个模型。
+      required: [approvalId, approvalNo, bizType, status, applicant, applyTime, flow]
+      properties:
+        approvalId: { type: string }
+        approvalNo: { type: string, example: SP-2026-0097 }
+        bizType: { type: string }
+        bizId: { type: string, description: OA 单据恒为空 }
+        title: { type: string, description: 类型 + 摘要，如「费用报销 · 办公费 · ¥8,000」 }
+        formData:
+          type: object
+          additionalProperties: true
+          description: 表单快照（按 OaFormDef 的 key）
+        files:
+          type: array
+          items: { type: object }
+        amount: { type: number, description: 表单里 role=amount 的字段值，没有则为 0 }
+        communityId: { type: string }
+        communityName: { type: string }
+        applicant: { type: string }
+        applicantRole: { type: string }
+        applicantEmpId: { type: string }
+        applicantOrgId: { type: string }
+        applicantOrgName: { type: string }
+        applyTime: { type: string }
+        status: { type: string, enum: [待审批, 审批中, 已通过, 已驳回, 已撤回] }
+        currentNode: { type: string }
+        urgency: { type: string }
+        waitHours: { type: integer }
+        flow:
+          type: array
+          items:
+            type: object
+            properties:
+              node: { type: string }
+              handler: { type: string, description: 解析不出来时为空，页面显示「待指派」；会签时是当前待签的那个人 }
+              signMode: { type: string, enum: [single, all, any] }
+              approvers:
+                type: array
+                description: |
+                  会签 / 或签的完整名单，单人节点长度为 1。
+                  **一次「同意」只签掉一个人**，全部签完节点才通过；任一人驳回即整单驳回，
+                  其余人标「已跳过」而不是直接消失。
+                items: { $ref: '#/components/schemas/OaApprover' }
+              action: { type: string, enum: [待处理, 同意, 驳回, 转办, 撤回] }
+              time: { type: string }
+              comment: { type: string }
+              limitHours: { type: integer }
+
+    OaApprover:
+      type: object
+      description: 会签名单里的一个人。`duty` 来自组织负责人关系（正职 / 副职 / 代理）。
+      required: [name, action]
+      properties:
+        name: { type: string }
+        empId: { type: string }
+        duty: { type: string, enum: ['', 正职, 副职, 代理] }
+        action:
+          type: string
+          enum: [待处理, 同意, 驳回, 已跳过, 撤回]
+          description: 已跳过 = 或签时他人已同意，或同节点已有人驳回
+        time: { type: string }
+        comment: { type: string }
+
+    OaRequestEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/OaRequest' }
+    OaRequestPageEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/OaRequest' }
+            total: { type: integer }
+            pageNo: { type: integer }
+            size: { type: integer }
+
+    ContractIncomeCategory:
+      type: string
+      enum: [主营业务, 多种经营, 不计入]
+      description: |
+        这份合同的钱算到公司收入的哪一类。**三值而不是"收入/支出"两值**，
+        因为「物业服务合同」这个类型本身就横跨两种情况：
+
+        | 取值 | 含义 | 样例 |
+        |---|---|---|
+        | `主营业务` | 物业费口径的主营收入，**不进多种经营** | 前期物业服务合同（住宅物业费） |
+        | `多种经营` | 经营性收入，进「商业合作收入」，扣公共收益 | 广告位 / 商铺 / 公共车位 / 场地 / 快递柜租赁 |
+        | `不计入` | 支出合同，只进成本不进收入 | 采购 20 / 外包 30 / 劳动 12 / 顾问服务 |
+
+        为什么不能按 `type` 推：85 份样例里 7 份「物业服务」合同的乙方是外包供应商
+        （嘉合智联机电、兴洁美服务…），实际是支出；而同类型的「前期物业服务合同」是收入。
+        同类型两向，只能逐份标。
+
     Contract:
       type: object
       required: [contractId, contractNo, name, type, partyB, amount, status]
@@ -5074,7 +9146,33 @@ components:
           description: |
             联系电话。**列表与详情都掩码**（`175****1790`）——合同相对方是个人时就是个人信息；
             要看明文走 `a.sensitive.view` 的揭示接口，并写访问日志。
-        amount: { type: number }
+        amount:
+          type: number
+          description: |
+            合同金额 = **期间总额**（整个合同期），不是年额。85 份样例里期间为 6 / 12 / 24 / 36 个月，
+            直接计入「全年收益」会让 36 个月的合同在一年里虚高 3 倍，所以报表一律用 `annualRevenue`。
+        incomeCategory:
+          $ref: '#/components/schemas/ContractIncomeCategory'
+        publicRevenue:
+          type: number
+          description: |
+            公共收益金额 = 这份合同里**归全体业主**的那部分（民法典 282 条：扣除合理成本后属业主共有）。
+
+            例：电梯广告位 3 年 30 万，合同约定物业提取 30% 管理费 → `publicRevenue = 21 万`，
+            物业实得 9 万。所以「合同金额 − 公共收益 = 物业商业合作收入」这个减法方向是成立的。
+
+            **仅 `incomeCategory=多种经营` 可填**：采购 / 外包 / 劳动是支出合同，填公共收益没有意义；
+            物业服务合同是主营业务收入，也不走公共收益（那不是经营共有部位）。
+        contractMonths:
+          type: integer
+          description: 期间月数（派生，用于年化；不要让前端自己按日期算，两端算法迟早不一样）
+        annualRevenue:
+          type: number
+          description: |
+            年化的**商业合作收入** = `(amount − publicRevenue) ÷ contractMonths × 12`。
+
+            只读派生值。`incomeCategory ≠ 多种经营` 时恒为 0 —— 支出合同不是收入，
+            这一点由字段而不是由调用方判断，避免各页面自己写 if。
         payCycle: { type: string, example: 月付 }
         signDate: { type: string, format: date }
         startDate: { type: string, format: date }
@@ -5094,6 +9192,18 @@ components:
       properties:
         total: { type: integer }
         amount: { type: number, description: 合同总金额（含已到期，用于规模口径） }
+        operationCount:
+          type: integer
+          description: 计入多种经营的合同数（`incomeCategory=多种经营`）
+        operationAmount:
+          type: number
+          description: 这些合同的**年化商业合作收入**合计（已扣公共收益）
+        publicRevenue:
+          type: number
+          description: 其中归业主的公共收益（年化），用于向业主公示时对账
+        expenseCount:
+          type: integer
+          description: '`incomeCategory=不计入` 的合同数（支出类：采购 / 外包 / 劳动 / 顾问服务）'
         running: { type: integer }
         expiring: { type: integer, description: 状态为「即将到期」的合同数（派生态，由跑批刷新） }
         expired: { type: integer }
@@ -5598,6 +9708,40 @@ components:
                     rows:
                       type: array
                       items: { $ref: '#/components/schemas/Owner' }
+    OwnerTagStats:
+      type: object
+      required: [total, enabled, disabled, used, taggedOwners, untaggedOwners]
+      properties:
+        total: { type: integer, description: 词条总数（含停用） }
+        enabled: { type: integer }
+        disabled: { type: integer }
+        used: { type: integer, description: 至少被用过一次的词条数——为 0 的词条是"加了没人用"，该清理 }
+        taggedOwners: { type: integer, description: 至少有一个标签的业主数 }
+        untaggedOwners: { type: integer }
+    OwnerTagStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/OwnerTagStats' }
+    OwnerTagEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/OwnerTag' }
+    OwnerTagListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/OwnerTag' }
     OwnerDetailEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'
@@ -6245,3 +10389,995 @@ components:
                       title: { type: string }
                       memo: { type: string }
                       done: { type: boolean }
+
+    MobileExecEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [task, template]
+              properties:
+                task: { $ref: '#/components/schemas/InspectTask' }
+                template:
+                  type: object
+                  properties:
+                    templateId: { type: string }
+                    name: { type: string }
+                    type: { type: string, enum: [执行, 监督] }
+                    version: { type: string }
+                    fields:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          label: { type: string }
+                          type: { type: string, description: '拍照 / 单选 / 评分 / 扫码 / 文本' }
+                          required: { type: boolean }
+                          standard: { type: string }
+                          options:
+                            type: array
+                            items: { type: string }
+                communityName: { type: string }
+                workers:
+                  type: array
+                  description: 责任员工候选（仅监督任务有值；按被检班组在职员工，排除组长本人）
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      label: { type: string }
+
+    InspectWorkOrderRequest:
+      type: object
+      required: [itemLabel, type, priority, title, description]
+      properties:
+        itemLabel: { type: string, description: '巡检检查项名称，用于回连与描述' }
+        reason: { type: string, description: '问题类型，落到工单 category' }
+        type: { type: string, enum: [公共区域维修, 报事, 投诉建议, 其他] }
+        priority: { $ref: '#/components/schemas/WoPriority' }
+        title: { type: string, maxLength: 40 }
+        description: { type: string, maxLength: 160, description: '现象 + 位置；工程组不再二次电话确认' }
+        place: { type: string, description: '点位描述，缺省用「岗位责任区 · 巡检点位」' }
+        photos: { type: integer, minimum: 0 }
+      description: |
+        注意：`source` 不由客户端指定，服务端固定写「巡检转单」；
+        SLA 按 priority 推导（特急 4h / 紧急 8h / 普通 24h），与工单域一致。
+
+    StaffEvalRequest:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5, description: 业主配合度 }
+        tags:
+          type: array
+          items:
+            type: string
+            enum: [业主配合, 家中无人, 需二次上门, 现场无法进入, 非本专业问题]
+        note: { type: string, maxLength: 80 }
+      description: |
+        只做内部参考：不对外展示、不进业主考核、不参与员工绩效。
+        与业主对员工的 `score` / `evalTags` 是两套数据，不要合并统计。
+
+    WorkOrderCommission:
+      type: object
+      description: 单笔工单的提成（基数只含人工费，材料费不计提）
+      properties:
+        woId: { type: string }
+        woNo: { type: string }
+        category: { type: string }
+        total: { type: number, description: 含增项的实收金额 }
+        labor: { type: number, description: 提成基数 }
+        commission: { type: number }
+        settled: { type: boolean, description: 'true=已收款（已结），false=在途' }
+        payStatus: { type: string, enum: [未支付, 已支付, 已挂账, 无需支付] }
+
+    RepairPriceItem:
+      type: object
+      description: 维修价目 / 增项价目。业主端下单、现场加项、提成核算共用同一份
+      required: [code, name, trade, material, labor]
+      properties:
+        code: { type: string, example: RP-W01 }
+        category: { type: string, description: 对应工单的 category（增项无此字段） }
+        name: { type: string }
+        trade: { type: string, enum: [水暖, 电工, 木工, 空调, 泥瓦, 电梯, 综合] }
+        material: { type: number }
+        labor: { type: number }
+        unit: { type: string, example: 次 }
+        minutes: { type: integer, description: 标准工时，用于排单与超时判断 }
+
+    TenantBrief:
+      type: object
+      description: 在住租户（不含租金与身份证）
+      properties:
+        name: { type: string }
+        phone: { type: string, description: 脱敏 }
+        relation: { type: string }
+        leaseStart: { type: string }
+        leaseEnd: { type: string }
+        residents: { type: integer }
+        verifyStatus: { type: string, enum: [已核验, 待核验, 信息不全] }
+        certified: { type: boolean }
+        faceRegistered: { type: boolean }
+        source: { type: string }
+
+    MemberBrief:
+      type: object
+      description: 共住家庭成员（不含身份证）
+      properties:
+        name: { type: string }
+        relation: { type: string, enum: [配偶, 子女, 父母, 其他] }
+        phone: { type: string, description: 脱敏 }
+        certified: { type: boolean }
+        faceRegistered: { type: boolean }
+        appUser: { type: boolean }
+
+    # ==================== 业主小程序（mp） ====================
+    MpSession:
+      type: object
+      description: 业主端会话（**不返回完整证件号**，只回后四位）
+      required: [phoneMasked, realnameStatus]
+      properties:
+        phoneMasked: { type: string, example: 138****8001 }
+        realnameStatus: { type: string, enum: [未实名, 已实名] }
+        name: { type: string, description: 已实名时返回 }
+        idCard4: { type: string, description: 证件后四位（回显用） }
+        boundCount: { type: integer, description: 已绑房产套数 }
+        token: { type: string, description: 会话 token（只带身份，不带数据范围） }
+
+    MpSessionEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpSession' }
+
+    MpBindingMatch:
+      type: object
+      description: 三项比对的逐项结论（业主端要用它渲染"哪一项对不上"）
+      required: [phone, name, cert]
+      properties:
+        phone: { type: boolean, description: true = 这一项对不上 }
+        name: { type: boolean }
+        cert: { type: boolean }
+
+    MpMyHouse:
+      type: object
+      description: 业主端房产（含只读基础信息与管家）
+      required: [houseId, fullName]
+      properties:
+        houseId: { type: string }
+        fullName: { type: string, example: 翡翠城 1栋1单元0501 }
+        communityName: { type: string }
+        houseType: { type: string, enum: [一室一厅, 两室一厅, 三室两厅, 四室两厅, 复式] }
+        area: { type: number, description: 建筑面积 ㎡ }
+        deliverStatus: { type: string, enum: [已交付, 未交付] }
+        useStatus: { type: string, enum: [自住, 出租, 空置] }
+        bound: { type: boolean, description: 当前会话是否已绑 }
+        steward:
+          type: object
+          description: 楼栋管家（无命中时告诉业主找谁核验）
+          properties:
+            empId: { type: string }
+            name: { type: string }
+            position: { type: string }
+            phone: { type: string, description: 脱敏 }
+
+    MpBindingCandidates:
+      type: object
+      required: [level, mismatch]
+      properties:
+        level: { type: string, enum: [one, many, none], description: 命中 1 套 / 多套 / 无命中 }
+        reason: { type: string, description: level=none 时必填，说明哪一项对不上 }
+        mismatch: { $ref: '#/components/schemas/MpBindingMatch' }
+        houses:
+          type: array
+          items: { $ref: '#/components/schemas/MpMyHouse' }
+        steward:
+          type: object
+          description: 该房楼栋管家（可能为空：手机号未登记时无法定位房）
+          properties:
+            empId: { type: string }
+            name: { type: string }
+            position: { type: string }
+            phone: { type: string }
+
+    MpBindingCandidatesEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpBindingCandidates' }
+
+    MpBindingEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            boundHouseIds:
+              type: array
+              items: { type: string }
+            houses:
+              type: array
+              items: { $ref: '#/components/schemas/MpMyHouse' }
+
+    MpHomeCounts:
+      type: object
+      description: 首页三个待办数（口径见 GET /mp/me）
+      required: [debtAmount, doingOrders, pendingAddons]
+      properties:
+        debtAmount: { type: number, description: 待缴合计（已绑房产 + 本人不挂房的车位费） }
+        debtBills: { type: integer }
+        maxOverdueDays: { type: integer }
+        doingOrders: { type: integer, description: 待派单 / 已派单 / 处理中 / 待确认 }
+        pendingAddons: { type: integer, description: addons 里 confirmed=false 的条数 }
+        pendingAddonAmount: { type: number }
+        toEvaluate: { type: integer }
+
+    MpMe:
+      type: object
+      required: [owner, houses, counts]
+      properties:
+        owner:
+          type: object
+          properties:
+            ownerId: { type: string }
+            name: { type: string }
+            phoneMasked: { type: string }
+            idCard4: { type: string }
+            certified: { type: boolean }
+        houses:
+          type: array
+          items: { $ref: '#/components/schemas/MpMyHouse' }
+        counts: { $ref: '#/components/schemas/MpHomeCounts' }
+
+    MpMeEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpMe' }
+
+    MpHouseEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpMyHouse' }
+
+    MpResidents:
+      type: object
+      description: 本住在住人。**业主可见租金**（与楼管相反），身份证只回后四位
+      properties:
+        tenants:
+          type: array
+          items:
+            type: object
+            properties:
+              tenantId: { type: string }
+              name: { type: string }
+              phone: { type: string, description: 脱敏 }
+              idCard4: { type: string }
+              leaseStart: { type: string, format: date }
+              leaseEnd: { type: string, format: date }
+              rent: { type: number, description: 月租金，业主可见 }
+              residents: { type: integer }
+              verifyStatus: { type: string, enum: [已核验, 待核验, 信息不全] }
+              source: { type: string, enum: [业主自助, 物业登记, 中介报备] }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/MemberBrief' }
+
+    MpResidentsEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpResidents' }
+
+    MpBillListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/Bill' }
+            summary: { $ref: '#/components/schemas/BillSummary' }
+            periods:
+              type: array
+              description: 涉及的账期（升序），账单页按它分组
+              items: { type: string, example: '2026-10' }
+
+    MpPricingEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            chargeMode:
+              type: object
+              properties:
+                prepayWhenOrder: { type: boolean, description: true = 下单即预付 }
+                addonPaidOnSite: { type: boolean, description: true = 增项确认后补付 }
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/RepairPriceItem' }
+            addons:
+              type: array
+              items: { $ref: '#/components/schemas/RepairPriceItem' }
+
+    MpAddon:
+      type: object
+      description: |
+        现场增项。**全系统唯一形状**（`workOrders[].addons[]`）：
+        员工端加项、业主端确认、提成核算都读这一份，不允许各端另存一份。
+      required: [code, name, qty, material, labor, total, confirmed]
+      properties:
+        code: { type: string, example: AD-D01 }
+        name: { type: string, example: 拆旧 / 清运 }
+        qty: { type: integer, minimum: 1 }
+        material: { type: number }
+        labor: { type: number }
+        total: { type: number, description: material + labor }
+        at: { type: string, description: 加项时间 }
+        by: { type: string, description: 加项的师傅 }
+        confirmed: { type: boolean, description: false = 等业主确认 }
+        confirmedAt: { type: string }
+        confirmedBy: { type: string, description: 业主确认时记「业主（小程序）」 }
+
+    MpPayOrder:
+      type: object
+      description: 待支付订单。**不是支付流水**（流水在 payments），只是"待付款单"
+      required: [payId, type, amount, status, expireAt]
+      properties:
+        payId: { type: string, example: PY202610200001 }
+        type: { type: string, enum: [bill, wo] }
+        refId: { type: string, description: bill=首张账单 id；wo=工单 id }
+        billIds:
+          type: array
+          items: { type: string }
+        title: { type: string }
+        sub: { type: string }
+        amount: { type: number, description: 由服务端计算，前端传值忽略 }
+        status: { type: string, enum: [待支付, 已支付, 已过期, 已取消] }
+        createdAt: { type: string }
+        expireAt: { type: string, description: 待支付有效期 }
+        paidAt: { type: string }
+        payMethod: { type: string, enum: [微信支付（模拟）, 微信支付, 支付宝] }
+        lines:
+          type: array
+          description: 账单缴费的金额快照（支付后账单 unpaid 会归零，明细只能靠它）
+          items:
+            type: object
+            properties:
+              billId: { type: string }
+              itemName: { type: string }
+              period: { type: string }
+              amount: { type: number }
+
+    MpPayOrderEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpPayOrder' }
+
+    MpOrderDetail:
+      allOf:
+        - $ref: '#/components/schemas/WorkOrder'
+        - type: object
+          description: 业主端在工单基础上补的字段（费用三段 + 增项 + 待付）
+          properties:
+            priceCode: { type: string }
+            priceName: { type: string }
+            priceQty: { type: integer }
+            appointAt: { type: string, description: 预约上门时间 }
+            appointSlot: { type: string, enum: ['09:00-11:00', '14:00-16:00', '19:00-21:00'] }
+            originFee: { type: number, description: 材料 + 人工（未含增项） }
+            addonFee: { type: number, description: 已确认增项合计 }
+            totalFee: { type: number, description: 合计 = originFee + addonFee }
+            paidAmount: { type: number, description: 已预付 }
+            dueFee: { type: number, description: 待付 = totalFee - paidAmount }
+            paidAt: { type: string }
+            addons:
+              type: array
+              items: { $ref: '#/components/schemas/MpAddon' }
+            timeline:
+              type: array
+              description: 进度节点（由字段推导，不另存节点表）
+              items:
+                type: object
+                properties:
+                  key: { type: string, enum: [create, accept, arrive, addon, finish, eval] }
+                  label: { type: string }
+                  at: { type: string }
+                  done: { type: boolean }
+                  note: { type: string }
+            payOrder: { $ref: '#/components/schemas/MpPayOrder' }
+
+    MpOrderDetailEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpOrderDetail' }
+
+    MpOrderCreatedEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            order: { $ref: '#/components/schemas/MpOrderDetail' }
+            payOrder: { $ref: '#/components/schemas/MpPayOrder' }
+
+    MpSimulateEnvelope:
+      type: object
+      description: 模拟支付成功。真实接入时这里换成"查询支付结果"，且只在服务端收到渠道回调后才可能为已支付
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            payOrder: { $ref: '#/components/schemas/MpPayOrder' }
+            order: { $ref: '#/components/schemas/MpOrderDetail', description: type=wo 时返回 }
+            bills:
+              type: array
+              description: type=bill 时返回冲账后的账单
+              items: { $ref: '#/components/schemas/Bill' }
+    DeptPlanItem:
+      type: object
+      description: |
+        一条考核项。三段共用这个结构，靠 `section` 区分 —— 不同段用到的字段不同：
+
+        | 字段 | 量化 q | 监控 m | 重点 k |
+        |---|---|---|---|
+        | `weight` | 提报人填 | **恒为 0** | 提报人填 |
+        | `target` | 目标值 | — | — |
+        | `direction` | 正/逆向 | — | — |
+        | `actual` | 实际数值 | 情况说明 | 完成情况 |
+        | `selfScore` | 服务端算 | — | 人工 1–5 |
+        | `selfWeighted` | 派生 | 手填扣分 | 派生 |
+
+        提报时整份拷贝自模板，之后模板改动不回写。
+        **权重不是模板带出来的**：新建计划时按条目数平均预填 100%，
+        提报人再按本月重点调整；审核阶段运营管理部也可以改。
+      required: [section, name, weight]
+      properties:
+        taskId: { type: string, example: PL202610002-I01 }
+        itemId: { type: string, description: 来源模板条目，便于追溯 }
+        section:
+          type: string
+          enum: [q, m, k]
+          description: 量化 / 监控 / 重点
+        name: { type: string, maxLength: 40 }
+        content: { type: string, description: 计划内容（重点项提报时填） }
+        standard: { type: string, description: 完成标准 / 监控项的扣分规则文字 }
+        weight:
+          type: number
+          description: |
+            权重（0–100 的百分数）。**必须是 5 的倍数**（10 / 15 / 20…），
+            且**所有计分项合计必须正好 100%**，监控项恒 0。
+            不符合时提交审核与审核下发都会被拒（422/42212）；草稿不卡（写到一半要能存）。
+        direction:
+          type: integer
+          enum: [1, -1]
+          description: 1 正向（越高越好）；-1 逆向（成本能耗类，越低越好）
+        unit: { type: string, example: 元 }
+        target:
+          oneOf:
+            - type: number
+            - type: string
+          description: 目标值。为 0 或空时自评公式失效，退回人工打分
+        dueDate: { type: string, example: '2026-10-31' }
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+        actual:
+          oneOf:
+            - type: number
+            - type: string
+          description: 实际完成。量化是数值，监控/重点是文字
+        actualNote: { type: string }
+        selfScore:
+          type: number
+          description: 自评分。量化项由服务端算（夹 1–5），重点项人工填，监控项为空
+        selfWeighted:
+          type: number
+          description: 自评加权 = 分 × 权重/100；监控项是手填的扣分（负数）
+        reviewScore:
+          type: number
+          description: 复评分 1–5，复评后才有
+        reviewWeighted:
+          type: number
+          description: 复评加权
+        remark: { type: string }
+        execStatus:
+          type: string
+          enum: [未开始, 进行中, 已完成, 延期]
+          description: 派生，不让用户手选（手选必然与实际完成打架）
+
+    DeptPlan:
+      type: object
+      description: |
+        一份部门月度计划。`items` 是提报时从模板拷贝的快照，**权重也在快照里** ——
+        之后模板改条目、运营管理部改权重，都不回写这一份。
+
+        **总分是 5 分制**（各项权重合计 100，所以自评合计满分就是 5 分），不是百分制。
+        权重只有一个约束：**各项合计正好 100%**，没有"段权重"这一层了。
+      properties:
+        planId: { type: string, example: PL202610001 }
+        planMonth: { type: string, example: '2026-10' }
+        orgId: { type: string }
+        orgName: { type: string }
+        orgPath: { type: string }
+        orgType: { type: string }
+        projectId: { type: string }
+        tplId: { type: string }
+        tplName: { type: string }
+        tplVersion: { type: integer }
+        submitterName: { type: string }
+        submitterDuty:
+          type: string
+          enum: [正职, 副职, 代理]
+          description: 提报时的身份，落库是为了以后能解释"当时凭什么提的"
+        status:
+          type: string
+          enum: [草稿, 审批中, 已批准, 已驳回, 执行中, 待复评, 已结案]
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DeptPlanItem' }
+        weightTotal: { type: number, description: 派生：本计划各项权重合计，应为 100 }
+        weightQs: { type: number, description: 派生：量化段合计（列表上显示"量 x% / 重 y%"用） }
+        weightKs: { type: number, description: 派生：重点段合计 }
+        weightDiff: { type: number, description: 派生：100 − weightTotal；正数=还差、负数=超出 }
+        weightOk: { type: boolean, description: 派生：是否正好 100% }
+        weightMsg: { type: string, description: 派生：不闭合时的原因（页面直接展示） }
+        finishRate: { type: number, description: 派生：按自评加权折算的完成率（%） }
+        selfTotal: { type: number, description: 派生：自评加权合计（满分 5） }
+        reviewTotal: { type: number, description: 派生：复评加权合计（满分 5） }
+        totalScore:
+          type: number
+          description: 派生：只有已结案有值，= 自评合计×20% + 复评合计×80%
+        grade:
+          type: string
+          enum: ['', A, B, C, D]
+        reviseLog:
+          type: array
+          description: 审核阶段运营管理部的直改记录，逐条留痕
+          items:
+            type: object
+            properties:
+              field: { type: string, example: 目标值 }
+              item: { type: string, description: 哪一条考核项 }
+              before: {}
+              after: {}
+              at: { type: string }
+              by: { type: string }
+
+    DeptPlanInput:
+      type: object
+      required: [planMonth, orgId, items]
+      properties:
+        planMonth: { type: string, example: '2026-10' }
+        orgId: { type: string, example: O-P01-T4 }
+        tplId: { type: string }
+        tplName: { type: string }
+        tplVersion: { type: integer }
+        summary: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DeptPlanItem' }
+
+    DeptPlanStats:
+      type: object
+      description: |
+        三个维度：按项目部门、按计划状态、按条目执行情况/得分档位。
+        注意「计划状态」和「条目执行情况」是两个维度 —— 一份计划里可以有 3 项完成、2 项延期。
+      properties:
+        total: { type: integer }
+        totalItems: { type: integer }
+        closed: { type: integer, description: 已归档份数 }
+        pendingReview: { type: integer, description: 待复评份数 }
+        avgScore: { type: number, description: 只算已归档，5 分制 }
+        avgFinish: { type: number }
+        byOrg:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              name: { type: string }
+              plans: { type: integer }
+              tasks: { type: integer }
+              closed: { type: integer }
+              avgScore: { type: number }
+              avgFinish: { type: number }
+              lateTasks: { type: integer }
+        byStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              count: { type: integer }
+        byExec:
+          type: array
+          description: 条目维度的执行分布
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              count: { type: integer }
+        byGrade:
+          type: array
+          items:
+            type: object
+            properties:
+              grade: { type: string }
+              label: { type: string }
+              min: { type: number }
+              max: { type: number }
+              count: { type: integer }
+
+    DeptPlanEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/DeptPlan' }
+    DeptPlanPageEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/DeptPlan' }
+            total: { type: integer }
+            pageNo: { type: integer }
+            size: { type: integer }
+    OrgLeader:
+      type: object
+      description: |
+        组织负责人关系。一个部门可以有多个：正职唯一、副职可多个、代理必须带结束日期。
+
+        **审批只认正职**（正职空缺才落到在期代理），副职是分工不是授权。
+        `orgs.leader` 只是展示快照，判断"谁是审批人"必须读这张表。
+      properties:
+        id: { type: string, example: OL0001 }
+        orgId: { type: string }
+        empId: { type: string }
+        name: { type: string, description: 由服务端按 empId 补全，不落库 }
+        position: { type: string }
+        duty:
+          type: string
+          enum: [正职, 副职, 代理]
+        startDate: { type: string, description: 空 = 一直在任；填了就到那天才生效 }
+        endDate: { type: string, description: 代理必填；过了这天自动失效 }
+        note: { type: string }
+        state:
+          type: string
+          enum: [在期, 已结束, 未生效]
+          description: 按当天算的派生字段
+        active: { type: boolean }
+        empStatus: { type: string, description: 员工状态；离职员工留着关系会显示 warn }
+    OrgLeaderInput:
+      type: object
+      required: [empId, duty]
+      properties:
+        id: { type: string, description: 空 = 新增 }
+        empId: { type: string }
+        duty: { type: string, enum: [正职, 副职, 代理] }
+        startDate: { type: string }
+        endDate: { type: string, description: 代理必填 }
+        note: { type: string }
+    PlanTemplateItem:
+      type: object
+      description: |
+        一个考核项。三段共用这个结构，靠 `section` 区分，不同段用到的字段不同——
+
+        | 字段 | 量化 q | 监控 m | 重点 k |
+        |---|---|---|---|
+        | `direction` | 正/逆向 | 不用 | 不用 |
+        | `targetDefault` | 目标值默认 | 不用 | 不用 |
+        | `standard` | 空（由目标值算） | 扣分规则文字 | 空 |
+
+        **模板条目没有 `weight`**（第 60 批）：权重属于计划，不属于模板。
+        同一套考核项，不同项目当月的重点本来就不同；写死在模板里，要么所有人按同一比例，
+        要么每个月改一遍模板，还会把历史版本的分数搅乱。
+
+        `standard` 里的「最高扣 0.2 分」这类上限**本期不做解析、不做校验**，
+        系统只存文字、只展示；扣多少分由人填。要真做封顶得先定清楚
+        「降一档」这种非数值规则怎么表达。
+      required: [section, name]
+      properties:
+        itemId: { type: string, example: PT01-01 }
+        section:
+          type: string
+          enum: [q, m, k]
+          description: 量化 / 监控 / 重点
+        name: { type: string, maxLength: 40, example: 物业费清欠 }
+        standard:
+          type: string
+          description: 评价标准。量化和重点留空，监控写扣分规则
+        direction:
+          type: integer
+          enum: [1, -1]
+          description: 1 正向（越高越好，收入类）；-1 逆向（越低越好，成本能耗类）
+        targetDefault:
+          oneOf:
+            - type: number
+            - type: string
+          description: 目标值默认值，提报时带出；可留空让填报人自己填
+        unit: { type: string, example: 元 }
+        enabled: { type: boolean, default: true }
+
+    PlanTemplate:
+      type: object
+      description: |
+        一套计划模板。**模板里没有权重**（第 60 批）：它只定「考什么、怎么算分」，
+        「每项占多少」由提报人在新建计划时逐项填，审核阶段运营管理部可调。
+
+        模板改动**不影响已经提报的计划** —— 提报时整份拷贝成快照（条目 + 权重），
+        否则调一次考核项，历史上已归档的分数会跟着变。
+      properties:
+        tplId: { type: string, example: PT01 }
+        name: { type: string, example: 项目经理月度计划 }
+        desc: { type: string }
+        matchType:
+          type: string
+          enum: [项目, 班组, 职能]
+          description: 自动匹配用。职能是兜底，管总部职能部门
+        matchSuffix:
+          type: string
+          enum: ['', '1', '2', '3', '4']
+          description: matchType=班组时必填，对应 T1 客服 / T2 工程 / T3 秩序 / T4 环境
+        enabled: { type: boolean, description: 停用不影响已提报的计划 }
+        version: { type: integer, description: 每保存一次 +1，提报时记进计划 }
+        updatedAt: { type: string }
+        updatedBy: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PlanTemplateItem' }
+        qCount: { type: integer, description: 派生：量化条目数 }
+        mCount: { type: integer, description: 派生：监控条目数 }
+        kCount: { type: integer, description: 派生：重点条目数 }
+        checkOk: { type: boolean, description: 派生：内容校验是否通过（名称/类型/两段非空） }
+        checkErrs:
+          type: array
+          description: 派生：不通过时的原因清单（页面直接展示，不在前端重算）
+          items: { type: string }
+
+    PlanTemplateInput:
+      type: object
+      description: 模板输入。**没有 wq / wk / weight** —— 权重在计划上填。
+      required: [name, matchType, items]
+      properties:
+        name: { type: string, maxLength: 20 }
+        desc: { type: string, maxLength: 60 }
+        matchType: { type: string, enum: [项目, 班组, 职能] }
+        matchSuffix: { type: string, enum: ['', '1', '2', '3', '4'] }
+        items:
+          type: array
+          description: 全量提交，不传则是空模板（会被校验拦下）
+          items: { $ref: '#/components/schemas/PlanTemplateItem' }
+
+    PlanTemplateStats:
+      type: object
+      properties:
+        total: { type: integer, example: 6 }
+        enabled: { type: integer }
+        disabled: { type: integer }
+        items: { type: integer, description: 全部模板的考核项总数 }
+        broken: { type: integer, description: 权重校验不通过的模板数，正常应为 0 }
+
+    PlanTemplateEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/PlanTemplate' }
+
+    PlanTemplateListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PlanTemplate' }
+
+    AssetCategory:
+      type: object
+      description: |
+        资产分类（树，`parentId` 自引用）。**最多两级** —— 三级在录入时选不出来，实际也用不到。
+      properties:
+        catId: { type: string, example: AC0002 }
+        name: { type: string, maxLength: 12, example: 电脑 }
+        parentId: { type: string, description: 空 = 一级分类 }
+        prefix: { type: string, description: 编码前缀，新增资产时用来建议资产编码，如 BG-01 }
+        sort: { type: integer, example: 10 }
+        note: { type: string }
+        enabled: { type: boolean, description: 停用后不能再往里新增资产，已有资产保留 }
+        catPath: { type: string, example: 办公设备 / 电脑 }
+        depth: { type: integer, description: 1 = 一级，2 = 二级 }
+        leaf: { type: boolean }
+        childCount: { type: integer }
+        assetCount: { type: integer, description: 本级资产数 }
+        assetCountAll: { type: integer, description: 含全部下级的资产数 }
+        canDelete:
+          type: boolean
+          description: 有子分类或有资产时为 false（删除会返回 409/40927）
+    AssetCategoryNode:
+      allOf:
+        - $ref: '#/components/schemas/AssetCategory'
+        - type: object
+          properties:
+            children:
+              type: array
+              items: { $ref: '#/components/schemas/AssetCategoryNode' }
+    AssetCategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 12 }
+        parentId: { type: string, description: 空 = 一级分类；指向二级会被拒（最多两级） }
+        prefix: { type: string }
+        sort: { type: integer }
+        note: { type: string }
+
+    Asset:
+      type: object
+      description: |
+        一件办公资产。注意这是**办公物品**（电脑 / 桌椅 / 工具），
+        不是 D 域的 IoT 设备（门禁 / 摄像头）。
+      required: [assetId, assetNo, name, catId, status]
+      properties:
+        assetId: { type: string, example: AS0001 }
+        assetNo:
+          type: string
+          description: 资产编号，`ZC{年}{4位流水}`。**服务端生成、永不可改**（标签已贴在实物上）
+          example: ZC20260001
+        name: { type: string, maxLength: 40 }
+        catId: { type: string }
+        catName: { type: string, description: 分类名**快照**，分类改名不回写 }
+        catPath: { type: string, description: 分类全路径快照 }
+        assetCode: { type: string, description: 资产编码，可自定义（如 BG-PC-001）；与 assetNo 不是一回事 }
+        brand: { type: string }
+        model: { type: string }
+        sn: { type: string, description: 序列号。**不出现在扫码公开接口里**（可被拿去伪造保修） }
+        buyDate: { type: string, example: '2024-03-15' }
+        price:
+          type: number
+          nullable: true
+          description: 购置原值。本期**不做折旧**，没有净值字段
+        vendor: { type: string }
+        warrantyEnd: { type: string, example: '2027-03-15' }
+        holderEmpId: { type: string, description: 使用人；空 = 未分配 }
+        holderName: { type: string, description: 服务端按 empId 补全 }
+        orgId: { type: string, description: 使用部门（成本归属），可以不是使用人所在部门 }
+        orgName: { type: string }
+        location: { type: string }
+        status:
+          type: string
+          enum: [闲置, 在用, 报废]
+          description: |
+            **描述性字段，不是流程状态**。本期没有领用 / 归还 / 报废单据，
+            所以不能拿它推断「资产在谁手上」—— 要看就看 `holderEmpId`。
+        remark: { type: string }
+        files:
+          type: array
+          description: |
+            **设备图片**（图片附件）。存在资产上，不单独开表 —— 图片脱离资产没有意义。
+
+            三条限制：最多 **6 张**、单张 ≤ **5MB**、只收 jpeg / png / webp / gif。
+            超过任一条返回 422；真实实现应存对象存储的 URL，**不要**把 base64 塞进数据库行里。
+
+            **不在扫码公开视图里**：照片是现场随手拍的，背景里常有工位、白板、同事，
+            公开出去不是"设备长什么样"的问题。
+          items:
+            type: object
+            properties:
+              fileId: { type: string, example: AF0001 }
+              kind: { type: string, enum: [image], description: 预留：以后要放说明书 PDF 时扩枚举 }
+              name: { type: string, example: 联想 E14 正面.jpg }
+              url: { type: string, description: 图片地址；原型里是 data URL，生产是对象存储 URL }
+              size: { type: integer, description: 字节数 }
+              mime: { type: string, example: image/jpeg }
+              at: { type: string }
+              by: { type: string, description: 上传人 }
+        qrToken: { type: string, description: 16 位随机串，与编号无关；扫码页按它取数 }
+        createdAt: { type: string }
+        createdBy: { type: string }
+        logs:
+          type: array
+          description: 变更记录（详情返回；列表不返回）
+          items: { $ref: '#/components/schemas/AssetLog' }
+        _ver: { type: integer, description: 乐观锁版本号 }
+    AssetInput:
+      type: object
+      required: [name, catId]
+      properties:
+        name: { type: string, maxLength: 40 }
+        catId: { type: string }
+        assetCode: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        sn: { type: string }
+        buyDate: { type: string }
+        price: { type: number, nullable: true }
+        vendor: { type: string }
+        warrantyEnd: { type: string }
+        holderEmpId: { type: string }
+        orgId: { type: string }
+        location: { type: string }
+        status: { type: string, enum: [闲置, 在用, 报废], default: 闲置 }
+        remark: { type: string }
+        files:
+          type: array
+          description: |
+            设备图片，整单提交（增删都在里面，按 fileId + 名称 + url 比对，只换顺序不算改动）。
+            超过 6 张 / 非图片 / 单张超 5MB 一律 422。
+          items:
+            type: object
+            properties:
+              fileId: { type: string }
+              kind: { type: string, enum: [image] }
+              name: { type: string }
+              url: { type: string }
+              size: { type: integer }
+              mime: { type: string }
+    AssetLog:
+      type: object
+      description: |
+        变更记录的一条。没有领用单，这一层就是唯一的「谁在什么时候改了什么」。
+      properties:
+        logId: { type: string, example: AL00001 }
+        assetId: { type: string }
+        at: { type: string }
+        by: { type: string }
+        field: { type: string, example: status }
+        fieldLabel: { type: string, example: 状态 }
+        # 图片也走这张表：field='files'、fieldLabel='设备图片'，before/after 只写「3 张：a.jpg、b.jpg」；
+        # 把 base64 写进日志会让变更记录几秒钟就变成一屏乱码
+        before: { type: string, example: 闲置 }
+        after: { type: string, example: 在用 }
+    AssetPublicView:
+      type: object
+      description: |
+        扫码公开视图。**只有这 7 个字段**，与 `Asset` 是两套结构，不是「少给几个的 Asset」。
+        设备图片（`files`）**也不给**：照片背景里常有工位和同事，扫码页是免登录的。
+      properties:
+        ok: { type: boolean }
+        scrapped: { type: boolean, description: 已报废仍可查，页面顶部加灰条 —— 历史要能追溯 }
+        asset:
+          type: object
+          properties:
+            name: { type: string }
+            assetNo: { type: string }
+            catPath: { type: string }
+            status: { type: string, enum: [闲置, 在用, 报废] }
+            orgName: { type: string, description: 使用部门（**不返回使用人姓名**） }
+            location: { type: string }
+            warrantyEnd: { type: string }
+            warrantyExpired: { type: boolean }

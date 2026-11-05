@@ -1,0 +1,182 @@
+[
+ {
+  "catId": "AC0001",
+  "name": "办公设备",
+  "parentId": "",
+  "prefix": "BG",
+  "sort": 10,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0002",
+  "name": "电脑",
+  "parentId": "AC0001",
+  "prefix": "BG-01",
+  "sort": 10,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0003",
+  "name": "显示器",
+  "parentId": "AC0001",
+  "prefix": "BG-02",
+  "sort": 20,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0004",
+  "name": "打印机/复印机",
+  "parentId": "AC0001",
+  "prefix": "BG-03",
+  "sort": 30,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0005",
+  "name": "投影设备",
+  "parentId": "AC0001",
+  "prefix": "BG-04",
+  "sort": 40,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0006",
+  "name": "网络设备",
+  "parentId": "AC0001",
+  "prefix": "BG-05",
+  "sort": 50,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0007",
+  "name": "办公家具",
+  "parentId": "",
+  "prefix": "JJ",
+  "sort": 70,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0008",
+  "name": "桌椅",
+  "parentId": "AC0007",
+  "prefix": "JJ-01",
+  "sort": 10,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0009",
+  "name": "文件柜",
+  "parentId": "AC0007",
+  "prefix": "JJ-02",
+  "sort": 20,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0010",
+  "name": "沙发茶几",
+  "parentId": "AC0007",
+  "prefix": "JJ-03",
+  "sort": 30,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0011",
+  "name": "电子电器",
+  "parentId": "",
+  "prefix": "DZ",
+  "sort": 110,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0012",
+  "name": "空调",
+  "parentId": "AC0011",
+  "prefix": "DZ-01",
+  "sort": 10,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0013",
+  "name": "饮水机",
+  "parentId": "AC0011",
+  "prefix": "DZ-02",
+  "sort": 20,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0014",
+  "name": "冰箱微波炉",
+  "parentId": "AC0011",
+  "prefix": "DZ-03",
+  "sort": 30,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0015",
+  "name": "工具器具",
+  "parentId": "",
+  "prefix": "GJ",
+  "sort": 150,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0016",
+  "name": "维修工具",
+  "parentId": "AC0015",
+  "prefix": "GJ-01",
+  "sort": 10,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0017",
+  "name": "电工工具",
+  "parentId": "AC0015",
+  "prefix": "GJ-02",
+  "sort": 20,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ },
+ {
+  "catId": "AC0018",
+  "name": "测量仪器",
+  "parentId": "AC0015",
+  "prefix": "GJ-03",
+  "sort": 30,
+  "note": "",
+  "enabled": true,
+  "createdAt": "2026-01-01 00:00"
+ }
+]

@@ -115,7 +115,9 @@ export const REPORTS = [
     desc: '按「项目 × 科目」汇总应收 / 已收 / 未收与收缴率，经营分析主表',
     fetchCode: 'business',
     filters: [F.community, F.kw],
-    note: '收缴率 = 已收 ÷ 应收；分母剔除「已作废」与「已减免」账单（Q1 口径），应收为 0 时显示「—」而不是 0%',
+    note: '收缴率 = 已收 ÷ 应收；分母剔除「已作废」与「已减免」账单（Q1 口径），应收为 0 时显示「—」而不是 0%。'
+      + '末段三行是「多种经营收入」：小计 + 商业服务（来自**工单**，完工确认制）+ 商业合作（来自**合同**，年化并扣公共收益）。'
+      + '两段都不是账单，所以没有"应收"概念；合同收入按履约确认，不会产生未收',
     columns: [
       { prop: 'communityName', label: '项目', width: 110 },
       { prop: 'itemName', label: '科目', width: 130 },
@@ -128,27 +130,59 @@ export const REPORTS = [
     summaryFields: [
       { k: 'payable', l: '应收合计', money: true },
       { k: 'paid', l: '已收合计', money: true },
-      { k: 'unpaid', l: '未收合计', money: true, warn: true }
+      { k: 'unpaid', l: '未收合计', money: true, warn: true },
+      { k: 'multiRevenue', l: '其中多种经营', money: true }
     ]
   },
   {
     code: 'repair-summary', name: '报修汇总表', group: 'F 现场', prio: 'P1', ready: true,
-    desc: '按「项目 × 工单类型」汇总工单量、完工量、超时量与平均处理时长',
+    desc: '按「项目 × 工单类型」汇总工单量、完工量、超时量、平均时长与商业服务收入',
     fetchCode: 'repair',
     filters: [F.community, F.kw],
-    note: '平均时长只统计已填写处理时长的工单；超时以 isOverdue 为准',
+    note: '平均时长只统计已填写处理时长的工单；超时以 isOverdue 为准。'
+      + '服务收入只统计**已完工**的商业服务工单，金额取下单时的快照（字典改价不回溯）；'
+      + '公共区域维修免费，收入恒为 0，成本走物业运营',
     columns: [
       { prop: 'communityName', label: '项目', width: 110 },
-      { prop: 'type', label: '工单类型', width: 130 },
-      { prop: 'count', label: '工单量', width: 90, align: 'right' },
-      { prop: 'done', label: '已完工', width: 90, align: 'right' },
-      { prop: 'overdue', label: '超时', width: 90, align: 'right', strong: true },
-      { prop: 'avgHours', label: '平均时长', width: 110, align: 'right', unit: '小时' }
+      { prop: 'type', label: '工单类型', width: 110 },
+      { prop: 'count', label: '工单量', width: 80, align: 'right' },
+      { prop: 'done', label: '已完工', width: 80, align: 'right' },
+      { prop: 'overdue', label: '超时', width: 70, align: 'right', strong: true },
+      { prop: 'avgHours', label: '平均时长', width: 96, align: 'right', unit: '小时' },
+      { prop: 'income', label: '服务收入', width: 108, align: 'right', money: true },
+      { prop: 'cost', label: '服务成本', width: 108, align: 'right', money: true },
+      { prop: 'profit', label: '毛利', width: 108, align: 'right', money: true, strong: true }
     ],
     summaryFields: [
       { k: 'count', l: '工单总量' },
-      { k: 'payable', l: '已完工', money: false },
-      { k: 'paid', l: '超时量', money: false, warn: true }
+      { k: 'income', l: '服务收入', money: true },
+      { k: 'cost', l: '服务成本', money: true },
+      { k: 'profit', l: '毛利', money: true, warn: true }
+    ]
+  },
+  {
+    code: 'multi-revenue', name: '多种经营收入表', group: 'B 费用', prio: 'P1', ready: true,
+    desc: '按「项目 × 分项」汇总商业服务与商业合作收入，含公共收益、成本与毛利',
+    fetchCode: 'multi-revenue',
+    filters: [F.community, F.kw],
+    note: '两个分项的时间口径不同：商业服务按**完工**入账，商业合作按**合同年化 × 当年覆盖月数 ÷ 12**。'
+      + '商业合作没有成本字段（合同成本未纳入核算），所以毛利只对商业服务成立；'
+      + '「其中·归业主」是合同里约定归全体业主的公共收益，**已经在收入中扣掉**，'
+      + '单列是为了向业主公示时对得上账 —— 它与收入列不是加减关系，占比高于 50% 说明该合同业主分成高',
+    columns: [
+      { prop: 'communityName', label: '项目', width: 116 },
+      { prop: 'itemName', label: '分项', width: 128 },
+      { prop: 'count', label: '笔数', width: 76, align: 'right' },
+      { prop: 'income', label: '收入', width: 118, align: 'right', money: true },
+      { prop: 'publicRevenue', label: '其中·归业主', width: 116, align: 'right', money: true },
+      { prop: 'cost', label: '成本', width: 106, align: 'right', money: true },
+      { prop: 'profit', label: '毛利', width: 112, align: 'right', money: true },
+      { prop: 'share', label: '占多种经营', width: 100, align: 'right', unit: '%' }
+    ],
+    summaryFields: [
+      { k: 'income', l: '收入合计', money: true },
+      { k: 'publicRevenue', l: '公共收益', money: true },
+      { k: 'profit', l: '毛利合计', money: true, warn: true }
     ]
   },
   {

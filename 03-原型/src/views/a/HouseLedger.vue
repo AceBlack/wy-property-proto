@@ -4,17 +4,33 @@
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
         <b>房屋台账 · IA 骨架（左树定范围）</b>：树只管「范围」（项目 → 楼栋 → 单元），筛选栏只管「属性」，两者 AND。
-        房间不进树（736 个叶子会让滚动条失控），楼层改由列表上方的楼层热力条承载。
+        房间不进树（七百多个叶子会让滚动条失控），楼层改由列表上方的楼层热力条承载。
         取数走 <code>api.queryHouseLedger / getHouseDetail / houseTree</code>。
       </div>
     </div>
 
     <div class="panel" style="margin-top:16px;">
       <div class="grid g4">
-        <div class="dstat"><div class="dstat__k">房屋总数</div><div class="dstat__v">{{ summary.total }}<span class="unit">套</span></div></div>
-        <div class="dstat"><div class="dstat__k">自住</div><div class="dstat__v">{{ summary.selfUse }}<span class="unit">套</span></div></div>
-        <div class="dstat"><div class="dstat__k">出租 / 空置</div><div class="dstat__v">{{ summary.rent }}<span class="unit">/</span> {{ summary.empty }}<span class="unit">套</span></div></div>
-        <div class="dstat"><div class="dstat__k">欠费房屋</div><div class="dstat__v" :class="summary.debtHouses > 0 ? 'is-warn' : ''">{{ summary.debtHouses }}<span class="unit">套</span></div></div>
+        <div class="dstat">
+          <div class="dstat__k">房屋总数</div>
+          <div class="dstat__v">{{ summary.total }}<span class="unit">套</span></div>
+          <div class="dstat__s">已交付 {{ summary.delivered }} · 未交房 {{ summary.undelivered }}</div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">已入住</div>
+          <div class="dstat__v">{{ summary.occupied }}<span class="unit">套</span></div>
+          <div class="dstat__s">入住率 {{ summary.occupancyRate }}%（分母只算已交付）</div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">空置房</div>
+          <div class="dstat__v">{{ summary.empty }}<span class="unit">套</span></div>
+          <div class="dstat__s">含毛坯与装修未入住共 {{ summary.emptyAll }} 套</div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">在装修</div>
+          <div class="dstat__v">{{ summary.decorating + summary.renovating }}<span class="unit">套</span></div>
+          <div class="dstat__s">施工中 {{ summary.decorating }} · 完工待入住 {{ summary.renovating }}</div>
+        </div>
       </div>
     </div>
 
@@ -166,7 +182,10 @@
         <div class="dl">
           <div class="dl__i"><span class="dl__k">房屋编号</span><span class="dl__v">{{ detailData.house.houseId }}</span></div>
           <div class="dl__i"><span class="dl__k">户型</span><span class="dl__v">{{ detailData.house.houseType }}</span></div>
-          <div class="dl__i"><span class="dl__k">用途</span><span class="dl__v">{{ detailData.house.usage }}</span></div>
+          <div class="dl__i"><span class="dl__k">用途</span><span class="dl__v">
+            <InlineField :model-value="detailData.house.usage" type="select" :options="usageOpts"
+              :save="v => saveHouseField('usage', v)" @update:model-value="v => detailData.house.usage = v" />
+          </span></div>
           <div class="dl__i"><span class="dl__k">使用状态</span><span class="dl__v">
             <InlineField :model-value="detailData.house.useStatus" type="select" :options="HOUSE_USE_OPTS"
               :save="v => saveHouseField('useStatus', v)" @update:model-value="v => detailData.house.useStatus = v" />
@@ -356,11 +375,18 @@ const { data: detailData, visible: detailVisible, loading: detailLoading, open: 
 const debtOfRow = computed(() => (detailData.value?.bills || []).reduce((s, b) => s + (b.unpaid || 0), 0))
 
 /* X2 内联编辑：改单字段后同步列表（派生行已在 api 内同步） */
+const FIELD_CN = {
+  useStatus: '使用状态', usage: '用途', propertyStatus: '产权状态', certNo: '权证号',
+  orientation: '朝向', decoration: '装修情况', deliverDate: '交房日期',
+  decorationViolation: '违规装修认定', decorationResult: '违规处理结果', remark: '备注'
+}
 async function saveHouseField(field, v) {
   const r = await updateHouseField(detailData.value.house.houseId, field, v)
   Object.assign(detailData.value.house, r)
   search()
-  ElMessage.success(`已更新${field === 'useStatus' ? '使用状态' : field === 'propertyStatus' ? '产权状态' : field === 'certNo' ? '权证号' : field === 'orientation' ? '朝向' : '装修情况'}`)
+  /* 用途改变收费口径（公寓按住宅标准计费），改完要说清后果，不能让用户以为只是标签变了 */
+  const extra = field === 'usage' ? '，本月起的计费口径随新用途' : ''
+  ElMessage.success(`已更新${FIELD_CN[field] || field}${extra}`)
 }
 
 function refreshFloors() {

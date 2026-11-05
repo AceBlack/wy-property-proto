@@ -28,7 +28,33 @@
             · 人脸{{ owner.faceRegistered ? '已录' : '未录' }} · APP{{ owner.appRegistered ? '已注册' : '未注册' }}
           </div>
           <div class="ohead__tags">
-            <span v-for="t in owner.tags" :key="t" class="tag tag--info">{{ t }}</span>
+            <!-- 标签存的是 tagId：词条改名后这里自动跟着变，页面不存名称 -->
+            <span v-for="t in ownerTagList" :key="t.tagId" class="otag" :style="chipStyle(t.color)"
+              :title="`${t.category} · ${t.desc || '无说明'}`">
+              {{ t.name }}
+              <el-icon v-if="canTag" class="otag__x" @click.stop="removeTag(t)"><Close /></el-icon>
+            </span>
+            <el-popover v-if="canTag" placement="bottom-start" :width="360" trigger="click" v-model:visible="tagPop">
+              <template #reference>
+                <el-button link type="primary" size="small" :icon="'Plus'">标签</el-button>
+              </template>
+              <div class="picker">
+                <div v-for="g in tagPicker" :key="g.category" class="picker__g">
+                  <div class="picker__hd">{{ g.category }}</div>
+                  <div class="picker__bd">
+                    <span v-for="t in g.tags" :key="t.tagId" class="otag is-pick" :style="chipStyle(t.color)"
+                      :class="{ 'is-disabled': t.taken }" :title="t.taken ? '已经打过了' : t.desc"
+                      @click="addTag(t)">
+                      {{ t.name }}<span v-if="t.taken" class="otag__tick">✓</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="picker__ft muted">
+                  只能选系统内置的启用词条；要加新词条去
+                  <router-link to="/a/owner-tags">业主标签</router-link>（需 e.ownerTags.edit）
+                </div>
+              </div>
+            </el-popover>
             <span v-if="owner.remark" class="muted" style="font-size:12px;">备注：{{ owner.remark }}</span>
           </div>
         </div>
@@ -244,6 +270,68 @@
           </el-table>
         </el-tab-pane>
 
+        <el-tab-pane label="客户画像" name="profile">
+          <div class="sec__hd" style="margin-bottom:12px;">
+            <h4>画像信息</h4>
+            <span class="desc">
+              对齐《客户画像细分表模板》25 列：经济状况 / 政治面貌 / 负面信息为敏感项，默认打码，看明文要权限且留痕
+            </span>
+            <span class="spacer" />
+            <el-button type="primary" :icon="'EditPen'" size="small" @click="openProfile">编辑画像</el-button>
+          </div>
+
+          <div class="dl dl--2">
+            <div class="dl__i"><span class="dl__k">业主分类</span><span class="dl__v">{{ owner.ownerCategory || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">结婚纪念日</span><span class="dl__v">{{ owner.weddingDate || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">单位名称</span><span class="dl__v">{{ owner.employer || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">职务 / 职业</span><span class="dl__v">{{ owner.jobTitle || '—' }} / {{ owner.occupation || '—' }}</span></div>
+            <div class="dl__i is-full"><span class="dl__k">工作地址</span><span class="dl__v">{{ owner.workAddress || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">兴趣爱好</span><span class="dl__v">{{ owner.hobbies || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">宠物信息</span><span class="dl__v">{{ owner.pets || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">家庭经济状况</span><span class="dl__v">
+              <SensitiveText :value="owner.economicLevel" field="economicLevel" entity-type="业主"
+                :entity-id="owner.ownerId" :entity-name="owner.name" source="/a/owner360" />
+            </span></div>
+            <div class="dl__i"><span class="dl__k">政治面貌</span><span class="dl__v">
+              <SensitiveText :value="owner.politicalStatus" field="politicalStatus" entity-type="业主"
+                :entity-id="owner.ownerId" :entity-name="owner.name" source="/a/owner360" />
+            </span></div>
+          </div>
+
+          <div class="sec__hd" style="margin:18px 0 8px;">
+            <h4>评价</h4>
+            <span class="desc">负面信息写进来就要能被申诉，所以只给有权限的人看</span>
+          </div>
+          <div class="dl">
+            <div class="dl__i is-full"><span class="dl__k">正面信息</span><span class="dl__v">{{ owner.positiveNotes || '—' }}</span></div>
+            <div class="dl__i is-full"><span class="dl__k">负面信息</span><span class="dl__v">
+              <SensitiveText :value="owner.negativeNotes" field="negativeNotes" entity-type="业主"
+                :entity-id="owner.ownerId" :entity-name="owner.name" source="/a/owner360" />
+            </span></div>
+          </div>
+
+          <div class="sec__hd" style="margin:18px 0 8px;">
+            <h4>房屋级：交付与装修</h4>
+            <span class="desc">违规装修挂在房屋上，不挂在人身上——房子卖了，这个标记不该跟着人走</span>
+          </div>
+          <el-table :data="p.houses" size="small">
+            <el-table-column prop="fullName" label="房屋" min-width="170" />
+            <el-table-column prop="deliverDate" label="交房日期" width="110" />
+            <el-table-column prop="checkinDate" label="乔迁日期" width="110" />
+            <el-table-column prop="useStatus" label="入住状态" width="90" />
+            <el-table-column label="违规装修" width="100">
+              <template #default="{ row }">
+                <span class="tag" :class="row.decorationViolation === '无' ? 'tag--muted' : 'tag--warning'">
+                  {{ row.decorationViolation || '无' }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="处理结果" min-width="210" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.decorationResult || '—' }}</template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
         <el-tab-pane label="跟进记录" name="log">
           <div class="tl">
             <div v-for="(e, i) in timeline" :key="i" class="tl__i" :class="{ 'is-done': i < 2 }">
@@ -310,6 +398,56 @@
         <el-button type="primary" @click="saveAccess">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑画像：一条一条走 updateOwnerField（每改一格就写一次，失败只回滚那一格） -->
+    <el-dialog v-model="pVisible" title="编辑客户画像" width="640">
+      <el-form label-width="104px">
+        <div class="sec__hd" style="margin-bottom:8px;"><h4>居住与分类</h4></div>
+        <el-form-item label="业主分类">
+          <el-radio-group v-model="pForm.ownerCategory">
+            <el-radio-button v-for="c in OWNER_CATEGORY" :key="c" :value="c">{{ c }}</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="结婚纪念日">
+          <el-date-picker v-model="pForm.weddingDate" type="date" value-format="YYYY-MM-DD"
+            placeholder="未登记就留空" style="width:200px" />
+        </el-form-item>
+
+        <div class="sec__hd" style="margin:14px 0 8px;"><h4>职业与经济</h4></div>
+        <el-form-item label="单位名称"><el-input v-model="pForm.employer" maxlength="40" style="width:320px" /></el-form-item>
+        <el-form-item label="职务 / 职业">
+          <el-input v-model="pForm.jobTitle" maxlength="20" placeholder="职务" style="width:150px" />
+          <el-input v-model="pForm.occupation" maxlength="20" placeholder="职业" style="width:150px;margin-left:8px" />
+        </el-form-item>
+        <el-form-item label="工作地址"><el-input v-model="pForm.workAddress" maxlength="60" style="width:420px" /></el-form-item>
+        <el-form-item label="家庭经济状况">
+          <el-select v-model="pForm.economicLevel" clearable style="width:160px" placeholder="未填写">
+            <el-option v-for="v in ECON_LEVELS" :key="v" :label="v" :value="v" />
+          </el-select>
+          <span class="muted" style="margin-left:8px;font-size:12px;">敏感项 · 只有持 a.sensitive.view 的角色能看到明文</span>
+        </el-form-item>
+
+        <div class="sec__hd" style="margin:14px 0 8px;"><h4>偏好与评价</h4></div>
+        <el-form-item label="兴趣爱好"><el-input v-model="pForm.hobbies" maxlength="60" placeholder="顿号分隔，如：书法、钓鱼" style="width:420px" /></el-form-item>
+        <el-form-item label="宠物信息"><el-input v-model="pForm.pets" maxlength="40" style="width:320px" /></el-form-item>
+        <el-form-item label="政治面貌">
+          <el-select v-model="pForm.politicalStatus" clearable style="width:160px" placeholder="未填写">
+            <el-option v-for="v in POLITICAL_STATUS" :key="v" :label="v" :value="v" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="正面信息">
+          <el-input v-model="pForm.positiveNotes" type="textarea" :rows="2" maxlength="120" show-word-limit />
+        </el-form-item>
+        <el-form-item label="负面信息">
+          <el-input v-model="pForm.negativeNotes" type="textarea" :rows="2" maxlength="120" show-word-limit
+            placeholder="写进来就要能被申诉：只记事实，不写评价" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pSaving" @click="saveProfile">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -319,8 +457,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   demoOwnerList, memberRows, memberSummary, ownerProfile, paymentsOfOwner,
   removeMember, saveMember, setMemberAccess, tenantOfHouse, tenantsOfHouses,
-  MEMBER_ACCESS, MEMBER_RELATIONS
+  MEMBER_ACCESS, MEMBER_RELATIONS,
+  /* 客户画像：枚举取自数据层，页面不再自己写一份，改枚举只改一处 */
+  OWNER_CATEGORY, ECON_LEVELS, POLITICAL_STATUS, updateOwnerField,
+  OWNER_TAG_CATEGORIES, ownerTagsOf
 } from '@/utils/api'
+import { addOwnerTag, queryOwnerTags, removeOwnerTag } from '@/api'
+import { hasPerm } from '@/utils/auth'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { expireText, money } from '@/utils/format'
@@ -330,8 +473,100 @@ import { idCardValid } from '@/utils/rules'
 // 四个固定演示对象（与数据集剧本一致）
 const demoOwners = demoOwnerList(4)
 const ownerId = ref('OW00001')
-const p = computed(() => ownerProfile(ownerId.value))
+/* 画像字段是内存态直改（不经过响应式数组），改完靠 ver 让它重算 */
+const ver = ref(0)
+
+/* —— 标签：打/摘都要 a.owners.edit（楼管有，受责任范围约束）；维护字典是 e 域的事 —— */
+const canTag = ref(true)
+const tagPop = ref(false)
+const TAG_CHIP = {
+  red: { bg: '#fdecec', fg: '#c0392b', bd: '#f5c2c2' },
+  orange: { bg: '#fdf1e3', fg: '#b96a12', bd: '#f3d3a8' },
+  green: { bg: '#e9f7ee', fg: '#227a41', bd: '#bce3c9' },
+  blue: { bg: '#eaf1fb', fg: '#2b5f9e', bd: '#c3d7f0' },
+  cyan: { bg: '#e6f6f4', fg: '#0b7a70', bd: '#b3e3dd' },
+  gray: { bg: '#f1f2f5', fg: '#5b6472', bd: '#dcdfe6' }
+}
+const chipStyle = c => {
+  const k = TAG_CHIP[c] || TAG_CHIP.gray
+  return { background: k.bg, color: k.fg, borderColor: k.bd }
+}
+const ownerTagList = computed(() => { void ver.value; return ownerTagsOf(owner.value) })
+/* 选择弹层按分类分组；已打过的置灰但仍可见——否则打过的词条凭空消失，看着像字典不全 */
+const tagPicker = computed(() => {
+  void ver.value
+  const mine = new Set(owner.value?.tagIds || [])
+  return OWNER_TAG_CATEGORIES.map(c => ({
+    category: c,
+    tags: allTags.value.filter(t => t.category === c).map(t => ({ ...t, taken: mine.has(t.tagId) }))
+  })).filter(g => g.tags.length)
+})
+const allTags = ref([])
+
+async function loadTags() {
+  try {
+    const r = await queryOwnerTags({ enabled: 'true' })
+    allTags.value = r.rows
+  } catch { allTags.value = [] }
+}
+async function addTag(t) {
+  if (t.taken) { ElMessage.info(`已经有了「${t.name}」`); return }
+  try {
+    const r = await addOwnerTag(owner.value.ownerId, t.tagId)
+    /* 用服务端回的完整 tagIds 覆盖：不自己做加减，避免并发下前后端不一致 */
+    owner.value.tagIds = r.tagIds
+    ver.value++
+    ElMessage.success(`已给「${owner.value.name}」打上「${t.name}」`)
+  } catch (e) {
+    ElMessage.error(e?.message || '打标签失败')
+  }
+}
+async function removeTag(t) {
+  try {
+    const r = await removeOwnerTag(owner.value.ownerId, t.tagId)
+    owner.value.tagIds = r.tagIds
+    ver.value++
+    ElMessage.success(`已摘掉「${t.name}」`)
+  } catch (e) {
+    ElMessage.error(e?.message || '去标签失败')
+  }
+}
+const p = computed(() => { void ver.value; return ownerProfile(ownerId.value) })
 const owner = computed(() => p.value.owner)
+
+/* —— 编辑画像：逐字段提交，失败的字段单独提示，不整单回滚 —— */
+const PROFILE_FIELDS = ['ownerCategory', 'weddingDate', 'employer', 'jobTitle', 'occupation',
+  'workAddress', 'economicLevel', 'politicalStatus', 'hobbies', 'pets', 'positiveNotes', 'negativeNotes']
+const pVisible = ref(false)
+const pSaving = ref(false)
+const pForm = ref({})
+function openProfile() {
+  const o = owner.value
+  pForm.value = Object.fromEntries(PROFILE_FIELDS.map(k => [k, o[k] ?? '']))
+  pVisible.value = true
+}
+async function saveProfile() {
+  const before = owner.value
+  const changed = PROFILE_FIELDS.filter(k => String(pForm.value[k] ?? '') !== String(before[k] ?? ''))
+  if (!changed.length) { pVisible.value = false; ElMessage.info('画像没有变化'); return }
+  pSaving.value = true
+  let done = 0
+  const failed = []
+  for (const k of changed) {
+    try {
+      await Promise.resolve(updateOwnerField(before.ownerId, k, pForm.value[k] ?? ''))
+      done++
+    } catch (e) { failed.push(`${k}：${e?.message || '保存失败'}`) }
+  }
+  pSaving.value = false
+  ver.value++
+  if (failed.length) {
+    ElMessage.error(`已保存 ${done} 项，${failed.length} 项失败（${failed.join('；')}）`)
+  } else {
+    pVisible.value = false
+    ElMessage.success(`画像已更新 ${done} 项`)
+  }
+}
 
 const tab = ref('house')
 const billHouse = ref('__all')
@@ -349,6 +584,14 @@ const tenantList = computed(() => tenantsOfHouses(p.value.houses.map(h => h.hous
 const memberList = ref(memberRows(ownerId.value))
 const mSum = ref(memberSummary(ownerId.value))
 watch(ownerId, id => { memberList.value = memberRows(id); mSum.value = memberSummary(id) })
+
+/* 标签权限与字典：进页面拉一次即可（字典很小，且与当前业主无关） */
+canTag.value = hasPerm('a.owners.edit')
+loadTags()
+
+/* 标签权限与字典：进页面拉一次即可（字典很小，且与当前业主无关） */
+canTag.value = hasPerm('a.owners.edit')
+loadTags()
 function refreshMembers() {
   memberList.value = memberRows(ownerId.value)
   mSum.value = memberSummary(ownerId.value)
@@ -448,4 +691,34 @@ const timeline = computed(() => {
 .hdebt__v { font-size: 15px; font-weight: 600; margin-top: 4px; font-family: var(--biz-font-num); }
 .hdebt.is-debt .hdebt__v { color: var(--biz-danger); }
 .hdebt__o { font-size: 12px; color: var(--biz-text-3); margin-top: 2px; }
+/* 业主标签：颜色由词条决定（字典里的 color），页面不写死 */
+.otag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 10px;
+  font-size: 12px; line-height: 19px; border: 1px solid transparent; cursor: default;
+}
+.otag__x { font-size: 11px; cursor: pointer; opacity: .55; }
+.otag__x:hover { opacity: 1; }
+.otag.is-pick { cursor: pointer; }
+.otag.is-pick:hover { filter: brightness(.96); }
+.otag.is-disabled { opacity: .45; cursor: not-allowed; }
+.otag__tick { font-size: 10px; margin-left: 2px; }
+.picker__g + .picker__g { margin-top: 10px; }
+.picker__hd { font-size: 12px; color: var(--biz-text-3); margin-bottom: 6px; }
+.picker__bd { display: flex; flex-wrap: wrap; gap: 6px; }
+.picker__ft { font-size: 12px; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--biz-border-light); }
+/* 业主标签：颜色由词条决定（字典里的 color），页面不写死 */
+.otag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 10px;
+  font-size: 12px; line-height: 19px; border: 1px solid transparent; cursor: default;
+}
+.otag__x { font-size: 11px; cursor: pointer; opacity: .55; }
+.otag__x:hover { opacity: 1; }
+.otag.is-pick { cursor: pointer; }
+.otag.is-pick:hover { filter: brightness(.96); }
+.otag.is-disabled { opacity: .45; cursor: not-allowed; }
+.otag__tick { font-size: 10px; margin-left: 2px; }
+.picker__g + .picker__g { margin-top: 10px; }
+.picker__hd { font-size: 12px; color: var(--biz-text-3); margin-bottom: 6px; }
+.picker__bd { display: flex; flex-wrap: wrap; gap: 6px; }
+.picker__ft { font-size: 12px; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--biz-border-light); }
 </style>

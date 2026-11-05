@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T06:56:25",
+  "generatedAt": "2026-11-02T16:18:22",
   "source": "02-原型设计/mock/*.json（seed_dataset.py 生成）",
   "note": "值本身为中文，后端请用 @JsonValue/@JsonCreator 直接映射，不要另造英文 code——否则前后端各存一套必然分叉",
   "enums": {
@@ -89,7 +89,7 @@
         "报事",
         "公共区域维修",
         "其他",
-        "入户维修",
+        "商业服务",
         "投诉建议",
         "咨询"
       ],
@@ -164,6 +164,29 @@
       "usedBy": [
         "Contract.status"
       ]
+    },
+    "woPointsStatus": {
+      "values": [
+        "待结算",
+        "已结算",
+        "已作废"
+      ],
+      "usedBy": [
+        "WorkOrder.pointsStatus",
+        "LaborPointLedgerEntry.status"
+      ],
+      "note": "工时积分结算状态。样例里全是「待结算」（绩效功能未开）；『已作废』= 同一张单重记后旧流水留下的痕迹"
+    },
+    "contractIncomeCategory": {
+      "values": [
+        "不计入",
+        "多种经营",
+        "主营业务"
+      ],
+      "usedBy": [
+        "Contract.incomeCategory"
+      ],
+      "note": "主营业务（物业费，不进多种经营）/ 多种经营（进商业合作收入，扣公共收益）/ 不计入（支出合同）"
     },
     "noticeStatus": {
       "values": [
@@ -314,6 +337,41 @@
         "MonthClose.status"
       ],
       "note": "已反结 = 期间解封、报表批次作废并回到试算，记录不删除"
+    },
+    "serviceCategory": {
+      "values": [
+        "水管漏水",
+        "下水道堵塞",
+        "电路故障",
+        "照明不亮",
+        "门锁故障",
+        "门窗损坏",
+        "空调不制冷",
+        "瓷砖空鼓",
+        "墙面开裂",
+        "其他"
+      ],
+      "usedBy": [
+        "ServiceItem.category"
+      ],
+      "note": "商业服务的项目分类（维修品类维度）：水管漏水 / 下水道堵塞 / 电路故障 …"
+    },
+    "publicRepairCategory": {
+      "values": [
+        "电梯",
+        "给排水",
+        "公区照明",
+        "配电",
+        "土建",
+        "门窗五金",
+        "公共设备",
+        "道闸门禁",
+        "环境其他"
+      ],
+      "usedBy": [
+        "WorkOrder.category（type=公共区域维修）"
+      ],
+      "note": "公共区域维修的分类（设施部位维度）：电梯 / 给排水 / 公区照明 / 配电 / 土建 / 门窗五金 / 公共设备 / 道闸门禁 / 环境其他"
     }
   }
 }

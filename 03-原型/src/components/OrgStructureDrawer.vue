@@ -20,8 +20,16 @@
           <span class="osn__id">{{ row.orgId }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="leader" label="负责人" width="100">
-        <template #default="{ row }">{{ row.leader || '—' }}</template>
+      <el-table-column label="负责人" min-width="190">
+        <template #default="{ row }">
+          <div v-if="!(row.leaders || []).length" class="muted">未指定</div>
+          <div v-for="l in row.leaders" :key="l.id" class="ldr" :class="{ 'is-off': !l.active }">
+            <span class="ldr__n">{{ l.name }}</span>
+            <el-tag size="small" effect="plain" :type="dutyType(l.duty)">{{ l.duty }}</el-tag>
+            <span v-if="l.duty === '代理' && l.endDate" class="ldr__d">至 {{ l.endDate }}</span>
+            <span v-if="!l.active" class="ldr__d">（{{ l.state }}）</span>
+          </div>
+        </template>
       </el-table-column>
       <el-table-column label="人数" width="92" align="right">
         <template #default="{ row }">
@@ -40,6 +48,9 @@
 
     <div class="os-foot">
       人数列：左边是本级在编人数，右边是含下级的人头数。组织改名 / 调上级后，成员列表上的组织与路径会同步刷新。
+      <br />
+      负责人：<b>正职唯一</b>、副职可多个、代理必须填结束日期（到期自动失效，不用人工收回）。
+      <b>审批只认正职</b>，正职空缺才落到在期代理；副职是分工，不参与审批。
     </div>
 
     <template #footer>
@@ -65,7 +76,11 @@
           <span class="muted" style="margin-left:8px;font-size:12px;">集团 / 项目不在这里建</span>
         </el-form-item>
         <el-form-item label="负责人">
-          <el-input v-model="add.leader" placeholder="可不填" style="width:200px" />
+          <el-select v-model="add.leaderEmpId" filterable clearable placeholder="可不填，建完再补" style="width:260px">
+            <el-option v-for="c in candidates" :key="c.empId"
+              :label="`${c.name} · ${c.position} · ${c.orgName}`" :value="c.empId" />
+          </el-select>
+          <span class="muted" style="margin-left:8px;font-size:12px;">按正职写入负责人关系</span>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="add.sort" :min="1" :max="99" />
@@ -79,7 +94,7 @@
     </el-dialog>
 
     <!-- 编辑 -->
-    <el-dialog v-model="edit.visible" title="编辑组织" width="520">
+    <el-dialog v-model="edit.visible" title="编辑组织" width="720px">
       <el-form label-width="88px">
         <el-form-item label="组织">
           <span>{{ edit.name }}</span>
@@ -99,7 +114,27 @@
           <span class="muted" style="margin-left:8px;font-size:12px;">不能选自己或自己的下级</span>
         </el-form-item>
         <el-form-item label="负责人">
-          <el-input v-model="edit.leader" style="width:200px" />
+          <div class="ldr-box">
+            <div v-for="(l, i) in edit.leaders" :key="i" class="ldr-row">
+              <el-select v-model="l.empId" filterable placeholder="选择员工" style="width:186px">
+                <el-option v-for="c in candidates" :key="c.empId"
+                  :label="`${c.name} · ${c.position}`" :value="c.empId" />
+              </el-select>
+              <el-select v-model="l.duty" style="width:86px">
+                <el-option v-for="d in ORG_DUTY" :key="d" :label="d" :value="d" />
+              </el-select>
+              <el-date-picker v-model="l.startDate" type="date" value-format="YYYY-MM-DD"
+                placeholder="开始（可空）" style="width:136px" />
+              <el-date-picker v-model="l.endDate" type="date" value-format="YYYY-MM-DD"
+                placeholder="结束（可空）" style="width:136px" />
+              <el-button link type="danger" :icon="'Delete'" @click="edit.leaders.splice(i, 1)" />
+            </div>
+            <el-button size="small" :icon="'Plus'" @click="addLeaderRow">添加负责人</el-button>
+            <div class="ldr-tip">
+              正职唯一（已有在期正职时再填一个会被拦）；<b>代理必须填结束日期</b>；副职不参与审批。
+              结束日期早于今天的关系会显示为「已结束」，留档不删。
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="edit.sort" :min="1" :max="99" />
@@ -116,7 +151,9 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { createOrg, queryOrgs, updateOrg } from '@/api'
+import {
+  ORG_DUTY, createOrg, orgLeaderOptions, queryOrgs, saveOrgLeaders, updateOrg
+} from '@/api'
 import { hasPerm } from '@/utils/auth'
 import DetailDrawer from '@/components/DetailDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -135,6 +172,10 @@ const canEdit = computed(() => hasPerm('e.org.edit'))
 const rows = ref([])
 const loading = ref(false)
 const saving = ref(false)
+/** 负责人候选：在职员工全量（班组负责人可能就是资深师傅，不按岗位卡） */
+const candidates = ref([])
+
+const dutyType = d => ({ 正职: 'primary', 代理: 'warning', 副职: 'info' }[d] || 'info')
 
 /** 扁平 → 树（el-table 的 tree-props 直接吃 children） */
 function buildTree(list, parentId = '') {
@@ -154,6 +195,7 @@ async function load() {
   try {
     const res = await queryOrgs()
     rows.value = res.rows
+    if (!candidates.value.length) candidates.value = await orgLeaderOptions()
   } catch (e) {
     ElMessage.error(e?.message || '组织列表加载失败')
   } finally {
@@ -167,7 +209,7 @@ watch(() => props.modelValue, v => { if (v) load() })
 const typeTag = t => ({ 集团: 'danger', 项目: 'primary', 部门: 'warning', 班组: 'info' }[t] || 'info')
 
 /* ---------- 新增 ---------- */
-const add = reactive({ visible: false, parentId: '', parentName: '', name: '', type: '班组', leader: '', sort: 10 })
+const add = reactive({ visible: false, parentId: '', parentName: '', name: '', type: '班组', leaderEmpId: '', sort: 10 })
 
 function openAdd(row) {
   const parent = row || rows.value.find(o => o.orgId === 'O-HEAD') || rows.value.find(o => o.type === '集团')
@@ -176,7 +218,7 @@ function openAdd(row) {
   add.name = ''
   /* 挂在项目下的默认班组、挂在部门下的默认部门——选错类型是最常见的一次返工 */
   add.type = parent?.type === '项目' ? '班组' : '部门'
-  add.leader = ''
+  add.leaderEmpId = ''
   add.sort = 10
   add.visible = true
 }
@@ -186,7 +228,7 @@ async function saveAdd() {
   saving.value = true
   try {
     const r = await createOrg({
-      name: add.name, type: add.type, parentId: add.parentId, leader: add.leader, sort: add.sort
+      name: add.name, type: add.type, parentId: add.parentId, leaderEmpId: add.leaderEmpId, sort: add.sort
     })
     add.visible = false
     ElMessage.success(`已新增「${r.name}」（${r.type} · ${r.orgId}）`)
@@ -200,7 +242,11 @@ async function saveAdd() {
 }
 
 /* ---------- 编辑 ---------- */
-const edit = reactive({ visible: false, orgId: '', name: '', type: '', parentId: '', leader: '', sort: 10 })
+const edit = reactive({ visible: false, orgId: '', name: '', type: '', parentId: '', sort: 10, leaders: [] })
+
+function addLeaderRow() {
+  edit.leaders.push({ id: '', empId: '', duty: '正职', startDate: '', endDate: '', note: '' })
+}
 
 /** 可选上级：排除自己与自己的下级（选了就成环） */
 const parentOpts = computed(() => {
@@ -218,18 +264,24 @@ const parentOpts = computed(() => {
 function openEdit(row) {
   Object.assign(edit, {
     visible: true, orgId: row.orgId, name: row.name, type: row.type,
-    parentId: row.parentId || '', leader: row.leader || '', sort: row.sort || 0
+    parentId: row.parentId || '', sort: row.sort || 0,
+    leaders: (row.leaders || []).map(l => ({
+      id: l.id, empId: l.empId, duty: l.duty,
+      startDate: l.startDate || '', endDate: l.endDate || '', note: l.note || ''
+    }))
   })
 }
 
 async function saveEdit() {
+  /* 负责人先存：它的校验最严（正职唯一 / 代理必须有结束日），
+     先过这关再改组织信息，避免"名字改了、负责人没改"的半截状态 */
+  if (edit.leaders.some(l => !l.empId)) { ElMessage.warning('有负责人没选员工，先选人或删掉这一行'); return }
   saving.value = true
   try {
-    const r = await updateOrg(edit.orgId, {
-      name: edit.name, parentId: edit.parentId, leader: edit.leader, sort: edit.sort
-    })
+    await saveOrgLeaders(edit.orgId, edit.leaders)
+    const r = await updateOrg(edit.orgId, { name: edit.name, parentId: edit.parentId, sort: edit.sort })
     edit.visible = false
-    ElMessage.success(`已保存「${r.name}」`)
+    ElMessage.success(`已保存「${r.name}」${edit.leaders.length ? ` · ${edit.leaders.length} 位负责人` : '（暂无负责人）'}`)
     await load()
     emit('changed')
   } catch (e) {
@@ -245,4 +297,14 @@ async function saveEdit() {
 .osn__tag { margin-left: 6px; }
 .osn__id { margin-left: 6px; font-size: 11px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
 .os-foot { margin-top: 10px; font-size: 12px; color: var(--biz-text-3); line-height: 1.7; }
+.ldr { display: flex; align-items: center; gap: 5px; line-height: 1.9; }
+.ldr__n { font-size: 12.5px; color: var(--biz-text-1); }
+.ldr__d { font-size: 11px; color: var(--biz-text-3); }
+.ldr.is-off .ldr__n { color: var(--biz-text-3); text-decoration: line-through; }
+.ldr-box { width: 100%; }
+.ldr-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ldr-tip {
+  margin-top: 2px; padding: 7px 10px; border-radius: 7px; font-size: 11.5px;
+  line-height: 1.7; background: var(--biz-bg-fill); color: var(--biz-text-3);
+}
 </style>

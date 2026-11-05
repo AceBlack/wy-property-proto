@@ -53,7 +53,7 @@
       <!-- 详情 -->
       <div class="panel">
         <div class="panel__hd"><h3>档案详情</h3><span class="spacer" />
-          <el-button size="small" :icon="'EditPen'">编辑</el-button>
+          <el-button size="small" :icon="'EditPen'" :disabled="!cur || !canEdit" @click="openEdit">编辑</el-button>
         </div>
         <template v-if="cur">
           <div class="emp">
@@ -81,6 +81,34 @@
             <div class="dl__i"><span class="dl__k">上级</span><span class="dl__v">{{ cur.manager }}</span></div>
             <div class="dl__i is-full"><span class="dl__k">入职</span><span class="dl__v">{{ cur.entryDate }}（转正 {{ cur.regularDate }}，试用 {{ cur.probationMonths }} 个月）</span></div>
             <div class="dl__i is-full"><span class="dl__k">合同</span><span class="dl__v">{{ cur.contractStart }} ~ {{ cur.contractEnd }}</span></div>
+          </div>
+
+          <div class="sec__hd ec-hd" style="margin:16px 0 8px;">
+            <h4>紧急联系人</h4>
+            <span class="desc">出事先联系谁</span>
+          </div>
+          <div v-if="cur.emergencyContact || cur.emergencyPhone" class="dl dl--2">
+            <div class="dl__i">
+              <span class="dl__k">姓名</span>
+              <span class="dl__v">{{ cur.emergencyContact || '—' }}</span>
+            </div>
+            <div class="dl__i">
+              <span class="dl__k">关系</span>
+              <span class="dl__v">{{ cur.emergencyRelation || '—' }}</span>
+            </div>
+            <div class="dl__i is-full">
+              <span class="dl__k">联系电话</span>
+              <span class="dl__v">
+                <SensitiveText v-if="cur.emergencyPhone" :value="cur.emergencyPhone" field="emergencyPhone"
+                  entity-type="员工" :entity-id="cur.empId" :entity-name="cur.name" source="/c/employee" />
+                <span v-else class="is-empty">—</span>
+              </span>
+            </div>
+          </div>
+          <!-- 空态不用"—"了事：这一栏空缺是**要补的**，得说清后果 -->
+          <div v-else class="ec-empty">
+            <b>未填</b>
+            <div>紧急联系人缺失时，突发情况只能联系本人。请补齐姓名、关系与电话，点右上「编辑」录入。</div>
           </div>
 
           <div class="sec__hd" style="margin:16px 0 8px;"><h4>薪酬</h4></div>
@@ -115,12 +143,47 @@
         <EmptyState v-else type="empty" desc="请选择左侧员工" />
       </div>
     </div>
+
+    <!-- 编辑：只开紧急联系人这一组。岗位 / 职级 / 组织 / 薪资都不在这里改 ——
+         调岗要走调岗单据、薪资要走工资域审批，把它们放进一个表单改，等于绕开留痕。 -->
+    <el-drawer v-model="editVisible" title="编辑紧急联系人" size="420px">
+      <template v-if="cur">
+        <div class="edit-who">
+          <b>{{ cur.name }}</b>
+          <span class="muted">{{ cur.empNo }} · {{ cur.position }} · {{ orgName(cur.orgId) }}</span>
+        </div>
+        <el-form label-width="92px" style="margin-top:18px;">
+          <el-form-item label="联系人姓名">
+            <el-input v-model="editForm.emergencyContact" maxlength="12" placeholder="如：张秀兰" clearable />
+          </el-form-item>
+          <el-form-item label="与本人关系">
+            <el-select v-model="editForm.emergencyRelation" placeholder="选择关系" clearable style="width:100%">
+              <el-option v-for="r in relationOpts" :key="r" :label="r" :value="r" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="联系电话">
+            <el-input v-model="editForm.emergencyPhone" maxlength="11" placeholder="11 位手机号" clearable />
+          </el-form-item>
+        </el-form>
+        <div class="edit-tip">
+          三项<b>要么都填、要么都空</b>：只填号码不填姓名，出事时不知道该找谁；只填姓名不给号码，等于没留联系方式。
+          <br />
+          岗位、职级、组织与薪资不在此处修改 —— 调岗走调岗单据、薪资走工资域审批，都需要留痕。
+        </div>
+      </template>
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { queryEmployees, orgOptions } from '@/api'
+import { ElMessage } from 'element-plus'
+import { EMPLOYEE_RELATION_OPTS, queryEmployees, orgOptions, saveEmployeeProfile } from '@/api'
+import { revealSensitive } from '@/utils/api'
 import { hasPerm } from '@/utils/auth'
 import { useListQuery } from '@/composables/useQuery'
 import StatusTag from '@/components/StatusTag.vue'
@@ -130,7 +193,7 @@ import { daysBetween } from '@/utils/format'
 
 /* 列表查询收归 useListQuery + api，页面不再遍历原始数组 */
 const {
-  rows, total, pageNo: page, size, loading, query: f, search
+  rows, total, pageNo: page, size, loading, query: f, load
 } = useListQuery(queryEmployees, { filters: { orgId: '', status: '', kw: '' }, size: 15 })
 const cur = ref(null)
 watch(rows, r => { if (!cur.value && r.length) cur.value = r[0] })
@@ -144,6 +207,68 @@ const payView = computed(() => hasPerm('c.payroll.view'))
 const soon = d => { const n = daysBetween(d); return n !== null && n >= -60 && n <= 0 }
 
 function pick(row) { if (row) cur.value = row }
+
+/* ---------- 紧急联系人编辑（2026-11-04） ----------
+ * 只开这一组字段。数据层的 updateEmployeeProfile 是整包 patch + 版本号校验，
+ * 所以这里必须把 _ver 一起带上 —— 两个人同时改同一份档案时，后提交的会拿到 409 提示刷新，
+ * 而不是静默覆盖别人的修改。
+ */
+const canEdit = computed(() => hasPerm('c.employees.edit'))
+const relationOpts = EMPLOYEE_RELATION_OPTS
+const editVisible = ref(false)
+const saving = ref(false)
+const editForm = ref({ emergencyContact: '', emergencyRelation: '', emergencyPhone: '' })
+
+function openEdit() {
+  if (!cur.value) return
+  /* 列表行里的电话是**掩码**（188****7048）。直接填进编辑框，用户不动它点保存，
+     就会把掩码写回数据 —— 紧急联系电话从此变成一串星号，出事时打不通。
+     所以打开时先揭示明文（这一次揭示会写访问日志，正是想要的留痕）；
+     没有明文权限就留空，由成对校验逼着重新填，而不是带着掩码保存。 */
+  let phone = cur.value.emergencyPhone || ''
+  if (phone.includes('*')) {
+    try {
+      phone = revealSensitive({
+        entityType: '员工', entityId: cur.value.empId, entityName: cur.value.name,
+        field: 'emergencyPhone', value: phone, source: '/c/employee'
+      }) || ''
+    } catch {
+      phone = ''
+    }
+  }
+  editForm.value = {
+    emergencyContact: cur.value.emergencyContact || '',
+    emergencyRelation: cur.value.emergencyRelation || '',
+    emergencyPhone: phone
+  }
+  editVisible.value = true
+}
+
+async function saveEdit() {
+  if (!cur.value) return
+  const f = editForm.value
+  saving.value = true
+  try {
+    const saved = await saveEmployeeProfile(cur.value.empId, {
+      patch: {
+        emergencyContact: String(f.emergencyContact || '').trim(),
+        emergencyRelation: String(f.emergencyRelation || '').trim(),
+        emergencyPhone: String(f.emergencyPhone || '').trim()
+      },
+      ver: cur.value._ver
+    })
+    editVisible.value = false
+    ElMessage.success('已保存紧急联系人')
+    /* 重新取数而不是改本地对象：列表行是脱敏的，就地改会让掩码与真值对不上 */
+    await load()
+    const hit = rows.value.find(x => x.empId === saved.empId)
+    if (hit) cur.value = hit
+  } catch (e) {
+    ElMessage.error(e?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -164,4 +289,21 @@ function pick(row) { if (row) cur.value = row }
 .att b { display: block; font-family: var(--biz-font-num); font-size: 16px; }
 .att span { font-size: 11px; color: var(--biz-text-3); }
 .certs { display: flex; gap: 6px; flex-wrap: wrap; }
+/* 右侧面板只有 360px：标题不许折行，说明文字让步 */
+.ec-hd { flex-wrap: nowrap; }
+.ec-hd h4 { white-space: nowrap; flex: none; }
+.ec-hd .desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.is-empty { color: var(--biz-text-3); }
+.ec-empty {
+  display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.6;
+  color: var(--biz-text-2); background: var(--biz-bg-fill); border-radius: 8px; padding: 10px;
+}
+.ec-empty b { flex: none; color: var(--biz-warning); font-weight: 600; }
+.edit-who { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.edit-who .muted { font-size: 12px; }
+.edit-tip {
+  margin-top: 6px; padding: 10px; border-radius: 8px; font-size: 11.5px; line-height: 1.75;
+  color: var(--biz-text-2); background: var(--biz-bg-fill);
+}
+.edit-tip b { color: var(--biz-text-1); }
 </style>

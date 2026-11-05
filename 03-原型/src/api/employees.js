@@ -9,7 +9,7 @@
  *     `selfHeadcount` 由「本节点人数 − 子节点人数之和」推出来（树的 n 含子树）。
  *  ③ **离职即收权**：离职员工 roleId 为空。这条在两层都实现，页面不需要自己判断。
  */
-import { IS_MOCK, get, patch, post } from '@/api/client'
+import { IS_MOCK, get, patch, post, put } from '@/api/client'
 import * as mock from '@/utils/api'
 
 const PAY_FIELDS = ['baseSalary', 'monthlySalary', 'bankCard', 'salary']
@@ -111,3 +111,30 @@ export {
   empStatusOpts, empTypeOpts, empPositionOpts, roleOpts, dataScopeOpts
 } from '@/utils/api'
 export const dataScopeLabels = () => ['全部项目', '指定项目', '本项目', '本部门', '责任范围', '仅本人']
+
+/* ---------- 组织负责人（2026-11-03 第 52 批） ----------
+ * 一个部门可以有多个负责人：正职唯一、副职可多个、代理必须带结束日期。
+ * 注意 `orgs.leader` 只是展示快照，**判断谁是审批人要读这个接口** ——
+ * 正职空缺时审批落到在期代理，副职不参与审批。 */
+export const orgLeadersOf = orgId => (IS_MOCK ? mock.leadersOf(orgId) : get(`/orgs/${orgId}/leaders`))
+
+export const saveOrgLeaders = (orgId, leaders = []) =>
+  (IS_MOCK ? mock.setOrgLeaders(orgId, leaders) : put(`/orgs/${orgId}/leaders`, { leaders }))
+
+/* 放在员工域而不是 /orgs/leader-options：后者会被 /orgs/{orgId} 先匹配，orgId 收到 'leader-options' */
+export const orgLeaderOptions = () => (IS_MOCK ? mock.orgLeaderCandidates() : get('/employees/leader-options'))
+
+export { activeLeadersOf, orgLeaderSummary, ORG_DUTY } from '@/utils/api'
+
+/* ---------- 档案维护（2026-11-04） ----------
+ * 整包 patch 而不是逐字段：人事档案是一张表单一次改多项，
+ * 逐字段提交会让版本号推进多次，后一次提交就可能撞上自己刚推上去的版本。
+ *
+ * 紧急联系人（`emergencyContact` / `emergencyRelation` / `emergencyPhone`）是这次新开的可编辑字段。
+ * 它与薪资不同 —— 薪资属工资域、改一次要走审批；紧急联系人越权风险低但漏了代价高，
+ * 所以直接开放给有员工维护权限的角色，只做格式与成对校验。
+ */
+export const saveEmployeeProfile = (empId, { patch = {}, ver, reason = '' } = {}) =>
+  (IS_MOCK ? mock.updateEmployeeProfile(empId, { patch, ver, reason }) : patch(`/employees/${empId}`, { patch, ver, reason }))
+
+export { EMPLOYEE_RELATION_OPTS } from '@/utils/api'

@@ -103,6 +103,19 @@
                 <span v-else class="ps-sub">公共 / 非入户</span>
               </template>
             </el-table-column>
+            <el-table-column label="服务项目 / 费用" min-width="150">
+              <template #default="{ row }">
+                <template v-if="row.type === '商业服务'">
+                  <div>{{ row.serviceName || row.category }}</div>
+                  <div class="ps-sub">
+                    <span class="money">¥ {{ money(row.totalFee) }}</span>
+                    <span :class="row.payStatus === '未支付' ? 'is-warn' : 'ps-sub'"> · {{ row.payStatus }}</span>
+                  </div>
+                </template>
+                <span v-else-if="row.type === '公共区域维修'" class="ps-sub">免费 · {{ row.category }}</span>
+                <span v-else class="ps-sub">{{ row.category || '—' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" min-width="86">
               <template #default="{ row }"><StatusTag domain="workOrder" :value="row.status" /></template>
             </el-table-column>
@@ -253,6 +266,7 @@ import {
   getWorkOrder, houseName, queryWorkOrders, updateWorkOrderField, woQuerySummary, woScopeSummary,
   woSlaState, woVirtualNodes
 } from '@/api'
+import { woTypeOpts } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import { useFocusLanding } from '@/composables/useFocus'
 import QuickViews from '@/components/QuickViews.vue'
@@ -274,13 +288,14 @@ const summary = woQuerySummary()
 /* 快捷视图：原左树的虚拟视图节点搬到这里 */
 const quickViews = [{ key: '', label: '全部', n: summary.total }, ...woVirtualNodes()]
 const statusOpts = ['待派单', '已派单', '处理中', '待确认', '已完工', '已评价', '已关闭', '已取消']
-const typeOpts = ['入户维修', '公共区域维修', '投诉建议', '咨询', '报事', '其他']
+const typeOpts = woTypeOpts()
 const priorityOpts = ['特急', '紧急', '普通']
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */
 const EXPORT_COLS = [
   { prop: 'woId', label: '工单号' }, { prop: 'title', label: '标题' },
-  { prop: 'type', label: '类型' }, { prop: 'houseName', label: '房屋' },
+  { prop: 'type', label: '类型' }, { prop: 'serviceName', label: '服务项目' },
+  { prop: 'totalFee', label: '服务费' }, { prop: 'payStatus', label: '收款' }, { prop: 'houseName', label: '房屋' },
   { prop: 'status', label: '状态' }, { prop: 'priority', label: '优先级' },
   { prop: 'assignee', label: '处理人' }, { prop: 'isOverdueText', label: '超时' },
   { prop: 'createTime', label: '创建时间' }

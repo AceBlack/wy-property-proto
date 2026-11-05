@@ -87,10 +87,15 @@
       <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 520px)"
         :row-class-name="rowClass" @row-click="onRow" @selection-change="onSel">
         <el-table-column type="selection" width="46" />
-        <el-table-column label="住户" min-width="118">
+        <el-table-column label="承租主体" min-width="160">
           <template #default="{ row }">
-            <div class="nowrap">{{ row.name }}</div>
-            <div class="ps-sub">{{ row.tenantId }}</div>
+            <div class="nowrap">
+              <el-tag v-if="row.tenantType === '公司'" size="small" type="primary" effect="plain" style="margin-right:6px;">公司</el-tag>
+              {{ row.name }}
+            </div>
+            <div class="ps-sub">
+              {{ row.tenantId }}<template v-if="row.tenantType === '公司'"> · 经办人 {{ row.agentName || '未填' }}</template>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="房屋" min-width="150">
@@ -100,7 +105,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="ownerName" label="业主" min-width="82" />
-        <el-table-column prop="relation" label="与业主关系" min-width="96" />
+        <el-table-column label="关系 / 用途" min-width="100">
+          <template #default="{ row }">
+            {{ row.tenantType === '公司' ? (row.leasePurpose || '—') : (row.relation || '—') }}
+          </template>
+        </el-table-column>
         <el-table-column label="在住状态" width="92">
           <template #default="{ row }"><StatusTag domain="tenantStatus" :value="row.status" /></template>
         </el-table-column>
@@ -188,16 +197,71 @@
             <SensitiveText :value="detailData.tenant.idCard" field="idCard" entity-type="租户"
               :entity-id="detailData.tenant.tenantId" :entity-name="detailData.tenant.name" source="/a/tenants" />
           </span></div>
-          <div class="dl__i"><span class="dl__k">与业主关系</span><span class="dl__v">{{ detailData.tenant.relation }}</span></div>
+          <!-- 公司没有"与业主关系"这回事：它的承租用途在下面的企业资质里 -->
+          <div v-if="detailData.tenant.tenantType !== '公司'" class="dl__i">
+            <span class="dl__k">与业主关系</span><span class="dl__v">{{ detailData.tenant.relation }}</span>
+          </div>
           <div class="dl__i"><span class="dl__k">核验状态</span><span class="dl__v"><StatusTag domain="tenantVerify" :value="detailData.tenant.verifyStatus" /></span></div>
           <div class="dl__i"><span class="dl__k">租期</span><span class="dl__v">{{ detailData.tenant.leaseStart }} ~ {{ detailData.tenant.leaseEnd }}</span></div>
           <div class="dl__i"><span class="dl__k">最后修改</span><span class="dl__v">{{ detailData.tenant.updatedAt ? `${detailData.tenant.updatedBy} · ${detailData.tenant.updatedAt}` : '—' }}</span></div>
         </div>
 
+        <!-- 公司承租：主体资质独立成段（个人租户看不到这些字段） -->
+        <template v-if="detailData.tenant.tenantType === '公司'">
+          <div class="sec__hd" style="margin-top:18px;">
+            <h4>企业资质</h4>
+            <span class="desc">核验核的是营业执照，人脸录的是经办人</span>
+          </div>
+          <div class="dl">
+            <div class="dl__i is-full"><span class="dl__k">公司名称</span><span class="dl__v">{{ detailData.tenant.companyName }}</span></div>
+            <div class="dl__i"><span class="dl__k">信用代码</span><span class="dl__v"><code>{{ detailData.tenant.creditCode }}</code></span></div>
+            <div class="dl__i"><span class="dl__k">成立日期</span><span class="dl__v">{{ detailData.tenant.establishDate || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">法定代表人</span><span class="dl__v">{{ detailData.tenant.legalPerson || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">法人电话</span><span class="dl__v">
+              <SensitiveText :value="detailData.tenant.legalPersonPhone" field="phone" entity-type="租户"
+                :entity-id="detailData.tenant.tenantId" :entity-name="detailData.tenant.companyName" source="/a/tenants" />
+            </span></div>
+            <div class="dl__i"><span class="dl__k">经办人</span><span class="dl__v">{{ detailData.tenant.agentName || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">经办人手机</span><span class="dl__v">
+              <SensitiveText :value="detailData.tenant.agentPhone" field="phone" entity-type="租户"
+                :entity-id="detailData.tenant.tenantId" :entity-name="detailData.tenant.companyName" source="/a/tenants" />
+            </span></div>
+            <div class="dl__i"><span class="dl__k">经营类目</span><span class="dl__v">{{ detailData.tenant.businessCategory || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">承租用途</span><span class="dl__v">{{ detailData.tenant.leasePurpose || '—' }}</span></div>
+            <div class="dl__i"><span class="dl__k">员工人数</span><span class="dl__v">{{ detailData.tenant.employeeCount || 0 }} 人</span></div>
+            <div class="dl__i is-full"><span class="dl__k">注册地址</span><span class="dl__v">{{ detailData.tenant.regAddress || '—' }}</span></div>
+          </div>
+        </template>
+
+        <!-- 公司承租：主体资质独立成段（个人租户看不到这些字段） -->
+        <!-- 营业执照影像件：公司核验的依据（不是装饰），没有它核验根本过不去 -->
+        <template v-if="detailData.tenant.tenantType === '公司'">
+          <div class="sec__hd" style="margin-top:18px;">
+            <h4>营业执照影像件</h4>
+            <span class="desc">
+              {{ (detailData.tenant.licenseFiles || []).length ? `已上传 ${detailData.tenant.licenseFiles.length} 张` : '未上传 · 核验前必须补齐' }}
+            </span>
+          </div>
+          <div v-if="(detailData.tenant.licenseFiles || []).length" class="lic">
+            <div v-for="f in detailData.tenant.licenseFiles" :key="f.fileId" class="lic__i">
+              <el-icon class="lic__ico"><Document /></el-icon>
+              <div class="lic__m">
+                <div class="lic__n" :title="f.name">{{ f.name }}</div>
+                <div class="lic__s">{{ (f.size / 1024 / 1024).toFixed(2) }} MB · {{ f.uploadedBy }} · {{ f.uploadedAt }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="lic__empty">
+            公司核验核的是营业执照原件。请点底部「补充信息」上传正本或副本（JPG / PNG / PDF，单张 ≤ 5 MB）。
+          </div>
+        </template>
+
         <div class="sec__hd" style="margin-top:18px;">
           <h4>物业补充信息</h4>
           <span class="desc">
-            {{ detailData.tenant.completeness.missingBasic.length ? `核验门槛还缺 ${detailData.tenant.completeness.missingBasic.join('、')}` : '基础 5 项齐全，可提交核验' }}
+            {{ detailData.tenant.completeness.missingBasic.length
+              ? `核验门槛还缺 ${detailData.tenant.completeness.missingBasic.join('、')}`
+              : (detailData.tenant.completeness.licenseReady ? '基础 5 项齐全，可提交核验' : '基础 5 项齐全，但还缺营业执照影像件') }}
           </span>
         </div>
         <div class="dl">
@@ -234,6 +298,8 @@
           <el-button size="small" @click="jump('/a/houses', 'house:' + detailData.tenant.houseId)">房屋台账</el-button>
           <el-button size="small" @click="jump('/a/owners', 'owner:' + detailData.tenant.ownerId)">业主档案</el-button>
           <el-button size="small" @click="jump('/b/bills', 'house:' + detailData.tenant.houseId)">该房账单</el-button>
+          <el-button v-if="canEdit && detailData.tenant.live" size="small"
+            @click="$router.push('/a/tenants/' + detailData.tenant.tenantId + '/edit')">换承租主体</el-button>
           <span class="rel__note">租户代缴物业费时，可在收银台「在住租户」卡片里直接补充信息，不必回到本页</span>
         </div>
       </template>
@@ -479,4 +545,17 @@ useFocusLanding(async ({ focus, open, location }) => {
 .pg__bar i.is-ok { background: var(--biz-success, #12b98a); }
 .pg__t { font-size: 11.5px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
 .tl__by { color: var(--biz-text-3); font-weight: 400; }
+.lic { display: flex; flex-direction: column; gap: 6px; }
+.lic__i {
+  display: flex; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 7px;
+  background: var(--biz-fill-1, #f5f6fa);
+}
+.lic__ico { color: var(--biz-primary, #5b6cff); font-size: 16px; }
+.lic__m { min-width: 0; }
+.lic__n { font-size: 12.5px; color: var(--biz-text-1, #1f2430); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lic__s { font-size: 11px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
+.lic__empty {
+  padding: 10px 12px; border-radius: 7px; font-size: 12px; line-height: 1.7;
+  background: rgba(217, 138, 31, .08); color: var(--biz-text-2, #5c6272);
+}
 </style>

@@ -10,7 +10,23 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2024-05-10"
+  "registerDate": "2024-05-10",
+  "ownerCategory": "出租业主",
+  "economicLevel": "优渥",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "科员",
+  "occupation": "个体经营",
+  "workAddress": "成都市武侯区科华北路287号",
+  "hobbies": "健身",
+  "pets": "观赏鱼",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT12",
+   "OT07"
+  ]
  },
  {
   "ownerId": "OW00002",
@@ -23,7 +39,24 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2025-12-24"
+  "registerDate": "2025-12-24",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "2008-06-27",
+  "employer": "成都恒信科技有限公司",
+  "jobTitle": "—",
+  "occupation": "公务员",
+  "workAddress": "成都市高新区科华北路205号",
+  "hobbies": "阅读",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT01",
+   "OT05",
+   "OT07"
+  ]
  },
  {
   "ownerId": "OW00003",
@@ -36,7 +69,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2023-06-24"
+  "registerDate": "2023-06-24",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "西南物流有限公司",
+  "jobTitle": "部门经理",
+  "occupation": "企业职员",
+  "workAddress": "成都市高新区人民南路167号",
+  "hobbies": "钓鱼、书法、阅读",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT07"
+  ]
  },
  {
   "ownerId": "OW00004",
@@ -49,7 +97,20 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2016-09-03"
+  "registerDate": "2016-09-03",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "共青团员",
+  "weddingDate": "1995-12-20",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "主治医师",
+  "occupation": "工程师",
+  "workAddress": "成都市高新区天府大道253号",
+  "hobbies": "羽毛球",
+  "pets": "无",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00005",
@@ -62,7 +123,23 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2023-08-13"
+  "registerDate": "2023-08-13",
+  "ownerCategory": "出租业主",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1997-05-08",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "健身、茶艺",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT01",
+   "OT02"
+  ]
  },
  {
   "ownerId": "OW00006",
@@ -75,7 +152,20 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2016-12-19"
+  "registerDate": "2016-12-19",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "中国银行成都分行",
+  "jobTitle": "教师",
+  "occupation": "教师",
+  "workAddress": "成都市武侯区人民南路121号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": []
  },
  {
   "ownerId": "OW00007",
@@ -88,7 +178,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2018-08-22"
+  "registerDate": "2018-08-22",
+  "ownerCategory": "候鸟",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1988-02-13",
+  "employer": "中国银行成都分行",
+  "jobTitle": "教师",
+  "occupation": "工程师",
+  "workAddress": "成都市武侯区人民南路105号",
+  "hobbies": "茶艺",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": [
+   "OT05"
+  ]
  },
  {
   "ownerId": "OW00008",
@@ -101,7 +206,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2017-11-24"
+  "registerDate": "2017-11-24",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "顾问",
+  "occupation": "教师",
+  "workAddress": "成都市锦江区天府大道341号",
+  "hobbies": "",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00009",
@@ -114,7 +232,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2024-01-05"
+  "registerDate": "2024-01-05",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1982-04-10",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "教师",
+  "occupation": "工程师",
+  "workAddress": "成都市武侯区科华北路136号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": []
  },
  {
   "ownerId": "OW00010",
@@ -127,7 +258,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "B",
-  "registerDate": "2015-05-09"
+  "registerDate": "2015-05-09",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1983-05-18",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "部门经理",
+  "occupation": "医生",
+  "workAddress": "成都市高新区科华北路284号",
+  "hobbies": "钓鱼、茶艺、羽毛球",
+  "pets": "无",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00011",
@@ -140,7 +284,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2018-08-19"
+  "registerDate": "2018-08-19",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2013-07-13",
+  "employer": "高新区实验小学",
+  "jobTitle": "顾问",
+  "occupation": "自由职业",
+  "workAddress": "成都市锦江区人民南路54号",
+  "hobbies": "健身、广场舞、茶艺",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00012",
@@ -153,7 +310,23 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2024-07-16"
+  "registerDate": "2024-07-16",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "共青团员",
+  "weddingDate": "2000-06-21",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "店长",
+  "occupation": "个体经营",
+  "workAddress": "成都市武侯区科华北路62号",
+  "hobbies": "摄影",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT04",
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00013",
@@ -166,7 +339,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2016-09-15"
+  "registerDate": "2016-09-15",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "中共党员",
+  "weddingDate": "2011-02-03",
+  "employer": "四川中远建设集团",
+  "jobTitle": "科员",
+  "occupation": "企业职员",
+  "workAddress": "成都市武侯区蜀汉路33号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00014",
@@ -179,7 +365,24 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2016-01-20"
+  "registerDate": "2016-01-20",
+  "ownerCategory": "候鸟",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2001-10-18",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "教师",
+  "occupation": "自由职业",
+  "workAddress": "成都市锦江区蜀汉路212号",
+  "hobbies": "钓鱼、健身",
+  "pets": "无",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT01",
+   "OT02",
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00015",
@@ -192,7 +395,23 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-11-05"
+  "registerDate": "2019-11-05",
+  "ownerCategory": "候鸟",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1982-10-25",
+  "employer": "四川中远建设集团",
+  "jobTitle": "教师",
+  "occupation": "教师",
+  "workAddress": "成都市高新区人民南路246号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT01",
+   "OT02"
+  ]
  },
  {
   "ownerId": "OW00016",
@@ -205,7 +424,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2015-08-10"
+  "registerDate": "2015-08-10",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "书法",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": []
  },
  {
   "ownerId": "OW00017",
@@ -218,7 +450,24 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-03-27"
+  "registerDate": "2019-03-27",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1987-11-01",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT01",
+   "OT02",
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00018",
@@ -231,7 +480,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2025-06-23"
+  "registerDate": "2025-06-23",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "1994-04-23",
+  "employer": "西南物流有限公司",
+  "jobTitle": "工程师",
+  "occupation": "公务员",
+  "workAddress": "成都市武侯区人民南路385号",
+  "hobbies": "",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": [
+   "OT11"
+  ]
  },
  {
   "ownerId": "OW00019",
@@ -244,7 +508,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2023-09-28"
+  "registerDate": "2023-09-28",
+  "ownerCategory": "常住",
+  "economicLevel": "困难",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "中国银行成都分行",
+  "jobTitle": "主治医师",
+  "occupation": "教师",
+  "workAddress": "成都市金牛区科华北路68号",
+  "hobbies": "书法、阅读",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": []
  },
  {
   "ownerId": "OW00020",
@@ -257,7 +534,23 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2016-06-27"
+  "registerDate": "2016-06-27",
+  "ownerCategory": "投资",
+  "economicLevel": "一般",
+  "politicalStatus": "共青团员",
+  "weddingDate": "2017-08-28",
+  "employer": "高新区实验小学",
+  "jobTitle": "—",
+  "occupation": "教师",
+  "workAddress": "成都市高新区蜀汉路111号",
+  "hobbies": "旅游、羽毛球、棋牌",
+  "pets": "无",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT04",
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00021",
@@ -270,7 +563,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2022-01-28"
+  "registerDate": "2022-01-28",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1998-07-23",
+  "employer": "成都恒信科技有限公司",
+  "jobTitle": "科员",
+  "occupation": "自由职业",
+  "workAddress": "成都市金牛区蜀汉路221号",
+  "hobbies": "旅游、摄影",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": []
  },
  {
   "ownerId": "OW00022",
@@ -283,7 +589,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2023-07-03"
+  "registerDate": "2023-07-03",
+  "ownerCategory": "出租业主",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "店长",
+  "occupation": "企业职员",
+  "workAddress": "成都市金牛区科华北路261号",
+  "hobbies": "书法、钓鱼",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00023",
@@ -296,7 +617,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2025-11-10"
+  "registerDate": "2025-11-10",
+  "ownerCategory": "候鸟",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "1996-10-05",
+  "employer": "中国银行成都分行",
+  "jobTitle": "教师",
+  "occupation": "工程师",
+  "workAddress": "成都市武侯区人民南路108号",
+  "hobbies": "",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00024",
@@ -309,7 +643,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2023-11-11"
+  "registerDate": "2023-11-11",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1988-06-28",
+  "employer": "高新区实验小学",
+  "jobTitle": "—",
+  "occupation": "工程师",
+  "workAddress": "成都市高新区蜀汉路169号",
+  "hobbies": "茶艺",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": []
  },
  {
   "ownerId": "OW00025",
@@ -322,7 +669,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2015-12-11"
+  "registerDate": "2015-12-11",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "民主党派",
+  "weddingDate": "1981-05-22",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "主治医师",
+  "occupation": "个体经营",
+  "workAddress": "成都市武侯区科华北路106号",
+  "hobbies": "钓鱼、旅游、书法",
+  "pets": "猫（英短）",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00026",
@@ -335,7 +695,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-07-25"
+  "registerDate": "2019-07-25",
+  "ownerCategory": "候鸟",
+  "economicLevel": "优渥",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "成都恒信科技有限公司",
+  "jobTitle": "顾问",
+  "occupation": "教师",
+  "workAddress": "成都市武侯区蜀汉路157号",
+  "hobbies": "",
+  "pets": "观赏鱼",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00027",
@@ -348,7 +723,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2024-04-23"
+  "registerDate": "2024-04-23",
+  "ownerCategory": "出租业主",
+  "economicLevel": "一般",
+  "politicalStatus": "共青团员",
+  "weddingDate": "1998-10-13",
+  "employer": "四川中远建设集团",
+  "jobTitle": "店长",
+  "occupation": "工程师",
+  "workAddress": "成都市高新区蜀汉路30号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": []
  },
  {
   "ownerId": "OW00028",
@@ -361,7 +749,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2020-03-07"
+  "registerDate": "2020-03-07",
+  "ownerCategory": "候鸟",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2002-08-27",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00029",
@@ -374,7 +777,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2020-10-25"
+  "registerDate": "2020-10-25",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1997-11-16",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "店长",
+  "occupation": "个体经营",
+  "workAddress": "成都市锦江区科华北路17号",
+  "hobbies": "",
+  "pets": "猫（英短）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00030",
@@ -387,7 +803,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2020-08-13"
+  "registerDate": "2020-08-13",
+  "ownerCategory": "常住",
+  "economicLevel": "困难",
+  "politicalStatus": "群众",
+  "weddingDate": "2017-06-22",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "科员",
+  "occupation": "工程师",
+  "workAddress": "成都市武侯区科华北路391号",
+  "hobbies": "羽毛球、广场舞",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": []
  },
  {
   "ownerId": "OW00031",
@@ -400,7 +829,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2015-07-25"
+  "registerDate": "2015-07-25",
+  "ownerCategory": "出租业主",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2004-09-27",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "企业职员",
+  "workAddress": "成都市金牛区科华北路78号",
+  "hobbies": "羽毛球",
+  "pets": "无",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00032",
@@ -413,7 +855,20 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2015-11-07"
+  "registerDate": "2015-11-07",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2014-05-03",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "公务员",
+  "workAddress": "成都市高新区人民南路339号",
+  "hobbies": "摄影、羽毛球",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00033",
@@ -426,7 +881,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2022-03-12"
+  "registerDate": "2022-03-12",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "—",
+  "jobTitle": "顾问",
+  "occupation": "企业职员",
+  "workAddress": "成都市武侯区科华北路8号",
+  "hobbies": "",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00034",
@@ -439,7 +907,20 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2024-11-22"
+  "registerDate": "2024-11-22",
+  "ownerCategory": "候鸟",
+  "economicLevel": "优渥",
+  "politicalStatus": "群众",
+  "weddingDate": "2002-10-23",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "教师",
+  "occupation": "个体经营",
+  "workAddress": "成都市高新区蜀汉路195号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00035",
@@ -452,7 +933,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2018-11-24"
+  "registerDate": "2018-11-24",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2001-01-17",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "科员",
+  "occupation": "个体经营",
+  "workAddress": "成都市武侯区蜀汉路344号",
+  "hobbies": "",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": []
  },
  {
   "ownerId": "OW00036",
@@ -465,7 +959,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2020-04-24"
+  "registerDate": "2020-04-24",
+  "ownerCategory": "常住",
+  "economicLevel": "困难",
+  "politicalStatus": "群众",
+  "weddingDate": "1992-05-01",
+  "employer": "—",
+  "jobTitle": "科员",
+  "occupation": "工程师",
+  "workAddress": "成都市金牛区蜀汉路92号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": [
+   "OT05"
+  ]
  },
  {
   "ownerId": "OW00037",
@@ -478,7 +987,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2023-04-11"
+  "registerDate": "2023-04-11",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2011-04-26",
+  "employer": "高新区实验小学",
+  "jobTitle": "—",
+  "occupation": "企业职员",
+  "workAddress": "成都市高新区人民南路188号",
+  "hobbies": "健身、摄影、旅游",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00038",
@@ -491,7 +1013,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-11-20"
+  "registerDate": "2019-11-20",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "四川中远建设集团",
+  "jobTitle": "工程师",
+  "occupation": "医生",
+  "workAddress": "成都市武侯区科华北路267号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": []
  },
  {
   "ownerId": "OW00039",
@@ -504,7 +1039,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2023-11-06"
+  "registerDate": "2023-11-06",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "中共党员",
+  "weddingDate": "",
+  "employer": "四川中远建设集团",
+  "jobTitle": "主治医师",
+  "occupation": "工程师",
+  "workAddress": "成都市武侯区科华北路238号",
+  "hobbies": "",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT11"
+  ]
  },
  {
   "ownerId": "OW00040",
@@ -517,7 +1067,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2016-08-22"
+  "registerDate": "2016-08-22",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2001-01-14",
+  "employer": "四川中远建设集团",
+  "jobTitle": "—",
+  "occupation": "企业职员",
+  "workAddress": "成都市金牛区人民南路349号",
+  "hobbies": "棋牌、摄影",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT06"
+  ]
  },
  {
   "ownerId": "OW00041",
@@ -530,7 +1095,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "C",
-  "registerDate": "2017-08-22"
+  "registerDate": "2017-08-22",
+  "ownerCategory": "候鸟",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "棋牌、摄影、旅游",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00042",
@@ -543,7 +1121,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2016-01-28"
+  "registerDate": "2016-01-28",
+  "ownerCategory": "出租业主",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "工程师",
+  "occupation": "教师",
+  "workAddress": "成都市金牛区科华北路182号",
+  "hobbies": "",
+  "pets": "观赏鱼",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00043",
@@ -556,7 +1149,23 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2024-05-08"
+  "registerDate": "2024-05-08",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1992-05-21",
+  "employer": "高新区实验小学",
+  "jobTitle": "科员",
+  "occupation": "企业职员",
+  "workAddress": "成都市锦江区人民南路203号",
+  "hobbies": "摄影、广场舞",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": [
+   "OT01",
+   "OT02"
+  ]
  },
  {
   "ownerId": "OW00044",
@@ -569,7 +1178,22 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2024-08-22"
+  "registerDate": "2024-08-22",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "中共党员",
+  "weddingDate": "2018-11-07",
+  "employer": "中国银行成都分行",
+  "jobTitle": "—",
+  "occupation": "医生",
+  "workAddress": "成都市武侯区人民南路147号",
+  "hobbies": "钓鱼",
+  "pets": "无",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00045",
@@ -582,7 +1206,20 @@
   "faceRegistered": false,
   "appRegistered": false,
   "creditLevel": "B",
-  "registerDate": "2018-07-03"
+  "registerDate": "2018-07-03",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1996-09-04",
+  "employer": "四川中远建设集团",
+  "jobTitle": "—",
+  "occupation": "公务员",
+  "workAddress": "成都市武侯区蜀汉路81号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": []
  },
  {
   "ownerId": "OW00046",
@@ -595,7 +1232,22 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2020-09-02"
+  "registerDate": "2020-09-02",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1992-10-03",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00047",
@@ -608,7 +1260,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2022-04-25"
+  "registerDate": "2022-04-25",
+  "ownerCategory": "出租业主",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "2007-11-23",
+  "employer": "成都市第七人民医院",
+  "jobTitle": "主治医师",
+  "occupation": "公务员",
+  "workAddress": "成都市金牛区人民南路251号",
+  "hobbies": "钓鱼、羽毛球、棋牌",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00048",
@@ -621,7 +1286,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2018-04-13"
+  "registerDate": "2018-04-13",
+  "ownerCategory": "常住",
+  "economicLevel": "优渥",
+  "politicalStatus": "群众",
+  "weddingDate": "",
+  "employer": "西南物流有限公司",
+  "jobTitle": "—",
+  "occupation": "自由职业",
+  "workAddress": "成都市高新区天府大道347号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00049",
@@ -634,7 +1312,22 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2015-01-27"
+  "registerDate": "2015-01-27",
+  "ownerCategory": "出租业主",
+  "economicLevel": "优渥",
+  "politicalStatus": "中共党员",
+  "weddingDate": "",
+  "employer": "高新区实验小学",
+  "jobTitle": "科员",
+  "occupation": "个体经营",
+  "workAddress": "成都市金牛区天府大道84号",
+  "hobbies": "阅读、健身、茶艺",
+  "pets": "观赏鱼",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00050",
@@ -647,7 +1340,20 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "A",
-  "registerDate": "2022-05-22"
+  "registerDate": "2022-05-22",
+  "ownerCategory": "常住",
+  "economicLevel": "优渥",
+  "politicalStatus": "中共党员",
+  "weddingDate": "1998-11-25",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "茶艺、羽毛球",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00051",
@@ -660,7 +1366,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2018-10-12"
+  "registerDate": "2018-10-12",
+  "ownerCategory": "出租业主",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "2005-11-18",
+  "employer": "西南物流有限公司",
+  "jobTitle": "教师",
+  "occupation": "公务员",
+  "workAddress": "成都市武侯区科华北路384号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "欠费催缴响应慢",
+  "tagIds": [
+   "OT05"
+  ]
  },
  {
   "ownerId": "OW00052",
@@ -673,7 +1394,23 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2024-07-06"
+  "registerDate": "2024-07-06",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2007-07-25",
+  "employer": "成都恒信科技有限公司",
+  "jobTitle": "—",
+  "occupation": "个体经营",
+  "workAddress": "成都市锦江区天府大道298号",
+  "hobbies": "健身",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": [
+   "OT04",
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00053",
@@ -686,7 +1423,20 @@
   "faceRegistered": false,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2023-03-16"
+  "registerDate": "2023-03-16",
+  "ownerCategory": "常住",
+  "economicLevel": "优渥",
+  "politicalStatus": "群众",
+  "weddingDate": "1978-02-28",
+  "employer": "西南物流有限公司",
+  "jobTitle": "顾问",
+  "occupation": "自由职业",
+  "workAddress": "成都市武侯区天府大道191号",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "积极参与社区活动",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00054",
@@ -699,7 +1449,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-05-15"
+  "registerDate": "2019-05-15",
+  "ownerCategory": "常住",
+  "economicLevel": "一般",
+  "politicalStatus": "中共党员",
+  "weddingDate": "1981-09-14",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "棋牌",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "",
+  "tagIds": [
+   "OT11"
+  ]
  },
  {
   "ownerId": "OW00055",
@@ -712,7 +1477,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2019-06-23"
+  "registerDate": "2019-06-23",
+  "ownerCategory": "投资",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1985-09-04",
+  "employer": "高新区实验小学",
+  "jobTitle": "主治医师",
+  "occupation": "工程师",
+  "workAddress": "成都市锦江区人民南路115号",
+  "hobbies": "",
+  "pets": "小型犬（柯基）",
+  "positiveNotes": "",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00056",
@@ -725,7 +1503,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "B",
-  "registerDate": "2020-05-24"
+  "registerDate": "2020-05-24",
+  "ownerCategory": "常住",
+  "economicLevel": "优渥",
+  "politicalStatus": "共青团员",
+  "weddingDate": "2000-10-16",
+  "employer": "自营（个体工商户）",
+  "jobTitle": "工程师",
+  "occupation": "医生",
+  "workAddress": "成都市金牛区科华北路154号",
+  "hobbies": "健身",
+  "pets": "小型犬（泰迪）",
+  "positiveNotes": "配合度高，报修后主动反馈",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": []
  },
  {
   "ownerId": "OW00057",
@@ -738,7 +1529,20 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "C",
-  "registerDate": "2024-05-16"
+  "registerDate": "2024-05-16",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "1998-01-02",
+  "employer": "四川中远建设集团",
+  "jobTitle": "—",
+  "occupation": "公务员",
+  "workAddress": "成都市高新区天府大道367号",
+  "hobbies": "书法、羽毛球、健身",
+  "pets": "猫（中华田园）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "",
+  "tagIds": []
  },
  {
   "ownerId": "OW00058",
@@ -751,7 +1555,22 @@
   "faceRegistered": true,
   "appRegistered": true,
   "creditLevel": "A",
-  "registerDate": "2022-02-28"
+  "registerDate": "2022-02-28",
+  "ownerCategory": "常住",
+  "economicLevel": "良好",
+  "politicalStatus": "群众",
+  "weddingDate": "2016-04-21",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "退休",
+  "workAddress": "",
+  "hobbies": "",
+  "pets": "无",
+  "positiveNotes": "担任楼栋志愿者",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00059",
@@ -764,7 +1583,22 @@
   "faceRegistered": true,
   "appRegistered": false,
   "creditLevel": "B",
-  "registerDate": "2021-04-22"
+  "registerDate": "2021-04-22",
+  "ownerCategory": "候鸟",
+  "economicLevel": "一般",
+  "politicalStatus": "群众",
+  "weddingDate": "1991-06-07",
+  "employer": "—",
+  "jobTitle": "—",
+  "occupation": "自由职业",
+  "workAddress": "成都市武侯区人民南路391号",
+  "hobbies": "钓鱼",
+  "pets": "无",
+  "positiveNotes": "",
+  "negativeNotes": "多次占用消防通道",
+  "tagIds": [
+   "OT12"
+  ]
  },
  {
   "ownerId": "OW00060",
@@ -777,6 +1611,19 @@
   "faceRegistered": false,
   "appRegistered": false,
   "creditLevel": "B",
-  "registerDate": "2021-06-15"
+  "registerDate": "2021-06-15",
+  "ownerCategory": "候鸟",
+  "economicLevel": "一般",
+  "politicalStatus": "共青团员",
+  "weddingDate": "",
+  "employer": "中国银行成都分行",
+  "jobTitle": "科员",
+  "occupation": "教师",
+  "workAddress": "成都市金牛区人民南路112号",
+  "hobbies": "健身、羽毛球、钓鱼",
+  "pets": "猫（英短）",
+  "positiveNotes": "连续三年按时缴费",
+  "negativeNotes": "夜间噪音被投诉 1 次",
+  "tagIds": []
  }
 ]

@@ -18,6 +18,38 @@
       />
     </div>
 
+    <!-- 多种经营收入摘要带：驾驶舱以"收缴"为主，这里只回答"钱还从哪来"，
+         完整分析在 /b/multi-revenue（分项粒度差一个数量级，展开会把这个页面撑散） -->
+    <div class="multi-band" @click="$router.push('/b/multi-revenue')">
+      <span class="multi-band__k">多种经营收入（{{ revYear }} 年度）</span>
+      <b class="multi-band__v">¥ {{ wan(multiRev.total) }}</b>
+      <span class="multi-band__i">
+        <i class="dot is-service" />商业服务 ¥{{ wan(multiRev.service.income) }}
+      </span>
+      <span class="multi-band__i">
+        <i class="dot is-coop" />商业合作 ¥{{ wan(multiRev.cooperation.income) }}
+      </span>
+      <span class="multi-band__i is-share">占公司收入 {{ companyRev.multiRatio }}%</span>
+      <span class="spacer" />
+      <span class="multi-band__go">查看明细 →</span>
+    </div>
+
+    <!-- 多种经营收入摘要带：驾驶舱以"收缴"为主，这里只回答"钱还从哪来"，
+         完整分析在 /b/multi-revenue（分项粒度差一个数量级，展开会把这个页面撑散） -->
+    <div class="multi-band" @click="$router.push('/b/multi-revenue')">
+      <span class="multi-band__k">多种经营收入（{{ revYear }} 年度）</span>
+      <b class="multi-band__v">¥ {{ wan(multiRev.total) }}</b>
+      <span class="multi-band__i">
+        <i class="dot is-service" />商业服务 ¥{{ wan(multiRev.service.income) }}
+      </span>
+      <span class="multi-band__i">
+        <i class="dot is-coop" />商业合作 ¥{{ wan(multiRev.cooperation.income) }}
+      </span>
+      <span class="multi-band__i is-share">占公司收入 {{ companyRev.multiRatio }}%</span>
+      <span class="spacer" />
+      <span class="multi-band__go">查看明细 →</span>
+    </div>
+
     <div class="grid" style="margin-top:16px;grid-template-columns:2fr 1fr;">
       <div class="panel">
         <div class="panel__hd">
@@ -108,19 +140,24 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { agingBuckets, feeByProject, metrics } from '@/utils/api'
+import { agingBuckets, companyRevenue, feeByProject, metrics, multiRevenue } from '@/utils/api'
 import EChart from '@/components/EChart.vue'
 import KpiCard from '@/components/KpiCard.vue'
 import RangeFilter from '@/components/RangeFilter.vue'
 import { palette } from '@/styles/echarts-theme'
 import { debtRank, feeSummary } from '@/utils/api'
 import { bucketColor } from '@/utils/dict'
-import { money, pct } from '@/utils/format'
+import { money, pct, wan } from '@/utils/format'
 import { monthsInRange } from '@/utils/range'
 
 const router = useRouter()
 const fm = metrics.fee
 const target = 90
+/* 多种经营：驾驶舱只放总额与分项占比，明细跳 /b/multi-revenue。
+   变量名带 rev 前缀 —— 这个页面已有 multi（月度区间）与 year（趋势年份），不加前缀会撞名 */
+const revYear = new Date().getFullYear()
+const multiRev = multiRevenue()
+const companyRev = companyRevenue()
 const kpiIcons = ['Money', 'Wallet', 'WarningFilled', 'TrendCharts', 'Tickets', 'Discount']
 
 const summary = feeSummary()
@@ -205,4 +242,46 @@ function goOwner(row) {
 .rate__bar { flex: 1; height: 7px; border-radius: 999px; background: var(--biz-bg-fill); overflow: hidden; }
 .rate__bar i { display: block; height: 7px; border-radius: 999px; background: var(--biz-gradient); }
 .rate__n { font-family: var(--biz-font-num); font-size: 12.5px; width: 46px; text-align: right; }
+
+/* 多种经营摘要带：一条带子，四个数，一个入口 —— 不加卡不加图，驾驶舱仍是"收缴为主、经营可见" */
+.multi-band {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-top: 16px; padding: 11px 16px; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(90deg, rgba(91, 108, 255, .07), rgba(18, 185, 138, .05));
+  border: 1px solid rgba(91, 108, 255, .14);
+  transition: border-color .2s, box-shadow .2s;
+}
+.multi-band:hover { border-color: rgba(91, 108, 255, .32); box-shadow: 0 2px 10px rgba(91, 108, 255, .08); }
+.multi-band__k { font-size: 12.5px; color: var(--biz-text-3); }
+.multi-band__v { font-family: var(--biz-font-num); font-size: 20px; color: var(--biz-primary, #5b6cff); }
+.multi-band__i { font-size: 12px; color: var(--biz-text-2); }
+.multi-band__i.is-share {
+  padding: 1px 8px; border-radius: 10px; font-size: 11.5px;
+  background: rgba(18, 185, 138, .1); color: #12b98a;
+}
+.multi-band .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.multi-band .dot.is-service { background: var(--biz-primary, #5b6cff); }
+.multi-band .dot.is-coop { background: #12b98a; }
+.multi-band__go { font-size: 12px; color: var(--biz-primary, #5b6cff); }
+
+/* 多种经营摘要带：一条带子，四个数，一个入口 —— 不加卡不加图，驾驶舱仍是"收缴为主、经营可见" */
+.multi-band {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-top: 16px; padding: 11px 16px; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(90deg, rgba(91, 108, 255, .07), rgba(18, 185, 138, .05));
+  border: 1px solid rgba(91, 108, 255, .14);
+  transition: border-color .2s, box-shadow .2s;
+}
+.multi-band:hover { border-color: rgba(91, 108, 255, .32); box-shadow: 0 2px 10px rgba(91, 108, 255, .08); }
+.multi-band__k { font-size: 12.5px; color: var(--biz-text-3); }
+.multi-band__v { font-family: var(--biz-font-num); font-size: 20px; color: var(--biz-primary, #5b6cff); }
+.multi-band__i { font-size: 12px; color: var(--biz-text-2); }
+.multi-band__i.is-share {
+  padding: 1px 8px; border-radius: 10px; font-size: 11.5px;
+  background: rgba(18, 185, 138, .1); color: #12b98a;
+}
+.multi-band .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.multi-band .dot.is-service { background: var(--biz-primary, #5b6cff); }
+.multi-band .dot.is-coop { background: #12b98a; }
+.multi-band__go { font-size: 12px; color: var(--biz-primary, #5b6cff); }
 </style>

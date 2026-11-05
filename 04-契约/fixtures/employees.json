@@ -27,7 +27,10 @@
   "score": 95,
   "baseSalary": 9000.0,
   "monthlySalary": 11058.98,
-  "bankCard": "6222****9381"
+  "bankCard": "6222****9381",
+  "emergencyContact": "王建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "13100000000"
  },
  {
   "empId": "EM0002",
@@ -57,7 +60,10 @@
   "score": 73,
   "baseSalary": 12000.0,
   "monthlySalary": 18266.35,
-  "bankCard": "6222****1146"
+  "bankCard": "6222****1146",
+  "emergencyContact": "李淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "14100000137"
  },
  {
   "empId": "EM0003",
@@ -87,7 +93,10 @@
   "score": 84,
   "baseSalary": 5200.0,
   "monthlySalary": 7642.71,
-  "bankCard": "6222****7590"
+  "bankCard": "6222****7590",
+  "emergencyContact": "张振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "15100000274"
  },
  {
   "empId": "EM0004",
@@ -117,7 +126,10 @@
   "score": 94,
   "baseSalary": 7500.0,
   "monthlySalary": 9723.11,
-  "bankCard": "6222****4565"
+  "bankCard": "6222****4565",
+  "emergencyContact": "刘海燕",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "16100000411"
  },
  {
   "empId": "EM0005",
@@ -147,7 +159,10 @@
   "score": 85,
   "baseSalary": 7500.0,
   "monthlySalary": 10253.71,
-  "bankCard": "6222****7681"
+  "bankCard": "6222****7681",
+  "emergencyContact": "陈玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "17100000548"
  },
  {
   "empId": "EM0006",
@@ -177,7 +192,10 @@
   "score": 83,
   "baseSalary": 12000.0,
   "monthlySalary": 15665.2,
-  "bankCard": "6222****6875"
+  "bankCard": "6222****6875",
+  "emergencyContact": "杨海燕",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "18100000685"
  },
  {
   "empId": "EM0007",
@@ -207,7 +225,10 @@
   "score": 86,
   "baseSalary": 9000.0,
   "monthlySalary": 13147.73,
-  "bankCard": "6222****4948"
+  "bankCard": "6222****4948",
+  "emergencyContact": "黄国强",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "19100000822"
  },
  {
   "empId": "EM0008",
@@ -237,7 +258,10 @@
   "score": 76,
   "baseSalary": 12000.0,
   "monthlySalary": 15334.26,
-  "bankCard": "6222****1331"
+  "bankCard": "6222****1331",
+  "emergencyContact": "赵志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "13100000959"
  },
  {
   "empId": "EM0009",
@@ -267,7 +291,10 @@
   "score": 72,
   "baseSalary": 7500.0,
   "monthlySalary": 9192.79,
-  "bankCard": "6222****3874"
+  "bankCard": "6222****3874",
+  "emergencyContact": "吴建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "14100001096"
  },
  {
   "empId": "EM0010",
@@ -297,7 +324,10 @@
   "score": 81,
   "baseSalary": 9000.0,
   "monthlySalary": 11607.56,
-  "bankCard": "6222****4387"
+  "bankCard": "6222****4387",
+  "emergencyContact": "周建军",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "15100001233"
  },
  {
   "empId": "EM0011",
@@ -327,7 +357,10 @@
   "score": 96,
   "baseSalary": 3200.0,
   "monthlySalary": 4845.3,
-  "bankCard": "6222****4767"
+  "bankCard": "6222****4767",
+  "emergencyContact": "徐秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "16100001370"
  },
  {
   "empId": "EM0012",
@@ -357,7 +390,10 @@
   "score": 96,
   "baseSalary": 9000.0,
   "monthlySalary": 13226.41,
-  "bankCard": "6222****3267"
+  "bankCard": "6222****3267",
+  "emergencyContact": "孙淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "17100001507"
  },
  {
   "empId": "EM0013",
@@ -387,7 +423,10 @@
   "score": 86,
   "baseSalary": 6000.0,
   "monthlySalary": 8616.23,
-  "bankCard": "6222****8717"
+  "bankCard": "6222****8717",
+  "emergencyContact": "马振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "18100001644"
  },
  {
   "empId": "EM0014",
@@ -417,7 +456,10 @@
   "score": 95,
   "baseSalary": 3200.0,
   "monthlySalary": 4724.34,
-  "bankCard": "6222****3406"
+  "bankCard": "6222****3406",
+  "emergencyContact": "朱海燕",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "19100001781"
  },
  {
   "empId": "EM0015",
@@ -447,7 +489,10 @@
   "score": 73,
   "baseSalary": 4500.0,
   "monthlySalary": 5431.99,
-  "bankCard": "6222****6119"
+  "bankCard": "6222****6119",
+  "emergencyContact": "胡玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "13100001918"
  },
  {
   "empId": "EM0016",
@@ -477,7 +522,10 @@
   "score": 93,
   "baseSalary": 12000.0,
   "monthlySalary": 18481.51,
-  "bankCard": "6222****8754"
+  "bankCard": "6222****8754",
+  "emergencyContact": "林晓东",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "14100002055"
  },
  {
   "empId": "EM0017",
@@ -507,7 +555,10 @@
   "score": 78,
   "baseSalary": 9000.0,
   "monthlySalary": 11447.91,
-  "bankCard": "6222****6801"
+  "bankCard": "6222****6801",
+  "emergencyContact": "郭玉兰",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "15100002192"
  },
  {
   "empId": "EM0018",
@@ -537,7 +588,10 @@
   "score": 85,
   "baseSalary": 9000.0,
   "monthlySalary": 13302.02,
-  "bankCard": "6222****6576"
+  "bankCard": "6222****6576",
+  "emergencyContact": "何志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "16100002329"
  },
  {
   "empId": "EM0019",
@@ -567,7 +621,10 @@
   "score": 79,
   "baseSalary": 3800.0,
   "monthlySalary": 5033.38,
-  "bankCard": "6222****3880"
+  "bankCard": "6222****3880",
+  "emergencyContact": "高秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "17100002466"
  },
  {
   "empId": "EM0020",
@@ -597,7 +654,10 @@
   "score": 89,
   "baseSalary": 3200.0,
   "monthlySalary": 4425.01,
-  "bankCard": "6222****3973"
+  "bankCard": "6222****3973",
+  "emergencyContact": "罗淑珍",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "18100002603"
  },
  {
   "empId": "EM0021",
@@ -627,7 +687,10 @@
   "score": 72,
   "baseSalary": 3800.0,
   "monthlySalary": 5817.53,
-  "bankCard": "6222****8078"
+  "bankCard": "6222****8078",
+  "emergencyContact": "王秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "19100002740"
  },
  {
   "empId": "EM0022",
@@ -657,7 +720,10 @@
   "score": 89,
   "baseSalary": 3800.0,
   "monthlySalary": 4936.19,
-  "bankCard": "6222****7327"
+  "bankCard": "6222****7327",
+  "emergencyContact": "李淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "13100002877"
  },
  {
   "empId": "EM0023",
@@ -687,7 +753,10 @@
   "score": 89,
   "baseSalary": 7500.0,
   "monthlySalary": 10107.43,
-  "bankCard": "6222****2107"
+  "bankCard": "6222****2107",
+  "emergencyContact": "张振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "14100003014"
  },
  {
   "empId": "EM0024",
@@ -717,7 +786,10 @@
   "score": 91,
   "baseSalary": 9000.0,
   "monthlySalary": 12068.61,
-  "bankCard": "6222****5254"
+  "bankCard": "6222****5254",
+  "emergencyContact": "刘晓东",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "15100003151"
  },
  {
   "empId": "EM0025",
@@ -747,7 +819,10 @@
   "score": 84,
   "baseSalary": 3800.0,
   "monthlySalary": 4820.67,
-  "bankCard": "6222****4100"
+  "bankCard": "6222****4100",
+  "emergencyContact": "陈玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "16100003288"
  },
  {
   "empId": "EM0026",
@@ -777,7 +852,10 @@
   "score": 88,
   "baseSalary": 6000.0,
   "monthlySalary": 9017.03,
-  "bankCard": "6222****1634"
+  "bankCard": "6222****1634",
+  "emergencyContact": "杨海燕",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "17100003425"
  },
  {
   "empId": "EM0027",
@@ -807,7 +885,10 @@
   "score": 77,
   "baseSalary": 4500.0,
   "monthlySalary": 6146.88,
-  "bankCard": "6222****3085"
+  "bankCard": "6222****3085",
+  "emergencyContact": "黄国强",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "18100003562"
  },
  {
   "empId": "EM0028",
@@ -837,7 +918,10 @@
   "score": 89,
   "baseSalary": 12000.0,
   "monthlySalary": 16550.71,
-  "bankCard": "6222****9636"
+  "bankCard": "6222****9636",
+  "emergencyContact": "赵志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "19100003699"
  },
  {
   "empId": "EM0029",
@@ -867,7 +951,10 @@
   "score": 98,
   "baseSalary": 4500.0,
   "monthlySalary": 5680.11,
-  "bankCard": "6222****3201"
+  "bankCard": "6222****3201",
+  "emergencyContact": "吴建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "13100003836"
  },
  {
   "empId": "EM0030",
@@ -897,7 +984,10 @@
   "score": 88,
   "baseSalary": 9000.0,
   "monthlySalary": 12097.48,
-  "bankCard": "6222****2034"
+  "bankCard": "6222****2034",
+  "emergencyContact": "周建军",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "14100003973"
  },
  {
   "empId": "EM0031",
@@ -927,7 +1017,10 @@
   "score": 80,
   "baseSalary": 12000.0,
   "monthlySalary": 17135.82,
-  "bankCard": "6222****5614"
+  "bankCard": "6222****5614",
+  "emergencyContact": "徐建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "15100004110"
  },
  {
   "empId": "EM0032",
@@ -957,7 +1050,10 @@
   "score": 86,
   "baseSalary": 9000.0,
   "monthlySalary": 12007.1,
-  "bankCard": "6222****4013"
+  "bankCard": "6222****4013",
+  "emergencyContact": "孙淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "16100004247"
  },
  {
   "empId": "EM0033",
@@ -987,7 +1083,10 @@
   "score": 81,
   "baseSalary": 7500.0,
   "monthlySalary": 11273.06,
-  "bankCard": "6222****6959"
+  "bankCard": "6222****6959",
+  "emergencyContact": "马振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "17100004384"
  },
  {
   "empId": "EM0034",
@@ -1017,7 +1116,10 @@
   "score": 91,
   "baseSalary": 5200.0,
   "monthlySalary": 7278.27,
-  "bankCard": "6222****7053"
+  "bankCard": "6222****7053",
+  "emergencyContact": "朱海燕",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "18100004521"
  },
  {
   "empId": "EM0035",
@@ -1047,7 +1149,10 @@
   "score": 86,
   "baseSalary": 3200.0,
   "monthlySalary": 4446.59,
-  "bankCard": "6222****1785"
+  "bankCard": "6222****1785",
+  "emergencyContact": "胡玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "19100004658"
  },
  {
   "empId": "EM0036",
@@ -1077,7 +1182,10 @@
   "score": 84,
   "baseSalary": 7500.0,
   "monthlySalary": 8819.14,
-  "bankCard": "6222****6112"
+  "bankCard": "6222****6112",
+  "emergencyContact": "林晓东",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "13100004795"
  },
  {
   "empId": "EM0037",
@@ -1107,7 +1215,10 @@
   "score": 98,
   "baseSalary": 9000.0,
   "monthlySalary": 10627.95,
-  "bankCard": "6222****2752"
+  "bankCard": "6222****2752",
+  "emergencyContact": "郭玉兰",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "14100004932"
  },
  {
   "empId": "EM0038",
@@ -1137,7 +1248,10 @@
   "score": 81,
   "baseSalary": 3800.0,
   "monthlySalary": 4819.11,
-  "bankCard": "6222****6959"
+  "bankCard": "6222****6959",
+  "emergencyContact": "何志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "15100005069"
  },
  {
   "empId": "EM0039",
@@ -1167,7 +1281,10 @@
   "score": 79,
   "baseSalary": 3800.0,
   "monthlySalary": 5301.4,
-  "bankCard": "6222****4305"
+  "bankCard": "6222****4305",
+  "emergencyContact": "高建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "16100005206"
  },
  {
   "empId": "EM0040",
@@ -1197,7 +1314,10 @@
   "score": 92,
   "baseSalary": 3800.0,
   "monthlySalary": 5260.78,
-  "bankCard": "6222****4932"
+  "bankCard": "6222****4932",
+  "emergencyContact": "罗淑珍",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "17100005343"
  },
  {
   "empId": "EM0041",
@@ -1227,7 +1347,10 @@
   "score": 85,
   "baseSalary": 3200.0,
   "monthlySalary": 4617.4,
-  "bankCard": "6222****8684"
+  "bankCard": "6222****8684",
+  "emergencyContact": "王建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "18100005480"
  },
  {
   "empId": "EM0042",
@@ -1257,7 +1380,10 @@
   "score": 98,
   "baseSalary": 6000.0,
   "monthlySalary": 9170.16,
-  "bankCard": "6222****2818"
+  "bankCard": "6222****2818",
+  "emergencyContact": "李淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "19100005617"
  },
  {
   "empId": "EM0043",
@@ -1293,7 +1419,10 @@
   "score": 90,
   "baseSalary": 9000.0,
   "monthlySalary": 13209.29,
-  "bankCard": "6222****8752"
+  "bankCard": "6222****8752",
+  "emergencyContact": "张振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "13100005754"
  },
  {
   "empId": "EM0044",
@@ -1323,7 +1452,10 @@
   "score": 91,
   "baseSalary": 5200.0,
   "monthlySalary": 7038.06,
-  "bankCard": "6222****6085"
+  "bankCard": "6222****6085",
+  "emergencyContact": "刘晓东",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "14100005891"
  },
  {
   "empId": "EM0045",
@@ -1353,7 +1485,10 @@
   "score": 91,
   "baseSalary": 6000.0,
   "monthlySalary": 8028.13,
-  "bankCard": "6222****9190"
+  "bankCard": "6222****9190",
+  "emergencyContact": "陈玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "15100006028"
  },
  {
   "empId": "EM0046",
@@ -1383,7 +1518,10 @@
   "score": 97,
   "baseSalary": 7500.0,
   "monthlySalary": 8794.85,
-  "bankCard": "6222****1923"
+  "bankCard": "6222****1923",
+  "emergencyContact": "杨海燕",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "16100006165"
  },
  {
   "empId": "EM0047",
@@ -1419,7 +1557,10 @@
   "score": 83,
   "baseSalary": 9000.0,
   "monthlySalary": 13053.6,
-  "bankCard": "6222****6436"
+  "bankCard": "6222****6436",
+  "emergencyContact": "黄国强",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "17100006302"
  },
  {
   "empId": "EM0048",
@@ -1449,7 +1590,10 @@
   "score": 84,
   "baseSalary": 7500.0,
   "monthlySalary": 10070.19,
-  "bankCard": "6222****7092"
+  "bankCard": "6222****7092",
+  "emergencyContact": "赵志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "18100006439"
  },
  {
   "empId": "EM0049",
@@ -1479,7 +1623,10 @@
   "score": 84,
   "baseSalary": 4500.0,
   "monthlySalary": 5752.31,
-  "bankCard": "6222****4860"
+  "bankCard": "6222****4860",
+  "emergencyContact": "吴建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "19100006576"
  },
  {
   "empId": "EM0050",
@@ -1509,7 +1656,10 @@
   "score": 79,
   "baseSalary": 9000.0,
   "monthlySalary": 10828.38,
-  "bankCard": "6222****3600"
+  "bankCard": "6222****3600",
+  "emergencyContact": "周建军",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "13100006713"
  },
  {
   "empId": "EM0051",
@@ -1539,7 +1689,10 @@
   "score": 98,
   "baseSalary": 12000.0,
   "monthlySalary": 15462.6,
-  "bankCard": "6222****8221"
+  "bankCard": "6222****8221",
+  "emergencyContact": "徐秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "14100006850"
  },
  {
   "empId": "EM0052",
@@ -1569,7 +1722,10 @@
   "score": 92,
   "baseSalary": 3200.0,
   "monthlySalary": 4687.93,
-  "bankCard": "6222****4198"
+  "bankCard": "6222****4198",
+  "emergencyContact": "孙淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "15100006987"
  },
  {
   "empId": "EM0053",
@@ -1599,7 +1755,10 @@
   "score": 89,
   "baseSalary": 5200.0,
   "monthlySalary": 7667.21,
-  "bankCard": "6222****3004"
+  "bankCard": "6222****3004",
+  "emergencyContact": "马振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "16100007124"
  },
  {
   "empId": "EM0054",
@@ -1629,7 +1788,10 @@
   "score": 92,
   "baseSalary": 7500.0,
   "monthlySalary": 10047.96,
-  "bankCard": "6222****9514"
+  "bankCard": "6222****9514",
+  "emergencyContact": "朱海燕",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "17100007261"
  },
  {
   "empId": "EM0055",
@@ -1659,7 +1821,10 @@
   "score": 84,
   "baseSalary": 5200.0,
   "monthlySalary": 6814.55,
-  "bankCard": "6222****4790"
+  "bankCard": "6222****4790",
+  "emergencyContact": "胡玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "18100007398"
  },
  {
   "empId": "EM0056",
@@ -1689,7 +1854,10 @@
   "score": 94,
   "baseSalary": 7500.0,
   "monthlySalary": 11459.4,
-  "bankCard": "6222****8716"
+  "bankCard": "6222****8716",
+  "emergencyContact": "林晓东",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "19100007535"
  },
  {
   "empId": "EM0057",
@@ -1719,7 +1887,10 @@
   "score": 83,
   "baseSalary": 9000.0,
   "monthlySalary": 12302.07,
-  "bankCard": "6222****1037"
+  "bankCard": "6222****1037",
+  "emergencyContact": "郭玉兰",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "13100007672"
  },
  {
   "empId": "EM0058",
@@ -1749,7 +1920,10 @@
   "score": 98,
   "baseSalary": 4500.0,
   "monthlySalary": 5233.84,
-  "bankCard": "6222****7972"
+  "bankCard": "6222****7972",
+  "emergencyContact": "何志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "14100007809"
  },
  {
   "empId": "EM0059",
@@ -1779,7 +1953,10 @@
   "score": 93,
   "baseSalary": 7500.0,
   "monthlySalary": 8763.37,
-  "bankCard": "6222****6156"
+  "bankCard": "6222****6156",
+  "emergencyContact": "高建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "15100007946"
  },
  {
   "empId": "EM0060",
@@ -1809,7 +1986,10 @@
   "score": 76,
   "baseSalary": 7500.0,
   "monthlySalary": 11148.6,
-  "bankCard": "6222****8241"
+  "bankCard": "6222****8241",
+  "emergencyContact": "罗淑珍",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "16100008083"
  },
  {
   "empId": "EM0061",
@@ -1839,7 +2019,10 @@
   "score": 78,
   "baseSalary": 12000.0,
   "monthlySalary": 14557.57,
-  "bankCard": "6222****4746"
+  "bankCard": "6222****4746",
+  "emergencyContact": "王秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "17100008220"
  },
  {
   "empId": "EM0062",
@@ -1869,7 +2052,10 @@
   "score": 82,
   "baseSalary": 3800.0,
   "monthlySalary": 4688.57,
-  "bankCard": "6222****7153"
+  "bankCard": "6222****7153",
+  "emergencyContact": "李淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "18100008357"
  },
  {
   "empId": "EM0063",
@@ -1899,7 +2085,10 @@
   "score": 81,
   "baseSalary": 4500.0,
   "monthlySalary": 5816.75,
-  "bankCard": "6222****5322"
+  "bankCard": "6222****5322",
+  "emergencyContact": "张振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "19100008494"
  },
  {
   "empId": "EM0064",
@@ -1929,7 +2118,10 @@
   "score": 91,
   "baseSalary": 5200.0,
   "monthlySalary": 6847.97,
-  "bankCard": "6222****6456"
+  "bankCard": "6222****6456",
+  "emergencyContact": "刘海燕",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "13100008631"
  },
  {
   "empId": "EM0065",
@@ -1965,7 +2157,10 @@
   "score": 89,
   "baseSalary": 5200.0,
   "monthlySalary": 6693.37,
-  "bankCard": "6222****4478"
+  "bankCard": "6222****4478",
+  "emergencyContact": "陈玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "14100008768"
  },
  {
   "empId": "EM0066",
@@ -2001,7 +2196,10 @@
   "score": 73,
   "baseSalary": 3200.0,
   "monthlySalary": 4042.74,
-  "bankCard": "6222****9222"
+  "bankCard": "6222****9222",
+  "emergencyContact": "杨海燕",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "15100008905"
  },
  {
   "empId": "EM0067",
@@ -2037,7 +2235,10 @@
   "score": 72,
   "baseSalary": 12000.0,
   "monthlySalary": 16678.51,
-  "bankCard": "6222****7964"
+  "bankCard": "6222****7964",
+  "emergencyContact": "黄国强",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "16100009042"
  },
  {
   "empId": "EM0068",
@@ -2067,7 +2268,10 @@
   "score": 97,
   "baseSalary": 9000.0,
   "monthlySalary": 11793.26,
-  "bankCard": "6222****7061"
+  "bankCard": "6222****7061",
+  "emergencyContact": "赵志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "17100009179"
  },
  {
   "empId": "EM0069",
@@ -2097,7 +2301,10 @@
   "score": 74,
   "baseSalary": 5200.0,
   "monthlySalary": 6097.0,
-  "bankCard": "6222****2817"
+  "bankCard": "6222****2817",
+  "emergencyContact": "吴秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "18100009316"
  },
  {
   "empId": "EM0070",
@@ -2127,7 +2334,10 @@
   "score": 97,
   "baseSalary": 12000.0,
   "monthlySalary": 15825.07,
-  "bankCard": "6222****5260"
+  "bankCard": "6222****5260",
+  "emergencyContact": "周建军",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "19100009453"
  },
  {
   "empId": "EM0071",
@@ -2163,7 +2373,10 @@
   "score": 77,
   "baseSalary": 12000.0,
   "monthlySalary": 16768.43,
-  "bankCard": "6222****5913"
+  "bankCard": "6222****5913",
+  "emergencyContact": "徐建华",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "13100009590"
  },
  {
   "empId": "EM0072",
@@ -2199,7 +2412,10 @@
   "score": 79,
   "baseSalary": 5200.0,
   "monthlySalary": 7171.45,
-  "bankCard": "6222****7261"
+  "bankCard": "6222****7261",
+  "emergencyContact": "孙淑珍",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "14100009727"
  },
  {
   "empId": "EM0073",
@@ -2235,7 +2451,10 @@
   "score": 78,
   "baseSalary": 9000.0,
   "monthlySalary": 11580.63,
-  "bankCard": "6222****6970"
+  "bankCard": "6222****6970",
+  "emergencyContact": "马振华",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "15100009864"
  },
  {
   "empId": "EM0074",
@@ -2271,7 +2490,10 @@
   "score": 89,
   "baseSalary": 3200.0,
   "monthlySalary": 4789.69,
-  "bankCard": "6222****8851"
+  "bankCard": "6222****8851",
+  "emergencyContact": "朱晓东",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "16100010001"
  },
  {
   "empId": "EM0075",
@@ -2301,7 +2523,10 @@
   "score": 94,
   "baseSalary": 9000.0,
   "monthlySalary": 12637.93,
-  "bankCard": "6222****7101"
+  "bankCard": "6222****7101",
+  "emergencyContact": "胡玉兰",
+  "emergencyRelation": "母亲",
+  "emergencyPhone": "17100010138"
  },
  {
   "empId": "EM0076",
@@ -2337,7 +2562,10 @@
   "score": 81,
   "baseSalary": 5200.0,
   "monthlySalary": 7226.48,
-  "bankCard": "6222****1695"
+  "bankCard": "6222****1695",
+  "emergencyContact": "林晓东",
+  "emergencyRelation": "子女",
+  "emergencyPhone": "18100010275"
  },
  {
   "empId": "EM0077",
@@ -2373,7 +2601,10 @@
   "score": 98,
   "baseSalary": 5200.0,
   "monthlySalary": 7521.89,
-  "bankCard": "6222****1003"
+  "bankCard": "6222****1003",
+  "emergencyContact": "郭玉兰",
+  "emergencyRelation": "兄弟姐妹",
+  "emergencyPhone": "19100010412"
  },
  {
   "empId": "EM0078",
@@ -2409,7 +2640,10 @@
   "score": 96,
   "baseSalary": 5200.0,
   "monthlySalary": 7667.55,
-  "bankCard": "6222****2418"
+  "bankCard": "6222****2418",
+  "emergencyContact": "何志强",
+  "emergencyRelation": "父亲",
+  "emergencyPhone": "13100010549"
  },
  {
   "empId": "EM0079",
@@ -2439,7 +2673,10 @@
   "score": 96,
   "baseSalary": 5200.0,
   "monthlySalary": 6793.51,
-  "bankCard": "6222****4322"
+  "bankCard": "6222****4322",
+  "emergencyContact": "高秀英",
+  "emergencyRelation": "配偶",
+  "emergencyPhone": "14100010686"
  },
  {
   "empId": "EM0080",
@@ -2469,6 +2706,9 @@
   "score": 95,
   "baseSalary": 4500.0,
   "monthlySalary": 6927.2,
-  "bankCard": "6222****9493"
+  "bankCard": "6222****9493",
+  "emergencyContact": "罗淑珍",
+  "emergencyRelation": "其他",
+  "emergencyPhone": "15100010823"
  }
 ]

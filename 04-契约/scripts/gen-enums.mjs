@@ -28,6 +28,8 @@ const contracts = read('contracts.json')
 const notices = read('notices.json')
 const inspectTasks = read('inspectTasks.json')
 const qualityChecks = read('qualityChecks.json')
+/* 价目字典是手工维护的源文件，不在 mock/ 目录里（sync 时才拷进 03 原型） */
+const repairPrices = JSON.parse(fs.readFileSync(path.resolve(MOCK, '..', 'repairPrices.json'), 'utf8'))
 
 /** 枚举定义：name → { field, table, usedBy, note } */
 const DEFS = [
@@ -44,6 +46,16 @@ const DEFS = [
   { name: 'tenantVerify', table: tenants, field: 'verifyStatus', usedBy: ['Tenant.verifyStatus'], note: '待核验 / 已核验 / 信息不全' },
   { name: 'tenantSource', table: tenants, field: 'source', usedBy: ['Tenant.source'], note: '业主自助 / 物业补录' },
   { name: 'contractStatus', table: contracts, field: 'status', usedBy: ['Contract.status'] },
+  {
+    name: 'woPointsStatus', values: ['待结算', '已结算', '已作废'],
+    usedBy: ['WorkOrder.pointsStatus', 'LaborPointLedgerEntry.status'],
+    note: '工时积分结算状态。样例里全是「待结算」（绩效功能未开）；『已作废』= 同一张单重记后旧流水留下的痕迹'
+  },
+  {
+    name: 'contractIncomeCategory', table: contracts, field: 'incomeCategory',
+    usedBy: ['Contract.incomeCategory'],
+    note: '主营业务（物业费，不进多种经营）/ 多种经营（进商业合作收入，扣公共收益）/ 不计入（支出合同）'
+  },
   { name: 'noticeStatus', table: notices, field: 'status', usedBy: ['Notice.status'] },
   { name: 'tenantStatus', values: ['在住', '已搬离'], usedBy: ['Tenant.status'], note: '在住 / 已搬离；搬离后保留记录可回溯（seed 里全是「在住」，已搬离由操作产生）' },
   { name: 'inspectTaskType', table: inspectTasks, field: 'taskType', usedBy: ['InspectTask.taskType'], note: '执行 = 一线做；监督 = 部门经理查下属落地情况（问题必须指定责任员工）' },
@@ -59,7 +71,21 @@ const DEFS = [
   { name: 'agingBucket', values: ['未到期', '0-30天', '31-90天', '91-180天', '180天以上'], usedBy: ['ArrearsRow.aging'], note: '账龄按 statDate 与 dueDate 的天数差分档——所以报表必须落快照' },
   { name: 'reportPeriodType', values: ['日', '月', '年'], usedBy: ['ReportMeta.periodType', 'ReportRetentionType.periodType'], note: '对外中文、内部 day/month/year；混用会导致「找不到批次」' },
   /* 月结两态：反结不是删除，记录留着但期间解封 */
-  { name: 'monthCloseStatus', values: ['已结账', '已反结'], usedBy: ['MonthClose.status'], note: '已反结 = 期间解封、报表批次作废并回到试算，记录不删除' }
+  { name: 'monthCloseStatus', values: ['已结账', '已反结'], usedBy: ['MonthClose.status'], note: '已反结 = 期间解封、报表批次作废并回到试算，记录不删除' },
+  /* 工单两条维修线各一套分类维度（2026-11-02）：
+     商业服务按维修品类，公共区域按设施部位。混用会让「电梯异常」和「下水道堵塞」并列。 */
+  {
+    name: 'serviceCategory',
+    values: (repairPrices.serviceCategories || []).map(c => c.name),
+    usedBy: ['ServiceItem.category'],
+    note: '商业服务的项目分类（维修品类维度）：水管漏水 / 下水道堵塞 / 电路故障 …'
+  },
+  {
+    name: 'publicRepairCategory',
+    values: (repairPrices.publicCategories || []).filter(c => c.enabled).map(c => c.name),
+    usedBy: ['WorkOrder.category（type=公共区域维修）'],
+    note: '公共区域维修的分类（设施部位维度）：电梯 / 给排水 / 公区照明 / 配电 / 土建 / 门窗五金 / 公共设备 / 道闸门禁 / 环境其他'
+  }
 ]
 
 const enums = {}

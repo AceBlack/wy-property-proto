@@ -50,7 +50,8 @@
       <el-row :gutter="24">
         <el-col :span="8">
           <el-form-item label="合同金额" prop="amount">
-            <el-input v-model.number="form.amount" placeholder="请输入"><template #append>元</template></el-input>
+            <el-input v-model.number="form.amount" placeholder="整个合同期的总额"><template #append>元</template></el-input>
+            <div class="field-hint">期间总额，不是年额。年化按起止日期自动折算。</div>
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -65,7 +66,53 @@
             <el-input v-model.number="form.attachments" placeholder="选填"><template #append>份</template></el-input>
           </el-form-item>
         </el-col>
+
+        <!-- 收入归属：这决定这份合同算不算收入、算哪种收入 -->
+        <el-col :span="8">
+          <el-form-item label="收入分类" prop="incomeCategory">
+            <el-select v-model="form.incomeCategory" style="width:100%" @change="markIncomeTouched">
+              <el-option v-for="c in CONTRACT_INCOME_CATEGORIES" :key="c" :label="c" :value="c">
+                <span>{{ c }}</span>
+                <span class="opt-desc">{{ INCOME_HINT[c] }}</span>
+              </el-option>
+            </el-select>
+            <div class="field-hint">{{ INCOME_HINT[form.incomeCategory] || '按合同类型自动带出，可改' }}</div>
+          </el-form-item>
+        </el-col>
+        <el-col v-if="form.incomeCategory === '多种经营'" :span="8">
+          <el-form-item label="公共收益金额" prop="publicRevenue">
+            <el-input v-model.number="form.publicRevenue" placeholder="归业主的部分，可为 0">
+              <template #append>元</template>
+            </el-input>
+            <div class="field-hint">
+              合同里约定归全体业主的那部分（民法典 282 条）。物业实得 = 合同金额 − 公共收益。
+            </div>
+          </el-form-item>
+        </el-col>
+        <el-col v-else :span="8">
+          <el-form-item label="收入影响">
+            <div class="inc-preview is-muted">
+              {{ form.incomeCategory === '主营业务'
+                ? '计入主营业务收入（物业费口径），不进多种经营'
+                : '支出合同：只进成本，不计入任何收入口径' }}
+            </div>
+          </el-form-item>
+        </el-col>
       </el-row>
+
+      <!-- 年化预览：填完金额与日期就能看到「这份合同一年算多少收入」 -->
+      <div v-if="form.incomeCategory === '多种经营' && annualPreview" class="annual-card">
+        <div class="annual-card__row">
+          <span>期间</span><b>{{ annualPreview.months }} 个月</b>
+          <span>合同金额</span><b>¥ {{ money(form.amount) }}</b>
+          <span>公共收益</span><b>¥ {{ money(form.publicRevenue) }}</b>
+        </div>
+        <div class="annual-card__row is-main">
+          <span>年化商业合作收入</span>
+          <b>¥ {{ money(annualPreview.annual) }}</b>
+          <em>=({{ money(form.amount) }} − {{ money(form.publicRevenue) }}) ÷ {{ annualPreview.months }} × 12</em>
+        </div>
+      </div>
     </div>
 
     <div class="sec">
@@ -138,16 +185,25 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FormShell from '@/components/FormShell.vue'
 import { useForm } from '@/composables/useForm'
 import {
-  CONTRACT_CHANGE_TYPES, communityOpts, contractPayCycleOpts, contractSubtypeOpts, contractTypeOpts,
-  createContract, empOptions, getContractDetail, nextContractNo, orgOptions, submitContractChange
+  CONTRACT_CHANGE_TYPES, CONTRACT_INCOME_CATEGORIES, communityOpts, contractIncomeCheck, contractMonthsOf,
+  contractPayCycleOpts, contractSubtypeOpts, contractTypeOpts, createContract, defaultIncomeCategory,
+  empOptions, getContractDetail, nextContractNo, orgOptions, submitContractChange
 } from '@/api'
 import { amount, dateAfter, name, number, phone, reqSel } from '@/utils/rules'
+import { money } from '@/utils/format'
+
+/** 三个分类的"人话"解释，直接显示在下拉里 —— 光看字段名没人知道该选哪个 */
+const INCOME_HINT = {
+  主营业务: '物业费口径，不计入多种经营',
+  多种经营: '广告位 / 商铺 / 公共车位等经营性收入',
+  不计入: '采购 / 外包 / 劳动等支出合同'
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -157,7 +213,7 @@ const year = new Date().getFullYear()
 
 const EMPTY = {
   contractNo: nextContractNo(year), name: '', type: '', subtype: '', partyB: '', contact: '', phone: '',
-  amount: null, payCycle: '', attachments: 0,
+  amount: null, payCycle: '', attachments: 0, incomeCategory: '不计入', publicRevenue: 0,
   signDate: '', startDate: '', endDate: '',
   communityId: '', orgId: '', ownerEmpId: '', remark: '',
   changeType: '金额变更', changeReason: ''
@@ -171,6 +227,16 @@ const rules = {
   phone: phone('联系电话'),
   amount: amount('合同金额'),
   payCycle: reqSel('付款周期'),
+  incomeCategory: reqSel('收入分类', 'change'),
+  publicRevenue: [{
+    validator: (r, v, cb) => {
+      const bad = contractIncomeCheck({
+        amount: form.amount, incomeCategory: form.incomeCategory, publicRevenue: v
+      })
+      return bad ? cb(new Error(bad)) : cb()
+    },
+    trigger: ['blur', 'change']
+  }],
   // 附件是选填项，0 份也要能通过（原来用 intPositive 要求 ≥1，导致默认值直接被拦）
   attachments: number('附件数量', { min: 0, max: 99, precision: 0, required: false }),
   signDate: reqSel('签订日期', 'change'),
@@ -185,6 +251,27 @@ const rules = {
 
 const shell = ref()
 const loading = ref(false)
+
+/** 年化预览：金额 / 日期没填全就不显示，避免出现 ¥0 的假数 */
+const annualPreview = computed(() => {
+  const months = contractMonthsOf({ startDate: form.startDate, endDate: form.endDate })
+  const amt = Number(form.amount) || 0
+  if (!months || amt <= 0) return null
+  const pub = Math.min(Number(form.publicRevenue) || 0, amt)
+  return { months, annual: Math.round((amt - pub) / months * 12 * 100) / 100 }
+})
+
+/** 类型 / 子类变化时带出默认分类，但**不覆盖用户已经手改过的值** */
+let incomeTouched = false
+watch(() => [form.type, form.subtype], () => {
+  if (incomeTouched) return
+  form.incomeCategory = defaultIncomeCategory(form.type, form.subtype)
+  if (form.incomeCategory !== '多种经营') form.publicRevenue = 0
+})
+function markIncomeTouched() {
+  incomeTouched = true
+  if (form.incomeCategory !== '多种经营') form.publicRevenue = 0
+}
 const { saving, dirty, submit, markSaved, confirmLeave } = useForm(form, {
   formRef: () => shell.value?.formRef,
   onSave: async () => {
@@ -234,6 +321,8 @@ onMounted(async () => {
         contractNo: c.contractNo, name: c.name, type: c.type, subtype: c.subtype,
         partyB: c.partyB, contact: c.contact || '', phone: c.phone || '',
         amount: c.amount ?? null, payCycle: c.payCycle || '', attachments: c.attachments ?? 0,
+        incomeCategory: c.incomeCategory || defaultIncomeCategory(c.type, c.subtype),
+        publicRevenue: c.publicRevenue ?? 0,
         signDate: c.signDate || '', startDate: c.startDate || '', endDate: c.endDate || '',
         communityId: c.communityId || '', orgId: c.orgId || '', ownerEmpId: c.ownerEmpId || '',
         remark: c.remark || ''

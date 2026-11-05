@@ -150,6 +150,16 @@ if (child) child.kill('SIGTERM')
 const withTable = stats.filter(s => s.rows > 0).length
 const withKpi = stats.filter(s => s.ds > 0).length
 console.log(`渲染成功 ${stats.length - blanks.length}/${stats.length}｜有表格 ${withTable}｜有 KPI ${withKpi}`)
+/* 列表页突然 0 行，多半是筛选默认值变了或数据被改坏 —— 表单页 / 错误页本来就没有表格，排除掉 */
+/* 这些页面结构上就没有表格（工作台、申请表单、报表选择器、下载中心、导入向导、整页表单骨架） */
+const NO_TABLE = new Set(['/shell/form', '/shell/board', '/c/workbench', '/c/oa-apply', '/c/oa-mine',
+  '/e/reports', '/e/downloads', '/e/import',
+  /* 树形维护页：左树右表单，本来就没有表格 */
+  '/c/asset-categories'])
+const noRows = stats
+  .filter(s => s.rows === 0 && !/\/new$|\/edit$|^\/error\//.test(s.p) && !NO_TABLE.has(s.p))
+  .map(s => s.p)
+if (noRows.length) console.log(`无表格行的页面（${noRows.length}）：${noRows.join('、')}`)
 if (blanks.length) console.log('空页：', blanks)
 const uniqErr = [...new Set(errors)]
 if (uniqErr.length) console.log(`控制台错误 ${uniqErr.length} 条：\n  - ${uniqErr.slice(0, 12).join('\n  - ')}`)

@@ -5,15 +5,17 @@ import {
   alarms, approvals, attendance, bills, buildingStewards, buildings, collectionRecords, communities, contracts,
   decorationDeposits, devices, employees, feeItems, houses, inspectPlans, inspectTasks,
   inspectTemplates, invoices, maintenanceRecords, members, meterReadings, meters, metrics,
-  notices, operationLogs, orgs, owners, parkings, passRecords, payments, permissions,
+  notices, operationLogs, orgs, ownerTags, owners, parkings, passRecords, payments, permissions,
   prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders
 } from '@/mock'
-import { daysBetween, maskId, maskPhone } from '@/utils/format'
+import repairPrices from '@/mock/repairPrices.json'
+import { TODAY, daysBetween, maskId, maskPhone } from '@/utils/format'
 import { currentRoleId, currentRoleName } from '@/utils/auth'
 import { permCodesOfRole, setRolePerms } from '@/utils/rbac'
 import { idCardValid } from '@/utils/rules'
 import { DICT_MAP, dictMapRaw } from '@/utils/dict'
 import { ENUM } from '@/utils/enums'
+import { OA_FLOW_DEFS, OA_FORM_DEFS, oaFormOf } from '@/utils/oa'
 import { track } from '@/utils/track'
 
 /* ---------------- 房屋 / 业主 ---------------- */
@@ -66,6 +68,137 @@ export function ownerProfile(ownerId) {
       return { house: h, debt: debtOf(hb), maxOverdue: maxOverdue(hb), count: hb.filter(isDebt).length }
     })
   }
+}
+
+/* ---------------- 业主标签（字典 + 打标签） ----------------
+ * 两件事两个权限位，刻意分开：
+ *   · 打/去标签 → a.owners.edit（楼栋管家有，且受责任范围约束）
+ *   · 维护字典 → e.ownerTags.edit（楼管没有）—— 楼管能选不能改，正是需求要的效果
+ * 标签只存 tagIds：词条改名不用刷 682 条业主，停用一个词条也不会让历史标签变成孤儿。
+ */
+export const OWNER_TAG_PERM = 'e.ownerTags.edit'
+export const OWNER_TAG_DICT_PERM = 'e.ownerTags.view'
+export const canEditOwnerTags = () => _hasPerm(OWNER_TAG_PERM)
+export const canViewOwnerTagDict = () => _hasPerm(OWNER_TAG_DICT_PERM)
+
+/** 分类四档与配色：颜色只给页面用，不参与业务判断 */
+export const OWNER_TAG_CATEGORIES = ['关怀', '风险', '价值', '行为']
+export const OWNER_TAG_COLORS = ['red', 'orange', 'green', 'blue', 'cyan', 'gray']
+
+/** 每个词条当前被多少人用（实时统计，不信种子里的静态值——打完标签要立刻变） */
+const _tagUsage = () => {
+  const m = new Map()
+  for (const o of owners) for (const t of (o.tagIds || [])) m.set(t, (m.get(t) || 0) + 1)
+  return m
+}
+
+/** 字典列表。默认只回启用的——选择弹层要的是"能选的"，维护页才看全部 */
+export function ownerTagRows({ category = '', enabled = null, kw = '' } = {}) {
+  const use = _tagUsage()
+  return ownerTags
+    .filter(t => !category || t.category === category)
+    .filter(t => (enabled === null || enabled === '' ? true : t.enabled === enabled))
+    .filter(t => !kw || `${t.name}${t.desc}${t.tagId}`.includes(kw))
+    .slice()
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(t => ({ ...t, ownerCount: use.get(t.tagId) || 0 }))
+}
+
+export const ownerTagOf = tagId => {
+  const t = ownerTags.find(x => x.tagId === tagId)
+  if (!t) return null
+  return { ...t, ownerCount: _tagUsage().get(tagId) || 0 }
+}
+
+/** 某业主的标签（已按字典排序，含颜色/分类，页面直接渲染） */
+export function ownerTagsOf(owner) {
+  const ids = (owner && owner.tagIds) || []
+  return ids.map(ownerTagOf).filter(Boolean).sort((a, b) => (a.sort || 0) - (b.sort || 0))
+}
+
+export const ownerTagStats = () => {
+  const use = _tagUsage()
+  const used = ownerTags.filter(t => (use.get(t.tagId) || 0) > 0)
+  return {
+    total: ownerTags.length,
+    enabled: ownerTags.filter(t => t.enabled).length,
+    disabled: ownerTags.filter(t => !t.enabled).length,
+    used: used.length,
+    taggedOwners: owners.filter(o => (o.tagIds || []).length).length,
+    untaggedOwners: owners.filter(o => !(o.tagIds || []).length).length
+  }
+}
+
+/** 新增词条：名称全库唯一（含已停用的也算占用，否则会出现两个"重点关怀"） */
+export function createOwnerTag({ name = '', category = '关怀', color = 'blue', desc = '' } = {}) {
+  assertPerm(OWNER_TAG_PERM, '维护标签字典需要「业主标签字典」操作权限（e.ownerTags.edit）——楼管只能选不能改')
+  const n = String(name).trim()
+  if (n.length < 2) throw Object.assign(new Error('标签名称至少 2 个字'), { code: 42201 })
+  if (ownerTags.some(t => t.name === n)) throw Object.assign(new Error(`标签「${n}」已存在`), { code: 40902 })
+  if (!OWNER_TAG_CATEGORIES.includes(category)) throw Object.assign(new Error('分类非法'), { code: 42201 })
+  const seq = ownerTags.reduce((m, t) => Math.max(m, Number(String(t.tagId).replace(/\D/g, '')) || 0), 0) + 1
+  const rec = {
+    tagId: 'OT' + String(seq).padStart(2, '0'),
+    name: n, category, color, builtin: false, enabled: true,
+    sort: ownerTags.reduce((m, t) => Math.max(m, t.sort || 0), 0) + 1,
+    desc: String(desc).trim(), ownerCount: 0
+  }
+  ownerTags.push(rec)
+  return { ...rec }
+}
+
+/** 改词条：名称/分类/颜色/排序/说明/启停。**tagId 不可改**（业主表引用的是它） */
+export function updateOwnerTag(tagId, patch = {}) {
+  assertPerm(OWNER_TAG_PERM, '维护标签字典需要「业主标签字典」操作权限（e.ownerTags.edit）')
+  const t = ownerTags.find(x => x.tagId === tagId)
+  if (!t) throw Object.assign(new Error('标签不存在'), { code: 40401 })
+  const before = { ...t }
+  if (patch.name !== undefined) {
+    const n = String(patch.name).trim()
+    if (n.length < 2) throw Object.assign(new Error('标签名称至少 2 个字'), { code: 42201 })
+    if (ownerTags.some(x => x.tagId !== tagId && x.name === n)) {
+      throw Object.assign(new Error(`标签「${n}」已存在`), { code: 40902 })
+    }
+    t.name = n
+  }
+  if (patch.category !== undefined) {
+    if (!OWNER_TAG_CATEGORIES.includes(patch.category)) throw Object.assign(new Error('分类非法'), { code: 42201 })
+    t.category = patch.category
+  }
+  if (patch.color !== undefined) t.color = patch.color
+  if (patch.desc !== undefined) t.desc = String(patch.desc).trim()
+  if (patch.sort !== undefined) t.sort = Number(patch.sort) || 0
+  if (patch.enabled !== undefined) t.enabled = !!patch.enabled
+  const changed = Object.keys(patch).filter(k => patch[k] !== undefined && String(before[k]) !== String(t[k]))
+  return { tag: { ...t, ownerCount: _tagUsage().get(tagId) || 0 }, changed }
+}
+
+/** 给业主打标签：必须启用中、必须还没打（重复打不打补丁，直接说清"已经打过了"） */
+export function addOwnerTag(ownerId, tagId) {
+  assertPerm('a.owners.edit', '打标签属于业主资料维护（a.owners.edit）')
+  const o = owners.find(x => x.ownerId === ownerId)
+  if (!o) throw Object.assign(new Error('业主不存在'), { code: 40401 })
+  const t = ownerTags.find(x => x.tagId === tagId)
+  if (!t) throw Object.assign(new Error('标签不存在'), { code: 40401 })
+  if (!t.enabled) throw Object.assign(new Error(`标签「${t.name}」已停用，不能再打；已打过的不受影响`), { code: 40919 })
+  o.tagIds = o.tagIds || []
+  if (o.tagIds.includes(tagId)) throw Object.assign(new Error(`「${o.name}」已经有「${t.name}」标签`), { code: 40920 })
+  o.tagIds.push(tagId)
+  return { ownerId, tagIds: [...o.tagIds], tag: { ...t, ownerCount: _tagUsage().get(tagId) || 0 } }
+}
+
+/** 去掉标签：停用的标签也能去掉（不然挂错了就永远摘不掉） */
+export function removeOwnerTag(ownerId, tagId) {
+  assertPerm('a.owners.edit', '去标签属于业主资料维护（a.owners.edit）')
+  const o = owners.find(x => x.ownerId === ownerId)
+  if (!o) throw Object.assign(new Error('业主不存在'), { code: 40401 })
+  o.tagIds = o.tagIds || []
+  if (!o.tagIds.includes(tagId)) {
+    const t = ownerTags.find(x => x.tagId === tagId)
+    throw Object.assign(new Error(`「${o.name}」没有「${t ? t.name : tagId}」标签`), { code: 40409 })
+  }
+  o.tagIds = o.tagIds.filter(x => x !== tagId)
+  return { ownerId, tagIds: [...o.tagIds] }
 }
 
 /* ---------------- 费用 ---------------- */
@@ -219,9 +352,38 @@ export const buildingsOf = communityId =>
 export function distinct(list, key) {
   return [...new Set(list.map(x => x[key]).filter(v => v !== '' && v != null))]
 }
-export const houseUsageOpts = () => distinct(houses, 'usage')
+/**
+ * 房屋使用状态（2026-11-02 改）：按现场《房屋状态》看板统一成六态。
+ *
+ * 旧值是「自住 / 出租 / 空置 / 装修中 / 限制使用」——它把**居住关系**（自住/出租）
+ * 和**进度**（空置/装修中）混在一个字段里，所以两件事永远没法同时表达。
+ * 六态是"交付 → 装修 → 入住"一条线上的档位，居住关系改由 `tenantId` 派生（有租客 = 出租）。
+ *
+ * 「限制使用」不再单独成档：房子还在但没人正常住，归「空置房」。
+ * 顺序即页面展示顺序：先住在里面的，再在路上的，最后空着的。
+ */
+export const HOUSE_USE_STATUS = ['已入住', '装修未入住', '正在装修', '已交房未装修', '未交房', '空置房']
+/** 用途：公寓是 2026-11-02 新增（旧改公寓按住宅标准计费） */
+export const HOUSE_USAGE = ['住宅', '公寓', '商业']
+/**
+ * 交付状态（2026-11-02 收紧）：只有两档。
+ * 旧代码在房屋表单里写的是「已交付 / 未交付 / 待交付」，而数据与契约里只有「已交付 / 未交房」——
+ * 于是新建一套「未交付」的房子，`isDelivered` 判成已交付，当天就能计费。
+ * 这里收敛成常量，页面不再各写各的。
+ */
+export const HOUSE_DELIVER_STATUS = ['已交付', '未交房']
+/** 未交房不计费、不可出租 —— 这两个判断在好几处要用，别各写各的 */
+export const isDelivered = h => h?.useStatus !== '未交房' && h?.deliverStatus !== '未交房'
+/** 有人住：已入住（自住或出租都算） */
+export const isOccupied = h => h?.useStatus === '已入住'
+/** 可出租：装修完能住进去的两档；毛坯（已交房未装修）要租客自己装，不进"可出租"候选 */
+export const RENTABLE_STATUS = ['空置房', '装修未入住']
+
+export const houseUsageOpts = () => HOUSE_USAGE.slice()
+export const houseDeliverOpts = () => HOUSE_DELIVER_STATUS.slice()
 export const houseTypeOpts = () => distinct(houses, 'houseType')
-export const houseUseStatusOpts = () => distinct(houses, 'useStatus')
+/* 不是 distinct：某个状态当前 0 套时，筛选下拉里也得能选到（否则用户以为没这个状态） */
+export const houseUseStatusOpts = () => HOUSE_USE_STATUS.slice()
 export const ownerTypeOpts = () => distinct(owners, 'ownerType')
 export const creditLevelOpts = () => distinct(owners, 'creditLevel')
 /** 业主下拉（全量 682 条过筛太慢，原型只取前 N 条 + 关键字搜索走 queryOwners） */
@@ -369,6 +531,14 @@ export function saveHouse(payload = {}, houseId = '') {
   if (!/^\d{4}$/.test(room)) throw new Error('房号为 4 位数字')
   const b = buildings.find(x => x.buildingId === buildingId)
   if (!b) throw new Error('楼栋不存在')
+  /* 交付 × 使用 必须自洽：六态是「交付 → 装修 → 入住」一条线，跨档组合一定是填错了。
+     不拦的后果很实在——「未交房 + 已入住」的房子会立刻进入计费与出租候选。 */
+  const uStatus = payload.useStatus || '空置房'
+  const dStatus = payload.deliverStatus || '已交付'
+  if (!HOUSE_USE_STATUS.includes(uStatus)) throw new Error(`使用状态只能是 ${HOUSE_USE_STATUS.join(' / ')}`)
+  if (!HOUSE_DELIVER_STATUS.includes(dStatus)) throw new Error(`交付状态只能是 ${HOUSE_DELIVER_STATUS.join(' / ')}`)
+  if (dStatus === '未交房' && uStatus !== '未交房') throw new Error('交付状态为「未交房」时，使用状态只能是「未交房」')
+  if (uStatus === '未交房' && dStatus !== '未交房') throw new Error('使用状态「未交房」需同时把交付状态置为「未交房」')
   const uid = unitId || (houses.find(h => h.houseId === houseId) || {}).unitId || ''
   const newId = houseId || ('H' + String(communityId).slice(-2) + buildingId.slice(1, 3) + String(uid).slice(3, 4) + room)
   if (!houseId && houses.some(h => h.houseId === newId)) throw new Error('该房号已存在，请核对单元与房号')
@@ -592,12 +762,15 @@ export function queryOwners({ pageNo = 1, size = 20, filters = {} } = {}) {
       ownerInScope(o, 'units', filters.unitId) &&
       eq(o, filters.ownerType, 'ownerType') &&
       eq(o, filters.creditLevel, 'creditLevel') &&
+      /* 标签筛选必须在这里做：分页之后再筛，看到的永远是"本页里有这个标签的" */
+      (!filters.tagId || (o.tagIds || []).includes(filters.tagId)) &&
       (!vf || vf(o)) &&
       kwHit(o, filters.kw, ['name', 'phone', 'ownerId'], o.houseNames.join(' '))
     )
     const page = paged(list, pageNo, size)
-    /* 列表只回掩码：明文必须逐条揭示（会写访问日志），导出走 prepareExport 的脱敏分支 */
-    return { ...page, rows: redactList(page.rows) }
+    /* 列表只回掩码：明文必须逐条揭示（会写访问日志），导出走 prepareExport 的脱敏分支。
+       画像三项与手机/证件同一条规矩——它们在列表页也不给明文。 */
+    return { ...page, rows: redactList(page.rows, ['phone', 'idCard', 'economicLevel', 'politicalStatus', 'negativeNotes']) }
   })
 }
 
@@ -1243,8 +1416,9 @@ export function queryEmployees({ pageNo = 1, size = 20, filters = {} } = {}) {
       kwHit(e, filters.kw, ['name', 'phone', 'empNo'])
     )
     const page = paged(list, pageNo, size)
-    /* 员工手机 / 证件同属敏感：列表只回掩码，明文走揭示接口 */
-    return { ...page, rows: redactList(page.rows, ['phone', 'idCard']) }
+    /* 员工手机 / 证件 / 紧急联系电话同属敏感：列表只回掩码，明文走揭示接口。
+       紧急联系人电话也是个人号码，员工档案列表一次几十行，一样不能下发明文。 */
+    return { ...page, rows: redactList(page.rows, ['phone', 'idCard', 'emergencyPhone']) }
   })
 }
 
@@ -1512,6 +1686,7 @@ const WO_OPEN = ['待派单', '已派单', '处理中', '待确认']
 // nohouse 供「公共/非入户」分支复用；其余四个是工单管理视角
 const WO_VF = {
   nohouse: w => !w.houseId,
+  business: w => w.type === '商业服务',
   pending: w => w.status === '待派单',
   overdue: w => !!w.isOverdue,
   urgent: w => w.priority === '特急' || w.priority === '紧急',
@@ -1576,7 +1751,10 @@ export const woVirtualNodes = () => Object.entries(WO_VF)
   .filter(([key]) => key !== 'nohouse')
   .map(([key, hit]) => ({
     key,
-    label: { pending: '待派单', overdue: '已超时', urgent: '紧急及以上', open: '未闭环' }[key],
+    label: {
+      business: '商业服务（收费）',
+      pending: '待派单', overdue: '已超时', urgent: '紧急及以上', open: '未闭环'
+    }[key],
     n: WO_ROWS.filter(hit).length,
     patch: { vf: key, communityId: '', buildingId: '', unitId: '' }
   }))
@@ -2062,9 +2240,12 @@ const HOUSE_ROWS = houses.map(houseRow)
 
 /** 虚拟节点命中：与列表 total 同源（都基于 HOUSE_ROWS），避免树上的数字和列表对不上 */
 const HOUSE_VF = {
-  empty: h => h.useStatus === '空置',
+  /* 「空置」在业务口语里包含毛坯没人住，所以虚拟视图取三档之和；
+     顶部的「空置房」KPI 只数 useStatus === '空置房' 那一档，两个数不一样是正常的 */
+  empty: h => ['空置房', '已交房未装修', '装修未入住'].includes(h.useStatus),
   debt: h => h.debt > 0,
-  decorating: h => h.useStatus === '装修中',
+  decorating: h => h.useStatus === '正在装修',
+  undelivered: h => h.useStatus === '未交房',
   unlicensed: h => h.propertyStatus === '未办理' || h.propertyStatus === '办理中'
 }
 export const houseVirtualNodes = () =>
@@ -2093,12 +2274,26 @@ export function queryHouseLedger({ pageNo = 1, size = 20, filters = {} } = {}) {
 }
 export function houseLedgerSummary() {
   const use = s => HOUSE_ROWS.filter(h => h.useStatus === s).length
+  /* 六态逐档计数 + 两个组合口径：
+     · occupied —— 已入住（自住与出租都算；居住关系改看 tenantId）
+     · rent —— 已入住里挂了租客的
+     · emptyAll —— 业务口语里的"空置"：空置房 + 已交房未装修 + 装修未入住
+     · occupancyRate —— 入住率的分母是**已交付**房屋，未交房不算（还没到谈入住的时候） */
+  const delivered = HOUSE_ROWS.filter(isDelivered).length
+  const occupied = use('已入住')
   return {
     total: HOUSE_ROWS.length,
-    selfUse: use('自住'),
-    rent: use('出租'),
-    empty: use('空置'),
-    decorating: use('装修中'),
+    delivered,
+    undelivered: use('未交房'),
+    occupied,
+    selfUse: HOUSE_ROWS.filter(h => h.useStatus === '已入住' && !h.tenantId).length,
+    rent: HOUSE_ROWS.filter(h => h.useStatus === '已入住' && h.tenantId).length,
+    empty: use('空置房'),
+    emptyAll: ['空置房', '已交房未装修', '装修未入住'].reduce((s, k) => s + use(k), 0),
+    decorating: use('正在装修'),
+    renovating: use('装修未入住'),
+    deliveredRaw: use('已交房未装修'),
+    occupancyRate: delivered ? Math.round(occupied / delivered * 1000) / 10 : 0,
     debtHouses: HOUSE_ROWS.filter(h => h.debt > 0).length,
     byUsage: groupCount(houses, 'usage'),
     byUseStatus: groupCount(houses, 'useStatus')
@@ -2153,7 +2348,7 @@ export function houseTree() {
       b.children.push(u); b._map.set(h.unitId, u)
     }
     u.n++
-    if (h.useStatus === '空置') u.empty++
+    if (['空置房', '已交房未装修', '装修未入住'].includes(h.useStatus)) u.empty++
     if (h.debt > 0) u.debt++
   }
   const tidy = node => {
@@ -2192,7 +2387,7 @@ export function houseFloorStats(scope = {}) {
   for (const h of list) {
     const f = map.get(h.floor) || { floor: h.floor, n: 0, empty: 0, debt: 0 }
     f.n++
-    if (h.useStatus === '空置') f.empty++
+    if (['空置房', '已交房未装修', '装修未入住'].includes(h.useStatus)) f.empty++
     if (h.debt > 0) f.debt++
     map.set(h.floor, f)
   }
@@ -2495,21 +2690,67 @@ export function focusLocation(type, id) {
  * 字段口径：source（业主自助 / 物业补录）、verifyStatus（待核验 / 已核验 / 信息不全）、status（在住 / 已搬离）。
  */
 
-/** 物业视角的信息完整度：门禁与触达要用到的 8 项（租金不参与） */
-const TENANT_REQUIRED = [
+/**
+ * 租客类型（2026-11-02）：个人 / 公司。
+ *
+ * 为什么必须分两套字段而不是"公司名塞进姓名框"：
+ * 公司的身份凭证是统一社会信用代码，不是身份证；核验核的是营业执照，不是人脸；
+ * 门禁人脸录的是**经办人**，不是"公司"。混在一张表里，最后每列都在装两种东西。
+ */
+export const TENANT_TYPES = ['个人', '公司']
+export const BUSINESS_CATEGORIES = ['餐饮', '零售', '教育培训', '生活服务', '办公', '医疗健康', '其他']
+export const LEASE_PURPOSES = ['经营', '办公', '仓储', '宿舍']
+
+/* 统一社会信用代码（GB 32100-2015）：31 位字符集 + 加权校验。
+   字符集刻意去掉 I O S V Z —— 它们和 1 0 5 视觉上分不清，纸质执照上最容易抄错。 */
+const CC_CHARS = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+const CC_W = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+
+/** 信用代码校验：长度 / 字符集 / 校验位三步，任一步不过返回具体原因 */
+export function creditCodeCheck(code) {
+  const v = String(code || '').trim().toUpperCase()
+  if (!v) return '统一社会信用代码必填'
+  if (v.length !== 18) return '统一社会信用代码应为 18 位'
+  const bad = [...v].find(c => !CC_CHARS.includes(c))
+  if (bad) return `统一社会信用代码含非法字符「${bad}」（不含 I O S V Z）`
+  const sum = [...v.slice(0, 17)].reduce((acc, c, i) => acc + CC_CHARS.indexOf(c) * CC_W[i], 0)
+  const check = 31 - (sum % 31)
+  const expect = CC_CHARS[check === 31 ? 0 : check]
+  if (v[17] !== expect) return `统一社会信用代码校验位不对（应为 ${expect}）`
+  return ''
+}
+
+/** 个人：门禁与触达要用到的 8 项（租金不参与） */
+const TENANT_REQUIRED_PERSON = [
   ['name', '姓名'], ['phone', '手机号'], ['idCard', '证件号'],
   ['certified', '实名认证'], ['faceRegistered', '人脸录入'],
   ['relation', '与业主关系'], ['residents', '居住人数'], ['emergencyContact', '紧急联系人']
 ]
+/** 公司：主体资质 + 经办人（法定代表人电话用于紧急联络，经办人是日常对接人） */
+const TENANT_REQUIRED_COMPANY = [
+  ['companyName', '公司名称'], ['creditCode', '统一社会信用代码'],
+  ['legalPerson', '法定代表人'], ['legalPersonPhone', '法人电话'],
+  ['agentName', '经办人'], ['agentPhone', '经办人手机'],
+  ['businessCategory', '经营类目'], ['regAddress', '注册地址']
+]
 /** 物业可补充 / 修正的字段（其余为业主维护，后台只读） */
 export const TENANT_EDITABLE = [
+  /* 个人 */
   'name', 'phone', 'idCard', 'secondPhone', 'relation', 'residents',
-  'emergencyContact', 'vehicles', 'pets', 'specialCare', 'remark'
+  'emergencyContact', 'vehicles', 'pets', 'specialCare', 'remark',
+  /* 公司（2026-11-02） */
+  'companyName', 'creditCode', 'legalPerson', 'legalPersonPhone',
+  'agentName', 'agentPhone', 'agentIdCard', 'businessCategory',
+  'leasePurpose', 'regAddress', 'establishDate', 'employeeCount'
 ]
 export const TENANT_FIELD_LABEL = {
-  name: '姓名', phone: '手机号', idCard: '证件号', secondPhone: '第二联系电话',
+  name: '姓名 / 主体名称', phone: '手机号', idCard: '证件号', secondPhone: '第二联系电话',
   relation: '与业主关系', residents: '居住人数', emergencyContact: '紧急联系人',
-  vehicles: '车辆信息', pets: '养宠', specialCare: '特殊人群', remark: '备注'
+  vehicles: '车辆信息', pets: '养宠', specialCare: '特殊人群', remark: '备注',
+  companyName: '公司名称', creditCode: '统一社会信用代码', legalPerson: '法定代表人',
+  legalPersonPhone: '法人电话', agentName: '经办人', agentPhone: '经办人手机',
+  agentIdCard: '经办人证件', businessCategory: '经营类目', leasePurpose: '承租用途',
+  regAddress: '注册地址', establishDate: '成立日期', employeeCount: '员工人数'
 }
 /** 业主维护、物业只读的字段（涉及产权与合同，改动需业主在移动端操作） */
 export const TENANT_OWNER_FIELDS = [
@@ -2520,34 +2761,163 @@ export const TENANT_OWNER_FIELDS = [
 ]
 
 export const TENANT_VERIFY_STATUS = ['待核验', '已核验', '信息不全']
-export const TENANT_RELATIONS = ['承租人', '业主亲属', '业主朋友', '企业宿舍', '其他']
+/* 「企业承租」只给公司租户用：公司跟业主之间没有亲属/朋友关系，硬塞「其他」会丢信息 */
+export const TENANT_RELATIONS = ['承租人', '业主亲属', '业主朋友', '企业宿舍', '企业承租', '其他']
 export const TENANT_SPECIAL_CARE = ['老人', '儿童', '残障', '孕产']
 
 /**
  * 核验门槛（5 项）：物业能补、且确实影响"这套房住的是谁"的字段。
  * 实名 / 人脸属核验结果，不在此列；**紧急联系人降级为完整度项**——
  * 它不是身份核验的必要条件，卡在门槛里会让批量核验几乎全失败（实测 4/4 都被它挡住）。
+ *
+ * 公司另有一套门槛：公司名 + 信用代码 + 法人 + 经办人 + 经办人手机。
+ * 公司没有"与业主关系 / 居住人数"这些概念，拿个人那套去量，公司租户永远补不满。
  */
-const TENANT_BASIC = TENANT_REQUIRED.filter(([k]) => !['certified', 'faceRegistered', 'emergencyContact'].includes(k))
+const TENANT_BASIC_PERSON = TENANT_REQUIRED_PERSON
+  .filter(([k]) => !['certified', 'faceRegistered', 'emergencyContact'].includes(k))
+const TENANT_BASIC_COMPANY = ['companyName', 'creditCode', 'legalPerson', 'agentName', 'agentPhone']
 
-const _tenantFill = t => {
-  const miss = keys => keys.filter(([k]) => {
+/**
+ * 完整度计算：页面与列表必须调同一个函数。
+ * 之前抽屉里自己写了一套 8 项，api 里又一套 —— 两处阈值稍有不同就会出现
+ * 「列表说 62%、抽屉说 75%」这种没法解释的差。
+ */
+export const computeTenantFill = t => {
+  const isCo = (t?.tenantType || '个人') === '公司'
+  const req = isCo ? TENANT_REQUIRED_COMPANY : TENANT_REQUIRED_PERSON
+  const basicKeys = isCo ? TENANT_BASIC_COMPANY : TENANT_BASIC_PERSON.map(([k]) => k)
+  const empty = k => {
     const v = t[k]
     return (k === 'certified' || k === 'faceRegistered') ? !v : !String(v ?? '').trim()
-  }).map(([, label]) => label)
-  const missing = miss(TENANT_REQUIRED)
-  const missingBasic = miss(TENANT_BASIC)
-  const total = TENANT_REQUIRED.length
+  }
+  const missing = req.filter(([k]) => empty(k)).map(([, label]) => label)
+  const missingBasic = req.filter(([k]) => basicKeys.includes(k) && empty(k)).map(([, label]) => label)
+  const total = req.length
+  /* 核验前置：公司必须有营业执照影像件。单列，不进 8 项分母（见 TENANT_FILE_RULES 注释） */
+  const licenseRequired = isCo
+  const licenseCount = (t?.licenseFiles || []).length
   return {
     total,
     filled: total - missing.length,
     missing,
-    /* 核验门槛：只看 6 项基础信息 */
-    basicTotal: TENANT_BASIC.length,
-    basicFilled: TENANT_BASIC.length - missingBasic.length,
+    basicTotal: basicKeys.length,
+    basicFilled: basicKeys.length - missingBasic.length,
     missingBasic,
+    licenseRequired,
+    licenseCount,
+    licenseReady: !licenseRequired || licenseCount > 0,
     rate: Math.round((total - missing.length) / total * 1000) / 10
   }
+}
+const _tenantFill = t => computeTenantFill(t)
+
+/**
+ * 营业执照影像件（2026-11-02）：公司核验的**依据**，不是装饰。
+ *
+ * 为什么不放进「完整度 8 项」：完整度衡量的是"信息填全没有"，影像件是"能不能核验"。
+ * 混进去会同时改掉全部公司的完整度分母，列表人数、KPI、既有断言跟着漂，
+ * 而业务上它们本来就是两件事 —— 所以单列成核验前置。
+ */
+export const TENANT_FILE_RULES = {
+  maxCount: 3,
+  maxSizeMB: 5,
+  accept: 'image/jpeg,image/png,image/webp,application/pdf',
+  types: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  typeText: 'JPG / PNG / WEBP / PDF'
+}
+const TENANT_LICENSE_LABEL = '营业执照影像件'
+
+/** 影像件摘要：页面只读这里，不自己算 */
+export const licenseSummary = t => {
+  const files = t?.licenseFiles || []
+  return {
+    count: files.length,
+    required: (t?.tenantType || '个人') === '公司',
+    ready: (t?.tenantType || '个人') !== '公司' || files.length > 0,
+    maxCount: TENANT_FILE_RULES.maxCount,
+    text: files.length ? `${files.length} 张` : '未上传'
+  }
+}
+
+const _fileErr = msg => Object.assign(new Error(msg), { code: 42204 })
+
+/**
+ * 影像件校验（格式 / 大小 / 张数 / 重复）——**只校验不落库**。
+ * 为什么要单独拆出来：新登记的公司租户在表单里就要能选执照，
+ * 但那时 tenantId 还不存在，文件只能先挂在表单上，保存时随主体一次写入。
+ */
+export function checkTenantFile(file = {}, existing = []) {
+  const name = String(file.name || '').trim()
+  if (!name) return '文件名不能为空'
+  const type = String(file.type || '').toLowerCase()
+  if (!TENANT_FILE_RULES.types.includes(type)) {
+    return `只支持 ${TENANT_FILE_RULES.typeText}，当前文件是 ${type || '未知格式'}`
+  }
+  const size = Number(file.size) || 0
+  if (!size) return '文件是空的，请重新选择'
+  if (size > TENANT_FILE_RULES.maxSizeMB * 1024 * 1024) {
+    return `单张不能超过 ${TENANT_FILE_RULES.maxSizeMB} MB（当前 ${(size / 1024 / 1024).toFixed(1)} MB）`
+  }
+  const list = existing || []
+  if (list.length >= TENANT_FILE_RULES.maxCount) {
+    return `最多 ${TENANT_FILE_RULES.maxCount} 张（正本 / 副本 / 变更页足够），请先删掉一张`
+  }
+  if (list.some(f => f.name === name && Number(f.size) === size)) return '这张已经传过了'
+  return ''
+}
+
+/** 生成一条影像件元数据（不落库，供表单暂存与接口共用） */
+export function buildLicenseFile(file = {}, operator = '物业前台', seq = 1) {
+  return {
+    fileId: `LF${String(Date.now()).slice(-6)}${String(seq).padStart(2, '0')}`,
+    name: String(file.name || '').trim(),
+    size: Number(file.size) || 0,
+    type: String(file.type || '').toLowerCase(),
+    uploadedAt: _now(),
+    uploadedBy: operator
+  }
+}
+
+/**
+ * 登记一张影像件。
+ * 原型没有对象存储：这里只登记元数据（名称/大小/类型），预览由页面用 blob URL 自己生成，
+ * 刷新即还原 —— 但校验、留痕、核验前置三件事都按真接口的口径做，将来换实现只改这一个函数。
+ */
+export function addTenantLicenseFile(tenantId, file = {}, operator = '物业前台') {
+  const raw = tenants.find(x => x.tenantId === tenantId)
+  if (!raw) throw new Error('租户不存在')
+  if ((raw.status || '在住') !== '在住') throw new Error('已搬离的租户记录不可修改')
+  if ((raw.tenantType || '个人') !== '公司') throw new Error('只有公司租户需要营业执照影像件')
+  const files = raw.licenseFiles || []
+  const bad = checkTenantFile(file, files)
+  if (bad) throw _fileErr(bad)
+  const rec = buildLicenseFile(file, operator, files.length + 1)
+  raw.licenseFiles = [...files, rec]
+  raw.updatedBy = operator
+  raw.updatedAt = _now()
+  _pushTenantHistory(tenantId, {
+    action: '上传营业执照影像件', by: operator, at: rec.uploadedAt,
+    memo: `${rec.name}（${(rec.size / 1024 / 1024).toFixed(2)} MB）· 共 ${raw.licenseFiles.length} 张`, done: true
+  })
+  return { file: rec, files: [...raw.licenseFiles], row: _syncTenantRow(tenantId) }
+}
+
+/** 删除一张影像件：已核验的租户删到 0 张要说明后果（核验依据没了） */
+export function removeTenantLicenseFile(tenantId, fileId, operator = '物业前台') {
+  const raw = tenants.find(x => x.tenantId === tenantId)
+  if (!raw) throw new Error('租户不存在')
+  if ((raw.status || '在住') !== '在住') throw new Error('已搬离的租户记录不可修改')
+  const files = raw.licenseFiles || []
+  const hit = files.find(f => f.fileId === fileId)
+  if (!hit) throw new Error(TENANT_LICENSE_LABEL + '不存在或已被删除')
+  raw.licenseFiles = files.filter(f => f.fileId !== fileId)
+  raw.updatedBy = operator
+  raw.updatedAt = _now()
+  _pushTenantHistory(tenantId, {
+    action: '删除营业执照影像件', by: operator, at: raw.updatedAt,
+    memo: `${hit.name}${raw.licenseFiles.length ? '' : '（已无影像件，核验依据缺失）'}`, done: true
+  })
+  return { files: [...raw.licenseFiles], row: _syncTenantRow(tenantId) }
 }
 
 /** 运行期操作记录（原型不落库，刷新还原） */
@@ -2570,6 +2940,21 @@ function _tenantRow(t) {
     live: status === '在住',
     source: t.source || '业主自助',
     verifyStatus: t.verifyStatus || '待核验',
+    tenantType: t.tenantType || '个人',
+    /* 公司字段一律给空串，不要 undefined：模板里 `row.creditCode` 直接渲染会显示 undefined */
+    companyName: t.companyName || '',
+    creditCode: t.creditCode || '',
+    legalPerson: t.legalPerson || '',
+    legalPersonPhone: t.legalPersonPhone || '',
+    agentName: t.agentName || '',
+    agentPhone: t.agentPhone || '',
+    agentIdCard: t.agentIdCard || '',
+    businessCategory: t.businessCategory || '',
+    leasePurpose: t.leasePurpose || '',
+    regAddress: t.regAddress || '',
+    establishDate: t.establishDate || '',
+    employeeCount: t.employeeCount || 0,
+    licenseFiles: (t.licenseFiles || []).map(f => ({ ...f })),
     relation: t.relation || '承租人',
     residents: t.residents || 1,
     emergencyContact: t.emergencyContact || '',
@@ -2746,12 +3131,58 @@ export function tenantHistoryOf(tenantId) {
 }
 
 /** 物业补充 / 修正：保存即生效，逐字段留痕（谁在什么时候把什么从 X 改成 Y） */
+/** 手机号：11 位大陆号。空值不拦（选填字段），一旦填了就必须对 */
+const _phoneOk = v => !v || /^1[3-9]\d{9}$/.test(String(v).trim())
+
+/**
+ * 写前校验：只校验**这次真的在改**的字段。
+ * 全量校验会让历史数据里某个空字段卡住所有保存动作 —— 用户改个备注都存不了，
+ * 却被告知"公司名不能为空"，那是更难解释的问题。
+ */
+function _validateTenantPatch(raw, patch) {
+  const has = k => patch[k] !== undefined
+  const val = k => String(patch[k] ?? '').trim()
+  for (const k of ['phone', 'secondPhone', 'agentPhone', 'legalPersonPhone']) {
+    if (has(k) && !_phoneOk(val(k))) return `${TENANT_FIELD_LABEL[k]}应为 11 位手机号`
+  }
+  if (has('creditCode')) {
+    const err = creditCodeCheck(val('creditCode'))
+    if (err) return err
+  }
+  if (has('establishDate') && val('establishDate')) {
+    const v = val('establishDate')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return '成立日期格式应为 YYYY-MM-DD'
+    if (v > _now().slice(0, 10)) return '成立日期不能晚于今天'
+  }
+  if (has('businessCategory') && val('businessCategory')
+      && !BUSINESS_CATEGORIES.includes(val('businessCategory'))) {
+    return `经营类目只能是 ${BUSINESS_CATEGORIES.join(' / ')}`
+  }
+  if (has('leasePurpose') && val('leasePurpose') && !LEASE_PURPOSES.includes(val('leasePurpose'))) {
+    return `承租用途只能是 ${LEASE_PURPOSES.join(' / ')}`
+  }
+  if (has('employeeCount') && val('employeeCount')) {
+    const n = Number(val('employeeCount'))
+    if (!Number.isFinite(n) || n < 1 || n > 9999) return '员工人数应在 1–9999 之间'
+  }
+  if (has('companyName') && (raw.tenantType === '公司') && val('companyName').length < 2) {
+    return '公司名称至少 2 个字'
+  }
+  return ''
+}
+
 export function supplementTenant(tenantId, patch = {}, operator = '物业前台') {
   const raw = tenants.find(x => x.tenantId === tenantId)
   if (!raw) throw new Error('租户不存在')
   if ((raw.status || '在住') !== '在住') throw new Error('已搬离的租户记录不可修改')
   const keys = TENANT_EDITABLE.filter(k => k in patch)
   if (!keys.length) throw new Error('没有可保存的字段')
+  const invalid = _validateTenantPatch(raw, patch)
+  if (invalid) throw Object.assign(new Error(invalid), { code: 42201 })
+  /* 公司名是主体名称：改公司名必须同步 name，否则列表显示旧名、详情显示新名 */
+  if (keys.includes('companyName') && (raw.tenantType || '个人') === '公司') {
+    patch = { ...patch, name: patch.companyName }
+  }
   const changes = []
   for (const k of keys) {
     const next = patch[k]
@@ -2790,6 +3221,13 @@ export function verifyTenant(tenantId, { verifier = '物业前台', pass = true,
   const basic = _tenantFill(raw).missingBasic
   if (pass && basic.length) {
     throw new Error(`还有 ${basic.length} 项基础信息缺失（${basic.join('、')}），补全后再核验`)
+  }
+  /* 公司核的是营业执照，不是人脸：没有影像件就等于没看过原件 */
+  if (pass && (raw.tenantType || '个人') === '公司' && !(raw.licenseFiles || []).length) {
+    throw Object.assign(
+      new Error('公司租户核验前需先上传营业执照影像件（正本或副本）'),
+      { code: 42203 }
+    )
   }
   raw.verifyStatus = pass ? '已核验' : '信息不全'
   /* 核验通过 = 证件与在住情况已核对 → 实名认证成立（人脸另行录入） */
@@ -2852,16 +3290,168 @@ export function moveOutTenant(tenantId, { date = '', reason = '', operator = '�
   return _syncTenantRow(tenantId)
 }
 
+/**
+ * 换承租主体（2026-11-02）：个人 ↔ 公司。
+ *
+ * 为什么允许换，而不是"搬离后重新登记"：换主体在现实里真会发生（个体户注册成公司、
+ * 公司注销后由经办人个人续租）。重新登记会把同一段租约、同一条核验记录劈成两条，
+ * 追溯时"这套房到底谁住过"对不上。
+ *
+ * 但换主体有**代价**，一次做完，不留半截状态：
+ *   ① 撤销人脸：人脸属于自然人，公司主体没有脸；
+ *   ② 复位核验：换主体等于换证件，核过的证不再作数；
+ *   ③ 清空另一套字段：个人租户里躺着公司名，列表与报表都会算错；
+ *   ④ 迁移联系人：个人→公司把证件带进经办人；公司→个人把经办人带成承租人；
+ *   ⑤ 影像件清空：旧主体的执照不能当新主体的凭证。
+ */
+export const CHANGE_TYPE_REASONS = [
+  '个体户注册为公司，租约转由公司承继',
+  '公司注销，由原经办人个人续租',
+  '原登记主体类型填错，予以纠正',
+  '公司变更名称与主体，重新备案'
+]
+export function changeTenantType(tenantId, { toType, reason = '', operator = '物业前台', patch = {} } = {}) {
+  const raw = tenants.find(x => x.tenantId === tenantId)
+  if (!raw) throw new Error('租户不存在')
+  if ((raw.status || '在住') !== '在住') throw new Error('已搬离的租户不能换承租主体，请重新登记')
+  const from = raw.tenantType || '个人'
+  if (!TENANT_TYPES.includes(toType)) throw new Error('目标类型只能是「个人」或「公司」')
+  if (toType === from) throw Object.assign(new Error(`该租户已经是「${toType}」，无需转换`), { code: 40921 })
+  const why = String(reason || '').trim()
+  if (why.length < 4) {
+    throw new Error('换承租主体要写清原因（至少 4 个字）——这条记录将来要用来解释"为什么换过"')
+  }
+  const need = msg => Object.assign(new Error(msg), { code: 42203 })
+  const oldName = raw.name
+  let migrated = ''
+
+  if (toType === '公司') {
+    const companyName = String(patch.companyName ?? '').trim()
+    if (companyName.length < 2) throw need('换为公司要先把公司名称填上（至少 2 个字）')
+    const cc = String(patch.creditCode ?? '').trim().toUpperCase()
+    const ccErr = creditCodeCheck(cc)
+    if (ccErr) throw need(ccErr)
+    /* 迁移：原承租人的手机是这家公司的对外电话，证件是经办人证件（门禁人脸要落在人身上） */
+    const agentName = String(patch.agentName ?? raw.name ?? '').trim()
+    const agentPhone = String(patch.agentPhone ?? raw.phone ?? '').trim()
+    const carried = []
+    if (raw.idCard) { patch.agentIdCard = patch.agentIdCard || raw.idCard; carried.push('证件号→经办人证件') }
+    if (raw.phone) carried.push('手机→对外电话')
+    if (raw.name) carried.push('姓名→经办人')
+    Object.assign(raw, {
+      tenantType: '公司',
+      name: companyName, companyName, creditCode: cc,
+      phone: String(patch.phone ?? raw.phone ?? '').trim(),
+      idCard: '',
+      relation: '企业承租',
+      legalPerson: String(patch.legalPerson ?? '').trim(),
+      legalPersonPhone: String(patch.legalPersonPhone ?? '').trim(),
+      agentName, agentPhone,
+      agentIdCard: String(patch.agentIdCard ?? '').trim(),
+      businessCategory: patch.businessCategory ?? '',
+      leasePurpose: patch.leasePurpose ?? '',
+      regAddress: String(patch.regAddress ?? '').trim(),
+      establishDate: patch.establishDate ?? '',
+      employeeCount: Number(patch.employeeCount) || Number(raw.residents) || 1,
+      residents: Number(patch.employeeCount) || Number(raw.residents) || 1,
+      /* 表单里若已选好执照，随主体一起写入；没有就空着，核验会拦住 */
+      licenseFiles: _cleanLicenseFiles(patch.licenseFiles || [], operator)
+    })
+    migrated = carried.join('、')
+  } else {
+    const name = String(patch.name ?? raw.agentName ?? '').trim()
+    if (name.length < 2) throw need('换为个人要先把姓名填上（至少 2 个字）')
+    const phone = String(patch.phone ?? raw.agentPhone ?? raw.phone ?? '').trim()
+    if (!/^1[3-9]\d{9}$/.test(phone)) throw need('换为个人要留一个 11 位手机号，否则现场联系不上')
+    const idCard = String(patch.idCard ?? raw.agentIdCard ?? '').trim()
+    const carried = []
+    if (raw.agentName) carried.push('经办人→承租人')
+    if (raw.agentPhone) carried.push('经办人手机→联系手机')
+    if (raw.agentIdCard) carried.push('经办人证件→证件号')
+    Object.assign(raw, {
+      tenantType: '个人',
+      name, phone, idCard,
+      relation: patch.relation || '承租人',
+      residents: Number(patch.residents) || 1,
+      companyName: '', creditCode: '', legalPerson: '', legalPersonPhone: '',
+      agentName: '', agentPhone: '', agentIdCard: '',
+      businessCategory: '', leasePurpose: '', regAddress: '', establishDate: '',
+      employeeCount: 0,
+      licenseFiles: []
+    })
+    migrated = carried.join('、')
+  }
+
+  /* 换主体 = 换证件：人脸与核验都要重来 */
+  raw.faceRegistered = false
+  raw.certified = false
+  raw.verifyStatus = '待核验'
+  raw.verifiedBy = ''
+  raw.verifiedAt = ''
+  raw.typeChangedFrom = from
+  raw.typeChangeReason = why
+  raw.updatedBy = operator
+  raw.updatedAt = _now()
+  _pushTenantHistory(tenantId, {
+    action: '变更承租主体',
+    by: operator,
+    at: raw.updatedAt,
+    memo: `${from} → ${toType}（${oldName} → ${raw.name}）· 原因：${why}`
+      + ` · 已撤销人脸授权、核验状态复位为待核验`
+      + (migrated ? ` · 迁移：${migrated}` : ''),
+    done: true
+  })
+  return _syncTenantRow(tenantId)
+}
+
+/** 表单带上来的影像件：逐张复核（前端可以绕过，接口不能信） */function _cleanLicenseFiles(list, operator) {
+  const out = []
+  for (const f of list || []) {
+    const bad = checkTenantFile(f, out)
+    if (bad) throw Object.assign(new Error(bad), { code: 42204 })
+    out.push({
+      fileId: f.fileId || `LF${String(Date.now()).slice(-6)}${String(out.length + 1).padStart(2, '0')}`,
+      name: String(f.name || '').trim(),
+      size: Number(f.size) || 0,
+      type: String(f.type || '').toLowerCase(),
+      uploadedAt: f.uploadedAt || _now(),
+      uploadedBy: f.uploadedBy || operator
+    })
+  }
+  return out
+}
+
 /** 业主自助登记（原型取数用）：保存为「业主自助 + 待核验」，物业随后核验 */
 export function registerTenantByOwner(p = {}, operator = '业主小程序') {
   const house = HOUSE_ROWS.find(h => h.houseId === p.houseId)
   if (!house) throw new Error('请选择承租房屋')
   if (liveTenantOfHouse(p.houseId)) throw new Error('该房屋已有在住租户，请先标记原租户搬离')
-  /* 唯一：同证件号只允许一条在住记录（换房应先搬离）；手机号允许家属共用，故不做唯一 */
-  if (p.idCard) assertUnique(TENANT_ROWS.filter(t => t.live), 'idCard', p.idCard, { label: '证件号' })
+  if (!isDelivered(house)) throw new Error(`${house.fullName} 尚未交房，不能出租`)
+  const type = p.tenantType === '公司' ? '公司' : '个人'
+  /* 个人按证件号去重；公司按统一社会信用代码去重 —— 同一家公司通常只能有一条在住租约，
+     否则"这家公司租了几套房"要靠人肉数。确实有多套需求的，走一条租约 + 多房分摊。 */
+  if (type === '个人' && p.idCard) {
+    assertUnique(TENANT_ROWS.filter(t => t.live), 'idCard', p.idCard, { label: '证件号' })
+  }
+  if (type === '公司' && p.creditCode) {
+    const cc = creditCodeCheck(p.creditCode)
+    if (cc) throw Object.assign(new Error(cc), { code: 42201 })
+  }
+  if (type === '公司') {
+    for (const [k, label] of [['legalPerson', '法定代表人'], ['agentName', '经办人']]) {
+      if (!String(p[k] || '').trim()) throw Object.assign(new Error(`${label}必填`), { code: 42201 })
+    }
+    for (const [k, label] of [['legalPersonPhone', '法人电话'], ['agentPhone', '经办人手机']]) {
+      if (!_phoneOk(p[k])) throw Object.assign(new Error(`${label}应为 11 位手机号`), { code: 42201 })
+    }
+  }
   const id = nextId(tenants, 'TN', 'tenantId')
+  const isCo = type === '公司'
   const t = {
-    tenantId: id, name: p.name, phone: p.phone, idCard: p.idCard || '',
+    tenantId: id, tenantType: type,
+    /* 公司：name 就是公司名（列表主标题统一）；个人：就是姓名 */
+    name: isCo ? p.companyName : p.name,
+    phone: p.phone, idCard: isCo ? '' : (p.idCard || ''),
     houseId: p.houseId, ownerId: house.ownerId,
     leaseStart: p.leaseStart || '', leaseEnd: p.leaseEnd || '',
     /* 租金仅业主端可见，后台不展示；此处保留字段以维持数据结构 */
@@ -2869,13 +3459,28 @@ export function registerTenantByOwner(p = {}, operator = '业主小程序') {
     certified: !!p.certified, faceRegistered: !!p.faceRegistered,
     source: p.source || '业主自助',
     verifyStatus: '待核验',
-    relation: p.relation || '承租人',
+    relation: isCo ? '企业承租' : (p.relation || '承租人'),
     residents: Number(p.residents) || 1,
     status: '在住',
     updatedBy: operator, updatedAt: _now()
   }
+  if (isCo) {
+    Object.assign(t, {
+      companyName: p.companyName, creditCode: String(p.creditCode || '').trim().toUpperCase(),
+      legalPerson: p.legalPerson || '', legalPersonPhone: p.legalPersonPhone || '',
+      agentName: p.agentName || '', agentPhone: p.agentPhone || '', agentIdCard: p.agentIdCard || '',
+      businessCategory: p.businessCategory || '', leasePurpose: p.leasePurpose || '',
+      regAddress: p.regAddress || '', establishDate: p.establishDate || '',
+      employeeCount: Number(p.employeeCount) || Number(p.residents) || 1,
+      /* 营业执照影像件随主体一起登记：登记当场就能传，不用等保存完再进补充页 */
+      licenseFiles: _cleanLicenseFiles(p.licenseFiles, operator)
+    })
+  }
   tenants.unshift(t)
   house.tenantId = id
+  /* 租出去就是「已入住」：六态里没有"出租"这一档，居住关系看 tenantId */
+  const rawHouse = houses.find(h => h.houseId === house.houseId)
+  if (rawHouse) rawHouse.useStatus = '已入住'
   _pushTenantHistory(id, {
     action: p.source === '物业补录' ? '物业代业主登记' : '业主登记',
     by: operator, at: _now(),
@@ -2886,12 +3491,55 @@ export function registerTenantByOwner(p = {}, operator = '业主小程序') {
 
 /* ---------------- 30 · 合同管理 ---------------- */
 
-const CONTRACT_ROWS = contracts.map(c => ({
-  ...c,
-  communityName: c.communityId ? communityName(c.communityId) : '集团 / 全项目',
-  // 剩余天数：正数=还在履约，负数=已过期
-  restDays: daysBetween(c.endDate) === null ? null : -daysBetween(c.endDate)
-}))
+/**
+ * 合同期间月数。按 30.44 天/月折算（一年 365.25 ÷ 12），取整。
+ * 为什么不让页面自己算：合同列表、经营页、报表三处各算一份，月数差 1 个月就年化差 8%。
+ */
+export function contractMonthsOf(c = {}) {
+  const a = String(c.startDate || '').slice(0, 10)
+  const b = String(c.endDate || '').slice(0, 10)
+  if (!a || !b) return 0
+  const days = (new Date(b) - new Date(a)) / 86400000
+  if (!Number.isFinite(days) || days <= 0) return 0
+  return Math.max(1, Math.round(days / 30.44))
+}
+
+/**
+ * 年化的**商业合作收入** = (合同金额 − 公共收益) ÷ 期间月数 × 12。
+ *
+ * 三条硬约束都写在这里，不交给调用方判断：
+ *   ① 只有 `incomeCategory=多种经营` 才有值 —— 68 份支出合同算进收入会凭空多出 1074 万；
+ *   ② 公共收益按「归业主的部分」扣，方向与合同里的分成条款一致；
+ *   ③ 期间总额年化 —— 36 个月的合同不年化会让当年虚高 3 倍。
+ */
+export function annualRevenueOf(c = {}) {
+  if ((c.incomeCategory || '') !== '多种经营') return 0
+  const m = contractMonthsOf(c)
+  if (!m) return 0
+  const amount = Number(c.amount) || 0
+  const pub = Math.min(Number(c.publicRevenue) || 0, amount)
+  return Math.round((amount - pub) / m * 12 * 100) / 100
+}
+
+/** 合同行 + 派生字段。派生值只在读的时候算，写回不落库（落库就会和原始值打架） */
+function _contractRow(c) {
+  return {
+    ...c,
+    communityName: c.communityId ? communityName(c.communityId) : '集团 / 全项目',
+    // 剩余天数：正数=还在履约，负数=已过期
+    restDays: daysBetween(c.endDate) === null ? null : -daysBetween(c.endDate),
+    contractMonths: contractMonthsOf(c),
+    annualRevenue: annualRevenueOf(c),
+    annualPublicRevenue: (() => {
+      if ((c.incomeCategory || '') !== '多种经营') return 0
+      const m = contractMonthsOf(c)
+      if (!m) return 0
+      return Math.round(Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0) / m * 12 * 100) / 100
+    })()
+  }
+}
+const CONTRACT_ROWS = contracts.map(_contractRow)
+
 const CONTRACT_VF = {
   expiring: c => c.status === '即将到期',
   expired: c => c.status === '已到期',
@@ -2941,6 +3589,7 @@ export function queryContracts({ pageNo = 1, size = 20, filters = {} } = {}) {
       eq(c, filters.csub, 'subtype') &&
       eq(c, filters.communityId, 'communityId') &&
       eq(c, filters.status, 'status') &&
+      eq(c, filters.incomeCategory, 'incomeCategory') &&
       (!vf || vf(c)) &&
       kwHit(c, filters.kw, ['contractNo', 'name', 'partyB', 'contact', 'owner', 'subtype'])
     )
@@ -2949,15 +3598,38 @@ export function queryContracts({ pageNo = 1, size = 20, filters = {} } = {}) {
 }
 export function contractSummary() {
   const st = s => CONTRACT_ROWS.filter(c => c.status === s).length
+  const ops = CONTRACT_ROWS.filter(c => c.incomeCategory === '多种经营')
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
   return {
     total: CONTRACT_ROWS.length,
     amount: Math.round(CONTRACT_ROWS.reduce((s, c) => s + c.amount, 0)),
     running: st('履行中'),
     expiring: CONTRACT_ROWS.filter(CONTRACT_VF.expiring).length,
     expired: CONTRACT_ROWS.filter(CONTRACT_VF.expired).length,
-    pending: CONTRACT_ROWS.filter(CONTRACT_VF.pending).length
+    pending: CONTRACT_ROWS.filter(CONTRACT_VF.pending).length,
+    /* 经营口径：合同规模 ≠ 收入规模。这四项让「85 份 / 1567 万」不再被误读成收入 */
+    operationCount: ops.length,
+    operationAmount: r2(ops.reduce((s, c) => s + (c.annualRevenue || 0), 0)),
+    publicRevenue: r2(ops.reduce((s, c) => s + (c.annualPublicRevenue || 0), 0)),
+    expenseCount: CONTRACT_ROWS.filter(c => c.incomeCategory === '不计入').length,
+    mainCount: CONTRACT_ROWS.filter(c => c.incomeCategory === '主营业务').length
   }
 }
+/**
+ * 某份合同的审批单（倒序）。含新建审批与每次变更审批 —— 都用 bizId=contractId 挂，
+ * 靠 changeId 区分是哪一次变更。
+ */
+export const contractApprovalsOf = contractId =>
+  approvals
+    .filter(a => a.bizType === '合同审批' && a.bizId === contractId)
+    .slice()
+    .sort((a, b) => String(b.applyTime).localeCompare(String(a.applyTime)))
+
+/** 在途的那一张（列表显示「卡在哪个节点」用；已通过的历史单不占位） */
+export const contractApprovalOf = contractId =>
+  approvals.find(a => a.bizType === '合同审批' && a.bizId === contractId
+    && ['待审批', '审批中'].includes(a.status)) || null
+
 /** 合同详情：相对方可能是供应商 / 业主 / 员工（refType 决定展示哪一段） */
 export function getContractDetail(contractId) {
   return delay(() => {
@@ -2969,6 +3641,8 @@ export function getContractDetail(contractId) {
     else if (contract.refType === 'employee') ref = employees.find(e => e.empId === contract.refId)
     return {
       contract, ref,
+      /* 审批单：以前详情不返回它，于是「待审批的合同点进去看不到流程」，只能去待办中心翻 */
+      approvals: contractApprovalsOf(contractId),
       timeline: [
         { title: `签订 · ${contract.signDate}`, memo: `${contract.partyB} · 附件 ${contract.attachments} 份`, done: true },
         { title: `生效 · ${contract.startDate}`, memo: `合同金额 ¥${contract.amount} · ${contract.payCycle}`, done: d(contract.startDate) <= new Date() },
@@ -3440,6 +4114,9 @@ function _orgRowOf(o) {
   return {
     orgId: o.orgId, name: o.name, parentId: o.parentId || '', type: o.type,
     leader: o.leader || '', sort: o.sort || 0,
+    /* 负责人列表随组织行一起下发：组织树与维护表要能一次看到"谁是正职、谁在代理"，
+       再去逐个查是 N+1 次请求 */
+    leaders: leadersOf(o.orgId),
     headcount: ids ? EMP_ROWS.filter(e => ids.has(e.orgId)).length : 0,
     selfHeadcount: self.get(o.orgId) || 0
   }
@@ -3481,7 +4158,7 @@ function _refreshEmpOrgLabels() {
  * 新增组织（契约 `POST /orgs`）：只能建 部门 / 班组。
  * 集团与项目要伴随立项/设立一整套动作（合同、人员、账套），不是一个"新增组织"能建的。
  */
-export function createOrg({ name = '', type = '', parentId = '', leader = '', sort } = {}) {
+export function createOrg({ name = '', type = '', parentId = '', leader = '', leaderEmpId = '', sort } = {}) {
   const n = String(name).trim()
   if (n.length < 2) throw _orgErr('组织名称至少 2 个字', 42201)
   if (!['部门', '班组'].includes(type)) {
@@ -3507,6 +4184,8 @@ export function createOrg({ name = '', type = '', parentId = '', leader = '', so
   orgs.push(rec)
   ORG_OF.set(id, rec)
   DESC_CACHE.clear()
+  /* 负责人走关系表：建组织时顺手指定正职，避免"先建出来再去补负责人" */
+  if (leaderEmpId) saveOrgLeader({ orgId: id, empId: leaderEmpId, duty: '正职' })
   track('org_create', { orgId: id, type })
   return _orgRowOf(rec)
 }
@@ -3538,6 +4217,9 @@ export function updateOrg(orgId, { name, type, parentId, leader, sort } = {}) {
     }
     o.name = n
   }
+  /* leader 是遗留入参：负责人已经走关系表（/orgs/{id}/leaders），
+     这里只为兼容老调用方保留，页面不再传 —— 直接改这个字段会让组织树显示
+     与审批解析（读关系表）对不上。 */
   if (leader !== undefined) o.leader = String(leader)
   if (sort !== undefined) o.sort = Number(sort) || 0
   if (parentId !== undefined) o.parentId = parentId
@@ -3746,9 +4428,14 @@ export const stripPayFields = e => {
   return o
 }
 
+/** 紧急联系人：与本人关系。用枚举而不是自由文本 —— 真出事时"该找谁"靠这一栏判断 */
+export const EMPLOYEE_RELATION_OPTS = ['配偶', '父亲', '母亲', '子女', '兄弟姐妹', '其他']
+
 const EMP_EDITABLE_FIELDS = [
   'position', 'level', 'empType', 'status', 'contractStart', 'contractEnd',
-  'phone', 'idCard', 'socialSecurity', 'regularDate', 'score', 'certificates', 'manager'
+  'phone', 'idCard', 'socialSecurity', 'regularDate', 'score', 'certificates', 'manager',
+  /* 2026-11-04：紧急联系人与联系方式。员工档案缺这一项，出事先找不到人 —— 这项和薪资不同，越权风险低但漏了代价高 */
+  'emergencyContact', 'emergencyRelation', 'emergencyPhone'
 ]
 /** 明确拒绝，不静默忽略：静默忽略的结果是页面提示"保存成功"，实际什么都没改 */
 const EMP_READONLY_FIELDS = {
@@ -3774,6 +4461,19 @@ export function updateEmployeeProfile(empId, { patch = {}, ver, reason = '' } = 
     const dup = employees.find(x => x.empId !== empId && x.phone === String(patch.phone))
     if (dup) throw new Error(`手机号「${patch.phone}」已被 ${dup.empId} 占用`)
   }
+  /* 紧急联系人：格式与成对校验。
+     这两项填错等于没填 —— 真出事时打不通、或者打过去不知道该找谁。
+     人员档案里这一栏存在的唯一目的就是应急，所以不完整的值不落库。 */
+  const ecName = patch.emergencyContact !== undefined ? String(patch.emergencyContact).trim() : String(raw.emergencyContact || '').trim()
+  const ecPhone = patch.emergencyPhone !== undefined ? String(patch.emergencyPhone).trim() : String(raw.emergencyPhone || '').trim()
+  const ecRel = patch.emergencyRelation !== undefined ? String(patch.emergencyRelation).trim() : String(raw.emergencyRelation || '').trim()
+  if (ecPhone && !PHONE_RE.test(ecPhone)) throw new Error('紧急联系电话应为 11 位手机号')
+  if (ecRel && !EMPLOYEE_RELATION_OPTS.includes(ecRel)) {
+    throw new Error(`与本人关系只能是 ${EMPLOYEE_RELATION_OPTS.join(' / ')}`)
+  }
+  if (ecPhone && !ecName) throw new Error('填了紧急联系电话，请一并填写联系人姓名（只有号码等于找不到人）')
+  if (ecName && !ecPhone) throw new Error('填了紧急联系人，请一并填写联系电话')
+  if ((ecName || ecPhone) && !ecRel) throw new Error('请选择紧急联系人与本人的关系')
   const sensitive = ['phone', 'idCard'].filter(k => patch[k] !== undefined && String(patch[k]) !== String(raw[k]))
   if (sensitive.length && String(reason).trim().length < 4) {
     throw new Error(`修改${sensitive.map(k => (k === 'phone' ? '手机号' : '证件号')).join('、')}必须填写原因（至少 4 个字）`)
@@ -3905,11 +4605,12 @@ export const scopeVirtualNodes = () => {
    页面禁止 import '@/mock'，所有候选数据一律由本段提供 */
 
 /** 房屋下拉：label = 完整房号（项目 楼栋单元房号），value = houseId
- *  onlyVacant 用于租约「只选可出租房屋」（待确认：空置判定是否看 useStatus === '空置'） */
+ *  onlyVacant 用于租约「只选可出租房屋」：只有「空置房 / 装修未入住」算可出租 ——
+ *  未交房不能租、正在装修不能租、毛坯（已交房未装修）要租客自己装，也不进候选。 */
 export function houseOptions(n = 300, { onlyVacant = false, communityId = '' } = {}) {
   return houses
     .filter(h => (!communityId || h.communityId === communityId))
-    .filter(h => !onlyVacant || h.useStatus === '空置' || h.useStatus === '出租')
+    .filter(h => !onlyVacant || RENTABLE_STATUS.includes(h.useStatus))
     .slice(0, n)
     .map(h => ({
       houseId: h.houseId, label: h.fullName, room: h.room, buildingId: h.buildingId,
@@ -4001,6 +4702,257 @@ export function queryUnpaidHouses({ pageNo = 1, size = 20, filters = {} } = {}) 
 
 /* 汇总类报表把「聚合」与「取数」分开：聚合是同步的，合计行才能与列表同源 */
 
+/**
+ * 商业服务收入（工单口径）。
+ *
+ * 为什么单算而不是混进账单：账单是**应收制**（先出账再收钱），工单是**完工确认**——
+ * 服务没做完就不该有应收。所以只统计已完成（已完工 / 已评价 / 已关闭）的单，
+ * 金额取工单上的**快照**（字典改价不回溯），成本也取快照。
+ */
+const CS_DONE_STATUS = ['已完工', '已评价', '已关闭']
+export function commercialServiceRevenue(filters = {}) {
+  const m2 = n => Math.round((Number(n) || 0) * 100) / 100
+  let count = 0
+  let income = 0
+  let paid = 0
+  let cost = 0
+  for (const w of workOrders) {
+    if (w.type !== '商业服务') continue
+    if (!CS_DONE_STATUS.includes(w.status)) continue
+    if (filters.communityId && w.communityId !== filters.communityId) continue
+    count += 1
+    income += w.totalFee || 0
+    if (w.payStatus === '已支付' || w.payStatus === '已挂账') paid += w.totalFee || 0
+    cost += w.serviceCost || 0
+  }
+  return { count, income: m2(income), paid: m2(paid), unpaid: m2(income - paid), cost: m2(cost), profit: m2(income - cost) }
+}
+
+/* ---------------- 多种经营收入（2026-11-02） ----------------
+ * 公司收入结构里，「多种经营」是与「主营业务（物业费）」并列的一大类，由两个分项构成：
+ *
+ *   商业服务收入  ← 收费工单（完工确认制：服务没做完不产生收入）
+ *   商业合作收入  ← 经营性合同（年化：合同金额 − 归业主的公共收益）
+ *
+ * 两个分项的**时间口径不一样**，这是不能合并成一张明细表的原因：
+ * 工单看「完工那一刻」，合同看「合同期内每月摊多少」。硬凑一张表必然一半列空着。
+ */
+
+/** 合同是否在当年产生收入：草稿/待审批/待生效还没开始，已终止不再产生 */
+const COOP_COUNTED_STATUS = ['履行中', '即将到期', '已到期']
+/** 当年与合同期重叠的月数（0–12）。10 月签的 12 个月合同，当年只能计 3 个月 */
+export function yearCoverMonths(c = {}, year = Number(String(TODAY).slice(0, 4))) {
+  const ys = new Date(`${year}-01-01`)
+  const ye = new Date(`${year}-12-31`)
+  const s = new Date(String(c.startDate || '').slice(0, 10))
+  const e = new Date(String(c.endDate || '').slice(0, 10))
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return 0
+  const from = s > ys ? s : ys
+  const to = e < ye ? e : ye
+  if (to < from) return 0
+  const days = (to - from) / 86400000
+  return Math.min(12, Math.round(days / 30.44 * 10) / 10)
+}
+
+/**
+ * 商业合作收入（合同口径）。
+ * 计入金额 = 年化商业合作收入 × 当年覆盖月数 ÷ 12 —— 只算年化不乘覆盖比例，
+ * 10 月刚签的 12 个月合同会把整年收入记进今年。
+ */
+export function commercialCooperationRevenue(filters = {}) {
+  const year = filters.year || Number(String(TODAY).slice(0, 4))
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  let count = 0
+  let income = 0
+  let publicRevenue = 0
+  let annualTotal = 0
+  for (const c of CONTRACT_ROWS) {
+    if (c.incomeCategory !== '多种经营') continue
+    if (!COOP_COUNTED_STATUS.includes(c.status)) continue
+    if (filters.communityId && c.communityId !== filters.communityId) continue
+    const cover = yearCoverMonths(c, year)
+    if (!cover) continue
+    count += 1
+    annualTotal += c.annualRevenue || 0
+    income += (c.annualRevenue || 0) * cover / 12
+    publicRevenue += (c.annualPublicRevenue || 0) * cover / 12
+  }
+  return {
+    count,
+    income: r2(income),
+    publicRevenue: r2(publicRevenue),
+    annualTotal: r2(annualTotal)
+  }
+}
+
+/** 收入分项的统一形状：两个分项的字段不同，页面要能并排画 */
+export function multiRevenue(filters = {}) {
+  const cs = commercialServiceRevenue(filters)
+  const co = commercialCooperationRevenue(filters)
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const total = r2(cs.income + co.income)
+  return {
+    total,
+    service: { key: 'service', name: '商业服务收入', count: cs.count, income: cs.income, cost: cs.cost, profit: cs.profit },
+    cooperation: { key: 'cooperation', name: '商业合作收入', count: co.count, income: co.income, publicRevenue: co.publicRevenue, annualTotal: co.annualTotal },
+    /* 占比用于画饼与写"多种经营占公司收入 x%"——分母由 companyRevenue 给 */
+    share: { service: total ? Math.round(cs.income / total * 1000) / 10 : 0, cooperation: total ? Math.round(co.income / total * 1000) / 10 : 0 }
+  }
+}
+
+/**
+ * 月度趋势：两个分项各自按月聚合。
+ * 商业服务按**完工月**入账；商业合作按**合同期内每月摊**（annualRevenue ÷ 12），
+ * 所以同一份 3 年广告合同会在 36 个月里各出现一次，这才是"收入"而不是"签约额"。
+ */
+export function multiRevenueMonthly(filters = {}, months = 12) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const year = filters.year || Number(String(TODAY).slice(0, 4))
+  const buckets = []
+  for (let m = 1; m <= 12; m += 1) {
+    buckets.push({ month: `${m}月`, key: `${year}-${String(m).padStart(2, '0')}`, service: 0, cooperation: 0 })
+  }
+  const idx = new Map(buckets.map(b => [b.key, b]))
+
+  for (const w of workOrders) {
+    if (w.type !== '商业服务') continue
+    if (!CS_DONE_STATUS.includes(w.status)) continue
+    if (filters.communityId && w.communityId !== filters.communityId) continue
+    const t = String(w.finishTime || w.createTime || '')
+    const k = t.slice(0, 7)
+    const b = idx.get(k)
+    if (b) b.service += w.totalFee || 0
+  }
+
+  for (const c of CONTRACT_ROWS) {
+    if (c.incomeCategory !== '多种经营') continue
+    if (!COOP_COUNTED_STATUS.includes(c.status)) continue
+    if (filters.communityId && c.communityId !== filters.communityId) continue
+    /* 按「该月与合同期的重叠天数 ÷ 365」摊，而不是"这个月覆盖就记一整月" ——
+       后者在合同起止不在月初时会多算半个月，12 个月加起来与汇总对不上（实测差 3.5%） */
+    const s = new Date(String(c.startDate || '').slice(0, 10))
+    const e = new Date(String(c.endDate || '').slice(0, 10))
+    for (const b of buckets) {
+      const ms = new Date(`${b.key}-01`)
+      const me = new Date(`${b.key}-01`)
+      me.setMonth(me.getMonth() + 1)
+      me.setDate(0)                       // 当月最后一天
+      const from = s > ms ? s : ms
+      const to = e < me ? e : me
+      if (to < from) continue
+      const days = (to - from) / 86400000 + 1
+      b.cooperation += (c.annualRevenue || 0) * (days / 365)
+    }
+  }
+
+  return buckets
+    .map(b => ({ ...b, service: r2(b.service), cooperation: r2(b.cooperation), total: r2(b.service + b.cooperation) }))
+    .slice(-months)
+}
+
+/** 项目排行：按「项目」把两个分项加起来，一家项目一种柱子 */
+export function multiRevenueByProject(filters = {}) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const m = new Map()
+  const touch = id => {
+    const key = id || '__all__'
+    if (!m.has(key)) {
+      m.set(key, {
+        communityId: id || '',
+        communityName: id ? communityName(id) : '集团 / 全项目',
+        service: 0, cooperation: 0
+      })
+    }
+    return m.get(key)
+  }
+  for (const w of workOrders) {
+    if (w.type !== '商业服务') continue
+    if (!CS_DONE_STATUS.includes(w.status)) continue
+    if (filters.communityId && w.communityId !== filters.communityId) continue
+    touch(w.communityId).service += w.totalFee || 0
+  }
+  for (const c of CONTRACT_ROWS) {
+    if (c.incomeCategory !== '多种经营') continue
+    if (!COOP_COUNTED_STATUS.includes(c.status)) continue
+    if (filters.communityId && c.communityId !== filters.communityId) continue
+    const cover = yearCoverMonths(c, filters.year || Number(String(TODAY).slice(0, 4)))
+    if (!cover) continue
+    touch(c.communityId).cooperation += (c.annualRevenue || 0) * cover / 12
+  }
+  return [...m.values()]
+    .map(x => ({ ...x, service: r2(x.service), cooperation: r2(x.cooperation), total: r2(x.service + x.cooperation) }))
+    .sort((a, b) => b.total - a.total)
+}
+
+/** 商业服务明细（经营页下钻用）：只回已完工、参与收入计算的单 */
+export function multiRevenueServiceOrders(filters = {}) {
+  return workOrders
+    .filter(w => w.type === '商业服务')
+    .filter(w => CS_DONE_STATUS.includes(w.status))
+    .filter(w => !filters.communityId || w.communityId === filters.communityId)
+    .map(w => ({
+      woId: w.woId, woNo: w.woNo, title: w.title,
+      customer: w.ownerName || '—',
+      communityName: communityName(w.communityId),
+      serviceName: w.serviceName || w.category, category: w.category,
+      priceCode: w.priceCode || '',
+      finishTime: w.finishTime || '',
+      income: w.totalFee || 0,
+      cost: w.serviceCost || 0,
+      profit: Math.round(((w.totalFee || 0) - (w.serviceCost || 0)) * 100) / 100,
+      payStatus: w.payStatus || ''
+    }))
+    .sort((a, b) => String(b.finishTime).localeCompare(String(a.finishTime)))
+}
+
+/** 商业合作明细（经营页下钻用）：只回计入当年的经营合同 */
+export function multiRevenueContracts(filters = {}) {
+  const year = filters.year || Number(String(TODAY).slice(0, 4))
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  return CONTRACT_ROWS
+    .filter(c => c.incomeCategory === '多种经营')
+    .filter(c => COOP_COUNTED_STATUS.includes(c.status))
+    .filter(c => !filters.communityId || c.communityId === filters.communityId)
+    .map(c => {
+      const cover = yearCoverMonths(c, year)
+      return {
+        contractId: c.contractId, contractNo: c.contractNo, name: c.name,
+        type: c.type, subtype: c.subtype,
+        partyB: c.partyB, communityName: c.communityName,
+        amount: c.amount, publicRevenue: c.publicRevenue || 0,
+        publicRevenueNote: c.publicRevenueNote || '',
+        contractMonths: c.contractMonths,
+        annualRevenue: c.annualRevenue,
+        coverMonths: cover,
+        /* 计入当年的金额：年化 × 覆盖月数 / 12，跨年合同不会挤进签约当年 */
+        income: r2((c.annualRevenue || 0) * cover / 12),
+        startDate: c.startDate, endDate: c.endDate, status: c.status
+      }
+    })
+    .filter(x => x.coverMonths > 0)
+    .sort((a, b) => b.income - a.income)
+}
+
+/**
+ * 公司收入结构：主营业务（账单实收）+ 多种经营。
+ *
+ * 注意：商业服务的「生成服务账单」按钮目前是演示态，**没有真的写 BILLS**，
+ * 所以这里不会与账单口径重复计算。将来真接了账单，这一行必须改成"扣掉已入账部分"，
+ * 否则同一笔钱会在主营业务与多种经营里各出现一次。
+ */
+export function companyRevenue(filters = {}) {
+  const fee = feeSummary(filters.communityId || null)
+  const multi = multiRevenue(filters)
+  const main = Math.round((fee.received || 0) * 100) / 100
+  const total = Math.round((main + multi.total) * 100) / 100
+  return {
+    main,
+    multi: multi.total,
+    total,
+    multiRatio: total ? Math.round(multi.total / total * 1000) / 10 : 0
+  }
+}
+
 /** 营业报表：按「项目 × 科目」汇总应收 / 已收 / 未收与收缴率 */
 function businessRows(filters = {}) {
   const m = new Map()
@@ -4018,14 +4970,99 @@ function businessRows(filters = {}) {
     cur.unpaid += b.unpaid || 0
     m.set(key, cur)
   }
-  return [...m.values()]
+  const rows = [...m.values()]
     .map(x => ({ ...x, rate: x.payable > 0 ? Math.round((x.paid / x.payable) * 1000) / 10 : null }))
     .filter(x => kwHit(x, filters.kw, ['itemName', 'communityName']))
     .sort((a, b) => b.payable - a.payable)
+
+  /* 商业服务单独一行：它是工单收入，不是账单科目。
+     并入同一张报表是为了「物业全年收益」只有一处口径；但要能一眼看出它来自工单。 */
+  /* 多种经营三段：一个小计 + 两个分项（rowLevel 决定行样式）。
+     放在同一张报表而不是单开一页，是因为财务做月报时"收入合计"必须在同一张表里能加出来；
+     但两段的口径完全不同，所以必须能一眼从行层级看出来谁是谁的明细。 */
+  const cs = commercialServiceRevenue(filters)
+  const co = commercialCooperationRevenue(filters)
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const multiTotal = r2(cs.income + co.income)
+  const multiPaid = r2(cs.paid + co.income)          // 合同收入按履约确认，不产生"应收未收"
+  const cid = filters.communityId || ''
+  const cname = cid ? communityName(cid) : '全部项目'
+  if (multiTotal > 0 && kwHit({ itemName: '多种经营收入', communityName: cname }, filters.kw, ['itemName', 'communityName'])) {
+    rows.push({
+      key: 'MR|多种经营' + cid, communityId: cid, communityName: cname,
+      itemId: 'MR', itemName: '多种经营收入', rowLevel: 1, isMulti: true,
+      count: cs.count + co.count, payable: multiTotal, paid: multiPaid,
+      unpaid: r2(multiTotal - multiPaid),
+      rate: multiTotal > 0 ? Math.round((multiPaid / multiTotal) * 1000) / 10 : null,
+      cost: r2(cs.cost), profit: r2(cs.profit), publicRevenue: co.publicRevenue
+    })
+    rows.push({
+      key: 'MR|服务' + cid, communityId: cid, communityName: cname,
+      itemId: 'MR-S', itemName: '其中：商业服务', rowLevel: 2, isService: true,
+      count: cs.count, payable: cs.income, paid: cs.paid, unpaid: cs.unpaid,
+      rate: cs.income > 0 ? Math.round((cs.paid / cs.income) * 1000) / 10 : null,
+      cost: cs.cost, profit: cs.profit
+    })
+    rows.push({
+      key: 'MR|合作' + cid, communityId: cid, communityName: cname,
+      itemId: 'MR-C', itemName: '其中：商业合作', rowLevel: 2, isCoop: true,
+      count: co.count, payable: co.income, paid: co.income, unpaid: 0,
+      rate: co.income > 0 ? 100 : null,
+      cost: 0, profit: co.income, publicRevenue: co.publicRevenue
+    })
+  }
+  return rows
 }
 export function queryBusiness({ pageNo = 1, size = 20, filters = {} } = {}) {
   return delay(() => paged(businessRows(filters), pageNo, size))
 }
+
+/**
+ * 多种经营收入表：按「项目 × 分项」铺平，一行一个分项。
+ *
+ * 为什么不做成"项目一行、两个分项两列"：分项的口径字段不一样
+ * （商业服务有成本毛利、商业合作有公共收益），合并成列会有一半格子空着，
+ * 而且以后加第三个分项（比如场地临时租赁）就要改表结构。
+ */
+export function multiRevenueReportRows(filters = {}) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const total = multiRevenue(filters).total
+  const rows = []
+  for (const p of multiRevenueByProject(filters)) {
+    if (p.service === 0 && p.cooperation === 0) continue
+    if (!kwHit(p, filters.kw, ['communityName'])) continue
+    if (p.service > 0) {
+      const list = multiRevenueServiceOrders({ communityId: p.communityId })
+      const cost = r2(list.reduce((s, x) => s + x.cost, 0))
+      rows.push({
+        key: `${p.communityId}|service`,
+        communityId: p.communityId, communityName: p.communityName,
+        itemName: '商业服务', count: list.length,
+        income: p.service, publicRevenue: 0, cost, profit: r2(p.service - cost),
+        share: total ? Math.round(p.service / total * 1000) / 10 : 0
+      })
+    }
+    if (p.cooperation > 0) {
+      const list = multiRevenueContracts({ communityId: p.communityId, year: filters.year })
+      rows.push({
+        key: `${p.communityId}|coop`,
+        communityId: p.communityId, communityName: p.communityName,
+        itemName: '商业合作', count: list.length,
+        income: p.cooperation,
+        publicRevenue: r2(list.reduce((s, x) => s + x.publicRevenue / (x.contractMonths || 1) * 12 * (x.coverMonths / 12), 0)),
+        /* 合同没有成本字段：毛利一列对商业合作不成立，给 0 并在报表 note 里写清 */
+        cost: 0, profit: p.cooperation,
+        share: total ? Math.round(p.cooperation / total * 1000) / 10 : 0
+      })
+    }
+  }
+  return rows.sort((a, b) => b.income - a.income)
+}
+
+export function queryMultiRevenueReport({ pageNo = 1, size = 20, filters = {} } = {}) {
+  return delay(() => paged(multiRevenueReportRows(filters), pageNo, size))
+}
+
 
 /** 报修汇总：按「项目 × 工单类型」汇总数量、完工量、超时量与平均时长 */
 function repairRows(filters = {}) {
@@ -4035,16 +5072,28 @@ function repairRows(filters = {}) {
     const key = `${w.communityId}|${w.type}`
     const cur = m.get(key) || {
       key, communityId: w.communityId, communityName: communityName(w.communityId),
-      type: w.type, count: 0, done: 0, overdue: 0, hours: 0, hourBase: 0
+      type: w.type, count: 0, done: 0, overdue: 0, hours: 0, hourBase: 0,
+      income: 0, cost: 0
     }
     cur.count++
     if (['已完成', '已评价'].includes(w.status)) cur.done++
     if (w.isOverdue) cur.overdue++
     if (w.durationHours) { cur.hours += w.durationHours; cur.hourBase++ }
+    /* 商业服务才产生收入；公共区域维修免费（成本走运营），这里不计收入 */
+    if (w.type === '商业服务' && CS_DONE_STATUS.includes(w.status)) {
+      cur.income += w.totalFee || 0
+      cur.cost += w.serviceCost || 0
+    }
     m.set(key, cur)
   }
   return [...m.values()]
-    .map(x => ({ ...x, avgHours: x.hourBase ? Math.round((x.hours / x.hourBase) * 10) / 10 : null }))
+    .map(x => ({
+      ...x,
+      avgHours: x.hourBase ? Math.round((x.hours / x.hourBase) * 10) / 10 : null,
+      income: Math.round(x.income * 100) / 100,
+      cost: Math.round(x.cost * 100) / 100,
+      profit: Math.round((x.income - x.cost) * 100) / 100
+    }))
     .filter(x => kwHit(x, filters.kw, ['type', 'communityName']))
     .sort((a, b) => b.count - a.count)
 }
@@ -4138,14 +5187,11 @@ export function reportSummary(code, filters = {}) {
     const s = depositSummary(filters)
     return { count: s.count, payable: s.payable, paid: s.paid, unpaid: s.unpaid, deduct: s.deduct }
   }
-  if (code === 'business') {
-    const list = businessRows(filters)
-    return {
-      count: list.length,
-      payable: list.reduce((s, x) => s + x.payable, 0),
-      paid: list.reduce((s, x) => s + x.paid, 0),
-      unpaid: list.reduce((s, x) => s + x.unpaid, 0)
-    }
+  if (code === 'multi-revenue') {
+    const list = multiRevenueReportRows(filters)
+    const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+    const sum = k => r2(list.reduce((s2, x) => s2 + (x[k] || 0), 0))
+    return { count: list.length, income: sum('income'), publicRevenue: sum('publicRevenue'), profit: sum('profit') }
   }
   if (code === 'inspect') {
     const s = inspectReportSummary(filters)
@@ -4181,13 +5227,31 @@ export function reportSummary(code, filters = {}) {
       deduct: s.crossMissed
     }
   }
+  if (code === 'business') {
+    const list = businessRows(filters)
+    const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+    const sum = k => r2(list.reduce((s2, x) => s2 + (x[k] || 0), 0))
+    return {
+      count: list.reduce((s2, x) => s2 + (x.count || 0), 0),
+      payable: sum('payable'), paid: sum('paid'), unpaid: sum('unpaid'),
+      /* 单独给一项：多种经营收入是"公司收入结构"里的一类，合计行里要能单独读出来 */
+      multiRevenue: r2(list.filter(x => x.isMulti).reduce((s2, x) => s2 + (x.payable || 0), 0)),
+      serviceRevenue: r2(list.filter(x => x.isService).reduce((s2, x) => s2 + (x.payable || 0), 0)),
+      coopRevenue: r2(list.filter(x => x.isCoop).reduce((s2, x) => s2 + (x.payable || 0), 0))
+    }
+  }
   if (code === 'repair-summary') {
     const list = repairRows(filters)
+    const m2 = n => Math.round((Number(n) || 0) * 100) / 100
     return {
       count: list.reduce((s, x) => s + x.count, 0),
-      payable: list.reduce((s, x) => s + x.done, 0),      // 复用字段位：done
+      payable: list.reduce((s, x) => s + x.done, 0),      // 复用字段位：done（旧口径，保留兼容）
       paid: list.reduce((s, x) => s + x.overdue, 0),      // 复用字段位：overdue
-      unpaid: 0
+      unpaid: 0,
+      /* 商业服务收入三项：只出现在「商业服务」这一行，其余类型为 0 */
+      income: m2(list.reduce((s, x) => s + (x.income || 0), 0)),
+      cost: m2(list.reduce((s, x) => s + (x.cost || 0), 0)),
+      profit: m2(list.reduce((s, x) => s + (x.profit || 0), 0))
     }
   }
   return { count: 0, payable: 0, paid: 0, unpaid: 0 }
@@ -4218,16 +5282,493 @@ const _now = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+/* ---------------- 商业服务项目（字典 · 2026-11-02） ----------------
+ * 为什么要这一层：以前「入户维修」既是工单类型、又靠工单数据 distinct 出分类，价格另存在
+ * repairPrices.json 里只能手工改 —— 三处口径靠人记。现在收成一张可维护的字典：
+ *
+ *   ① 类型只留两条维修线：公共区域维修（免费）/ 商业服务（收费）；
+ *   ② **两套分类维度不混用**：公共按「设施部位」（电梯、给排水、土建…），
+ *      商业服务按「维修品类」（水管漏水、空调不制冷…）。混用的后果是「电梯异常」和
+ *      「下水道堵塞」并列在同一个下拉里 —— 一个是位置，一个是工种，根本不是一个维度；
+ *   ③ 项目带 服务价格（材料+人工）与 成本价（材料成本+人工成本），改价留痕，
+ *      **已完工工单按快照不回溯**（价格是下的那一刻的价，不是今天改的价）。
+ *
+ * 字段只增不改：`code / material / labor / unit / minutes` 被业主端小程序与员工端 APP
+ * 按名索引（@pc/mock/repairPrices.json），改名会直接断链，三处金额一致就破了。
+ */
+export const SERVICE_ITEM_PERM_VIEW = 'f.serviceItems.view'
+export const SERVICE_ITEM_PERM_EDIT = 'f.serviceItems.edit'
+export const canViewServiceItems = () => _hasPerm(SERVICE_ITEM_PERM_VIEW)
+export const canEditServiceItems = () => _hasPerm(SERVICE_ITEM_PERM_EDIT)
+
+/* 多种经营收入：收入结构比收缴数据更敏感 —— 收银员看收缴就够了，不必看经营毛利 */
+export const canViewMultiRevenue = () => _hasPerm('b.multiRevenue.view')
+/* 审批流配置改的是全公司规则（谁审、几级、金额阈值），不是普通业务操作 */
+export const canViewOaFlow = () => _hasPerm('e.oaFlow.view')
+export const canEditOaFlow = () => _hasPerm('e.oaFlow.edit')
+/* 工时积分：会记的人（工程主管/项目经理）与只会看的人（客服）分开 */
+export const canViewLaborPoints = () => _hasPerm('f.woPoints.view')
+export const canEditLaborPoints = () => _hasPerm('f.woPoints.edit')
+
+/** 工单类型：只有前两条是维修线（产生费用），其余三条不产生费用 */
+export const WO_TYPES = ['公共区域维修', '商业服务', '投诉建议', '咨询', '报事', '其他']
+/** 维修线类型（表单要按它切字段组） */
+export const WO_REPAIR_TYPES = ['公共区域维修', '商业服务']
+export const isEmptyWoType = t => !WO_REPAIR_TYPES.includes(t)
+
+/** 公共区域维修的分类：设施部位维度。内置 9 项，可停用排序，不开放新增（新增部位要评审） */
+const PUBLIC_CATS = (repairPrices.publicCategories || []).map(c => ({ ...c }))
+export const publicCategoryOpts = () =>
+  PUBLIC_CATS.filter(c => c.enabled).sort((a, b) => a.sort - b.sort)
+    .map(c => ({ value: c.name, label: c.name, desc: c.desc }))
+export const PUBLIC_CATEGORY_NAMES = PUBLIC_CATS.map(c => c.name)
+
+/** 商业服务分类与项目（内存态：改价/启停当次会话生效，刷新还原） */
+const SERVICE_CATS = (repairPrices.serviceCategories || []).map(c => ({ ...c }))
+const SERVICE_ITEMS = (repairPrices.items || []).map(i => ({ ...i }))
+const SERVICE_ADDONS = (repairPrices.addons || []).map(i => ({ ...i }))
+const SERVICE_LOG = new Map()
+/** 维修师傅小时成本：改这一项只影响新算的成本，不动对外报价 */
+export const LABOR_HOUR_COST = Number(repairPrices.laborHourCost) || 48
+
+export const serviceCategoryRows = ({ enabled = null } = {}) =>
+  SERVICE_CATS
+    .filter(c => enabled === null || c.enabled === enabled)
+    .sort((a, b) => a.sort - b.sort)
+    .map(c => ({ ...c, itemCount: SERVICE_ITEMS.filter(i => i.category === c.name).length }))
+
+/** 终态之外的工单都算在途：停用项目前要先确认没人在等这一单 */
+const WO_CLOSED_STATUS = ['已完工', '已评价', '已关闭', '已取消']
+const _isInFlight = w => !WO_CLOSED_STATUS.includes(w.status)
+
+/** 项目引用与收入：收入只算已结清的单（已支付 / 已挂账），未支付算在途 */
+const _itemUsage = () => {
+  const m = new Map()
+  for (const w of workOrders) {
+    const code = w.priceCode
+    if (!code) continue
+    const cur = m.get(code) || { count: 0, inFlight: 0, paid: 0, income: 0, cost: 0 }
+    cur.count += 1
+    if (_isInFlight(w)) cur.inFlight += 1
+    const settled = w.payStatus === '已支付' || w.payStatus === '已挂账'
+    if (settled) {
+      cur.paid += 1
+      cur.income += (w.totalFee || 0)
+    }
+    m.set(code, cur)
+  }
+  return m
+}
+
+const _svcR2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+/** 服务项目行：成本与毛利是派生值，页面不自己算 */
+function _serviceRow(it, usage) {
+  const u = usage.get(it.code) || { count: 0, inFlight: 0, income: 0 }
+  const profit = _svcR2(it.price - it.cost)
+  /* 已完工单据按当时的价快照，字典改价不回溯 —— 所以成本用当前口径反算只作参考 */
+  const cost = u.income ? _svcR2(u.income * (it.price ? it.cost / it.price : 0)) : 0
+  return {
+    ...it,
+    usedCount: u.count,
+    inFlight: u.inFlight,
+    income: _svcR2(u.income),
+    estCost: cost,
+    estProfit: _svcR2(u.income - cost),
+    profit,
+    margin: it.price ? Math.round(profit / it.price * 1000) / 10 : 0,
+    updatedBy: (SERVICE_LOG.get(it.code) || [])[0]?.by || '物业管理员',
+    updatedAt: (SERVICE_LOG.get(it.code) || [])[0]?.at || repairPrices.version
+  }
+}
+
+/** 项目列表（维护页）：默认全部，可选择只看在售 */
+export function serviceItemRows({ category = '', enabled = null, kw = '' } = {}) {
+  const usage = _itemUsage()
+  const k = String(kw || '').trim()
+  return SERVICE_ITEMS
+    .filter(i => !category || i.category === category)
+    .filter(i => enabled === null || !!i.enabled === enabled)
+    .filter(i => !k || i.name.includes(k) || i.code.includes(k) || i.category.includes(k))
+    .sort((a, b) => a.sort - b.sort)
+    .map(i => _serviceRow(i, usage))
+}
+
+export const getServiceItem = code => {
+  const it = SERVICE_ITEMS.find(i => i.code === code)
+  return it ? _serviceRow(it, _itemUsage()) : null
+}
+
+/** 维护页 KPI：数字必须与列表同源（同一个 usage 快照） */
+export function serviceItemSummary() {
+  const usage = _itemUsage()
+  const rows = SERVICE_ITEMS.map(i => _serviceRow(i, usage))
+  const income = _svcR2(rows.reduce((s, r) => s + r.income, 0))
+  const cost = _svcR2(rows.reduce((s, r) => s + r.estCost, 0))
+  const settledAll = [...usage.values()].reduce((s, u) => s + u.paid, 0)
+  return {
+    total: rows.length,
+    enabled: rows.filter(r => r.enabled).length,
+    disabled: rows.filter(r => !r.enabled).length,
+    categories: SERVICE_CATS.length,
+    used: rows.filter(r => r.usedCount > 0).length,
+    orders: rows.reduce((s, r) => s + r.usedCount, 0),
+    settled: settledAll,
+    income,
+    cost,
+    profit: _svcR2(income - cost),
+    margin: income ? Math.round((income - cost) / income * 1000) / 10 : 0
+  }
+}
+
+/** 工单表单用：在售项目（可再按分类过滤） */
+export const serviceItemOptions = (category = '') =>
+  SERVICE_ITEMS
+    .filter(i => i.enabled && (!category || i.category === category))
+    .sort((a, b) => a.sort - b.sort)
+    .map(i => ({
+      /* name 与 label 都给：下拉用 label，费用卡与工单标题用 name（少一个字就渲染成空白项） */
+      code: i.code, name: i.name, label: i.name, category: i.category,
+      price: i.price, cost: i.cost, material: i.material, labor: i.labor,
+      unit: i.unit, minutes: i.minutes
+    }))
+
+export const serviceItemHistory = code => (SERVICE_LOG.get(code) || []).slice()
+const _pushSvcLog = (code, entry) => {
+  const list = SERVICE_LOG.get(code) || []
+  list.unshift(entry)
+  SERVICE_LOG.set(code, list)
+}
+
+/**
+ * 新增 / 编辑服务项目。
+ * price 与 cost **由服务端算**（material+labor、materialCost+laborCost），
+ * 页面把"服务价格"和"成本价"当展示字段 —— 允许直接填合计再反推拆分，
+ * 就是下一次「列表 125 / 详情 124.99」的来源。
+ */
+export function saveServiceItem(p = {}, code = '', operator = '物业管理员') {
+  const name = String(p.name || '').trim()
+  const category = String(p.category || '').trim()
+  if (name.length < 2) throw Object.assign(new Error('项目名称至少 2 个字'), { code: 42201 })
+  if (name.length > 30) throw Object.assign(new Error('项目名称不超过 30 个字'), { code: 42201 })
+  const cat = SERVICE_CATS.find(c => c.name === category)
+  if (!cat) throw Object.assign(new Error('项目分类不存在，请先在分类里选择'), { code: 42201 })
+  if (!cat.enabled) throw Object.assign(new Error(`分类「${category}」已停用，不能新增项目`), { code: 40925 })
+
+  const num = (v, label) => {
+    const n = Number(v)
+    if (!Number.isFinite(n) || n < 0) throw Object.assign(new Error(`${label}必须是不小于 0 的数字`), { code: 42201 })
+    return _svcR2(n)
+  }
+  const material = num(p.material, '材料费')
+  const labor = num(p.labor, '人工费')
+  const materialCost = num(p.materialCost, '材料成本')
+  const laborCost = num(p.laborCost, '人工成本')
+  const price = _svcR2(material + labor)
+  const cost = _svcR2(materialCost + laborCost)
+  if (price <= 0) throw Object.assign(new Error('服务价格不能为 0：材料费与人工费至少填一项'), { code: 42205 })
+  if (materialCost > material) {
+    throw Object.assign(new Error(`材料成本（${materialCost}）不能高于材料费（${material}）——那等于材料在亏本卖`), { code: 42205 })
+  }
+  if (cost >= price) {
+    throw Object.assign(new Error(`成本价（${cost}）不低于服务价格（${price}），这一项启用就亏本`), { code: 42206 })
+  }
+
+  const dup = SERVICE_ITEMS.find(i => i.category === category && i.name === name && i.code !== code)
+  if (dup) throw Object.assign(new Error(`「${category}」下已有同名项目（${dup.code}）`), { code: 40923 })
+
+  const minutes = Math.max(0, Number(p.minutes) || 0)
+  if (code) {
+    const it = SERVICE_ITEMS.find(i => i.code === code)
+    if (!it) throw Object.assign(new Error('服务项目不存在'), { code: 40401 })
+    const before = { material: it.material, labor: it.labor, materialCost: it.materialCost, laborCost: it.laborCost }
+    const diff = []
+    if (before.material !== material) diff.push(`材料费 ${before.material} → ${material}`)
+    if (before.labor !== labor) diff.push(`人工费 ${before.labor} → ${labor}`)
+    if (before.materialCost !== materialCost) diff.push(`材料成本 ${before.materialCost} → ${materialCost}`)
+    if (before.laborCost !== laborCost) diff.push(`人工成本 ${before.laborCost} → ${laborCost}`)
+    if (it.name !== name) diff.push(`名称「${it.name}」→「${name}」`)
+    if (it.category !== category) diff.push(`分类「${it.category}」→「${category}」`)
+    Object.assign(it, {
+      name, category, minutes, material, labor, materialCost, laborCost, price, cost,
+      trade: p.trade || it.trade, unit: p.unit || it.unit, desc: p.desc ?? it.desc,
+      sort: Number(p.sort) || it.sort
+    })
+    if (diff.length) {
+      const priceChanged = before.material !== material || before.labor !== labor
+        || before.materialCost !== materialCost || before.laborCost !== laborCost
+      _pushSvcLog(code, { action: priceChanged ? '改价' : '编辑', by: operator, at: _now(), memo: diff.join('；') })
+    }
+    return { ...it, _changed: diff.length }
+  }
+
+  const seq = SERVICE_ITEMS.length + 1
+  const newCode = 'SI' + String(seq).padStart(4, '0')
+  const it = {
+    code: newCode, category, name, trade: p.trade || '综合',
+    material, labor, price, materialCost, laborCost, cost,
+    unit: p.unit || '次', minutes, enabled: true,
+    sort: Number(p.sort) || (seq * 10), desc: p.desc || ''
+  }
+  SERVICE_ITEMS.push(it)
+  _pushSvcLog(newCode, { action: '新增', by: operator, at: _now(), memo: `${category} · ${name} · 服务价 ${price} / 成本 ${cost}` })
+  return { ...it, _changed: 1 }
+}
+
+/** 启用 / 停用：停用不删（历史工单还引着它），但先看有没有在途单 */
+export function toggleServiceItem(code, enabled, operator = '物业管理员') {
+  const it = SERVICE_ITEMS.find(i => i.code === code)
+  if (!it) throw Object.assign(new Error('服务项目不存在'), { code: 40401 })
+  if (!enabled) {
+    const u = _itemUsage().get(code)
+    if (u && u.inFlight > 0) {
+      throw Object.assign(
+        new Error(`还有 ${u.inFlight} 张在途工单在用「${it.name}」，先结单或换项目再停用`),
+        { code: 40924 }
+      )
+    }
+  }
+  it.enabled = !!enabled
+  _pushSvcLog(code, {
+    action: enabled ? '启用' : '停用', by: operator, at: _now(),
+    memo: enabled ? '重新在售，工单表单可选' : '停止新打；历史工单与已完工单据不受影响'
+  })
+  return { ...it }
+}
+
+/* ---------------- 公共区域工时积分（2026-11-02） ----------------
+ * 为什么只有公共区域有积分**、商业服务没有**：商业服务按人工费提成（`commissionOf`），
+ * 已经直接给钱；再叠一层积分等于同一件事发两次奖，师傅会挑单。
+ * 公共区域维修免费、也没有提成，是典型的"干了没好处"的活 —— 积分就是它的激励入口。
+ *
+ * 本期**只做记录**，绩效折算不实现。但三样东西先摆好，否则以后接不上：
+ *   ① 规则版本（ruleVersion）：将来调权重/基准分，历史积分按旧版本算，不回溯；
+ *   ② 归属期间（period，YYYY-MM）：绩效按自然月核算，积分必须能按期间聚合；
+ *   ③ 结算状态（待结算 / 已结算 / 已作废）：结算后不允许再改，否则月末结完还能改数。
+ *
+ * 绩效折算的接口形状（**未实现，仅占位**）：
+ *   perfScore(empId, period) = Σ ledger.points × 折算系数 ÷ 基准
+ * 折算系数与基准要等考核办法定，所以这里只留 `PERF_CONVERSION` 的结构，不写假算法。
+ */
+export const LABOR_POINT_RULE = {
+  version: 'POINT-2026-11-01',
+  basePerHour: 10,
+  /* 部位权重：体现"同样 1 小时，风险与技能要求不同"。
+     电梯困人 30 分钟和绿化浇水 30 分钟不该同分。 */
+  weights: {
+    电梯: 1.5,
+    公共设备: 1.4,
+    配电: 1.3,
+    给排水: 1.2,
+    道闸门禁: 1.2,
+    土建: 1.1,
+    公区照明: 1.0,
+    门窗五金: 1.0,
+    环境其他: 0.8
+  }
+}
+
+/** 绩效折算（**本期不实现**）：把结构留在这儿，接的时候不用改数据模型 */
+export const PERF_CONVERSION = {
+  implemented: false,
+  ruleVersion: LABOR_POINT_RULE.version,
+  note: '积分 → 绩效分的折算系数与基准分尚未确定；本期只记录积分并按月归属，绩效侧读取 laborPointSummary() 即可',
+  /* 预留：绩效核算读取的口径。真实实现时由考核办法决定，不要在这里写死比例 */
+  basis: 'period',
+  expectedInput: ['empId', 'period', 'points']
+}
+
+export const laborPointWeight = category => LABOR_POINT_RULE.weights[category] ?? 1
+
+/** 积分 = 工时 × 基准分/时 × 部位权重。四舍五入到 1 位小数（0.1 分足够，不玩精度） */
+export function calcLaborPoints({ category = '', hours = 0 } = {}) {
+  const h = Math.max(0, Number(hours) || 0)
+  const w = laborPointWeight(category)
+  const points = Math.round(h * LABOR_POINT_RULE.basePerHour * w * 10) / 10
+  return { hours: Math.round(h * 100) / 100, weight: w, points, ruleVersion: LABOR_POINT_RULE.version }
+}
+
+const _periodOf = t => String(t || '').slice(0, 7)
+
+/** 积分流水（内存态）：绩效侧将来按 empId + period 聚合，这张表就是唯一来源 */
+const LABOR_POINT_LEDGER = []
+
+/**
+ * 工单上只有 assignee 姓名，没有 empId；绩效要按人汇总，必须落到工号。
+ * 反查按姓名——原型数据里没有重名，真实系统应该由派单时就带上 empId。
+ */
+function _empIdByName(name = '') {
+  const e = employees.find(x => x.name === name)
+  return e ? e.empId : ''
+}
+
+/* 种子里的历史积分也要进流水：否则首次记录之前，「期间汇总」是空的，
+   绩效侧读到的是一张只有今天数据的表。 */
+for (const w of workOrders) {
+  if (!w.laborPoints) continue
+  LABOR_POINT_LEDGER.push({
+    ledgerId: 'PL' + String(LABOR_POINT_LEDGER.length + 1).padStart(5, '0'),
+    empId: _empIdByName(w.assignee),
+    empName: w.assignee || '',
+    woId: w.woId, woNo: w.woNo,
+    communityId: w.communityId,
+    category: w.category,
+    hours: w.laborHours || 0,
+    weight: w.laborPointWeight || 1,
+    points: w.laborPoints,
+    period: w.pointsPeriod || String(w.finishTime || w.createTime || '').slice(0, 7),
+    ruleVersion: w.pointRuleVersion || LABOR_POINT_RULE.version,
+    status: w.pointsStatus || '待结算',
+    beforePoints: 0,
+    at: w.pointsAt || w.finishTime || w.createTime,
+    by: w.pointsBy || '工程主管',
+    remark: '种子数据回填'
+  })
+}
+
+/** 竣工态才能记积分：没完工先记，等于给没干完的活先发分 */
+const POINT_ALLOWED_STATUS = ['已完工', '已评价', '已关闭']
+
+/**
+ * 记录工时积分。
+ * 校验顺序刻意从"这单该不该有积分"开始，先拦住类型不对的，再去管数值。
+ */
+export function saveLaborPoints(woId, { hours, operator = '工程主管', remark = '' } = {}) {
+  const w = workOrders.find(x => x.woId === woId)
+  if (!w) throw Object.assign(new Error('工单不存在'), { code: 40401 })
+  if (w.type !== '公共区域维修') {
+    throw Object.assign(
+      new Error('只有公共区域维修记录工时积分 —— 商业服务按人工费提成，重复激励会让师傅挑单'),
+      { code: 42210 }
+    )
+  }
+  if (!w.assignee) throw Object.assign(new Error('还没派单，先派单再记工时'), { code: 42210 })
+  if (!POINT_ALLOWED_STATUS.includes(w.status)) {
+    throw Object.assign(new Error(`工单当前「${w.status}」，完工后才能记工时积分`), { code: 40926 })
+  }
+  if (w.pointsStatus === '已结算') {
+    throw Object.assign(new Error(`${w.pointsPeriod} 已结算，积分不能再改（要改走冲正）`), { code: 40927 })
+  }
+  const h = Number(hours)
+  if (!Number.isFinite(h) || h <= 0) throw Object.assign(new Error('工时必须大于 0'), { code: 42210 })
+  if (h > 24) throw Object.assign(new Error('单张工单工时不能超过 24 小时，跨天的请拆单'), { code: 42210 })
+
+  const calc = calcLaborPoints({ category: w.category, hours: h })
+  const period = _periodOf(w.finishTime || w.createTime || _now())
+  const before = w.laborPoints || 0
+
+  w.laborHours = calc.hours
+  w.laborPoints = calc.points
+  w.laborPointWeight = calc.weight
+  w.pointRuleVersion = calc.ruleVersion
+  w.pointsPeriod = period
+  w.pointsStatus = '待结算'
+  w.pointsBy = operator
+  w.pointsAt = _now()
+
+  /* 流水：同一张单重复记录时，旧的那条标记为「已作废」而不是删掉——
+     绩效争议时要能看见"改过几次、改成什么" */
+  for (const e of LABOR_POINT_LEDGER) {
+    if (e.woId === woId && e.status !== '已作废') e.status = '已作废'
+  }
+  const rec = {
+    ledgerId: 'PL' + String(LABOR_POINT_LEDGER.length + 1).padStart(5, '0'),
+    empId: w.assigneeEmpId || _empIdByName(w.assignee),
+    empName: w.assignee || '',
+    woId, woNo: w.woNo,
+    communityId: w.communityId,
+    category: w.category,
+    hours: calc.hours,
+    weight: calc.weight,
+    points: calc.points,
+    period,
+    ruleVersion: calc.ruleVersion,
+    /* 绩效折算未实现：结算状态先停在「待结算」，由月度绩效核算去推进 */
+    status: '待结算',
+    beforePoints: before,
+    at: _now(),
+    by: operator,
+    remark
+  }
+  LABOR_POINT_LEDGER.unshift(rec)
+  return { workOrder: { ...w }, ledger: { ...rec } }
+}
+
+/** 某张单的积分流水（含已作废，用来看修改痕迹） */
+export const laborPointLedgerOf = woId =>
+  LABOR_POINT_LEDGER.filter(e => e.woId === woId).map(e => ({ ...e }))
+
+/**
+ * 期间积分汇总 —— **绩效侧的唯一读取口**。
+ * 按 empId + period 聚合有效流水（排除已作废），返回明细供绩效核算展开。
+ * 本期没有调用方（绩效功能未开），但函数与数据结构先定下来。
+ */
+export function laborPointSummary({ empId = '', period = '' } = {}) {
+  const list = LABOR_POINT_LEDGER.filter(e =>
+    e.status !== '已作废'
+    && (!empId || e.empId === empId)
+    && (!period || e.period === period)
+  )
+  const m = new Map()
+  for (const e of list) {
+    const key = e.empId + '|' + e.period
+    const cur = m.get(key) || { empId: e.empId, empName: e.empName, period: e.period, orders: 0, hours: 0, points: 0 }
+    cur.orders += 1
+    cur.hours = Math.round((cur.hours + e.hours) * 100) / 100
+    cur.points = Math.round((cur.points + e.points) * 10) / 10
+    m.set(key, cur)
+  }
+  return [...m.values()].sort((a, b) => b.points - a.points)
+}
+
+/** 全公司期间积分（工单列表/看板用）：总单数、总工时、总积分 */
+export function laborPointOverview(period = '') {
+  const list = LABOR_POINT_LEDGER.filter(e => e.status !== '已作废' && (!period || e.period === period))
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  return {
+    orders: list.length,
+    hours: r2(list.reduce((s, e) => s + e.hours, 0)),
+    points: Math.round(list.reduce((s, e) => s + e.points, 0) * 10) / 10,
+    people: new Set(list.map(e => e.empId || e.empName)).size,
+    period: period || '全部'
+  }
+}
+
 /* ---------------- 工单发起（F1） ---------------- */
 
-export const woTypeOpts = () => distinct(workOrders, 'type')
-export const woCategoryOpts = (type = '') => distinct(workOrders.filter(w => !type || w.type === type), 'category')
+/* 类型与分类改成字典驱动（2026-11-02）：原来是从工单数据 distinct 出来，
+   数据里有什么就能选什么、公共与入户还共用同一批分类 —— 见下方「商业服务项目」段 */
+export const woTypeOpts = () => WO_TYPES.slice()
+export const woCategoryOpts = (type = '') => {
+  if (type === '公共区域维修') return publicCategoryOpts().map(c => c.value)
+  if (type === '商业服务') return serviceCategoryRows().filter(c => c.enabled).map(c => c.name)
+  return []
+}
 export const woPriorityOpts = () => ['特急', '紧急', '普通']
 export const woSourceOpts = () => ['客服代客', '业主 App', '小程序', '电话', '巡检发现', '设备告警']
 
 let WO_SEQ = workOrders.length
 /** 发起工单：写入内存（当次会话内在工单列表可见，刷新还原） */
 export function createWorkOrder(p = {}) {
+  const type = p.type || '报事'
+  const isBiz = type === '商业服务'
+  const isPublicRepair = type === '公共区域维修'
+  /* 两条维修线各有硬约束：商业服务必须落在具体项目上（价格与服务范围都在项目里），
+     公共区域必须落在设施部位上（不然「报修分类」又会退回自由文本） */
+  let service = null
+  if (isBiz) {
+    if (!p.serviceCode) {
+      throw Object.assign(new Error('商业服务工单要选服务项目：价格与服务范围都写在项目里'), { code: 42207 })
+    }
+    service = getServiceItem(p.serviceCode)
+    if (!service) throw Object.assign(new Error('服务项目不存在'), { code: 40401 })
+    if (!service.enabled) {
+      throw Object.assign(new Error(`「${service.name}」已停用，请另选项目或先启用`), { code: 40924 })
+    }
+  }
+  if (isPublicRepair && !String(p.category || '').trim()) {
+    throw Object.assign(new Error('公共区域维修要选设施部位（电梯 / 给排水 / 土建…）'), { code: 42207 })
+  }
   WO_SEQ += 1
   const house = _HOUSE_OF.get(p.houseId) || null
   const owner = _OWNER_OF.get(p.ownerId) || null
@@ -4238,15 +5779,24 @@ export function createWorkOrder(p = {}) {
     houseId: p.houseId || '', houseName: p.houseName || house?.fullName || '',
     ownerId: p.ownerId || '', ownerName: owner?.name || p.ownerName || '',
     ownerPhone: owner?.phone || p.phone || '',
-    type: p.type || '报事', category: p.category || '',
+    type, category: service ? service.category : (p.category || ''),
     source: p.source || '客服代客', priority: p.priority || '普通',
     status: '待派单', title: p.title || '', description: p.description || '',
     images: p.images || 0, createTime: _now(), dispatchMode: p.assignee ? '手动派单' : '待派单',
     assignee: p.assignee || '', assigneePhone: '', acceptTime: '', arriveTime: '', finishTime: '',
     durationHours: 0, slaHours: p.priority === '特急' ? 4 : (p.priority === '紧急' ? 8 : 24),
-    isOverdue: false, feeType: p.feeType || '免费', materialFee: 0, laborFee: 0, totalFee: 0,
-    payStatus: '未支付', score: 0, evalTags: [], evaluate: '',
-    remark: p.remark || '', isPublic: !p.houseId,
+    isOverdue: false,
+    /* 费用按项目快照：字典以后再改价，这张单的金额不变（毛利才算得准） */
+    feeType: service ? '收费' : '免费',
+    materialFee: service ? service.material : 0,
+    laborFee: service ? service.labor : 0,
+    totalFee: service ? service.price : 0,
+    serviceCost: service ? service.cost : 0,
+    priceCode: service ? service.code : '',
+    serviceName: service ? service.name : '',
+    payStatus: service ? '未支付' : '无需支付',
+    score: 0, evalTags: [], evaluate: '',
+    remark: p.remark || '', isPublic: isPublicRepair,
     _isNew: true                                   // 内存态标记：列表可高亮「本次新增」
   }
   // 列表页读的是 WO_ROWS（带空间字段的派生行），因此两处都要写，否则新单看不见
@@ -4269,7 +5819,7 @@ export function createWoFromAlarm(alarmId) {
   if (!a) throw new Error('告警不存在')
   if (a.dispatchWoId) throw new Error('该告警已生成工单：' + a.dispatchWoId)
   const wo = createWorkOrder({
-    communityId: a.communityId, type: '公共区域维修', category: '设备故障',
+    communityId: a.communityId, type: '公共区域维修', category: '公共设备',
     source: '设备告警', priority: a.level === '紧急' ? '紧急' : '普通',
     title: `${a.deviceName} ${a.type}`, description: `由告警 ${a.alarmId} 自动生成：${a.content}`,
     feeType: '免费', remark: `来源告警 ${a.alarmId}`
@@ -4444,30 +5994,104 @@ export function approvalAction(approvalId, action, { comment = '', to = '' } = {
   if (idx < 0) throw new Error('没有待处理节点')
   const node = a.flow[idx]
   const time = _now()
+  const me = currentOperator()
+  const approvers = Array.isArray(node.approvers) ? node.approvers : []
+  const isSign = approvers.length > 0
+  const mode = node.signMode || 'single'
+
+  /* 会签节点先找"我这一份"。原型只有角色没有真实登录身份，角色反推出的人
+     常常不在名单里 —— 这时按第一份待处理代签，并在意见里注明是谁代的：
+     既不能让单据卡死，也不能假装是本人签的。 */
+  let mine = null
+  let proxy = ''
+  if (isSign) {
+    mine = approvers.find(p => p.action === '待处理' && p.name === me.name) || null
+    if (!mine) {
+      mine = approvers.find(p => p.action === '待处理') || null
+      if (mine) proxy = `（代 ${mine.name} 处理）`
+    }
+  }
+  const pendingOf = () => approvers.filter(p => p.action === '待处理')
+
   if (action === '驳回') {
-    node.action = '驳回'; node.handler = node.handler || '当前处理人'; node.time = time
+    if (isSign && mine) {
+      mine.action = '驳回'; mine.time = time
+      mine.comment = (comment || '不符合要求') + proxy
+    }
+    node.action = '驳回'
+    node.handler = mine?.name || node.handler || me.name
+    node.time = time
     node.comment = comment || '不符合要求'
+    /* 会签里一人驳回即整单驳回，剩下的不用再签 —— 但保留"已跳过"痕迹，
+       否则后面几个人会像凭空消失一样 */
+    for (const p of approvers) {
+      if (p.action === '待处理') { p.action = '已跳过'; p.comment = '同节点已驳回' }
+    }
     a.status = '已驳回'; a.currentNode = '已完成'
   } else if (action === '转办') {
     if (!to) throw new Error('请选择转办人')
-    node.handler = to; node.time = time; node.comment = `转办给 ${to}${comment ? '：' + comment : ''}`
-    node.action = '转办'
-    a.status = '审批中'; a.currentNode = `${node.node}（${to}）`
+    if (isSign && mine) {
+      mine.name = to
+      mine.action = '待处理'
+      mine.comment = `转办自 ${me.name}${comment ? '：' + comment : ''}`
+      a.status = '审批中'; a.currentNode = `${node.node}（${to}）`
+    } else {
+      node.handler = to; node.time = time; node.comment = `转办给 ${to}${comment ? '：' + comment : ''}`
+      node.action = '转办'
+      a.status = '审批中'; a.currentNode = `${node.node}（${to}）`
+    }
   } else if (action === '加签') {
     if (!to) throw new Error('请选择加签人')
-    node.handler = node.handler || '当前处理人'; node.time = time
-    node.action = '同意'; node.comment = comment || '同意，已加签'
-    a.flow.splice(idx + 1, 0, { node: `加签审批（${to}）`, handler: to, action: '待处理', time: '', comment: '' })
-    a.status = '审批中'; a.currentNode = `加签审批（${to}）`
+    if (isSign) {
+      /* 会签节点加签 = 往名单里再加一个必须签的人，而不是插一级新节点 */
+      if (mine) { mine.action = '同意'; mine.time = time; mine.comment = (comment || '同意') + proxy }
+      approvers.push({ name: to, empId: '', duty: '', action: '待处理', time: '', comment: `加签自 ${me.name}` })
+      a.status = '审批中'; a.currentNode = `${node.node}（加签 ${to}）`
+      node.handler = to
+    } else {
+      node.handler = node.handler || '当前处理人'; node.time = time
+      node.action = '同意'; node.comment = comment || '同意，已加签'
+      a.flow.splice(idx + 1, 0, { node: `加签审批（${to}）`, handler: to, action: '待处理', time: '', comment: '' })
+      a.status = '审批中'; a.currentNode = `加签审批（${to}）`
+    }
   } else {
-    node.action = '同意'; node.handler = node.handler || '当前处理人'; node.time = time
-    node.comment = comment || '同意'
-    const next = a.flow[idx + 1]
-    if (next) { next.action = '待处理'; a.status = '审批中'; a.currentNode = next.node }
-    else { a.status = '已通过'; a.currentNode = '已完成' }
+    if (isSign) {
+      if (mine) { mine.action = '同意'; mine.time = time; mine.comment = (comment || '同意') + proxy }
+    } else {
+      node.action = '同意'; node.handler = node.handler || '当前处理人'; node.time = time
+      node.comment = comment || '同意'
+    }
+    const pending = isSign ? pendingOf() : []
+    /* 单人 / 或签（任一人同意即过）/ 会签（全部签完才过） */
+    const passed = !isSign || mode === 'any' || pending.length === 0
+    if (!passed) {
+      a.status = '审批中'
+      const done = approvers.filter(p => p.action !== '待处理').length
+      a.currentNode = `${node.node}（会签 ${done}/${approvers.length}）`
+      node.handler = pending[0].name
+    } else {
+      if (isSign) {
+        node.action = '同意'
+        node.handler = mine?.name || approvers[0]?.name || ''
+        node.time = time
+        node.comment = mode === 'any' && approvers.length > 1
+          ? '或签：一人同意即通过'
+          : `会签：${approvers.length} 人全部同意`
+        if (mode === 'any') {
+          for (const p of approvers) {
+            if (p.action === '待处理') { p.action = '已跳过'; p.comment = '或签，他人已同意' }
+          }
+        }
+      }
+      const next = a.flow[idx + 1]
+      if (next) { next.action = '待处理'; a.status = '审批中'; a.currentNode = next.node }
+      else { a.status = '已通过'; a.currentNode = '已完成' }
+    }
   }
   // 合同域回写：审批通过/驳回后同步合同与变更单（C4）
   _applyContractApproval(a, action)
+  // 计划域回写：审批结果决定计划能否进入执行（2026-11-03）
+  _applyPlanApproval(a, action)
   return a
 }
 
@@ -4475,6 +6099,432 @@ export function approvalAction(approvalId, action, { comment = '', to = '' } = {
 export const approvalCandidates = () => employees
   .filter(e => e.status === '在职' && /主管|经理|总监/.test(e.position))
   .slice(0, 40).map(e => ({ empId: e.empId, name: e.name, position: e.position }))
+
+/* ================= OA 审批底座（2026-11-03） =================
+ * 与「业务实体 + 审批单」的区别：OA 单据**没有业务实体**，表单内容就存在审批单的 formData 里。
+ * 所以这里不新建表 —— 复用 approvals，只是多带一个 formData、bizId 留空。
+ *
+ * 这样待办中心、超时计算、同意/驳回/转办/加签全部白得，不用重写一套。
+ *
+ * 本期边界：**批准即结束，不落业务结果**。
+ * 费用报销批了不生成付款单、请假批了不进考勤、采购批了不建采购单 ——
+ * 每个"落结果"都要动别的域的状态机，单独排批。
+ */
+
+/** 流程配置（可改；改配置只影响新单，在途单沿用发起时的 flow 快照） */
+const OA_FLOWS = OA_FLOW_DEFS.map(f => ({ ...f, baseNodes: [...f.baseNodes], overNodes: [...f.overNodes] }))
+
+export const oaFlows = () => OA_FLOWS.map(f => ({
+  ...f,
+  /* 在途单数：改配置时得让人知道有多少单在用旧流程 */
+  inFlight: approvals.filter(a => a.bizType === f.bizType && ['待审批', '审批中'].includes(a.status)).length
+}))
+
+export const oaFlowOf = bizType => OA_FLOWS.find(f => f.bizType === bizType) || null
+
+/**
+ * 当前角色对应的"人"。
+ * 系统里只有角色没有登录人（原型），审批单要落一个具体提报人，
+ * 所以按角色名映射到岗位，取该岗位第一个在职员工。
+ */
+const ROLE_TO_POSITION = {
+  集团总经理: '总经理',
+  项目经理: '项目经理',
+  客服专员: '客服专员',
+  收银员: '收银员',
+  财务专员: '会计',
+  财务主管: '财务主管',
+  工程维修: '维修工',
+  品质督导: '品质专员',
+  人事专员: '人事专员',
+  楼栋管家: '客服专员',
+  部门经理: '客服主管',
+  环境保洁: '保洁员',
+  秩序维护员: '保安',
+  只读观察员: '客服专员'
+}
+
+export function currentOperator() {
+  const pos = ROLE_TO_POSITION[currentRoleName.value] || '客服专员'
+  const e = employees.find(x => x.position === pos && x.status !== '离职')
+    || employees.find(x => x.status !== '离职')
+    || employees[0]
+  return {
+    empId: e.empId, name: e.name, position: e.position, level: e.level,
+    orgId: e.orgId, orgName: orgNameOf(e.orgId), manager: e.manager || '',
+    roleName: currentRoleName.value
+  }
+}
+
+/** 岗位代码 → 具体人（财务 / 法务 / 合同初审 / 总经理 / 行政） */
+const ROLE_POSITION_MAP = {
+  finance: ['财务主管', '会计'],
+  legal: ['会计'],          /* 数据里没有法务岗，先用总部职能人员代；真实系统应配法务岗 */
+  contract: ['会计'],
+  gm: ['总经理'],
+  admin: ['人事专员', '人事主管']
+}
+
+/**
+ * 把节点的「审批人来源」解析成具体人。
+ * 解析不出来时返回空串（审批页显示"待指派"），不编造一个人名。
+ */
+function _resolveAssignee(node, applicant) {
+  switch (node.assigneeType) {
+    case 'orgLeader': {
+      /* 走关系表：在期正职优先，正职空缺才落到在期代理；副职不参与审批 */
+      return orgLeaderOf(applicant.orgId)?.name || ''
+    }
+    case 'projectManager': {
+      /* 组织上下文可能是班组（计划按提报部门解析），也可能是项目部（人事归属）。
+         一路沿 parentId 往上找 type==='项目' 的节点；总部职能部门找不到项目 → 集团总经理。
+         以前只看 applicant.orgId 是不是项目，班组一进来就直接回落到总经理，班组计划会跳过项目经理。 */
+      let org = orgs.find(o => o.orgId === applicant.orgId)
+      for (let i = 0; org && org.type !== '项目' && org.parentId && i < 8; i++) {
+        org = orgs.find(o => o.orgId === org.parentId)
+      }
+      if (org && org.type === '项目') return orgLeaderOf(org.orgId)?.name || ''
+      return orgLeaderOf('O-ROOT')?.name || ''
+    }
+    case 'directSuperior':
+      return applicant.manager || orgLeaderOf(applicant.orgId)?.name || ''
+    case 'role': {
+      const poss = ROLE_POSITION_MAP[node.roleCode] || []
+      const e = employees.find(x => poss.includes(x.position) && x.status !== '离职')
+      return e?.name || ''
+    }
+    case 'deptHead': {
+      return orgLeaderOf(node.orgId)?.name || ''
+    }
+    default:
+      return ''
+  }
+}
+
+/**
+ * 自审绕过：解析出来的审批人等于申请人时，沿组织链向上找第一个不是自己的负责人。
+ *
+ * 不加这条会死锁：部门负责人给自己提的请假 / 计划，第一节点「部门负责人审批」
+ * 解析到的就是他本人，单子停在待审批没人能动。这是通用规则，不是计划管理专属 ——
+ * 只是多部门主管出现之后，撞上的概率从"偶尔"变成"每个月的计划都撞"。
+ * 返回 note 便于详情页说明"为什么这级换人了"，不静默改审批人。
+ */
+function _skipSelf(handler, applicant) {
+  if (!handler || handler !== applicant.name) return { name: handler, note: '', selfTop: false }
+  let cur = ORG_OF.get(applicant.orgId)
+  const seen = new Set([applicant.orgId])
+  for (let i = 0; cur && cur.parentId && i < 8; i++) {
+    if (seen.has(cur.parentId)) break
+    seen.add(cur.parentId)
+    cur = ORG_OF.get(cur.parentId)
+    /* 同样走关系表：上级部门的在期正职 / 代理 */
+    const l = orgLeaderOf(cur.orgId)?.name || ''
+    if (l && l !== applicant.name) {
+      return { name: l, note: `原审批人为本人，已跳升至${cur.name}负责人`, selfTop: false }
+    }
+  }
+  /* 走到顶都没找到别人 = 申请人自己就是最高负责人（集团总经理提报总部计划就是这样）。
+     这时候不能返回空串：空串会让节点挂成"待指派"，单子永远没人能签。
+     标记 selfTop，由 createOaRequest 把这一级记为自动通过。 */
+  return { name: '', note: '申请人即最高审批人，本节点自动通过', selfTop: true }
+}
+
+/**
+ * 解析一个节点的**全部**审批人（会签 / 或签用）。
+ *
+ * 只有「部门负责人」这一种来源支持多签：对象是**本部门所有在期负责人**
+ * （正职 + 副职 + 代理），并**排除申请人本人** —— 自己不能给自己签。
+ * 排除后一个不剩（部门只有申请人一个负责人），沿组织链向上找，
+ * 而不是让单据停在"自己审自己"。
+ *
+ * 其他来源（项目经理 / 指定岗位 / 直属上级）天然只有一个对象，
+ * 就算配了会签也等价于单人，这里统一退回单值解析。
+ */
+function _resolveAssignees(node, applicant) {
+  const mode = node.signMode || 'single'
+  if (mode === 'single' || node.assigneeType !== 'orgLeader') {
+    const s = _skipSelf(_resolveAssignee(node, applicant), applicant)
+    if (s.name) return [{ name: s.name, empId: '', duty: '', note: s.note, selfTop: false }]
+    /* 申请人就是最高负责人：把人名留成他自己并打上 selfTop，
+       createOaRequest 据此把这一级记为"自动通过"，而不是挂成待指派 */
+    if (s.selfTop) {
+      return [{ name: applicant.name, empId: applicant.empId || '', duty: '', note: s.note, selfTop: true }]
+    }
+    return []
+  }
+  const same = activeLeadersOf(applicant.orgId).filter(r => r.name !== applicant.name)
+  if (same.length) {
+    return same.map(r => ({ name: r.name, empId: r.empId, duty: r.duty, note: '' }))
+  }
+  let cur = ORG_OF.get(applicant.orgId)
+  const seen = new Set([applicant.orgId])
+  for (let i = 0; cur && cur.parentId && i < 8; i++) {
+    if (seen.has(cur.parentId)) break
+    seen.add(cur.parentId)
+    cur = ORG_OF.get(cur.parentId)
+    const up = activeLeadersOf(cur.orgId).filter(r => r.name !== applicant.name)
+    if (up.length) {
+      return up.map(r => ({
+        name: r.name, empId: r.empId, duty: r.duty,
+        note: `本部门没有其他负责人，已跳升至${cur.name}`
+      }))
+    }
+  }
+  return []
+}
+
+/** 按金额选节点：≤ 阈值走 baseNodes，> 阈值走 overNodes（没配 overNodes 就还是 baseNodes） */
+export function oaNodesFor(bizType, amount = 0) {
+  const f = oaFlowOf(bizType)
+  if (!f) return []
+  const over = Number(f.amountThreshold) > 0 && Number(amount) > Number(f.amountThreshold)
+  return (over && f.overNodes.length ? f.overNodes : f.baseNodes).map(n => ({ ...n }))
+}
+
+/** 表单校验：必填、数值范围、结束时间晚于开始 */
+export function oaFormCheck(bizType, formData = {}) {
+  const def = oaFormOf(bizType)
+  if (!def) return `未知单据类型：${bizType}`
+  /* noForm = 自带业务实体（合同 / 计划），内容不在动态表单里，字段校验交给业务侧 */
+  if (def.noForm || !(def.fields || []).length) return ''
+  for (const f of def.fields) {
+    const v = formData[f.key]
+    const empty = v === undefined || v === null || String(v).trim() === ''
+    if (f.required && empty) return `请填写${f.label}`
+    if (empty) continue
+    if (f.type === 'number' || f.type === 'money') {
+      const n = Number(v)
+      if (!Number.isFinite(n)) return `${f.label}必须是数字`
+      if (f.min !== undefined && n < f.min) return `${f.label}不能小于 ${f.min}`
+      if (f.max !== undefined && n > f.max) return `${f.label}不能大于 ${f.max}`
+    }
+    if (f.maxlength && String(v).length > f.maxlength) return `${f.label}不超过 ${f.maxlength} 字`
+    if (f.type === 'select' && f.options && !f.options.includes(v)) return `${f.label}取值不合法`
+  }
+  for (const f of def.fields) {
+    if (f.role !== 'periodEnd') continue
+    const start = formData[f.after]
+    const end = formData[f.key]
+    if (start && end && String(end) <= String(start)) return `${f.label}必须晚于开始时间`
+  }
+  return ''
+}
+
+/** 摘要：列表与待办里显示的短标题，不能让 8 个字段全冲上来 */
+function _oaSummary(def, formData = {}) {
+  const parts = (def?.summaryKeys || [])
+    .map(k => {
+      const f = def.fields.find(x => x.key === k)
+      const v = formData[k]
+      if (v === undefined || v === null || v === '') return ''
+      if (f?.type === 'money') return `¥${Number(v).toLocaleString('zh-CN')}`
+      return String(v)
+    })
+    .filter(Boolean)
+  return parts.join(' · ')
+}
+
+/**
+ * 发起 OA 申请。
+ * 生成一条 approvals 记录（bizId 留空 = 无业务实体），flow 按当前配置解析成人名。
+ *
+ * `orgScopeId` 覆盖**审批人的组织上下文**：合同 / 计划这类自带业务实体的单据，
+ * 上级要按"业务属于哪个组织"解析，不能按提报人的人事归属解析 ——
+ * 一人管两个部门时，同一人提两个部门的计划，项目经理不是同一个。
+ * 不传则等同于人事归属（旧行为，其余单据不受影响）。
+ */
+export function createOaRequest({
+  bizType, formData = {}, urgency = '', files = [],
+  bizId = '', title = '', orgScopeId = ''
+} = {}) {
+  const def = oaFormOf(bizType)
+  if (!def) throw Object.assign(new Error(`不支持的单据类型：${bizType}`), { code: 42211 })
+  const bad = oaFormCheck(bizType, formData)
+  if (bad) throw Object.assign(new Error(bad), { code: 42211 })
+
+  const base = currentOperator()
+  /* 组织上下文可以是班组（计划按提报部门），审批人解析用它；人事归属另存一列 */
+  const applicant = orgScopeId ? { ...base, orgId: orgScopeId, orgName: orgNameOf(orgScopeId) } : base
+  const amountField = (def.fields || []).find(f => f.role === 'amount')
+  const amount = amountField ? Number(formData[amountField.key]) || 0 : 0
+  const nodes = oaNodesFor(bizType, amount)
+  if (!nodes.length) throw Object.assign(new Error('该单据没有配置审批流，请先在流程配置里设置节点'), { code: 42212 })
+
+  APPROVAL_SEQ += 1
+  /* 节点先算出来：第一级如果解析成"申请人本人即最高负责人"，直接记自动通过，
+     并把 currentNode 落到下一个真正待办的节点上（否则待办列表里挂着一个谁也点不动的节点）。 */
+  const flow = nodes.map((n, i) => {
+    const list = _resolveAssignees(n, applicant)
+    const auto = i === 0 && list.length === 1 && list[0].selfTop
+    const at = _now()
+    return {
+      node: n.name,
+      signMode: n.signMode || 'single',
+      /* handler 保留为"第一个审批人"，老页面与老数据都读它；
+         会签的完整名单在 approvers 里，单人时数组长度 1 */
+      handler: list[0]?.name || '',
+      approvers: list.map(p => ({
+        name: p.name, empId: p.empId || '', duty: p.duty || '',
+        action: auto ? '同意' : '待处理', time: auto ? at : '', comment: auto ? '自动通过' : ''
+      })),
+      action: auto ? '同意' : '待处理',
+      time: auto ? at : '',
+      comment: auto ? '申请人即最高审批人，自动通过' : '',
+      limitHours: n.limitHours || 24,
+      /* 自动通过时 comment 已经写明原因，skipNote 再写一遍会在时间线上重复两行 */
+      skipNote: auto ? '' : (list[0]?.note || '')
+    }
+  })
+  const pending = flow.find(f => f.action === '待处理')
+
+  const ap = {
+    approvalId: 'AP' + String(APPROVAL_SEQ).padStart(5, '0'),
+    approvalNo: 'SP-' + String(TODAY).slice(0, 4) + '-' + String(APPROVAL_SEQ).padStart(4, '0'),
+    bizType,
+    bizId,                                       /* 空 = 无业务实体；合同 / 计划带自己的主键 */
+    changeId: '',
+    title: title || `${bizType} · ${_oaSummary(def, formData)}`,
+    formData: { ...formData },
+    files: [...files],
+    communityId: formData.communityId || (orgs.find(o => o.orgId === base.orgId)?.type === '项目' ? base.orgId.replace('O-', '') : ''),
+    communityName: '',
+    amount,
+    applicant: base.name,
+    applicantRole: base.position,
+    applicantEmpId: base.empId,
+    applicantOrgId: base.orgId,                  /* 人事归属：工资、考勤按这个 */
+    applicantOrgName: base.orgName,
+    scopeOrgId: orgScopeId || '',                /* 业务归属：审批链按这个解析 */
+    scopeOrgName: orgScopeId ? orgNameOf(orgScopeId) : '',
+    applyTime: _now(),
+    status: '待审批',
+    currentNode: (pending || flow[flow.length - 1] || {}).node || '',
+    urgency: urgency || def.urgentDefault || '普通',
+    waitHours: 0,
+    flow,
+    _isNew: true
+  }
+  ap.communityName = ap.communityId ? communityName(ap.communityId) : '集团 / 全项目'
+  approvals.unshift(ap)
+  return { ...ap }
+}
+
+/** 我的申请：提报人 = 当前操作人 */
+export function queryOaRequests({ mineOnly = true, status = '', bizType = '', kw = '', pageNo = 1, size = 20 } = {}) {
+  const me = currentOperator()
+  const list = approvals
+    .filter(a => OA_FORM_DEFS.some(f => f.bizType === a.bizType))   /* 只回 OA 单据，不含合同审批等业务单 */
+    .filter(a => !mineOnly || a.applicant === me.name)
+    .filter(a => !status || a.status === status)
+    .filter(a => !bizType || a.bizType === bizType)
+    .filter(a => !kw || `${a.title}${a.approvalNo}`.toLowerCase().includes(String(kw).toLowerCase()))
+    .map(a => ({
+      ...a,
+      /* 已办时长：一条单等了多久，比"提交时间"更能说明问题 */
+      waitText: ['待审批', '审批中'].includes(a.status) ? `已等 ${a.waitHours} 小时` : a.status
+    }))
+  return paged(list, pageNo, size)
+}
+
+/**
+ * 撤回：默认只有「待审批」（还没人动过）才能撤 —— 审批中说明有人已在处理。
+ *
+ * `allowInFlight` 是给**计划**开的口子：月度计划一级过了、二级还没处理时，
+ * 提报人发现任务写错要改，是很正常的动作。报销单不能这么干（钱已经批了一级），
+ * 所以做成显式开关而不是放宽全局规则。
+ */
+export function withdrawOaRequest(approvalId, reason = '', { allowInFlight = false } = {}) {
+  const a = approvals.find(x => x.approvalId === approvalId)
+  if (!a) throw Object.assign(new Error('审批单不存在'), { code: 40401 })
+  const canWithdraw = a.status === '待审批' || (allowInFlight && a.status === '审批中')
+  if (!canWithdraw) {
+    throw Object.assign(new Error(`当前「${a.status}」，只有还没人处理的单子可以撤回`), { code: 40928 })
+  }
+  const first = a.flow.find(n => n.action === '待处理')
+  if (first) {
+    first.action = '撤回'
+    first.handler = a.applicant
+    first.time = _now()
+    first.comment = reason || '申请人撤回'
+    /* 会签节点撤回时，名单里还没签的也要标掉，否则后面显示"2/2 待签"却整单已撤回 */
+    for (const p of (first.approvers || [])) {
+      if (p.action === '待处理') { p.action = '撤回'; p.comment = reason || '申请人撤回' }
+    }
+  }
+  /* 已经批过的节点保留原文（谁批的、什么时候批的不能抹掉），只把未处理的节点标撤回 */
+  a.status = '已撤回'
+  a.currentNode = '已完成'
+  return { ...a }
+}
+
+/**
+ * 改流程配置。
+ * **只影响新单**：在途单的 flow 是发起时的快照，改配置回头改会让"批到一半换规则"。
+ */
+export function updateOaFlow(bizType, patch = {}) {
+  const f = oaFlowOf(bizType)
+  if (!f) throw Object.assign(new Error('单据类型不存在'), { code: 40401 })
+  const clean = nodes => (nodes || []).map((n, i) => ({
+    key: n.key || 'n' + (i + 1),
+    name: String(n.name || '').trim() || `节点 ${i + 1}`,
+    assigneeType: n.assigneeType || 'orgLeader',
+    roleCode: n.roleCode || '',
+    orgId: n.orgId || '',
+    /* 签署方式：只有「部门负责人」来源真正生效，其他来源等价于单人 */
+    signMode: ['single', 'all', 'any'].includes(n.signMode) ? n.signMode : 'single',
+    limitHours: Math.max(1, Number(n.limitHours) || 24),
+    allowReject: n.allowReject !== false
+  }))
+  if (patch.baseNodes) {
+    const list = clean(patch.baseNodes)
+    if (!list.length) throw Object.assign(new Error('至少保留一个审批节点，否则提交即通过'), { code: 42212 })
+    f.baseNodes = list
+  }
+  if (patch.overNodes !== undefined) f.overNodes = clean(patch.overNodes)
+  if (patch.amountThreshold !== undefined) f.amountThreshold = Math.max(0, Number(patch.amountThreshold) || 0)
+  if (patch.note !== undefined) f.note = String(patch.note)
+  /* overNodes 有值但阈值是 0 时，overNodes 永远走不到 —— 直接拦，别让人以为配好了 */
+  if (f.overNodes.length && !f.amountThreshold) {
+    throw Object.assign(new Error('配了金额分支节点，但阈值是 0，这套节点永远走不到'), { code: 42212 })
+  }
+  return { ...f }
+}
+
+/** 发起页 KPI：我这月提了多少、在途几单、平均多久批完 */
+export function oaSummary() {
+  const me = currentOperator()
+  const mine = approvals.filter(a => a.applicant === me.name
+    && OA_FORM_DEFS.some(f => f.bizType === a.bizType))
+  const live = mine.filter(a => ['待审批', '审批中'].includes(a.status))
+  return {
+    total: mine.length,
+    live: live.length,
+    draft: 0,
+    done: mine.filter(a => ['已通过', '已驳回', '已撤回'].includes(a.status)).length,
+    types: new Set(mine.map(a => a.bizType)).size
+  }
+}
+
+/** 提交前预览审批路径：申请人提交前要知道「会经过谁」，否则只能等结果 */
+export function oaPreviewFlow(bizType, amount = 0) {
+  const me = currentOperator()
+  return oaNodesFor(bizType, amount).map(n => ({
+    node: n.name,
+    handler: _resolveAssignee(n, me) || '待指派',
+    limitHours: n.limitHours || 24
+  }))
+}
+
+/** 审批单里展示 formData：按表单定义给出 label + 值，页面不自己映射 */
+export function oaFieldRows(approval) {
+  const def = OA_FORM_DEFS.find(f => f.bizType === approval?.bizType)
+  if (!def) return []
+  return def.fields.map(f => ({
+    key: f.key, label: f.label, type: f.type, unit: f.unit || '',
+    value: approval.formData?.[f.key] ?? ''
+  })).filter(r => r.value !== '' && r.value !== null && r.value !== undefined)
+}
+
 
 /* ================= 收尾轮 · 第 2 批：催缴工作台 / 票据 / 装修押金台账 ================ */
 
@@ -5776,7 +7826,7 @@ export function splitOwnerHouses(ownerId, houseIds, { newOwnerName = '', phone =
     ownerId: nid, name, phone: phone || '', idCard: '', gender: '', birthday: '',
     ownerType: '业主', certified: false, faceRegistered: false, appRegistered: false,
     wechatBound: false, email: '', emergencyContact: '', emergencyPhone: '',
-    houseIds: [...hs], parkIds: [], tags: [], creditLevel: 'B',
+    houseIds: [...hs], parkIds: [], tagIds: [], creditLevel: 'B',
     registerDate: _now().slice(0, 10), remark: `由 ${o.ownerId}（${o.name}）产权变更拆分而来`, _isNew: true
   }
   owners.push(newOwner)
@@ -5838,8 +7888,30 @@ const OWNER_EDITABLE = {
   emergencyContact: { label: '应急联系人' },
   emergencyPhone: { label: '应急联系电话', check: v => (!v || PHONE_RE.test(v) ? '' : '联系电话应为 11 位手机号') },
   creditLevel: { label: '信用等级', check: v => (['A', 'B', 'C'].includes(v) ? '' : '信用等级只能为 A / B / C') },
-  remark: { label: '备注' }
+  remark: { label: '备注' },
+  /* ---------- 客户画像（2026-11-02）· 枚举字段都做白名单校验，脏值进不了库 ---------- */
+  ownerCategory: { label: '业主分类', check: v => (OWNER_CATEGORY.includes(v) ? '' : `业主分类只能是 ${OWNER_CATEGORY.join(' / ')}`) },
+  economicLevel: { label: '家庭经济状况', check: v => (!v || ECON_LEVELS.includes(v) ? '' : '经济状况取值非法') },
+  politicalStatus: { label: '政治面貌', check: v => (!v || POLITICAL_STATUS.includes(v) ? '' : '政治面貌取值非法') },
+  weddingDate: { label: '结婚纪念日', check: v => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? '' : '结婚纪念日格式应为 YYYY-MM-DD') },
+  employer: { label: '单位名称' },
+  jobTitle: { label: '职务' },
+  occupation: { label: '职业' },
+  workAddress: { label: '工作地址' },
+  hobbies: { label: '兴趣爱好' },
+  pets: { label: '宠物信息' },
+  positiveNotes: { label: '正面信息' },
+  negativeNotes: { label: '负面信息' }
 }
+export const OWNER_CATEGORY = ['常住', '候鸟', '投资', '出租业主']
+export const ECON_LEVELS = ['优渥', '良好', '一般', '困难']
+export const POLITICAL_STATUS = ['中共党员', '共青团员', '群众', '民主党派']
+export const OWNER_PROFILE_GROUPS = [
+  { key: 'live', label: '居住与分类', fields: ['ownerCategory', 'weddingDate'] },
+  { key: 'work', label: '职业与经济', fields: ['employer', 'jobTitle', 'occupation', 'workAddress', 'economicLevel'] },
+  { key: 'prefer', label: '偏好', fields: ['hobbies', 'pets'] },
+  { key: 'note', label: '评价', fields: ['positiveNotes', 'negativeNotes'] }
+]
 export const ownerEditableFields = () => Object.entries(OWNER_EDITABLE).map(([k, v]) => ({ field: k, label: v.label }))
 export function updateOwnerField(ownerId, field, value, ver) {
   const o = owners.find(x => x.ownerId === ownerId)
@@ -5859,14 +7931,19 @@ export function updateOwnerField(ownerId, field, value, ver) {
 }
 
 /** 房屋：使用状态 / 产权状态 / 装修情况 / 朝向 / 备注（不动面积与权属，避免影响账单口径） */
-const HOUSE_USE_STATUS = ['自住', '出租', '空置', '装修中', '限制使用']
 const HOUSE_PROPERTY_STATUS = ['已办证', '办理中', '未办理', '抵押中']
 export const HOUSE_USE_OPTS = HOUSE_USE_STATUS
+export const HOUSE_USAGE_OPTS = HOUSE_USAGE
 export const HOUSE_PROPERTY_OPTS = HOUSE_PROPERTY_STATUS
 const HOUSE_EDITABLE = {
-  useStatus: { label: '使用状态', check: v => (HOUSE_USE_STATUS.includes(v) ? '' : '使用状态取值不合法') },
+  useStatus: { label: '使用状态', check: v => (HOUSE_USE_STATUS.includes(v) ? '' : `使用状态只能是 ${HOUSE_USE_STATUS.join(' / ')}`) },
+  usage: { label: '用途', check: v => (HOUSE_USAGE.includes(v) ? '' : `用途只能是 ${HOUSE_USAGE.join(' / ')}`) },
   propertyStatus: { label: '产权状态', check: v => (HOUSE_PROPERTY_STATUS.includes(v) ? '' : '产权状态取值不合法') },
   decoration: { label: '装修情况' },
+  /* 客户画像补充（2026-11-02）：交付日期与违规装修挂在房屋上 */
+  deliverDate: { label: '交房日期', check: v => (!v || /^\d{4}-\d{2}-\d{2}$/.test(v) ? '' : '交房日期格式应为 YYYY-MM-DD') },
+  decorationViolation: { label: '是否违规装修', check: v => (['无', '疑似', '已认定', '已整改'].includes(v) ? '' : '违规装修取值只能是 无 / 疑似 / 已认定 / 已整改') },
+  decorationResult: { label: '违规处理结果' },
   orientation: { label: '朝向' },
   certNo: { label: '产权证号' },
   remark: { label: '备注' }
@@ -5878,6 +7955,16 @@ export function updateHouseField(houseId, field, value) {
   if (!cfg) throw new Error('该字段不支持内联编辑')
   const v = String(value ?? '').trim()
   if (cfg.check) { const e = cfg.check(v); if (e) throw new Error(e) }
+  /* 内联改使用状态也要守住交付的边界：未交房的房子不能被标成已入住 / 正在装修，
+     否则这套房当天就进计费与可出租候选，而它连钥匙都还没交。 */
+  if (field === 'useStatus') {
+    if (h.deliverStatus === '未交房' && v !== '未交房') {
+      throw new Error(`${h.fullName} 还未交房，使用状态只能是「未交房」；请先在编辑页把交付状态改为「已交付」`)
+    }
+    if (v === '未交房' && h.deliverStatus !== '未交房') {
+      throw new Error('「未交房」要连交付状态一起改：请到编辑页把交付状态改为「未交房」')
+    }
+  }
   h[field] = v
   const i = HOUSE_ROWS.findIndex(r => r.houseId === houseId)
   if (i >= 0) HOUSE_ROWS.splice(i, 1, houseRow(h))
@@ -5967,11 +8054,8 @@ let APPROVAL_SEQ = approvals.reduce((m, a) => Math.max(m, +String(a.approvalId).
 
 /** 合同派生行同步（列表 / 左树 / 汇总都读 CONTRACT_ROWS） */
 function _syncContractRow(c, { insert = false } = {}) {
-  const derived = {
-    ...c,
-    communityName: c.communityId ? communityName(c.communityId) : '集团 / 全项目',
-    restDays: daysBetween(c.endDate) === null ? null : -daysBetween(c.endDate)
-  }
+  /* 派生字段统一走 _contractRow：新增 / 变更后不重算年化，列表会显示旧值 */
+  const derived = _contractRow(c)
   const i = CONTRACT_ROWS.findIndex(x => x.contractId === c.contractId)
   if (i >= 0) CONTRACT_ROWS.splice(i, 1, derived)
   else if (insert) CONTRACT_ROWS.unshift(derived)
@@ -6003,8 +8087,42 @@ function _newContractApproval(c, change = null) {
   return ap
 }
 
+/** 收入分类选项（三值；顺序即表单顺序：先主营、再经营、最后支出） */
+export const CONTRACT_INCOME_CATEGORIES = ['主营业务', '多种经营', '不计入']
+
+/** 按合同类型给的默认收入分类——只是省一次手点，用户随时可改 */
+export function defaultIncomeCategory(type = '', subtype = '') {
+  if (type === '租赁') return '多种经营'
+  if (type === '物业服务' && subtype === '前期物业服务合同') return '主营业务'
+  return '不计入'
+}
+
+/**
+ * 公共收益金额的规则校验（表单与接口共用一套）。
+ * 三个错法都拦：分类不对却填了、超过合同金额、负数。
+ */
+export function contractIncomeCheck(p = {}) {
+  const amt = Number(p.amount) || 0
+  const cat = String(p.incomeCategory || '')
+  const pub = Number(p.publicRevenue) || 0
+  if (!cat) return '请选择收入分类（主营 / 多种经营 / 不计入）'
+  if (!CONTRACT_INCOME_CATEGORIES.includes(cat)) return `收入分类只能是 ${CONTRACT_INCOME_CATEGORIES.join(' / ')}`
+  if (pub < 0) return '公共收益金额不能为负数'
+  if (cat !== '多种经营' && pub > 0) {
+    return `「${cat}」的合同不该填公共收益金额 —— 公共收益只来自经营共有部位（广告位 / 商铺 / 公共车位）`
+  }
+  if (pub > amt) return `公共收益金额（${pub}）不能大于合同金额（${amt}）：归业主的部分不可能超过合同总额`
+  return ''
+}
+
 /** 新建合同：落库（待审批）+ 生成审批单 */
 export function createContract(d = {}) {
+  const bad = contractIncomeCheck({
+    amount: d.amount,
+    incomeCategory: d.incomeCategory || defaultIncomeCategory(d.type, d.subtype),
+    publicRevenue: d.publicRevenue
+  })
+  if (bad) throw Object.assign(new Error(bad), { code: 42208 })
   const seq = contracts.reduce((m, c) => Math.max(m, +String(c.contractId).replace(/\D/g, '') || 0), 0) + 1
   const c = {
     contractId: 'CT' + String(seq).padStart(4, '0'),
@@ -6013,6 +8131,9 @@ export function createContract(d = {}) {
     communityId: d.communityId || '', orgId: d.orgId || '',
     partyB: d.partyB, contact: d.contact || '', phone: d.phone || '',
     amount: Number(d.amount) || 0, payCycle: d.payCycle || '月付',
+    incomeCategory: d.incomeCategory || defaultIncomeCategory(d.type, d.subtype),
+    publicRevenue: Number(d.publicRevenue) || 0,
+    publicRevenueNote: d.publicRevenueNote || '',
     signDate: d.signDate || '', startDate: d.startDate || '', endDate: d.endDate || '',
     status: '待审批', owner: d.owner || '系统操作员', ownerEmpId: d.ownerEmpId || '',
     attachments: Number(d.attachments) || 0, refType: 'none', refId: '',
@@ -7567,7 +9688,10 @@ export function querySupFindingReport({ pageNo = 1, size = 50, filters = {} } = 
 /** 敏感字段白名单：只有登记在这里的列才参与脱敏、留痕与导出校验 */
 const SENSITIVE_FIELDS = {
   phone: '手机号', mobile: '手机号', emergencyPhone: '应急电话',
-  idCard: '证件号', bankAccount: '银行账号'
+  idCard: '证件号', bankAccount: '银行账号',
+  /* 客户画像里的三项个人敏感信息（2026-11-02）：经济状况、政治面貌、负面评价。
+     它们不进计费也不进考核，但一旦整表下发，就是"整栋楼谁家困难、谁被投诉过"的名单。 */
+  economicLevel: '家庭经济状况', politicalStatus: '政治面貌', negativeNotes: '负面信息'
 }
 export const SENSITIVE_PERM = 'a.sensitive.view'
 export const ACCESS_LOG_PERM = 'e.accessLog.view'
@@ -7580,6 +9704,8 @@ export const sensitiveLabelOf = prop => SENSITIVE_FIELDS[prop] || ''
 /** 按字段类型脱敏（证件号保留前 4 后 4，其余按手机号口径） */
 export function maskSensitive(field, v) {
   if (v === null || v === undefined || v === '') return '—'
+  /* 枚举 / 评价类：遮蔽整值。对「一般」「群众」保留前后位，等于把答案写脸上 */
+  if (['economicLevel', 'politicalStatus', 'negativeNotes'].includes(field)) return '***'
   if (field === 'idCard') return maskId(v)
   if (field === 'bankAccount') return String(v).replace(/^(.{4}).*(.{4})$/, '$1 **** **** $2')
   return maskPhone(v)
@@ -8256,6 +10382,9 @@ export function batchVerifyTenants(tenantIds = [], { operator = '物业前台' }
     if (raw.verifyStatus === '已核验') { failed.push({ id, name: raw.name, reason: '已核验过' }); continue }
     const miss = _tenantFill(raw).missingBasic
     if (miss.length) { failed.push({ id, name: raw.name, reason: `缺 ${miss.join('、')}` }); continue }
+    if ((raw.tenantType || '个人') === '公司' && !(raw.licenseFiles || []).length) {
+      failed.push({ id, name: raw.name, reason: '缺营业执照影像件' }); continue
+    }
     raw.verifyStatus = '已核验'
     raw.certified = true
     raw.verifiedBy = operator
@@ -9760,3 +11889,2761 @@ PERM_REQUESTS.push(
     changeId: ''
   }
 )
+
+/* ==================================================================
+ * H 域 · 组织负责人关系（2026-11-03 第 52 批）
+ *
+ * 为什么单独一张表：`orgs.leader` 是自由文本，只能表达「一个部门一个负责人」。
+ * 现实里三种情况表达不出来：
+ *   ① 一个部门多个负责人（正职 + 副职分工）；
+ *   ② 正职离任期间由代理顶着，代理有起止日期，到期自动失效；
+ *   ③ 一人管多个部门 —— 第 51 批用 `leaderEmpId` 勉强表达了，但一个人的多个
+ *      负责关系可能有不同职责（A 部门正职、B 部门代理），单值字段装不下。
+ *
+ * 三条口径：
+ *   ① **正职唯一**：一个部门只能有一个在期正职，多了不知道谁签字；
+ *   ② **代理必须填结束日期**：没有到期的代理等于第二个正职，迟早忘了收回；
+ *   ③ **副职不参与审批**：副职是分工不是授权。审批只认正职，正职空缺才落到在期代理。
+ *
+ * `orgs.leader` / `leaderEmpId` 保留为展示快照（种子由关系表回写），不删 ——
+ * 二十多处展示代码和契约样例都引着它，删掉是纯风险没有收益。
+ * ================================================================== */
+
+export const ORG_DUTY = ['正职', '副职', '代理']
+const _DUTY_RANK = { 正职: 0, 代理: 1, 副职: 2 }
+
+const ORG_LEADERS = []
+let ORG_LEADER_SEQ = 0
+
+/** 关系是否在期：没填开始日视为一直在任；结束日早于今天视为已结束 */
+function _relState(r) {
+  if (r.startDate && r.startDate > TODAY) return '未生效'
+  if (r.endDate && r.endDate < TODAY) return '已结束'
+  return '在期'
+}
+const _relActive = r => _relState(r) === '在期'
+
+/* 种子：21 个组织的正职从 `leaderEmpId` 迁移过来，再加四条演示数据。
+   O-P01-T3 用显式记录覆盖（正职 10/15 离任 + 代理在期），不能同时生成默认正职，
+   否则一个部门会有两条在期正职，直接违反「正职唯一」。 */
+const _LEADER_SEED_OVERRIDE = new Set(['O-P01-T3'])
+const _SEED_ORG_LEADERS = []
+for (const o of orgs) {
+  if (o.leaderEmpId && !_LEADER_SEED_OVERRIDE.has(o.orgId)) {
+    _SEED_ORG_LEADERS.push({ orgId: o.orgId, empId: o.leaderEmpId, duty: '正职', startDate: '', endDate: '', note: '' })
+  }
+}
+_SEED_ORG_LEADERS.push(
+  /* 正职离任 → 代理顶上：审批人要自动切到代理，不能还挂着已经离任的人 */
+  { orgId: 'O-P01-T3', empId: 'EM0034', duty: '正职', startDate: '2025-06-01', endDate: '2026-10-15', note: '胡建国 10/15 调岗离任' },
+  { orgId: 'O-P01-T3', empId: 'EM0036', duty: '代理', startDate: '2026-10-16', endDate: '2026-12-31', note: '正职空缺期间由龚淼然代理，到期自动失效' },
+  /* 副职：分工不授权，单签节点轮不到他；但会签节点必须参与 */
+  { orgId: 'O-P01-T4', empId: 'EM0052', duty: '副职', startDate: '2026-03-01', endDate: '', note: '分管绿化，不参与单签审批' },
+  { orgId: 'O-P01', empId: 'EM0011', duty: '副职', startDate: '2026-02-01', endDate: '', note: '分管工程与采购，采购类会签需与正职共同签署' },
+  /* 已过期的代理：留档不删，演示「到期自动失效」 */
+  { orgId: 'O-P02-T4', empId: 'EM0054', duty: '代理', startDate: '2026-08-01', endDate: '2026-09-30', note: '钱文博休假期间代理，9/30 已结束' }
+)
+for (const r of _SEED_ORG_LEADERS) {
+  ORG_LEADER_SEQ += 1
+  ORG_LEADERS.push({
+    id: 'OL' + String(ORG_LEADER_SEQ).padStart(4, '0'),
+    orgId: r.orgId, empId: r.empId, duty: r.duty,
+    startDate: r.startDate, endDate: r.endDate, note: r.note
+  })
+}
+/* 快照对齐放在 H 域末尾（见文件下方）：这里调用会碰到还没初始化的 const 箭头函数 */
+
+const _empOf = empId => employees.find(e => e.empId === empId) || null
+
+/** 某部门的全部负责人（含已结束 / 未生效，页面要能看见历史与待生效） */
+export function leadersOf(orgId) {
+  return ORG_LEADERS
+    .filter(r => r.orgId === orgId)
+    .map(r => {
+      const e = _empOf(r.empId) || {}
+      const state = _relState(r)
+      return {
+        ...r,
+        name: e.name || r.empId,
+        position: e.position || '',
+        empStatus: e.status || '',
+        state,
+        active: state === '在期',
+        /* 部门负责人不能是离职员工：离职了关系还在，审批会落到查无此人 */
+        warn: e.status === '离职' ? '该员工已离职，建议结束这条负责关系' : ''
+      }
+    })
+    .sort((a, b) => _DUTY_RANK[a.duty] - _DUTY_RANK[b.duty] || String(a.startDate).localeCompare(String(b.startDate)))
+}
+
+/** 只取在期负责人（审批解析、计划提报用）。
+ * 用 function 声明而不是 const 箭头：种子对齐等早期代码会调它，const 有 TDZ。 */
+export function activeLeadersOf(orgId) {
+  return leadersOf(orgId).filter(r => r.active)
+}
+
+/**
+ * 部门当前审批人：在期正职 → 在期代理（结束日期最晚的）→ 空。
+ * 副职不参与：副职是分工不是授权，让他批等于把签字权随手给了第二个人。
+ */
+function _rankingLeader(orgId) {
+  const list = activeLeadersOf(orgId)
+  const zheng = list.find(r => r.duty === '正职')
+  if (zheng) return zheng
+  const proxies = list.filter(r => r.duty === '代理')
+  if (!proxies.length) return null
+  return proxies.sort((a, b) => String(b.endDate || '9999').localeCompare(String(a.endDate || '9999')))[0]
+}
+
+/**
+ * 部门负责人（兼容旧调用）：
+ * 关系表里有记录就以关系表为准；一条都没有时回落到 `leaderEmpId` / `leader`。
+ * 回落是为了「刚升级还没补数据」的部门不至于审批人全空，不是长期方案。
+ */
+export function orgLeaderOf(orgId) {
+  const o = ORG_OF.get(orgId)
+  if (!o) return null
+  const hit = _rankingLeader(orgId)
+  if (hit) {
+    return {
+      orgId, orgName: o.name,
+      empId: hit.empId, name: hit.name, position: hit.position,
+      duty: hit.duty, endDate: hit.endDate || '', source: 'relation'
+    }
+  }
+  const emp = o.leaderEmpId ? _empOf(o.leaderEmpId) : null
+  return {
+    orgId, orgName: o.name,
+    empId: o.leaderEmpId || '', name: emp?.name || o.leader || '',
+    position: emp?.position || '', duty: '', endDate: '', source: 'legacy'
+  }
+}
+
+/** 我负责的组织（列表 / 计划提报用）：含正职、副职、在期代理 */
+export function leadsOf(empId = '') {
+  const emp = empId ? _empOf(empId) : currentOperator()
+  if (!emp) return []
+  const homeOrgId = teamOf(emp) || emp.orgId
+  return ORG_LEADERS
+    .filter(r => r.empId === emp.empId && _relActive(r))
+    .map(r => {
+      const o = ORG_OF.get(r.orgId)
+      if (!o) return null
+      return {
+        orgId: o.orgId,
+        orgName: o.name,
+        orgType: o.type,
+        orgPath: orgPathOf(o.orgId),
+        projectId: _projectOfOrg(o.orgId),
+        headcount: _headcountOf(o.orgId),
+        /* isPrimary = 这个部门是不是他的人事主职（工资考勤按主职算），
+           与 duty（他在这个部门是正职还是副职/代理）是两件事 */
+        isPrimary: o.orgId === homeOrgId,
+        duty: r.duty,
+        endDate: r.endDate || '',
+        dutyNote: r.duty === '正职'
+          ? (o.orgId === homeOrgId ? '' : '兼管：不是人事主职部门，工资考勤仍按主职算')
+          : (r.duty === '代理'
+            ? `代理至 ${r.endDate || '未填'}，到期自动失效`
+            : '副职：可提报计划，但不参与该部门审批')
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => _DUTY_RANK[a.duty] - _DUTY_RANK[b.duty]
+      || (a.isPrimary === b.isPrimary ? 0 : a.isPrimary ? -1 : 1)
+      || (_ORG_RANK[a.orgType] ?? 9) - (_ORG_RANK[b.orgType] ?? 9))
+}
+
+/** 某人负责的组织数（计划页提示用，避免重复算 leadsOf） */
+export const leadCountOf = empId => leadsOf(empId).length
+
+/* ---------------- 写 ---------------- */
+
+const _leaderError = (msg, code) => Object.assign(new Error(msg), { code })
+
+function _checkLeader({ orgId, empId, duty, startDate, endDate, id }) {
+  if (!ORG_OF.get(orgId)) throw _leaderError('组织不存在', 40401)
+  const emp = _empOf(empId)
+  if (!emp) throw _leaderError('员工不存在', 40401)
+  if (emp.status === '离职') throw _leaderError(`「${emp.name}」已离职，不能设为负责人`, 42213)
+  if (!ORG_DUTY.includes(duty)) throw _leaderError('职责只能是正职 / 副职 / 代理', 42214)
+  const s = String(startDate || '')
+  const e = String(endDate || '')
+  if (s && e && e < s) throw _leaderError('结束日期不能早于开始日期', 42213)
+  /* 代理必须有结束日期：没有到期的代理等于第二个正职，收回时没人记得 */
+  if (duty === '代理' && !e) throw _leaderError('代理必须填结束日期（到期自动失效，不需要人工收回）', 42213)
+  /* 正职唯一：同一部门不能有两条在期正职 */
+  if (duty === '正职') {
+    const clash = ORG_LEADERS.find(r => r.id !== id && r.orgId === orgId && r.duty === '正职' && _relActive(r))
+    if (clash) throw _leaderError(`该部门已有在期正职「${_empOf(clash.empId)?.name || clash.empId}」，先把原来的结束掉`, 40927)
+  }
+  return { startDate: s, endDate: e }
+}
+
+/** 新增或修改一条负责关系（id 为空即新增） */
+export function saveOrgLeader({ id = '', orgId = '', empId = '', duty = '正职', startDate = '', endDate = '', note = '' } = {}) {
+  if (!canEditOrgLeaders()) throw _leaderError('当前角色没有组织维护权限（e.org.edit）', 403)
+  const clean = _checkLeader({ orgId, empId, duty, startDate, endDate, id })
+  if (id) {
+    const r = ORG_LEADERS.find(x => x.id === id)
+    if (!r) throw _leaderError('负责关系不存在', 40401)
+    Object.assign(r, { orgId, empId, duty, ...clean, note: String(note || '').trim() })
+    _syncOrgLeaderSnapshot(orgId)
+    return { ...r }
+  }
+  ORG_LEADER_SEQ += 1
+  const rec = {
+    id: 'OL' + String(ORG_LEADER_SEQ).padStart(4, '0'),
+    orgId, empId, duty, ...clean, note: String(note || '').trim()
+  }
+  ORG_LEADERS.push(rec)
+  _syncOrgLeaderSnapshot(orgId)
+  return { ...rec }
+}
+
+/**
+ * 删除一条负责关系。
+ * 允许删掉最后一个负责人（部门可以暂时没有负责人），但返回 `empty` 让页面提示 ——
+ * 部门无人负责之后，提报计划与审批解析都会落到上级，用户要知道这个后果。
+ */
+export function removeOrgLeader(id) {
+  if (!canEditOrgLeaders()) throw _leaderError('当前角色没有组织维护权限（e.org.edit）', 403)
+  const i = ORG_LEADERS.findIndex(x => x.id === id)
+  if (i < 0) throw _leaderError('负责关系不存在', 40401)
+  const [rec] = ORG_LEADERS.splice(i, 1)
+  _syncOrgLeaderSnapshot(rec.orgId)
+  return { ...rec, empty: activeLeadersOf(rec.orgId).length === 0 }
+}
+
+/** 整组替换（编辑抽屉保存时一次提交，避免逐条增删跑多次校验） */
+export function setOrgLeaders(orgId, list = []) {
+  if (!canEditOrgLeaders()) throw _leaderError('当前角色没有组织维护权限（e.org.edit）', 403)
+  if (!ORG_OF.get(orgId)) throw _leaderError('组织不存在', 40401)
+  const cleaned = list.map((x, i) => {
+    const clean = _checkLeader({ ...x, orgId, id: x.id || `tmp-${i}` })
+    return {
+      id: x.id || '', empId: x.empId, duty: x.duty,
+      startDate: clean.startDate, endDate: clean.endDate, note: String(x.note || '').trim()
+    }
+  })
+  /* 组内也要查正职唯一（_checkLeader 只查了已存数据，管不到本次一起提交的两条） */
+  const zheng = cleaned.filter(x => x.duty === '正职' && _relActive(x))
+  if (zheng.length > 1) throw _leaderError('同一部门只能有一个在期正职', 40927)
+
+  const keep = ORG_LEADERS.filter(r => r.orgId !== orgId)
+  const ids = new Set(cleaned.filter(x => x.id).map(x => x.id))
+  ORG_LEADERS.length = 0
+  ORG_LEADERS.push(...keep.filter(r => !ids.has(r.id) || r.orgId !== orgId))
+  for (const x of cleaned) {
+    if (x.id) {
+      const old = ORG_LEADERS.find(r => r.id === x.id)
+      if (old) Object.assign(old, x)
+      continue
+    }
+    ORG_LEADER_SEQ += 1
+    ORG_LEADERS.push({ id: 'OL' + String(ORG_LEADER_SEQ).padStart(4, '0'), orgId, ...x })
+  }
+  _syncOrgLeaderSnapshot(orgId)
+  return leadersOf(orgId)
+}
+
+/**
+ * 把当前正职回写到 `orgs.leader` / `leaderEmpId`（展示快照）。
+ * 不写的话组织树、巡检被检班组、成员详情上的「负责人」还是旧名字，
+ * 而审批已经按关系表走 —— 同一个部门两个负责人名字，比不显示更糟。
+ */
+function _syncOrgLeaderSnapshot(orgId) {
+  const o = ORG_OF.get(orgId)
+  if (!o) return
+  const hit = _rankingLeader(orgId)
+  if (hit) {
+    o.leaderEmpId = hit.empId
+    o.leader = hit.name
+  } else {
+    o.leaderEmpId = ''
+    o.leader = ''
+  }
+}
+
+/**
+ * 负责人候选：在职员工全量。
+ * 不按「主管及以上」过滤 —— 班组负责人可能就是资深师傅，按岗位卡会把人挡在外面；
+ * 真正的约束是「一个部门只能有一个正职」，不是「谁能当负责人」。
+ */
+export const orgLeaderCandidates = () => employees
+  .filter(e => e.status !== '离职')
+  .map(e => ({
+    empId: e.empId, name: e.name, position: e.position,
+    orgId: e.orgId, orgName: orgNameOf(e.orgId), status: e.status
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+
+/** 组织负责人维护权限：沿用组织维护位（改负责人是组织维护的一部分） */
+export const canViewOrgLeaders = () => _hasPerm('e.org.view')
+export const canEditOrgLeaders = () => _hasPerm('e.org.edit')
+
+/** 汇总：多少个部门有负责人 / 多少空缺 / 多少代理在期 / 多少条已结束（组织页顶部提示用） */
+export function orgLeaderSummary() {
+  const byOrg = new Map()
+  for (const r of ORG_LEADERS) {
+    const cur = byOrg.get(r.orgId) || []
+    cur.push(r)
+    byOrg.set(r.orgId, cur)
+  }
+  let filled = 0
+  let empty = 0
+  const multi = []
+  for (const o of orgs) {
+    const list = (byOrg.get(o.orgId) || []).filter(_relActive)
+    if (!list.length) { empty += 1; continue }
+    filled += 1
+    if (list.length > 1) multi.push({ orgId: o.orgId, name: o.name, count: list.length })
+  }
+  const active = ORG_LEADERS.filter(_relActive)
+  return {
+    total: ORG_LEADERS.length,
+    filled, empty, multi,
+    proxying: active.filter(r => r.duty === '代理').length,
+    deputy: active.filter(r => r.duty === '副职').length,
+    ended: ORG_LEADERS.filter(r => _relState(r) === '已结束').length,
+    multiCount: multi.length
+  }
+}
+
+/* 种子建好后把快照对齐一次（放在 H 域最末尾，确保所有读取口都已初始化）。
+   种子里 O-P01-T3 的正职已离任、代理在期，`orgs.leader` 还是离任的胡建国 ——
+   不对齐的话组织树 / 巡检被检班组显示的是离任的人，而审批已经走代理，
+   同一个部门两个名字比不显示更糟。 */
+for (const o of orgs) _syncOrgLeaderSnapshot(o.orgId)
+
+/* ==================================================================
+ * T 域 · 计划模板（2026-11-03 第 54 批）
+ *
+ * 第 51 批的计划是「部门自己写任务」，模板只给了个起步骨架。实际业务里
+ * 考核项是公司统一规定的 —— 项目经理和四个班组各有一套，条目、权重、
+ * 评价标准都不该由填报人改。本批把模板做成独立数据。
+ *
+ * 三个决定：
+ *   ① **模板是数据不是代码**：改权重、改条目、改评价标准都在页面上做，
+ *      不用改代码发版；
+ *   ② **提报时整份拷贝到计划里**（快照）—— 否则 7 月改了权重，
+ *      3 月已归档的分数会跟着重算。模板只影响之后新建的计划；
+ *   ③ 权重三段式：量化段 + 重点段 = 100%，**段内条目合计必须等于段权重**。
+ *      配成 10/10/10/10/10 而段权重 35%，总分基数就飘了，保存时直接拦。
+ *      监控段权重恒 0，只扣分不占权重。
+ *
+ * 本期不做（用户确认）：监控指标的封顶值不做配置、不做校验 ——
+ * 只让「评价标准」的文字可编辑，扣多少分由人判断。
+ * ================================================================== */
+
+/**
+ * 三个分段。
+ *
+ * 注意：**段权重已经不存在了**（2026-11-05 第 60 批）。以前是「两段各占多少 +
+ * 段内再分」，现在是「所有计分项合起来 100%」，只有一个约束。
+ * 页面想显示「量化段占多少」时用 `planWeightCheck().qs` 现算，不要另存一份 ——
+ * 另存就会出现「改了权重、标题上的百分比没变」。
+ */
+export const PLAN_SECTIONS = [
+  { key: 'q', name: '量化指标', note: '挑战 = 目标 × 105%，否决 = 目标 × 95%' },
+  { key: 'm', name: '监控指标', note: '权重恒为 0，只扣分不占权重' },
+  { key: 'k', name: '重点工作计划', note: '对照评分表打 1–5 分' }
+]
+
+/** 指标方向：收入类越高越好，成本类越低越好。方向错了整行都算反 */
+export const PLAN_DIRECTION_OPT = [
+  { value: 1, label: '正向', hint: '越高越好，用于收入、及时率' },
+  { value: -1, label: '逆向', hint: '越低越好，用于成本、能耗、事故' }
+]
+
+const PLAN_PERM_TPL_VIEW = 'f.planTpl.view'
+const PLAN_PERM_TPL_EDIT = 'f.planTpl.edit'
+export const canViewPlanTpl = () => _hasPerm(PLAN_PERM_TPL_VIEW)
+export const canEditPlanTpl = () => _hasPerm(PLAN_PERM_TPL_EDIT)
+
+const PLAN_TPLS = []
+let PLAN_TPL_SEQ = 0
+
+/**
+ * 模板条目。
+ *
+ * **模板不存权重**：权重由提报人新建计划时逐项填，审核阶段运营管理部可调。
+ * 模板只管「考什么、怎么算分、单位是什么」，管不了「各占多少」——
+ * 同一套考核项，不同项目当月的重点本来就不同，写死在模板里等于逼所有人按同一个比例。
+ */
+function _tplItem(section, name, opt = {}) {
+  PLAN_TPL_SEQ += 1
+  return {
+    itemId: 'PI' + String(PLAN_TPL_SEQ).padStart(4, '0'),
+    section,
+    name,
+    /* 量化的评价标准由目标值算，留空；监控和重点的这条是给人看的规则说明 */
+    standard: opt.standard || '',
+    direction: opt.direction === -1 ? -1 : 1,
+    targetDefault: opt.targetDefault ?? '',
+    unit: opt.unit || '',
+    enabled: true
+  }
+}
+
+/* ---------------- 六套内置模板 ----------------
+ * 第 60 批起模板里**没有权重**：条目、单位、方向、目标默认值、监控的扣分规则文字由这里定，
+ * 「每项占多少」由提报人在计划里填。所以下面每个条目都只有名字和可选配置。
+ */
+const _TPL_SPECS = [
+  {
+    tplId: 'PT01', name: '项目经理月度计划', matchType: '项目', matchSuffix: '',
+    desc: '项目经理考核：收入与成本五项量化 + 五项监控 + 五项重点工作',
+    q: [
+      ['物业费清欠', { unit: '元', targetDefault: 383796 }],
+      ['车位费收入', { unit: '元', targetDefault: 53040 }],
+      ['其他营业收入', { unit: '元', targetDefault: 6810 }],
+      ['运行成本控制', { unit: '元', targetDefault: 17296, direction: -1 }],
+      ['能耗成本控制', { unit: '元', targetDefault: 38697, direction: -1 }]
+    ],
+    m: [
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['月度品质检查', '不合格问题整改率 100% 低于达标率，绩效考核降一档'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '客户服务（社区活动、客户信息管理）',
+      '房屋及设施设备管理',
+      '环境管理',
+      '公共秩序管理',
+      '重要节点工作'
+    ]
+  },
+  {
+    tplId: 'PT02', name: '客服组月度计划', matchType: '班组', matchSuffix: '1',
+    desc: '客服班组：三项收入量化 + 五项监控 + 八项重点工作',
+    q: [
+      ['物业费清欠', { unit: '元', targetDefault: 319830 }],
+      ['车位费收入', { unit: '元', targetDefault: 32240 }],
+      ['其他营业收入', { unit: '元', targetDefault: 4300 }]
+    ],
+    m: [
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['月度品质检查', '不合格问题整改率 100% 低于达标率，绩效考核降一档'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '社区文化活动', '员工关怀', '业主恳谈会', '项目《客户画像细分表》',
+      '维修资金', '档案管理', '走回访调查', '物业费催缴'
+    ]
+  },
+  {
+    tplId: 'PT03', name: '工程组月度计划', matchType: '班组', matchSuffix: '2',
+    desc: '工程班组：维修收入与能耗成本两项量化 + 六项监控 + 八项重点工作',
+    q: [
+      ['有偿维修收入', { unit: '元', targetDefault: 0 }],
+      ['能耗成本控制', { unit: '元', targetDefault: 39922.9, direction: -1 }]
+    ],
+    m: [
+      ['年度维保计划完成率', '完成率 100%，低于达标率，考核总分扣 0.2 分'],
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['月度品质检查', '不合格问题整改率 100% 低于达标率，绩效考核降一档'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '园区节日布置拆除', '消防泵房维护', '直饮水系统维护', '电梯年检',
+      '景观水系石材维护', '闭路监控系统常规维保', '公区运行能耗抄表', '居民供水管控'
+    ]
+  },
+  {
+    tplId: 'PT04', name: '秩序组月度计划', matchType: '班组', matchSuffix: '3',
+    desc: '秩序班组：停车与其他收入两项量化 + 五项监控 + 八项重点工作',
+    q: [
+      ['临时停车收入', { unit: '元', targetDefault: 4000 }],
+      ['其他营业收入', { unit: '元', targetDefault: 10 }]
+    ],
+    m: [
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['月度品质检查', '不合格问题整改率 100% 低于达标率，绩效考核降一档'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '园区管理', '消防管理', '门岗管理', '地库管理',
+      '员工关怀', '突发事件演练', '品质提升', '车辆管理'
+    ]
+  },
+  {
+    tplId: 'PT05', name: '环境组月度计划', matchType: '班组', matchSuffix: '4',
+    desc: '环境班组：家政收入与专项成本两项量化 + 五项监控 + 八项重点工作',
+    q: [
+      ['家政服务收入', { unit: '元', targetDefault: 300 }],
+      ['专项成本控制', { unit: '元', targetDefault: 7200, direction: -1 }]
+    ],
+    m: [
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['月度品质检查', '不合格问题整改率 100% 低于达标率，绩效考核降一档'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '元宵节活动', '员工关怀', '越冬蚊蝇消杀', '清理地库大仓库、洗拖把间排水沟',
+      '保暖套清洗', '地库环境提升', '清洗生活垃圾桶', '清理 2#、3# 楼管井、电井卫生'
+    ]
+  },
+  {
+    tplId: 'PT06', name: '职能通用月度计划（兜底）', matchType: '职能', matchSuffix: '',
+    desc: '总部职能部门没有收入指标，量化段放部门级关键数据；匹配不到模板时用它兜底',
+    q: [
+      ['部门预算执行率', { unit: '%', targetDefault: 100 }],
+      ['重点工作按期完成率', { unit: '%', targetDefault: 100 }]
+    ],
+    m: [
+      ['主动离职人数', '部门员工每主动离职 1 人，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['培训达标率', '完成值低于 95%，每下降 1 分，考核总分扣 0.05 分，最高扣 0.2 分'],
+      ['有效投诉 0 起', '每发生一起，考核总分扣 0.2 分'],
+      ['质量责任事故 0 起', '每发生一起，考核总分扣 0.2 分']
+    ],
+    k: [
+      '月度重点工作', '制度与流程维护', '跨部门协同', '团队能力建设',
+      '档案与资料归档', '会议与汇报', '临时交办事项'
+    ]
+  }
+]
+
+for (const sp of _TPL_SPECS) {
+  const items = []
+  for (const [name, opt] of sp.q) items.push(_tplItem('q', name, opt || {}))
+  for (const [name, std] of sp.m) items.push(_tplItem('m', name, { standard: std }))
+  for (const name of sp.k) items.push(_tplItem('k', name))
+  PLAN_TPLS.push({
+    tplId: sp.tplId,
+    name: sp.name,
+    desc: sp.desc || '',
+    matchType: sp.matchType,
+    matchSuffix: sp.matchSuffix || '',
+    enabled: true,
+    version: 1,
+    items,
+    updatedAt: '2026-11-01 09:00',
+    updatedBy: '运营管理部'
+  })
+}
+
+/* ---------------- 校验 ---------------- */
+
+const _tplError = (msg, code) => Object.assign(new Error(msg), { code })
+
+/**
+ * 模板完整性校验。**返回错误清单而不是抛异常** —— 页面上要一次把
+ * 所有问题都列出来，抛第一个错误会让人改一处试一次。
+ *
+ * 第 60 批起模板**不再校验权重**：权重已经不在模板里了（改由提报人填、
+ * 审核阶段可调）。这里只校验「考什么」是否齐全 —— 名称、适用类型、
+ * 量化段和重点段不能是空的。
+ */
+export function planTplCheck(tpl = {}) {
+  const errs = []
+  const items = (tpl.items || []).filter(i => i.enabled !== false)
+
+  if (!String(tpl.name || '').trim()) errs.push('模板名称不能为空')
+  if (!['项目', '班组', '职能'].includes(tpl.matchType)) errs.push('适用类型只能选项目 / 班组 / 职能')
+  if (tpl.matchType === '班组' && !/^[1-4]$/.test(String(tpl.matchSuffix || ''))) {
+    errs.push('适用班组要指定是哪一个（T1 客服 / T2 工程 / T3 秩序 / T4 环境）')
+  }
+
+  for (const sec of PLAN_SECTIONS) {
+    const rows = items.filter(i => i.section === sec.key)
+    const noName = rows.filter(i => !String(i.name || '').trim()).length
+    if (noName) errs.push(`${sec.name}有 ${noName} 条没填名称`)
+    const tooLong = rows.filter(i => String(i.name || '').trim().length > 40).length
+    if (tooLong) errs.push(`${sec.name}有 ${tooLong} 条名称超过 40 字`)
+    /* 量化段和重点段是计分的主体，一段全空这份计划就没有可评分的内容；
+       监控段允许为空（纯扣分项，个别岗位确实不需要） */
+    if (sec.key !== 'm' && !rows.length) errs.push(`${sec.name}至少要有一条考核项`)
+  }
+  return { ok: errs.length === 0, errs }
+}
+
+/* ---------------- 读 ---------------- */
+
+function _tplRowOf(t) {
+  const items = t.items || []
+  const q = items.filter(i => i.section === 'q')
+  const m = items.filter(i => i.section === 'm')
+  const k = items.filter(i => i.section === 'k')
+  const chk = planTplCheck(t)
+  return {
+    ...t,
+    qCount: q.length,
+    mCount: m.length,
+    kCount: k.length,
+    totalCount: q.length + m.length + k.length,
+    checkOk: chk.ok,
+    checkErrs: chk.errs
+  }
+}
+
+export function planTplRows({ kw = '', onlyEnabled = false } = {}) {
+  return PLAN_TPLS
+    .filter(t => !onlyEnabled || t.enabled)
+    .filter(t => !kw || `${t.name}${t.desc}${t.items.map(i => i.name).join('')}`.includes(kw))
+    .map(_tplRowOf)
+}
+
+export function getPlanTpl(tplId) {
+  const t = PLAN_TPLS.find(x => x.tplId === tplId)
+  if (!t) return null
+  return { ..._tplRowOf(t), items: t.items.map(i => ({ ...i })) }
+}
+
+/**
+ * 按组织自动匹配模板。
+ * 项目部 → 项目经理模板；班组按 -T1~-T4 对应客服 / 工程 / 秩序 / 环境；
+ * 总部部门没有对应模板，落到「职能通用」兜底。
+ * 匹配不到时返回 null，页面提示让人去配，而不是静默给一个空模板。
+ */
+export function planTplForOrg(orgId) {
+  const o = ORG_OF.get(orgId)
+  if (!o) return null
+  const on = PLAN_TPLS.filter(t => t.enabled)
+  if (o.type === '项目') return on.find(t => t.matchType === '项目') || null
+  if (o.type === '班组') {
+    const sfx = String(orgId).split('-T')[1] || ''
+    return on.find(t => t.matchType === '班组' && t.matchSuffix === sfx)
+      || on.find(t => t.matchType === '职能') || null
+  }
+  return on.find(t => t.matchType === '职能') || null
+}
+
+/** 下拉选项：给提报表单「换模板」用 */
+export const planTplOpts = () => PLAN_TPLS
+  .filter(t => t.enabled)
+  .map(t => ({
+    tplId: t.tplId, name: t.name, matchType: t.matchType,
+    label: t.matchType === '班组'
+      ? `${t.name}（T${t.matchSuffix}）`
+      : t.name
+  }))
+
+/* ---------------- 写 ---------------- */
+
+function _cleanTplItems(items = []) {
+  const used = new Set()
+  return items.map((x, i) => {
+    let id = x.itemId || ''
+    if (!id || used.has(id)) {
+      PLAN_TPL_SEQ += 1
+      id = 'PI' + String(PLAN_TPL_SEQ).padStart(4, '0')
+    }
+    used.add(id)
+    return {
+      itemId: id,
+      section: ['q', 'm', 'k'].includes(x.section) ? x.section : 'k',
+      name: String(x.name || '').trim(),
+      standard: String(x.standard || '').trim(),
+      direction: x.direction === -1 ? -1 : 1,
+      targetDefault: x.targetDefault === '' || x.targetDefault === undefined || x.targetDefault === null
+        ? '' : Number(x.targetDefault),
+      unit: String(x.unit || '').trim(),
+      enabled: x.enabled !== false
+    }
+  })
+}
+
+/**
+ * 保存模板（新建或改）。
+ * 校验不通过**整单拒绝**，不做部分保存 —— 一份缺了「量化指标」的模板
+ * 落库之后，用它提报出来的计划就没有可评分的内容，而且是隐性的。
+ */
+export function savePlanTpl(payload = {}, tplId = '') {
+  if (!canEditPlanTpl()) throw _tplError('当前角色没有计划模板维护权限（f.planTpl.edit）', 403)
+  const items = _cleanTplItems(payload.items)
+  const draft = {
+    name: String(payload.name || '').trim(),
+    desc: String(payload.desc || '').trim(),
+    matchType: payload.matchType || '班组',
+    matchSuffix: String(payload.matchSuffix || ''),
+    items
+  }
+  const chk = planTplCheck(draft)
+  if (!chk.ok) throw _tplError(chk.errs[0], 42214)
+
+  const me = currentOperator()
+  if (tplId) {
+    const t = PLAN_TPLS.find(x => x.tplId === tplId)
+    if (!t) throw _tplError('模板不存在', 40401)
+    Object.assign(t, draft, {
+      version: (t.version || 1) + 1,
+      updatedAt: _now(),
+      updatedBy: me.name
+    })
+    return getPlanTpl(tplId)
+  }
+
+  const same = PLAN_TPLS.find(x => x.matchType === draft.matchType
+    && String(x.matchSuffix) === String(draft.matchSuffix))
+  if (same) {
+    throw _tplError(`已经有一个「${same.name}」管这一类部门了，同一类不能配两个模板`, 40929)
+  }
+  PLAN_TPL_SEQ += 1
+  const t = {
+    tplId: 'PT' + String(PLAN_TPLS.length + 1).padStart(2, '0'),
+    ...draft,
+    enabled: true,
+    version: 1,
+    updatedAt: _now(),
+    updatedBy: me.name
+  }
+  PLAN_TPLS.push(t)
+  return getPlanTpl(t.tplId)
+}
+
+/** 启用 / 停用。停用不删除：历史计划还引着它，删了追溯就断 */
+export function togglePlanTpl(tplId, enabled) {
+  if (!canEditPlanTpl()) throw _tplError('当前角色没有计划模板维护权限（f.planTpl.edit）', 403)
+  const t = PLAN_TPLS.find(x => x.tplId === tplId)
+  if (!t) throw _tplError('模板不存在', 40401)
+  t.enabled = !!enabled
+  t.updatedAt = _now()
+  t.updatedBy = currentOperator().name
+  return getPlanTpl(tplId)
+}
+
+/** 模板汇总：列表页顶部 KPI 用 */
+export function planTplSummary() {
+  const rows = planTplRows()
+  return {
+    total: rows.length,
+    enabled: rows.filter(t => t.enabled).length,
+    disabled: rows.filter(t => !t.enabled).length,
+    items: rows.reduce((s, t) => s + t.totalCount, 0),
+    broken: rows.filter(t => !t.checkOk).length
+  }
+}
+
+/* ==================================================================
+ * G 域 · 部门计划管理（2026-11-03 第 55 批 · 改为模板驱动；11-05 第 60 批 · 权重下放）
+ *
+ * 第 51 批的计划是「部门自己写任务」，第 54 批把考核项做成了模板。
+ * 第 55 批把计划真正接到模板上：**条目由模板铺开**。
+ * **第 60 批把权重从模板搬到计划**：模板只定「考什么、怎么算分」，
+ * 「每项占多少」由提报人在新建计划时填，审核阶段运营管理部可调。
+ * 理由：同一套考核项，不同项目当月的重点本来就不同；写死在模板里，
+ * 要么所有人按同一比例，要么运营管理部每个月改一遍模板（还会改坏历史版本）。
+ *
+ * 结构与口径：
+ *   ① 三段：量化（填目标值，自评按公式算）/ 监控（权重 0，直接填扣分）/
+ *      重点（对照评分表人工打 1–5 分）；
+ *   ② 量化自评：`5 ×（实际 − 否决）/（挑战 − 否决）`，夹在 1–5 之间；
+ *      正向 挑战 = 目标×105%、否决 = 目标×95%，逆向镜像；
+ *      目标为 0（零容忍/零收入）时公式失效，退回人工打分；
+ *   ③ **各项权重合计必须正好 100%**（单一约束，没有"段权重"了），
+ *      监控项恒 0；提交审核时卡，草稿不卡（写到一半要能存）；
+ *   ④ 加权 = 分数 × 权重/100（权重合计 100，所以自评合计满分就是 5 分）；
+ *   ⑤ **月度总得分 = 自评合计 × 20% + 复评合计 × 80%**；
+ *   ⑥ 流程：草稿 → 审批中 → 已批准 → 执行中 → 待复评 → 已结案。
+ *      审核阶段运营管理部**直接改、改完即通过**（不走驳回），改动记进 reviseLog；
+ *      **必须等填报人提交完成情况之后才能复评**（状态卡住，不靠人自觉）。
+ *
+ * 提报时把模板条目和当时的权重**整份拷贝**成快照（`tplId` / `tplVersion` 一起记），
+ * 之后模板改条目、运营管理部改权重都不回写历史 —— 否则调一次权重，已归档的分数会跟着变。
+ *
+ * 本期不做：绩效工资折算（PLAN_PERF_RESERVE 留了口径）。
+ * ================================================================== */
+
+export const PLAN_STATUS = ['草稿', '审批中', '已批准', '已驳回', '执行中', '待复评', '已结案']
+export const PLAN_TASK_STATUS = ['未开始', '进行中', '已完成', '延期']
+
+/** 算分常量。改这里就是改全系统的口径，不要在各页面另抄一份 */
+export const PLAN_SCORE_RULE = {
+  rejectRate: 0.95,
+  challengeRate: 1.05,
+  min: 1,
+  max: 5,
+  selfWeight: 0.2,
+  reviewWeight: 0.8,
+  note: '否决 = 目标 × 95%（逆向 ×105%）；挑战 = 目标 × 105%（逆向 ×95%）；'
+    + '自评 = 5 ×（实际 − 否决）/（挑战 − 否决），夹在 1–5；'
+    + '月度总得分 = 自评加权合计 × 20% + 复评加权合计 × 80%'
+}
+
+/** 评分档位（5 分制）。总分满分是 5，不是 100 —— 别拿百分制的阈值套 */
+export const PLAN_GRADE_RULE = [
+  { grade: 'A', min: 4.5, label: '优秀' },
+  { grade: 'B', min: 3.75, label: '良好' },
+  { grade: 'C', min: 3.0, label: '合格' },
+  { grade: 'D', min: 0, label: '待改进' }
+]
+
+export const PLAN_PERF_RESERVE = {
+  enabled: false,
+  note: '月度总得分 → 部门绩效工资系数的换算规则本期未定义；接入时在 reviewDeptPlan 写 plan.performanceFactor，'
+    + '读取口只开 deptPlanSummary({ orgId, period })，不要让工资页直接读 deptPlans',
+  fields: ['totalScore', 'grade', 'planMonth', 'orgId']
+}
+
+const PLAN_PERM_VIEW = 'f.plans.view'
+const PLAN_PERM_EDIT = 'f.plans.edit'
+const PLAN_PERM_EVAL = 'f.plans.eval'
+export const canViewDeptPlans = () => _hasPerm(PLAN_PERM_VIEW)
+export const canEditDeptPlans = () => _hasPerm(PLAN_PERM_EDIT)
+export const canEvalDeptPlans = () => _hasPerm(PLAN_PERM_EVAL)
+
+const _ORG_RANK = { 项目: 0, 部门: 1, 班组: 2, 集团: 3 }
+
+/** 沿组织树向上找所属项目（班组 → 项目部） */
+function _projectOfOrg(orgId) {
+  let cur = ORG_OF.get(orgId)
+  for (let i = 0; cur && i < 8; i++) {
+    if (cur.type === '项目') return cur.orgId
+    cur = cur.parentId ? ORG_OF.get(cur.parentId) : null
+  }
+  return ''
+}
+
+/** 组织下在职人数（含下级，与组织页同口径） */
+function _headcountOf(orgId) {
+  const ids = descOf(orgId)
+  return ids ? EMP_ROWS.filter(e => ids.has(e.orgId) && e.status !== '离职').length : 0
+}
+
+/** 某组织在某月是否已有计划（同月唯一；已驳回的可以重提，故排除） */
+function _planOfMonth(planMonth, orgId) {
+  return DEPT_PLANS.find(p => p.planMonth === planMonth && p.orgId === orgId && p.status !== '已驳回') || null
+}
+
+/**
+ * 当前"我"是谁 + 我负责哪几个部门。
+ * 计划页所有"我能干什么"的判断都从这里出，不从角色名反推 ——
+ * 一人多部门时，角色名反推不出"这次提报哪个部门"。
+ */
+export function planIdentity() {
+  const me = currentOperator()
+  const leads = leadsOf(me.empId)
+  return {
+    empId: me.empId, name: me.name, position: me.position, level: me.level,
+    orgId: me.orgId, orgName: me.orgName, roleName: me.roleName,
+    leads, leadCount: leads.length
+  }
+}
+
+/* ---------------- 算分（唯一口径，页面不许自己再算一遍） ---------------- */
+
+const _plan2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+/** 目标值 → 否决值 / 挑战值。逆向指标镜像：成本越低越好，所以挑战比目标低 */
+export function planTargetOf(item = {}) {
+  const t = Number(item.target)
+  const dir = item.direction === -1 ? -1 : 1
+  if (!Number.isFinite(t) || t <= 0) return { reject: null, challenge: null, usable: false }
+  return {
+    reject: _plan2(dir > 0 ? t * PLAN_SCORE_RULE.rejectRate : t * PLAN_SCORE_RULE.challengeRate),
+    challenge: _plan2(dir > 0 ? t * PLAN_SCORE_RULE.challengeRate : t * PLAN_SCORE_RULE.rejectRate),
+    usable: true
+  }
+}
+
+/**
+ * 自评分。量化项由公式算，重点项人工填，监控项不参与。
+ *
+ * 下限夹 1 分是个刻意的选择：公式在否决值处算出 0，而规则说"低于否决值记 1 分"，
+ * 不夹的话会出现「完成 96 元比 95 元得分更低」的反转。
+ */
+export function planSelfScoreOf(item = {}) {
+  if (item.section !== 'q') return Number(item.selfScore) || 0
+  const { reject, challenge, usable } = planTargetOf(item)
+  if (!usable) return Number(item.selfScore) || 0          /* 零目标：人工打分 */
+  const a = Number(item.actual)
+  if (item.actual === '' || item.actual === null || !Number.isFinite(a)) return 0
+  const den = Math.abs(challenge - reject)
+  if (!den) return 0
+  const num = item.direction === -1 ? (reject - a) : (a - reject)
+  return Math.min(PLAN_SCORE_RULE.max, Math.max(PLAN_SCORE_RULE.min, 5 * num / den))
+}
+
+/** 加权分 = 分数 × 权重/100（权重是百分数：10 表示 10%） */
+const _weightedOf = (score, weight) => _plan2((Number(score) || 0) * (Number(weight) || 0) / 100)
+
+/**
+ * 一条考核项的四个派生值 + 加权。
+ * 监控项没有分数，直接用手填的负数扣分（本期不做封顶校验，模板里只存文字规则）。
+ */
+export function planItemCalc(item = {}) {
+  if (item.section === 'm') {
+    return {
+      selfScore: null,
+      reviewScore: null,
+      selfWeighted: _plan2(item.selfWeighted),
+      reviewWeighted: _plan2(item.reviewWeighted)
+    }
+  }
+  const self = planSelfScoreOf(item)
+  const review = Number(item.reviewScore) || 0
+  return {
+    selfScore: _plan2(self),
+    reviewScore: review ? _plan2(review) : null,
+    selfWeighted: _weightedOf(self, item.weight),
+    reviewWeighted: review ? _weightedOf(review, item.weight) : 0
+  }
+}
+
+/** 合计：自评 / 复评 / 总分（20/80 合成） */
+export function planTotalsOf(items = []) {
+  let self = 0
+  let review = 0
+  for (const it of items) {
+    const c = planItemCalc(it)
+    self += c.selfWeighted
+    review += c.reviewWeighted
+  }
+  self = _plan2(self)
+  review = _plan2(review)
+  return {
+    selfTotal: self,
+    reviewTotal: review,
+    total: _plan2(self * PLAN_SCORE_RULE.selfWeight + review * PLAN_SCORE_RULE.reviewWeight)
+  }
+}
+
+export function planGradeOf(score) {
+  const hit = PLAN_GRADE_RULE.find(g => Number(score) >= g.min)
+  return hit ? hit.grade : ''
+}
+
+/**
+ * 权重校验。**两条规则**（2026-11-05 第 60 批）：
+ *   ① 每一项必须是 5 的倍数（业务上只按 5% 调，见 PLAN_WEIGHT_STEP）；
+ *   ② 各项合计正好 100%（监控项恒 0，不占权重）。
+ *
+ * 为什么把 5 的倍数放在合计前面报：两项都错时（比如 12 + 12 + 81 = 105），
+ * 先说"合计 105%"会让人去调数字，而真正该先做的是把 12 改成 10 或 15 ——
+ * 顺序反了会让人改两轮。
+ *
+ * 以前是两级：段内合计 = 段权重，且两段合计 100。第 60 批把权重从模板搬到计划后，
+ * 段权重这个中间层没有存在意义了 —— 提报人只面对"一共 100 分怎么分给这些条目"。
+ *
+ * 大于 100 和小于 100 都要给出**具体差多少**：只说"必须是 100%"，
+ * 填了 12 项的人得自己一项项加。
+ */
+export function planWeightCheck(items = []) {
+  const sumOf = k => _plan2(items.filter(i => i.section === k).reduce((s, i) => s + (Number(i.weight) || 0), 0))
+  const qs = sumOf('q')
+  const ks = sumOf('k')
+  const ms = sumOf('m')
+  const total = _plan2(qs + ks)
+  const diff = _plan2(100 - total)
+  const scorable = items.filter(i => i.section === 'q' || i.section === 'k')
+
+  const errs = []
+  if (ms !== 0) errs.push('监控指标的权重必须为 0（只扣分不占权重）')
+
+  const offStep = scorable.filter(i => !planWeightOnStep(i.weight))
+  if (offStep.length) {
+    const names = offStep.slice(0, 3).map(i => `「${i.name}」${i.weight}%`).join('、')
+    errs.push(`${names}${offStep.length > 3 ? ` 等 ${offStep.length} 项` : ''}不是 ${PLAN_WEIGHT_STEP} 的倍数，权重只能按 ${PLAN_WEIGHT_STEP}% 调`)
+  }
+
+  if (!scorable.length) {
+    errs.push('至少要有一条量化指标或重点工作，否则没有可计分的内容')
+  } else if (Math.abs(diff) > 0.01) {
+    errs.push(diff > 0
+      ? `各项权重合计 ${total}%，还差 ${diff}% 才到 100%`
+      : `各项权重合计 ${total}%，超出 ${_plan2(-diff)}%（必须正好 100%）`)
+  }
+
+  /* 每项至少 5%，100% 最多只能分给 20 项。超过就是模板条目太多 ——
+     这时候"平均分配"必然有人拿 0，0 权重的考核项等于没考，所以要在这里说清楚 */
+  const maxItems = Math.round(PLAN_WEIGHT_TOTAL / PLAN_WEIGHT_STEP)
+  if (scorable.length > maxItems) {
+    errs.push(`计分项共 ${scorable.length} 条，每项至少 ${PLAN_WEIGHT_STEP}%，最多只能有 ${maxItems} 条（先在模板里合并或删减）`)
+  }
+
+  return { qs, ks, ms, total, diff, ok: errs.length === 0, msg: errs.join('；') }
+}
+
+/* ---------------- 数据与种子 ---------------- */
+const DEPT_PLANS = []
+let DEPT_PLAN_SEQ = 0
+
+function _planIdOf(month) {
+  DEPT_PLAN_SEQ += 1
+  return 'PL' + String(month).replace('-', '') + String(DEPT_PLAN_SEQ).padStart(3, '0')
+}
+
+const _PLAN_MONTH = TODAY.slice(0, 7)
+const _PLAN_MONTH_PREV = _monthAdd(_PLAN_MONTH, -1)
+
+/** 该月最后一天（计划完成时间默认落月底） */
+function _planMonthEnd(month) {
+  const [y, m] = String(month).split('-').map(Number)
+  const d = new Date(y, m, 0)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function _monthAdd(month, n) {
+  const [y, m] = String(month).split('-').map(Number)
+  const d = new Date(y, m - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** 任务执行状态：由实际完成与完成时间派生，不让用户手选 */
+function _taskStatusOf(t) {
+  if (t.actual !== '' && t.actual !== null && t.actual !== undefined) return '已完成'
+  if (t.selfScore) return '进行中'
+  if (t.dueDate && t.dueDate < TODAY) return '延期'
+  return '未开始'
+}
+
+/** 权重总额。改这里等于改全系统的口径（目前只有这一处需要改） */
+export const PLAN_WEIGHT_TOTAL = 100
+
+/**
+ * 权重的调整步长：**只能按 5% 调**（2026-11-05 用户补充的口径）。
+ *
+ * 为什么不是 1%：实际调权重时没人会填 37%，业务上的判断是"这项给 10 还是 15"。
+ * 允许 1% 只会让合计凑不齐（99 / 101）变成常态，然后所有人都去找那 1%。
+ *
+ * 这条规则有三处连锁影响，改步长时三处一起改：
+ *   ① `planEvenWeights` 按 5% 为单位分配，不能出 11%/12% 这种预填值；
+ *   ② `planWeightCheck` 拦非 5 的倍数（提交审核与审核下发都拦）；
+ *   ③ 页面输入框 `step=5 + step-strictly`，手输 12 会自己归到 10 / 15。
+ */
+export const PLAN_WEIGHT_STEP = 5
+
+/** 权重是不是步长的整数倍（用除法容差判断，避免 15/5=2.9999 这种浮点坑） */
+export const planWeightOnStep = n => {
+  const v = Number(n)
+  if (!Number.isFinite(v)) return false
+  return Math.abs(v / PLAN_WEIGHT_STEP - Math.round(v / PLAN_WEIGHT_STEP)) < 1e-9
+}
+
+/**
+ * 把 100% 平均分给所有计分项（量化 + 重点），监控项置 0。
+ *
+ * 用途只有两个：模板铺开时给一个**能直接提交的起点**、页面上的「平均分配」按钮。
+ * 为什么要有起点：11 个条目从 0 开始填，填到第 8 项才发现加起来 93%，
+ * 得回头一个个改；给个 100% 的平均值，改的是"谁该多一点"而不是"怎么凑够 100"。
+ *
+ * **按 5% 为单位分配**（100/5 = 20 份）：先给每项 floor(20/n) 份，余下的份数给前面几项。
+ * 所以 9 项得到 15/15/10/10…，不会出现 11%/12% —— 那种预填值本身就不合规，
+ * 一打开表单就红着，比不预填更让人困惑。
+ */
+export function planEvenWeights(items = []) {
+  const rows = items.filter(i => i.section === 'q' || i.section === 'k')
+  for (const it of items) {
+    if (it.section === 'm') it.weight = 0
+  }
+  if (!rows.length) return items
+  const units = Math.round(PLAN_WEIGHT_TOTAL / PLAN_WEIGHT_STEP)
+  const base = Math.floor(units / rows.length)
+  let rest = units - base * rows.length
+  for (const it of rows) {
+    const u = base + (rest > 0 ? 1 : 0)
+    if (rest > 0) rest -= 1
+    it.weight = u * PLAN_WEIGHT_STEP
+  }
+  return items
+}
+
+/**
+ * 按模板铺开成计划条目。**整份拷贝**：模板之后怎么改都不影响这一份。
+ * 量化项带目标值默认值，填报人可以改；监控和重点不给目标值。
+ * 权重由 `planEvenWeights` 平均预填，提报人再按本月重点调整。
+ */
+export function planItemsFromTpl(tpl, dueDate) {
+  if (!tpl) return []
+  const items = tpl.items.filter(i => i.enabled !== false).map((it, i) => ({
+    taskId: '',
+    itemId: it.itemId,
+    section: it.section,
+    name: it.name,
+    content: '',
+    standard: it.standard || '',
+    weight: 0,
+    direction: it.direction === -1 ? -1 : 1,
+    unit: it.unit || '',
+    target: it.section === 'q' && it.targetDefault !== '' ? Number(it.targetDefault) : '',
+    dueDate,
+    files: [],
+    actual: '',
+    actualNote: '',
+    selfScore: null,
+    selfWeighted: it.section === 'm' ? 0 : null,
+    reviewScore: null,
+    reviewWeighted: it.section === 'm' ? 0 : null,
+    remark: '',
+    progress: 0,
+    execStatus: '未开始',
+    finishAt: '',
+    score: 0,
+    evalRemark: '',
+    _i: i
+  }))
+  return planEvenWeights(items)
+}
+
+/** 表单"套用模板"用：返回这一版模板铺开的条目（深拷贝） */
+export const deptPlanTaskTpl = (orgId, planMonth) => {
+  const tpl = planTplForOrg(orgId || '')
+  return planItemsFromTpl(tpl, _planMonthEnd(planMonth || _PLAN_MONTH))
+}
+
+/**
+ * 提报页需要的：模板 + 铺开的条目。
+ * `forceTplId` 是运营管理部在提报页手工换的模板 —— 不传就按组织自动匹配。
+ * 之前这个参数没有，页面换了模板却还是按组织匹配的条目，等于下拉框是摆设。
+ */
+export function planTplBundle(orgId, planMonth, forceTplId = '') {
+  const forced = forceTplId ? PLAN_TPLS.find(t => t.tplId === forceTplId && t.enabled) : null
+  const tpl = forced || planTplForOrg(orgId || '')
+  return {
+    tpl: tpl ? { tplId: tpl.tplId, name: tpl.name, version: tpl.version } : null,
+    items: planItemsFromTpl(tpl, _planMonthEnd(planMonth || _PLAN_MONTH))
+  }
+}
+
+/**
+ * 重点工作项的「计划内容」与「实际完成」文案池（种子用）。
+ *
+ * 为什么必须填：这两项以前是空的，种子里只给了 selfScore。结果一份**已结案**的计划
+ * 在详情页上，重点工作段只有名称和分数、看不到做了什么 —— 评审时被问
+ * 「这项凭什么打 4 分」就答不出来，和「量化段缺复评加权」是同一类问题：有分没依据。
+ */
+const PLAN_K_PLAN = [
+  n => `制定「${n}」月度推进表，明确责任人与完成节点`,
+  n => `按周跟踪「${n}」进展，月中复盘一次偏差`,
+  n => `梳理「${n}」现状问题，形成整改清单并逐项闭环`,
+  n => `组织「${n}」相关岗位对齐口径，输出统一执行模板`,
+  n => `对「${n}」开展一次专项检查，问题当场交办到人`,
+  n => `结合上月问题清单，对「${n}」做一轮回头看`,
+  n => `编制「${n}」操作指引，完成一次岗位培训`
+]
+const PLAN_K_DONE = [
+  n => `已完成，推进表下发到 4 个班组，按周跟踪无遗漏`,
+  n => `已完成，月中复盘发现 2 处偏差，已调整后续安排`,
+  n => `已完成，整改清单 6 项全部闭环，无遗留`,
+  n => `已完成，模板已下发各班组统一使用`,
+  n => `已完成，检查发现 3 个问题，当日交办并整改完毕`,
+  n => `已完成，上月 5 个问题复核通过，新增 1 项纳入下月`,
+  n => `已完成，指引已上墙，培训覆盖 12 人并签到留档`
+]
+
+/**
+ * 造一份计划。仅种子使用 —— 运行时一律走 saveDeptPlan / submitDeptPlan。
+ * `q` 是完成质量系数：1.0 达标、1.15 超额、0.8 有缺口。
+ */
+function _seedPlan(spec) {
+  const { planMonth, orgId, status, day, q = 1, review = 0, rejectNote = '' } = spec
+  const planId = _planIdOf(planMonth)
+  const lead = orgLeaderOf(orgId)
+  const emp = employees.find(e => e.empId === lead.empId) || employees[0]
+  const dueDate = _planMonthEnd(planMonth)
+  const tpl = planTplForOrg(orgId)
+  const items = planItemsFromTpl(tpl, dueDate)
+  /* 种子也要补 taskId：留空的话所有条目 key 都是 ''，页面按 taskId 取派生值会串行 */
+  items.forEach((it, i) => { it.taskId = `${planId}-I${String(i + 1).padStart(2, '0')}` })
+
+  const filled = ['执行中', '待复评', '已结案'].includes(status)
+  const partial = false
+
+  items.forEach((it, i) => {
+    const noise = 1 + ((i % 5) - 2) * 0.03
+    const k = q * noise
+    /* 重点工作：计划内容提报时就该写（草稿也有），实际完成要等执行后才填 */
+    if (it.section === 'k') {
+      it.content = PLAN_K_PLAN[i % PLAN_K_PLAN.length](it.name)
+      if (filled) it.actual = PLAN_K_DONE[i % PLAN_K_DONE.length](it.name)
+    }
+    if (filled || (partial && i % 2 === 0)) {
+      if (it.section === 'q') {
+        const t = Number(it.target)
+        if (Number.isFinite(t) && t > 0) {
+          const ratio = it.direction === -1 ? (2 - k) : k
+          it.actual = _plan2(t * Math.max(0.7, ratio))
+        } else {
+          it.selfScore = Math.min(5, Math.max(1, _plan2(5 * k)))
+        }
+      } else if (it.section === 'k') {
+        it.selfScore = Math.min(5, Math.max(1, _plan2(5 * k)))
+      } else if (it.section === 'm') {
+        it.actual = i % 4 === 0 ? '发生 1 起' : '无'
+        it.selfWeighted = i % 4 === 0 ? -0.05 : 0
+        /* 复评扣分只在复评之后才有 —— 没复评就显示 -0.05 会让人以为已经评过了 */
+        it.reviewWeighted = status === '已结案' && i % 4 === 0 ? -0.05 : 0
+      }
+    }
+  })
+
+  if (status === '已结案') {
+    items.forEach((it, i) => {
+      if (it.section === 'm') {
+        it.reviewWeighted = it.selfWeighted
+      } else {
+        const base = Number(it.selfScore) || (planItemCalc(it).selfScore || 0)
+        it.reviewScore = Math.min(5, Math.max(1, _plan2(base + review + ((i % 3) - 1) * 0.1)))
+      }
+      it.execStatus = '已完成'
+      it.progress = 100
+      it.finishAt = `${planMonth}-${String(Math.min(day + 5 + i, 28)).padStart(2, '0')}`
+    })
+  } else if (filled) {
+    items.forEach(it => { it.execStatus = _taskStatusOf(it) })
+  }
+
+  /* 草稿刻意演示一次「没凑够 100%」：列表上显示 ⚠ 并写明差多少，
+     打开后提交按钮是禁用的。提报中的计划必须闭合，所以只有草稿能出现 95%。 */
+  if (spec.weightShort) {
+    const last = [...items].reverse().find(i => i.section === 'k')
+    if (last) last.weight = _plan2(Math.max(0, last.weight - spec.weightShort))
+  }
+
+  const wc = planWeightCheck(items)
+  const totals = planTotalsOf(items)
+  const submittedAt = `${planMonth}-${String(day).padStart(2, '0')} 09:20`
+
+  const plan = {
+    planId,
+    planMonth,
+    orgId,
+    orgName: orgNameOf(orgId),
+    orgPath: orgPathOf(orgId),
+    orgType: ORG_OF.get(orgId)?.type || '',
+    projectId: _projectOfOrg(orgId),
+    headcount: _headcountOf(orgId),
+    tplId: tpl?.tplId || '',
+    tplName: tpl?.name || '',
+    tplVersion: tpl?.version || 0,
+    submitterEmpId: emp.empId,
+    submitterName: emp.name,
+    submitterPosition: emp.position,
+    submitterDuty: (ORG_LEADERS.find(r => r.orgId === orgId && r.empId === emp.empId && _relActive(r)) || {}).duty || '正职',
+    submitterOrgId: emp.orgId,
+    submitterOrgName: orgNameOf(emp.orgId),
+    submitAt: submittedAt,
+    status,
+    oaId: '',
+    approveAt: '',
+    approveBy: '',
+    approveNote: status === '已驳回' ? rejectNote : '',
+    reviseLog: [],
+    items,
+    weightTotal: wc.total,
+    weightOk: wc.ok,
+    finishRate: 0,
+    selfTotal: totals.selfTotal,
+    reviewTotal: totals.reviewTotal,
+    totalScore: status === '已结案' ? totals.total : 0,
+    score: status === '已结案' ? totals.total : 0,
+    grade: status === '已结案' ? planGradeOf(totals.total) : '',
+    evalAt: '',
+    evalBy: '',
+    summary: '',
+    logs: [{ at: submittedAt, by: emp.name, action: '提报计划', note: `以${orgNameOf(orgId)}负责人身份提报（模板 ${tpl?.name || '—'}）` }]
+  }
+  plan.finishRate = _finishRateOf(plan)
+  if (status === '已结案') {
+    plan.evalAt = `${_monthAdd(planMonth, 1)}-05 16:30`
+    plan.evalBy = orgLeaderOf('O-QS').name
+    plan.logs.push({ at: plan.evalAt, by: plan.evalBy, action: '复评完成', note: `总得分 ${plan.totalScore}（${plan.grade}）` })
+  }
+  if (status === '已驳回') {
+    plan.approveAt = `${planMonth}-${String(Math.min(day + 2, 28)).padStart(2, '0')} 11:05`
+    plan.approveBy = orgLeaderOf(_projectOfOrg(orgId) || 'O-ROOT').name
+    plan.logs.push({ at: plan.approveAt, by: plan.approveBy, action: '审批驳回', note: rejectNote })
+  }
+  if (['已批准', '执行中', '待复评', '已结案'].includes(status)) {
+    plan.approveAt = `${planMonth}-${String(Math.min(day + 1, 28)).padStart(2, '0')} 15:40`
+    plan.approveBy = orgLeaderOf('O-QS').name
+    plan.logs.push({ at: plan.approveAt, by: plan.approveBy, action: '审核通过', note: '同意执行' })
+  }
+  DEPT_PLANS.push(plan)
+  if (status === '审批中') _seedPlanApproval(plan, submittedAt)
+  return plan
+}
+
+/** 种子审批单：与 createOaRequest 同结构，节点按流程定义解析（含自审跳升） */
+function _seedPlanApproval(plan, submittedAt) {
+  const nodes = oaNodesFor('计划审批', 0)
+  const emp = employees.find(e => e.empId === plan.submitterEmpId)
+  const applicant = {
+    empId: emp.empId, name: emp.name, position: emp.position, level: emp.level,
+    orgId: plan.orgId, orgName: plan.orgName, manager: emp.manager || '', roleName: currentRoleName.value
+  }
+  APPROVAL_SEQ += 1
+  const ap = {
+    approvalId: 'AP' + String(APPROVAL_SEQ).padStart(5, '0'),
+    approvalNo: 'SP-' + String(TODAY).slice(0, 4) + '-' + String(APPROVAL_SEQ).padStart(4, '0'),
+    bizType: '计划审批',
+    bizId: plan.planId,
+    changeId: '',
+    title: `计划审批 · ${plan.orgName} ${Number(plan.planMonth.slice(5))} 月工作计划（${plan.items.length} 项）`,
+    formData: {
+      planMonth: plan.planMonth, orgName: plan.orgName,
+      taskCount: plan.items.length, weightTotal: plan.weightTotal
+    },
+    files: [],
+    communityId: plan.projectId ? plan.projectId.replace('O-', '') : '',
+    communityName: plan.projectId ? communityName(plan.projectId.replace('O-', '')) : '集团 / 全项目',
+    amount: 0,
+    applicant: emp.name,
+    applicantRole: emp.position,
+    applicantEmpId: emp.empId,
+    applicantOrgId: emp.orgId,
+    applicantOrgName: orgNameOf(emp.orgId),
+    scopeOrgId: plan.orgId,
+    scopeOrgName: plan.orgName,
+    applyTime: submittedAt,
+    status: '审批中',
+    currentNode: nodes[1]?.name || '运营管理部复核',
+    urgency: '普通',
+    waitHours: 6,
+    flow: nodes.map((n, i) => {
+      const s = _skipSelf(_resolveAssignee(n, applicant), applicant)
+      return i === 0
+        ? {
+            node: n.name, handler: s.name, action: '同意', time: submittedAt,
+            comment: '任务与权重无异议，同意执行', limitHours: n.limitHours, skipNote: s.note
+          }
+        : { node: n.name, handler: s.name, action: '待处理', time: '', comment: '', limitHours: n.limitHours, skipNote: s.note }
+    }),
+    _isNew: true
+  }
+  approvals.unshift(ap)
+  plan.oaId = ap.approvalId
+  plan.logs.push({ at: submittedAt, by: emp.name, action: '提交审批', note: ap.approvalNo })
+}
+
+/* 种子：覆盖 7 种状态 + 上月归档供统计对比 */
+const _SEED_SPECS = [
+  { planMonth: _PLAN_MONTH, orgId: 'O-P01', status: '审批中', day: 3, q: 1 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P02', status: '执行中', day: 4, q: 0.95 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P03', status: '已批准', day: 6, q: 1 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P01-T2', status: '执行中', day: 2, q: 1.1 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P02-T4', status: '草稿', day: 8, q: 1, weightShort: 5 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P01-T1', status: '执行中', day: 5, q: 1.02 },
+  { planMonth: _PLAN_MONTH, orgId: 'O-P01-T3', status: '待复评', day: 2, q: 1.05 },
+  {
+    planMonth: _PLAN_MONTH, orgId: 'O-P03-T1', status: '已驳回', day: 3, q: 1,
+    rejectNote: '量化指标目标值低于去年同期，请按实际应收重新核定后重报'
+  },
+  { planMonth: _PLAN_MONTH, orgId: 'O-QS', status: '已结案', day: 1, q: 1.05, review: 0 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P01', status: '已结案', day: 2, q: 1, review: -0.1 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P02', status: '已结案', day: 3, q: 1.08, review: 0 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P03', status: '已结案', day: 3, q: 0.88, review: -0.2 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P01-T2', status: '已结案', day: 2, q: 0.95, review: -0.05 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P01-T3', status: '已结案', day: 4, q: 1.02, review: 0 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P02-T4', status: '已结案', day: 5, q: 1.04, review: 0 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-P03-T1', status: '已结案', day: 5, q: 0.82, review: -0.3 },
+  { planMonth: _PLAN_MONTH_PREV, orgId: 'O-QS', status: '已结案', day: 1, q: 1.1, review: 0 }
+]
+_SEED_SPECS.forEach(_seedPlan)
+
+/** 审批结果回写计划状态：与合同审批同一套（approvalAction 末尾调用），不做双向写 */
+function _applyPlanApproval(a, action) {
+  if (a.bizType !== '计划审批' || !a.bizId) return
+  const p = DEPT_PLANS.find(x => x.planId === a.bizId)
+  if (!p || p.status !== '审批中') return
+  const last = a.flow[a.flow.length - 1]
+  if (a.status === '已通过') {
+    p.status = '已批准'
+    p.approveAt = _now()
+    p.approveBy = last?.handler || currentOperator().name
+    p.approveNote = ''
+    p.logs.push({ at: p.approveAt, by: p.approveBy, action: '审核通过', note: '全部节点同意，计划进入执行' })
+  } else if (action === '驳回') {
+    p.status = '已驳回'
+    p.approveAt = _now()
+    p.approveBy = last?.handler || currentOperator().name
+    p.approveNote = last?.comment || '审批驳回'
+    p.logs.push({ at: p.approveAt, by: p.approveBy, action: '审批驳回', note: p.approveNote })
+  }
+}
+
+/* ---------------- 读 ---------------- */
+
+/**
+ * 完成率：按自评加权分折算（合计满分 5 分），不是任务条数占比。
+ * 监控项是负数扣分，不参与完成率。
+ */
+function _finishRateOf(plan) {
+  const items = plan.items || []
+  const scored = items.filter(i => i.section !== 'm')
+  if (!scored.length) return 0
+  const sum = scored.reduce((s, i) => s + planItemCalc(i).selfWeighted, 0)
+  return Math.round(Math.min(100, sum / 5 * 100) * 10) / 10
+}
+
+/**
+ * 派生一行。分数、合计、完成率每次都重算，不落库 ——
+ * 落库就会出现"改了实际值、分数没变"。
+ * `myOrgIds` 传进来才算 `mine`：总经理能看全部计划，但不能替所有部门改。
+ */
+function _planRowOf(p, myOrgIds = null) {
+  const items = (p.items || []).map(it => ({
+    ...it,
+    execStatus: _taskStatusOf(it),
+    ...planItemCalc(it)
+  }))
+  const wc = planWeightCheck(items)
+  const totals = planTotalsOf(items)
+  const mine = myOrgIds ? myOrgIds.has(p.orgId) : true
+  const editable = ['草稿', '已驳回'].includes(p.status)
+  const running = ['已批准', '执行中'].includes(p.status)
+  const done = p.status === '已结案'
+  return {
+    ...p,
+    mine,
+    items,
+    tasks: items,
+    weightTotal: wc.total,
+    weightQs: wc.qs,
+    weightKs: wc.ks,
+    weightDiff: wc.diff,
+    weightOk: wc.ok,
+    weightMsg: wc.msg,
+    finishRate: _finishRateOf({ ...p, items }),
+    doneCount: items.filter(t => t.execStatus === '已完成').length,
+    lateCount: items.filter(t => t.execStatus === '延期').length,
+    taskCount: items.length,
+    itemCount: items.length,
+    qCount: items.filter(t => t.section === 'q').length,
+    kCount: items.filter(t => t.section === 'k').length,
+    mCount: items.filter(t => t.section === 'm').length,
+    selfTotal: totals.selfTotal,
+    reviewTotal: totals.reviewTotal,
+    totalScore: done ? totals.total : 0,
+    score: done ? totals.total : 0,
+    grade: done ? planGradeOf(totals.total) : '',
+    canEdit: editable && mine,
+    canSubmit: editable && mine,
+    canProgress: running,
+    canResult: running,
+    canReview: p.status === '待复评',
+    canClose: running,
+    canWithdraw: p.status === '审批中' && mine
+  }
+}
+
+/** 当前人负责的组织 id 集合（列表 / 详情共用，避免逐行重复算 leadsOf） */
+function _myOrgIds() {
+  return new Set(leadsOf(currentOperator().empId).map(l => l.orgId))
+}
+
+export function deptPlanRows({ planMonth = '', orgId = '', projectId = '', status = '', kw = '' } = {}) {
+  const mineIds = _myOrgIds()
+  return DEPT_PLANS
+    .filter(p => !planMonth || p.planMonth === planMonth)
+    .filter(p => !orgId || p.orgId === orgId)
+    .filter(p => !projectId || p.projectId === projectId)
+    .filter(p => !status || p.status === status)
+    .filter(p => !kw || `${p.orgName}${p.submitterName}${p.planId}${(p.items || []).map(t => t.name).join('')}`.includes(kw))
+    .map(p => _planRowOf(p, mineIds))
+    .sort((a, b) => (a.planMonth === b.planMonth ? a.orgPath.localeCompare(b.orgPath) : b.planMonth.localeCompare(a.planMonth)))
+}
+
+export function getDeptPlan(planId) {
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) return null
+  const row = _planRowOf(p, _myOrgIds())
+  const ap = p.oaId ? approvals.find(a => a.approvalId === p.oaId) || null : null
+  return {
+    ...row,
+    approval: ap,
+    reviseLog: [...(p.reviseLog || [])].sort((a, b) => String(b.at).localeCompare(String(a.at))),
+    logs: [...(p.logs || [])].sort((a, b) => String(b.at).localeCompare(String(a.at)))
+  }
+}
+
+/** 可选的计划月份：前 2 个月 ~ 下 1 个月 */
+export const planMonthOpts = () => {
+  const out = []
+  for (let i = -2; i <= 1; i++) out.push(_monthAdd(_PLAN_MONTH, i))
+  return out.sort((a, b) => b.localeCompare(a))
+}
+
+export const planProjectOpts = () =>
+  orgs.filter(o => o.type === '项目').map(o => ({ id: o.orgId, name: o.name }))
+
+export const planCurrentMonth = () => _PLAN_MONTH
+
+/** 该部门本月是否已有计划（提报表单打开时先查，避免填完才发现重复） */
+export function planOfMonth(planMonth, orgId) {
+  const p = _planOfMonth(planMonth, orgId)
+  return p ? _planRowOf(p) : null
+}
+
+/* ---------------- 写 ---------------- */
+
+const _planError = (msg, code) => Object.assign(new Error(msg), { code })
+
+function _cleanItems(items = []) {
+  return items.map((t, i) => ({
+    taskId: t.taskId || '',
+    itemId: t.itemId || '',
+    section: ['q', 'm', 'k'].includes(t.section) ? t.section : 'k',
+    name: String(t.name || '').trim(),
+    content: String(t.content || '').trim(),
+    standard: String(t.standard || '').trim(),
+    /* 权重夹在 0–100：负数会让加权分为负，而校验只比合计，负数能靠加总凑过去 */
+    weight: Math.min(100, Math.max(0, _plan2(t.weight))),
+    direction: t.direction === -1 ? -1 : 1,
+    unit: String(t.unit || '').trim(),
+    target: t.target === '' || t.target === undefined || t.target === null ? '' : Number(t.target),
+    dueDate: String(t.dueDate || '').slice(0, 10),
+    files: Array.isArray(t.files) ? [...t.files] : [],
+    actual: t.actual === undefined || t.actual === null ? '' : t.actual,
+    actualNote: String(t.actualNote || '').trim(),
+    selfScore: t.selfScore === null || t.selfScore === undefined || t.selfScore === '' ? null : Number(t.selfScore),
+    selfWeighted: _plan2(t.selfWeighted),
+    reviewScore: t.reviewScore === null || t.reviewScore === undefined || t.reviewScore === '' ? null : Number(t.reviewScore),
+    reviewWeighted: _plan2(t.reviewWeighted),
+    remark: String(t.remark || '').trim(),
+    progress: Math.min(100, Math.max(0, Number(t.progress) || 0)),
+    execStatus: '未开始',
+    finishAt: t.finishAt || '',
+    score: 0,
+    evalRemark: '',
+    _i: i
+  }))
+}
+
+/**
+ * 保存计划（新建或改草稿）。
+ * **草稿不强制权重闭合**：写到一半就存是正常动作；提报时才卡。
+ */
+export function saveDeptPlan(payload = {}, planId = '') {
+  const me = currentOperator()
+  if (!canEditDeptPlans()) throw _planError('当前角色没有计划维护权限（f.plans.edit）', 403)
+  const planMonth = String(payload.planMonth || '').trim()
+  if (!/^\d{4}-\d{2}$/.test(planMonth)) throw _planError('请选择计划月份', 42211)
+  const orgId = String(payload.orgId || '').trim()
+  if (!orgId) throw _planError('请选择提报部门', 42211)
+  if (!leadsOf(me.empId).some(l => l.orgId === orgId)) {
+    throw _planError('你不是该部门的负责人，不能以它的名义提报计划', 403)
+  }
+  const items = _cleanItems(payload.items || payload.tasks)
+  if (!items.length) throw _planError('计划至少要有 1 条考核项', 42211)
+  if (items.some(t => !t.name)) throw _planError('考核项名称不能为空', 42211)
+
+  const dup = _planOfMonth(planMonth, orgId)
+  if (dup && dup.planId !== planId) {
+    throw _planError(`「${orgNameOf(orgId)}」${planMonth} 已有计划（${dup.planId}），一个部门一个月只能有一份`, 40925)
+  }
+
+  const tpl = planTplForOrg(orgId)
+  const lead = leadsOf(me.empId).find(l => l.orgId === orgId)
+  const base = {
+    planMonth,
+    orgId,
+    orgName: orgNameOf(orgId),
+    orgPath: orgPathOf(orgId),
+    orgType: ORG_OF.get(orgId)?.type || '',
+    projectId: _projectOfOrg(orgId),
+    headcount: _headcountOf(orgId),
+    tplId: payload.tplId || tpl?.tplId || '',
+    tplName: payload.tplName || tpl?.name || '',
+    tplVersion: payload.tplVersion || tpl?.version || 0,
+    submitterDuty: lead?.duty || '正职',
+    submitterOrgId: me.orgId,
+    submitterOrgName: orgNameOf(me.orgId),
+    summary: String(payload.summary || '').trim()
+  }
+
+  if (planId) {
+    const p = DEPT_PLANS.find(x => x.planId === planId)
+    if (!p) throw _planError('计划不存在', 40401)
+    if (!['草稿', '已驳回'].includes(p.status)) {
+      throw _planError(`计划已「${p.status}」，不能再改考核项（已批准的内容不能被事后修改）`, 40926)
+    }
+    const before = p.status
+    const wc = planWeightCheck(items)
+    Object.assign(p, base, {
+      items: items.map((t, i) => ({ ...t, taskId: t.taskId || `${p.planId}-I${String(i + 1).padStart(2, '0')}` })),
+      status: '草稿',
+      weightTotal: wc.total,
+      weightOk: wc.ok,
+      approveAt: before === '已驳回' ? '' : p.approveAt,
+      approveNote: '',
+      logs: [...(p.logs || []), {
+        at: _now(), by: me.name, action: before === '已驳回' ? '驳回后重编' : '保存草稿',
+        note: `${items.length} 项考核项 · 权重合计 ${wc.total}%`
+      }]
+    })
+    return getDeptPlan(p.planId)
+  }
+
+  const id = _planIdOf(planMonth)
+  const wc = planWeightCheck(items)
+  const p = {
+    planId: id,
+    ...base,
+    submitterEmpId: me.empId,
+    submitterName: me.name,
+    submitterPosition: me.position,
+    submitAt: _now(),
+    status: '草稿',
+    oaId: '', approveAt: '', approveBy: '', approveNote: '',
+    reviseLog: [],
+    items: items.map((t, i) => ({ ...t, taskId: `${id}-I${String(i + 1).padStart(2, '0')}` })),
+    weightTotal: wc.total,
+    weightOk: wc.ok,
+    finishRate: 0, selfTotal: 0, reviewTotal: 0, totalScore: 0, score: 0, grade: '',
+    evalAt: '', evalBy: '',
+    logs: [{ at: _now(), by: me.name, action: '创建草稿', note: `以${orgNameOf(orgId)}负责人身份 · 模板 ${tpl?.name || '—'}` }]
+  }
+  DEPT_PLANS.push(p)
+  return getDeptPlan(id)
+}
+
+/**
+ * 提报审批：卡权重闭合 + 量化项填了目标值，然后生成 OA 单。
+ * 审批链按**提报部门**解析（orgScopeId），不按人事归属 ——
+ * 一人管两个部门时，两个部门的项目经理不是同一个人。
+ */
+export function submitDeptPlan(planId, { tplId = '' } = {}) {
+  const me = currentOperator()
+  if (!canEditDeptPlans()) throw _planError('当前角色没有计划维护权限（f.plans.edit）', 403)
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (!['草稿', '已驳回'].includes(p.status)) throw _planError(`计划已「${p.status}」，不能重复提报`, 40926)
+  if (!leadsOf(me.empId).some(l => l.orgId === p.orgId)) {
+    throw _planError('你不是该部门的负责人，不能替它提报', 403)
+  }
+
+  /* 运营管理部可以改选模板：页面上择换模板时会整份重铺条目，这里只对齐模板标识 */
+  if (tplId && tplId !== p.tplId) {
+    const tpl = PLAN_TPLS.find(t => t.tplId === tplId)
+    if (!tpl) throw _planError('模板不存在', 40401)
+    p.tplId = tpl.tplId
+    p.tplName = tpl.name
+    p.tplVersion = tpl.version
+  }
+
+  const wc = planWeightCheck(p.items)
+  if (!wc.ok) throw _planError(`权重校验不通过：${wc.msg}`, 42212)
+  const noTarget = p.items.filter(i => i.section === 'q' && (i.target === '' || !Number.isFinite(Number(i.target))))
+  if (noTarget.length) throw _planError(`量化指标要填目标值：${noTarget.map(i => i.name).join('、')}`, 42212)
+  const noDue = p.items.filter(i => !i.dueDate)
+  if (noDue.length) throw _planError(`每条都要填完成时间：${noDue.map(i => i.name).join('、')}`, 42212)
+
+  const dup = _planOfMonth(p.planMonth, p.orgId)
+  if (dup && dup.planId !== planId) {
+    throw _planError(`「${p.orgName}」${p.planMonth} 已有计划（${dup.planId}）在流程中`, 40925)
+  }
+
+  const ap = createOaRequest({
+    bizType: '计划审批',
+    bizId: p.planId,
+    title: `计划审批 · ${p.orgName} ${Number(p.planMonth.slice(5))} 月工作计划（${p.items.length} 项）`,
+    orgScopeId: p.orgId,
+    formData: {
+      planMonth: p.planMonth, orgName: p.orgName,
+      taskCount: p.items.length, weightTotal: wc.total
+    }
+  })
+  p.status = '审批中'
+  p.oaId = ap.approvalId
+  p.submitAt = _now()
+  p.logs.push({ at: p.submitAt, by: me.name, action: '提交审批', note: ap.approvalNo })
+  return { ...getDeptPlan(p.planId), approval: ap }
+}
+
+/**
+ * 审核阶段运营管理部**直接改**（不走驳回再重提）。
+ * 改动逐条记进 reviseLog：半年后有人问"这个月的目标为什么和申报的不一样"，
+ * 得能答上来。改完调用 approvePlanToRun 直接下发。
+ */
+export function revisePlanItems(planId, items = []) {
+  if (!canEvalDeptPlans() && !canEditDeptPlans()) {
+    throw _planError('当前角色没有审核权限（f.plans.eval）', 403)
+  }
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (p.status !== '审批中') throw _planError(`计划「${p.status}」不在审核中，不能改`, 40926)
+
+  const me = currentOperator()
+  const before = new Map((p.items || []).map(i => [i.taskId || i.itemId, i]))
+  const next = _cleanItems(items)
+  const log = []
+
+  next.forEach((it, i) => {
+    const key = it.taskId || it.itemId
+    const old = before.get(key)
+    if (!old) {
+      log.push({ field: '新增', item: it.name, before: '', after: '', at: _now(), by: me.name })
+      return
+    }
+    if (old.name !== it.name) {
+      log.push({ field: '名称', item: old.name, before: old.name, after: it.name, at: _now(), by: me.name })
+    }
+    if (String(old.target) !== String(it.target) && it.section === 'q') {
+      log.push({ field: '目标值', item: it.name, before: old.target, after: it.target, at: _now(), by: me.name })
+    }
+    if (_plan2(old.weight) !== _plan2(it.weight)) {
+      log.push({ field: '权重', item: it.name, before: old.weight, after: it.weight, at: _now(), by: me.name })
+    }
+    if ((old.standard || '') !== (it.standard || '')) {
+      log.push({ field: '评价标准', item: it.name, before: old.standard, after: it.standard, at: _now(), by: me.name })
+    }
+    it.taskId = it.taskId || `${p.planId}-I${String(i + 1).padStart(2, '0')}`
+  })
+  const removed = (p.items || []).filter(o => !next.some(n => (n.taskId || n.itemId) === (o.taskId || o.itemId)))
+  removed.forEach(o => log.push({ field: '删除', item: o.name, before: o.name, after: '', at: _now(), by: me.name }))
+
+  p.items = next
+  p.reviseLog = [...(p.reviseLog || []), ...log]
+  p.logs.push({
+    at: _now(), by: me.name, action: '审核修改',
+    note: log.length ? `调整 ${log.length} 项：${log.map(l => `${l.item}·${l.field}`).join('、')}` : '无调整'
+  })
+  return getDeptPlan(planId)
+}
+
+/** 审核通过并下发（改完直接过，不需要再走一轮驳回） */
+export function approvePlanToRun(planId, { comment = '' } = {}) {
+  if (!canEvalDeptPlans()) throw _planError('当前角色没有审核权限（f.plans.eval）', 403)
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (p.status !== '审批中') throw _planError(`计划「${p.status}」不在审核中`, 40926)
+  const wc = planWeightCheck(p.items)
+  if (!wc.ok) throw _planError(`权重校验不通过：${wc.msg}`, 42212)
+
+  const me = currentOperator()
+  p.status = '已批准'
+  p.approveAt = _now()
+  p.approveBy = me.name
+  p.approveNote = String(comment || '').trim()
+  /* 审批单一起收口，否则待办里会一直挂着 */
+  if (p.oaId) {
+    const ap = approvals.find(a => a.approvalId === p.oaId)
+    if (ap) {
+      ap.status = '已通过'
+      ap.currentNode = '已完成'
+      ap.flow.forEach(n => { if (n.action === '待处理') { n.action = '同意'; n.handler = n.handler || me.name; n.time = _now(); n.comment = n.comment || '审核通过' } })
+    }
+  }
+  p.logs.push({
+    at: p.approveAt, by: me.name, action: '审核通过',
+    note: `按调整后下发${(p.reviseLog || []).length ? `（累计调整 ${p.reviseLog.length} 项）` : ''}${p.approveNote ? ' · ' + p.approveNote : ''}`
+  })
+  return getDeptPlan(planId)
+}
+
+/** 撤回：只有还没人处理时能撤，撤回后回到草稿可再改 */
+export function withdrawDeptPlan(planId) {
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (p.status !== '审批中' || !p.oaId) throw _planError('只有审批中的计划可以撤回', 40926)
+  withdrawOaRequest(p.oaId, '提报人撤回，重新调整考核项', { allowInFlight: true })
+  p.status = '草稿'
+  p.logs.push({ at: _now(), by: currentOperator().name, action: '撤回', note: '退回草稿可继续编辑' })
+  return getDeptPlan(planId)
+}
+
+/**
+ * 执行阶段：填一条的实际完成情况。
+ * 量化项填数值（自评自动算），监控项填情况说明 + 扣分，重点项填文字 + 自评 1–5。
+ * 已批准 / 执行中才能动；第一次填就把状态推到「执行中」。
+ */
+export function savePlanProgress(planId, taskId, patch = {}) {
+  const me = currentOperator()
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (!['已批准', '执行中'].includes(p.status)) {
+    throw _planError(`计划「${p.status}」不能填完成情况`, 40926)
+  }
+  const t = p.items.find(x => x.taskId === taskId)
+  if (!t) throw _planError('考核项不存在', 40401)
+
+  if (patch.actual !== undefined) t.actual = patch.actual
+  if (patch.actualNote !== undefined) t.actualNote = String(patch.actualNote || '').trim()
+  if (patch.selfScore !== undefined) {
+    /* 量化项的目标值有效时分数由公式定，不接受手填 —— 否则自己定分 */
+    const { usable } = planTargetOf(t)
+    if (!(t.section === 'q' && usable)) {
+      t.selfScore = patch.selfScore === '' ? null : Math.min(5, Math.max(1, Number(patch.selfScore) || 0))
+    }
+  }
+  if (patch.selfWeighted !== undefined && t.section === 'm') t.selfWeighted = _plan2(patch.selfWeighted)
+  if (patch.remark !== undefined) t.remark = String(patch.remark || '').trim()
+  if (patch.files !== undefined && Array.isArray(patch.files)) t.files = [...patch.files]
+
+  t.progress = t.actual !== '' && t.actual !== null ? 100 : 0
+  t.execStatus = _taskStatusOf(t)
+  if (t.execStatus === '已完成' && !t.finishAt) t.finishAt = TODAY
+  if (t.execStatus !== '已完成') t.finishAt = ''
+
+  if (p.status === '已批准') {
+    p.status = '执行中'
+    p.logs.push({ at: _now(), by: me.name, action: '开始执行', note: `填报「${t.name}」` })
+  }
+  p.finishRate = _finishRateOf(p)
+  return getDeptPlan(planId)
+}
+
+/**
+ * 提交完成情况 → 进入待复评。
+ * **复评必须等这一步**：不提交就不给评，状态卡住比口头约定可靠。
+ */
+export function submitPlanResult(planId) {
+  const me = currentOperator()
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  if (!['已批准', '执行中'].includes(p.status)) throw _planError(`计划「${p.status}」不能提交完成情况`, 40926)
+  const unfilled = (p.items || []).filter(i => {
+    if (i.section === 'm') return false
+    if (i.section === 'q') return i.actual === '' || i.actual === null
+    return i.selfScore === null || i.selfScore === undefined
+  })
+  if (unfilled.length) {
+    throw _planError(`还有 ${unfilled.length} 项没填：${unfilled.map(i => i.name).join('、')}`, 42212)
+  }
+  p.status = '待复评'
+  p.resultAt = _now()
+  p.logs.push({ at: p.resultAt, by: me.name, action: '提交完成情况', note: '等待运营管理部复评' })
+  return getDeptPlan(planId)
+}
+
+/**
+ * 复评 + 归档。逐项打分（1–5），不允许只给一个总分 ——
+ * 总分说不清是哪一项出了问题，也没法回看"这项为什么只有 3 分"。
+ * 监控项没有分数，只填扣分。
+ */
+export function closeDeptPlan(planId, { scores = {}, deductions = {}, summary = '' } = {}) {
+  const me = currentOperator()
+  if (!canEvalDeptPlans() && !canEditDeptPlans()) {
+    throw _planError('当前角色没有复评权限（f.plans.eval）', 403)
+  }
+  const p = DEPT_PLANS.find(x => x.planId === planId)
+  if (!p) throw _planError('计划不存在', 40401)
+  /* 状态卡死：没提交完成情况就不给评 */
+  if (p.status !== '待复评') {
+    throw _planError(
+      p.status === '已结案' ? '计划已归档' : `计划「${p.status}」，要等填报人提交完成情况之后才能复评`,
+      40926
+    )
+  }
+  const missing = (p.items || []).filter(i => i.section !== 'm' && (scores[i.taskId] === undefined || scores[i.taskId] === ''))
+  if (missing.length) {
+    throw _planError(`还有 ${missing.length} 项没打分：${missing.map(i => i.name).join('、')}`, 42212)
+  }
+  for (const it of p.items) {
+    if (it.section === 'm') {
+      if (deductions[it.taskId] !== undefined && deductions[it.taskId] !== '') {
+        it.reviewWeighted = _plan2(deductions[it.taskId])
+      }
+      continue
+    }
+    const s = Number(scores[it.taskId])
+    if (!Number.isFinite(s) || s < 1 || s > 5) throw _planError(`「${it.name}」评分必须在 1–5 之间`, 42212)
+    it.reviewScore = _plan2(s)
+  }
+  const totals = planTotalsOf(p.items)
+  p.status = '已结案'
+  p.reviewAt = _now()
+  p.evalAt = p.reviewAt
+  p.evalBy = me.name
+  p.reviewTotal = totals.reviewTotal
+  p.selfTotal = totals.selfTotal
+  p.totalScore = totals.total
+  p.score = totals.total
+  p.grade = planGradeOf(totals.total)
+  p.finishRate = _finishRateOf(p)
+  p.summary = String(summary || '').trim()
+  p.logs.push({
+    at: p.reviewAt, by: me.name, action: '复评完成',
+    note: `自评 ${totals.selfTotal}×20% + 复评 ${totals.reviewTotal}×80% = ${totals.total}（${p.grade}）`
+      + (p.summary ? ' · ' + p.summary : '')
+  })
+  return getDeptPlan(planId)
+}
+
+/* ---------------- 统计 ---------------- */
+
+/**
+ * 计划统计：按项目部门 / 状态 / 评分三个维度。
+ * 口径提醒：
+ *   - 「平均得分」只算已结案的（未结案没分，算进去会把均值拉低）；
+ *   - 「完成率」按自评加权折算，不是条目数占比；
+ *   - 总部职能部门的计划归到「总部职能」一组，不硬塞进项目。
+ */
+export function deptPlanStats({ planMonth = '', projectId = '' } = {}) {
+  let list = DEPT_PLANS.map(p => _planRowOf(p))
+  if (planMonth) list = list.filter(p => p.planMonth === planMonth)
+  if (projectId) list = list.filter(p => p.projectId === projectId)
+
+  const byStatus = PLAN_STATUS.map(s => ({ status: s, count: list.filter(p => p.status === s).length }))
+  const statusCount = s => list.filter(p => p.status === s).length
+  const closed = list.filter(p => p.status === '已结案')
+  const totalItems = list.reduce((s, p) => s + p.items.length, 0)
+  const lateTasks = list.reduce((s, p) => s + p.lateCount, 0)
+
+  /* 条目执行情况：与「计划状态」是两个维度 —— 一份计划里可以有 3 项完成 2 项延期 */
+  const execMap = new Map(PLAN_TASK_STATUS.map(s => [s, 0]))
+  for (const p of list) {
+    for (const it of p.items) execMap.set(it.execStatus, (execMap.get(it.execStatus) || 0) + 1)
+  }
+  const byExec = PLAN_TASK_STATUS.map(s => ({ status: s, count: execMap.get(s) || 0 }))
+
+  const gmap = new Map()
+  for (const p of list) {
+    const key = p.projectId || 'HEAD'
+    const cur = gmap.get(key) || {
+      key, name: key === 'HEAD' ? '总部职能' : orgNameOf(key),
+      plans: 0, tasks: 0, doneTasks: 0, lateTasks: 0,
+      closed: 0, scoreSum: 0, finishSum: 0
+    }
+    cur.plans += 1
+    cur.tasks += p.items.length
+    cur.doneTasks += p.items.filter(t => t.execStatus === '已完成').length
+    cur.lateTasks += p.lateCount
+    cur.finishSum += p.finishRate
+    if (p.status === '已结案') { cur.closed += 1; cur.scoreSum += p.totalScore }
+    gmap.set(key, cur)
+  }
+  const byOrg = [...gmap.values()].map(g => ({
+    ...g,
+    avgScore: g.closed ? Math.round(g.scoreSum / g.closed * 100) / 100 : 0,
+    avgFinish: g.plans ? Math.round(g.finishSum / g.plans * 10) / 10 : 0
+  }))
+
+  const scores = closed.map(p => p.totalScore)
+  const byGrade = [
+    { grade: 'A', label: '优秀', min: 4.5, max: 5.01 },
+    { grade: 'B', label: '良好', min: 3.75, max: 4.5 },
+    { grade: 'C', label: '合格', min: 3.0, max: 3.75 },
+    { grade: 'D', label: '待改进', min: 0, max: 3.0 }
+  ].map(b => ({ ...b, count: scores.filter(x => x >= b.min && x < b.max).length }))
+
+  return {
+    total: list.length,
+    planCount: list.length,
+    totalItems,
+    taskCount: totalItems,
+    closed: closed.length,
+    closedCount: closed.length,
+    pendingCount: list.filter(p => ['已批准', '执行中', '待复评'].includes(p.status)).length,
+    published: list.filter(p => ['已批准', '执行中', '待复评'].includes(p.status)).length,
+    draftCount: statusCount('草稿'),
+    rejectedCount: statusCount('已驳回'),
+    pendingReview: statusCount('待复评'),
+    avgScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 100) / 100 : 0,
+    avgFinish: list.length ? Math.round(list.reduce((s, p) => s + p.finishRate, 0) / list.length * 10) / 10 : 0,
+    lateTasks,
+    byStatus, byOrg, byProject: byOrg, byExec, byGrade
+  }
+}
+
+/* ==================================================================
+ * K 域 · 办公资产（2026-11-04 第 58 批）
+ *
+ * **这一域管的是办公资产**（电脑、桌椅、打印机、工具），不是 D 域的「设备台账」。
+ * 设备台账管门禁 / 摄像头 / 车闸这类**装在公共区域的 IoT 设备**，看的是「在不在线」；
+ * 办公资产看的是「值多少钱、在哪个部门」。两者的字段、状态、使用人都不是一套，
+ * 所以不合并 —— 唯一可能的交集（电梯）靠 devices.assetId 单向关联，这里不存设备属性。
+ *
+ * 本期范围（用户确认过的减法）：
+ *   建分类 → 新增资产 → 生成编号与 token → 打印标签 → 贴码上架（闲置）
+ *   **不做**：领用 / 归还 / 送修 / 报废审批、盘点、折旧与净值。
+ *   因此「状态」是**描述性字段**，不是流程状态 —— 页面必须写明这一点，
+ *   否则会有人拿它统计"资产在哪"，而它随时可能和现实不符。
+ * ================================================================== */
+
+export const ASSET_STATUS = ['闲置', '在用', '报废']
+
+/** 分类：树，parentId 自引用。只允许两级 —— 三级以上录入时选到崩溃，且实际用不到 */
+export const ASSET_CAT_MAX_DEPTH = 2
+
+const ASSET_PERM_VIEW = 'c.assets.view'
+const ASSET_PERM_EDIT = 'c.assets.edit'
+const ASSET_CAT_VIEW = 'c.assetCats.view'
+const ASSET_CAT_EDIT = 'c.assetCats.edit'
+
+export const canViewAssets = () => _hasPerm(ASSET_PERM_VIEW)
+export const canEditAssets = () => _hasPerm(ASSET_PERM_EDIT)
+export const canViewAssetCats = () => _hasPerm(ASSET_CAT_VIEW)
+export const canEditAssetCats = () => _hasPerm(ASSET_CAT_EDIT)
+
+const _assetError = (msg, code = 42212) => Object.assign(new Error(msg), { code })
+
+let AC_SEQ = 0
+const ASSET_CATS = []
+let ASSET_SEQ = 0
+const ASSETS = []
+let ASSET_LOG_SEQ = 0
+const ASSET_LOGS = []
+
+/* ---------------- 分类 ---------------- */
+
+const _catOf = catId => ASSET_CATS.find(c => c.catId === catId) || null
+
+/** 分类全路径（`办公设备 / 电脑`）。改名不回写资产，靠资产上的快照 */
+function _catPathOf(catId) {
+  const chain = []
+  let cur = _catOf(catId)
+  let guard = 0
+  while (cur && guard++ < 6) {
+    chain.unshift(cur.name)
+    cur = cur.parentId ? _catOf(cur.parentId) : null
+  }
+  return chain.join(' / ')
+}
+
+const _catDepthOf = catId => {
+  let n = 0
+  let cur = _catOf(catId)
+  let guard = 0
+  while (cur && guard++ < 6) { n += 1; cur = cur.parentId ? _catOf(cur.parentId) : null }
+  return n
+}
+
+/** 某分类（含全部下级）的资产数 */
+function _assetCountOf(catId) {
+  const ids = new Set([catId])
+  let added = true
+  while (added) {
+    added = false
+    for (const c of ASSET_CATS) {
+      if (c.parentId && ids.has(c.parentId) && !ids.has(c.catId)) { ids.add(c.catId); added = true }
+    }
+  }
+  return ASSETS.filter(a => ids.has(a.catId)).length
+}
+
+/** 分类行（带本级/含下级资产数、层级、路径） */
+function _catRowOf(c) {
+  const children = ASSET_CATS.filter(x => x.parentId === c.catId)
+  return {
+    ...c,
+    catPath: _catPathOf(c.catId),
+    depth: _catDepthOf(c.catId),
+    leaf: children.length === 0,
+    childCount: children.length,
+    assetCount: ASSETS.filter(a => a.catId === c.catId).length,
+    assetCountAll: _assetCountOf(c.catId),
+    canDelete: children.length === 0 && ASSETS.every(a => a.catId !== c.catId)
+  }
+}
+
+export function assetCatFlat() {
+  return ASSET_CATS
+    .map(_catRowOf)
+    .sort((a, b) => (a.parentId || '').localeCompare(b.parentId || '') || (a.sort - b.sort) || a.name.localeCompare(b.name, 'zh'))
+}
+
+/** 树（页面左栏用）：根节点挂 children，节点带资产数 */
+export function assetCatTree({ includeDisabled = true } = {}) {
+  const all = ASSET_CATS
+    .filter(c => includeDisabled || c.enabled)
+    .map(_catRowOf)
+    .sort((a, b) => (a.sort - b.sort) || a.name.localeCompare(b.name, 'zh'))
+  const byId = new Map(all.map(c => [c.catId, { ...c, children: [] }]))
+  const roots = []
+  for (const node of byId.values()) {
+    if (node.parentId && byId.has(node.parentId)) byId.get(node.parentId).children.push(node)
+    else roots.push(node)
+  }
+  return roots
+}
+
+/** 下拉用：带缩进的扁平列表（一级缩进两个空格） */
+export function assetCatOpts({ includeDisabled = false } = {}) {
+  const out = []
+  const walk = (nodes, depth) => {
+    for (const n of nodes) {
+      out.push({ value: n.catId, label: `${depth ? '　'.repeat(depth) : ''}${n.name}`, depth, disabled: !n.enabled })
+      if (n.children && n.children.length) walk(n.children, depth + 1)
+    }
+  }
+  walk(assetCatTree({ includeDisabled }), 0)
+  return out
+}
+
+export function getAssetCategory(catId) {
+  const c = _catOf(catId)
+  return c ? _catRowOf(c) : null
+}
+
+/**
+ * 保存分类（新增 / 编辑）。
+ * 三条硬规则：
+ *  ① 最多两级 —— 三级分类在录入时基本选不出东西；
+ *  ② 改上级不能挂到自己的子孙下（成环，树会无限递归）；
+ *  ③ 同级不能重名（同一层有两个「电脑」，录入时选哪个都是错）。
+ */
+export function saveAssetCategory({ catId = '', name = '', parentId = '', prefix = '', sort = 10, note = '', enabled = true } = {}) {
+  if (!canEditAssetCats()) throw _assetError(`当前角色没有维护分类的权限（${ASSET_CAT_EDIT}）`, 403)
+  const nm = String(name || '').trim()
+  if (!nm) throw _assetError('分类名称不能为空')
+  if (nm.length > 12) throw _assetError('分类名称不超过 12 个字')
+
+  const pid = String(parentId || '')
+  if (pid) {
+    if (!_catOf(pid)) throw _assetError('上级分类不存在', 40401)
+    if (_catDepthOf(pid) >= ASSET_CAT_MAX_DEPTH) {
+      throw _assetError(`分类最多 ${ASSET_CAT_MAX_DEPTH} 级：三级分类在录入时选不出来，实际也用不到`)
+    }
+  }
+
+  /* 成环检查：把自己挂到自己的子孙下面，树会永远展开不完。
+     注意：在「最多两级」的限制下这条其实走不到 —— 把一级挂到二级下面，会先被上面的
+     深度校验拦住（那就是三级了）。保留它是为了以后万一放开三级时不用回头补。 */
+  if (catId && pid) {
+    let walker = _catOf(pid)
+    let guard = 0
+    while (walker && guard++ < 8) {
+      if (walker.catId === catId) throw _assetError('不能把分类挂到它自己的下级里（会形成环）')
+      walker = walker.parentId ? _catOf(walker.parentId) : null
+    }
+  }
+
+  const dup = ASSET_CATS.find(c => c.catId !== catId && (c.parentId || '') === pid && c.name === nm)
+  if (dup) throw _assetError(`同级已存在「${nm}」（${dup.catId}），换个名字或改上级`)
+
+  if (catId) {
+    const c = _catOf(catId)
+    if (!c) throw _assetError('分类不存在', 40401)
+    Object.assign(c, { name: nm, parentId: pid, prefix: String(prefix || '').trim().toUpperCase(), sort: Number(sort) || 10, note: String(note || '').trim(), enabled: enabled !== false })
+    /* 改名不回写资产：资产上存的是快照，历史单据要能解释"当时叫什么" */
+    return getAssetCategory(catId)
+  }
+
+  AC_SEQ += 1
+  const rec = {
+    catId: 'AC' + String(AC_SEQ).padStart(4, '0'),
+    name: nm, parentId: pid,
+    prefix: String(prefix || '').trim().toUpperCase(),
+    sort: Number(sort) || 10,
+    note: String(note || '').trim(),
+    enabled: enabled !== false,
+    createdAt: _now()
+  }
+  ASSET_CATS.push(rec)
+  return getAssetCategory(rec.catId)
+}
+
+/** 启停用：停用后不能新建资产，已有资产保留 */
+export function toggleAssetCategory(catId) {
+  if (!canEditAssetCats()) throw _assetError(`当前角色没有维护分类的权限（${ASSET_CAT_EDIT}）`, 403)
+  const c = _catOf(catId)
+  if (!c) throw _assetError('分类不存在', 40401)
+  c.enabled = !c.enabled
+  return getAssetCategory(catId)
+}
+
+/** 删除：有子分类或有资产都不给删（删了资产就指向空分类） */
+export function removeAssetCategory(catId) {
+  if (!canEditAssetCats()) throw _assetError(`当前角色没有维护分类的权限（${ASSET_CAT_EDIT}）`, 403)
+  const c = _catOf(catId)
+  if (!c) throw _assetError('分类不存在', 40401)
+  const kids = ASSET_CATS.filter(x => x.parentId === catId)
+  if (kids.length) throw _assetError(`「${c.name}」下还有 ${kids.length} 个子分类，先删或移走子分类`, 40927)
+  const used = ASSETS.filter(a => a.catId === catId).length
+  if (used) throw _assetError(`「${c.name}」下还有 ${used} 件资产，先把资产改成别的分类（或停用分类）`, 40927)
+  const i = ASSET_CATS.findIndex(x => x.catId === catId)
+  ASSET_CATS.splice(i, 1)
+  return { catId, removed: true }
+}
+
+/* ---------------- 资产 ---------------- */
+
+/** 编号：ZC + 年 + 4 位年流水。**生成后不可改** —— 标签已经印出去了 */
+function _assetNoNext(year = String(TODAY).slice(0, 4)) {
+  const prefix = `ZC${year}`
+  const max = ASSETS
+    .filter(a => String(a.assetNo || '').startsWith(prefix))
+    .reduce((m, a) => Math.max(m, Number(String(a.assetNo).slice(prefix.length)) || 0), 0)
+  return prefix + String(max + 1).padStart(4, '0')
+}
+
+/** 二维码 token：16 位随机，与编号无关（编号能顺序推，token 不能） */
+function _assetToken(seedStr) {
+  const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let h = 2166136261
+  for (let i = 0; i < seedStr.length; i++) h = (h ^ seedStr.charCodeAt(i)) * 16777619 >>> 0
+  let out = ''
+  for (let i = 0; i < 16; i++) {
+    h = (h * 1103515245 + 12345) >>> 0
+    out += pool[(h >>> 8) % pool.length]
+  }
+  return out
+}
+
+const _assetFind = assetId => ASSETS.find(a => a.assetId === assetId) || null
+
+function _logOf(assetId) {
+  return ASSET_LOGS
+    .filter(l => l.assetId === assetId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(b.logId).localeCompare(String(a.logId)))
+}
+
+function _pushAssetLog(assetId, field, fieldLabel, before, after, by) {
+  ASSET_LOG_SEQ += 1
+  ASSET_LOGS.unshift({
+    logId: 'AL' + String(ASSET_LOG_SEQ).padStart(5, '0'),
+    assetId, at: _now(), by: by || currentOperator().name,
+    field, fieldLabel, before: String(before ?? ''), after: String(after ?? '')
+  })
+}
+
+/** 派生一行（列表 / 详情共用）：使用部门名由 orgId 现算，不在资产上存第二份 */
+function _assetRowOf(a) {
+  const emp = a.holderEmpId ? employees.find(e => e.empId === a.holderEmpId) : null
+  const files = Array.isArray(a.files) ? a.files : []
+  const photos = files.filter(f => f.kind === 'image' || !f.kind)
+  return {
+    ...a,
+    files,
+    photos,
+    photoCount: photos.length,
+    cover: photos.length ? photos[0].url : '',
+    holderName: emp ? emp.name : '',
+    orgName: a.orgId ? orgNameOf(a.orgId) : '',
+    catName: a.catName || (_catOf(a.catId)?.name || ''),
+    catPath: a.catPath || _catPathOf(a.catId),
+    warrantyLeft: a.warrantyEnd ? daysBetween(a.warrantyEnd) : null,
+    warrantyExpired: a.warrantyEnd ? (daysBetween(a.warrantyEnd) ?? 0) > 0 : false,
+    warrantySoon: a.warrantyEnd ? ((daysBetween(a.warrantyEnd) ?? 999) >= -30 && (daysBetween(a.warrantyEnd) ?? 999) <= 0) : false,
+    _ver: a._ver || 1
+  }
+}
+
+export function assetRows({ catId = '', status = '', orgId = '', kw = '', pageNo = 1, size = 15 } = {}) {
+  let list = ASSETS.map(_assetRowOf)
+  if (catId) {
+    /* 选一级分类要看到它全部下级的资产，否则点「办公设备」是空的 */
+    const ids = new Set([catId])
+    let added = true
+    while (added) {
+      added = false
+      for (const c of ASSET_CATS) {
+        if (c.parentId && ids.has(c.parentId) && !ids.has(c.catId)) { ids.add(c.catId); added = true }
+      }
+    }
+    list = list.filter(a => ids.has(a.catId))
+  }
+  if (status) list = list.filter(a => a.status === status)
+  if (orgId) list = list.filter(a => a.orgId === orgId)
+  if (kw) {
+    const k = String(kw).trim()
+    list = list.filter(a => `${a.name}${a.assetNo}${a.assetCode}${a.sn}${a.brand}${a.model}${a.holderName}${a.location}`.includes(k))
+  }
+  list.sort((a, b) => String(b.buyDate || '').localeCompare(String(a.buyDate || '')) || a.assetNo.localeCompare(b.assetNo))
+  const total = list.length
+  const start = (Math.max(1, pageNo) - 1) * size
+  return { rows: list.slice(start, start + size), total, pageNo, size }
+}
+
+export function getAsset(assetId) {
+  const a = _assetFind(assetId)
+  if (!a) return null
+  return { ..._assetRowOf(a), logs: _logOf(assetId) }
+}
+
+/** 字段中文名（变更记录里显示，页面不用自己维护一份） */
+const ASSET_FIELD_LABEL = {
+  name: '名称', catId: '分类', assetCode: '资产编码', brand: '品牌', model: '型号', sn: '序列号',
+  buyDate: '购置日期', price: '购置原值', vendor: '供应商', warrantyEnd: '保修到期',
+  holderEmpId: '使用人', orgId: '使用部门', location: '存放位置', status: '状态', remark: '备注',
+  files: '设备图片'
+}
+
+/* ---------------- 设备图片（附件） ----------------
+ * 用户确认的口径：图片**作为附件存在资产上**，不当独立实体，也不上传到图床 ——
+ * 原型里存 data URL（indexedDB 都没有，刷新即还原），只验证「结构对不对、上限够不够」。
+ *
+ * 三条限制都是必要的：
+ *   ① 最多 6 张 —— 详情页一屏能看完；再多就该走档案系统，不该塞在资产卡片里；
+ *   ② 单张 ≤ 5MB —— 手机直出照片常 3–8MB，超过这个数浏览器里预览会明显卡；
+ *   ③ 只收图片 —— 附件区不承担"扫描件、合同 PDF"的职责，那是合同模块的事。
+ * 这些数字在页面和契约里各写了一遍，改的时候三处一起改（页面文案写着）。
+ */
+export const ASSET_FILE_MAX = 6
+export const ASSET_FILE_MAX_SIZE = 5 * 1024 * 1024
+export const ASSET_FILE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+/** 附件规范化 + 校验。页面已经拦一次，这里再拦一次 —— 接口不能只信前端 */
+function _cleanAssetFiles(list) {
+  const arr = Array.isArray(list) ? list : []
+  if (arr.length > ASSET_FILE_MAX) {
+    throw _assetError(`设备图片最多 ${ASSET_FILE_MAX} 张，先删掉几张再传`)
+  }
+  return arr.map((f, i) => {
+    const name = String(f.name || '').trim()
+    if (!name) throw _assetError(`第 ${i + 1} 张图片没有文件名`)
+    const url = String(f.url || '')
+    /* svg 只在种子示例图里出现（见 _assetDemoPhoto），上传口子不开 —— 但数据层要认，
+       否则编辑一件带示例图的种子资产会因为这个校验寸步难行 */
+    const isData = /^data:image\/(jpeg|png|webp|gif|svg\+xml);base64,/i.test(url)
+    const isHttp = /^https?:\/\//i.test(url)
+    if (!isData && !isHttp) throw _assetError(`「${name}」不是有效的图片数据，请重新选择文件`)
+    const size = Number(f.size) || 0
+    if (size > ASSET_FILE_MAX_SIZE) {
+      throw _assetError(`「${name}」${(size / 1024 / 1024).toFixed(1)}MB，超过 ${ASSET_FILE_MAX_SIZE / 1024 / 1024}MB 上限`)
+    }
+    return {
+      fileId: String(f.fileId || `AF${Date.now().toString(36)}${i}`),
+      kind: 'image',
+      name,
+      url,
+      size,
+      mime: String(f.mime || '').trim(),
+      at: String(f.at || _now()),
+      by: String(f.by || currentOperator().name)
+    }
+  })
+}
+
+/** 变更记录里图片只记张数 + 新增了哪几张：把 base64 写进日志会撑爆表格 */
+function _filesBrief(list) {
+  const arr = Array.isArray(list) ? list : []
+  if (!arr.length) return ''
+  return `${arr.length} 张：${arr.map(f => f.name).join('、')}`
+}
+
+/**
+ * 保存资产（新增 / 编辑）。
+ * 编号只在新增时生成，之后**永远不可改** —— 二维码标签已经贴在实物上，
+ * 改编号等于让日志、报修记录、纸质标签全部对不上。
+ */
+export function saveAsset({ assetId = '', name = '', catId = '', assetCode = '', brand = '', model = '', sn = '',
+  buyDate = '', price = '', vendor = '', warrantyEnd = '', holderEmpId = '', orgId = '', location = '',
+  status = '闲置', remark = '', files = [], ver } = {}) {
+  if (!canEditAssets()) throw _assetError(`当前角色没有维护资产的权限（${ASSET_PERM_EDIT}）`, 403)
+  const nm = String(name || '').trim()
+  if (!nm) throw _assetError('资产名称不能为空')
+  if (!catId) throw _assetError('请选择资产分类')
+  const cat = _catOf(catId)
+  if (!cat) throw _assetError('分类不存在', 40401)
+  if (!cat.enabled) throw _assetError(`分类「${cat.name}」已停用，换一个分类或先启用它`)
+  if (!ASSET_STATUS.includes(status)) throw _assetError(`状态只能是 ${ASSET_STATUS.join(' / ')}`)
+  const priceNum = price === '' || price === null ? null : Number(price)
+  if (priceNum !== null && (!Number.isFinite(priceNum) || priceNum < 0)) throw _assetError('购置原值必须是不小于 0 的数字')
+  if (buyDate && !/^\d{4}-\d{2}-\d{2}$/.test(buyDate)) throw _assetError('购置日期格式应为 YYYY-MM-DD')
+  if (warrantyEnd && !/^\d{4}-\d{2}-\d{2}$/.test(warrantyEnd)) throw _assetError('保修到期格式应为 YYYY-MM-DD')
+  if (buyDate && warrantyEnd && warrantyEnd < buyDate) throw _assetError('保修到期不能早于购置日期')
+
+  const emp = holderEmpId ? employees.find(e => e.empId === holderEmpId) : null
+  if (holderEmpId && !emp) throw _assetError('使用人不存在', 40401)
+  /* 使用部门跟着使用人走，但允许改（成本归属可能不是使用人所在部门） */
+  const finalOrg = orgId || (emp ? (teamOf(emp) || emp.orgId) : '')
+
+  const patch = {
+    name: nm, catId, catName: cat.name, catPath: _catPathOf(catId),
+    assetCode: String(assetCode || '').trim(),
+    brand: String(brand || '').trim(), model: String(model || '').trim(), sn: String(sn || '').trim(),
+    buyDate: String(buyDate || ''), price: priceNum,
+    vendor: String(vendor || '').trim(), warrantyEnd: String(warrantyEnd || ''),
+    holderEmpId: String(holderEmpId || ''), orgId: finalOrg,
+    location: String(location || '').trim(),
+    status, remark: String(remark || '').trim(), files: _cleanAssetFiles(files)
+  }
+
+  if (assetId) {
+    const a = _assetFind(assetId)
+    if (!a) throw _assetError('资产不存在', 40401)
+    if (ver !== undefined && Number(ver) !== Number(a._ver || 1)) {
+      throw _assetError('该资产已被他人修改，请刷新后重试', 40901)
+    }
+    /* 逐字段记变更：没有领用单，这一层就是唯一的"什么时候谁改成什么" */
+    for (const [k, v] of Object.entries(patch)) {
+      const before = a[k]
+      /* 图片按 fileId + 文件名 + url 比：只比 fileId 的话，「同一个 fileId 换了内容」
+         会被当成没改动而跳过校验（换成别的类型也能溜过去）；只换顺序不算改动 */
+      const same = k === 'files'
+        ? JSON.stringify((before || []).map(f => `${f.fileId}|${f.name}|${f.url}`))
+          === JSON.stringify((v || []).map(f => `${f.fileId}|${f.name}|${f.url}`))
+        : (before === null || before === undefined ? '' : String(before)) === (v === null || v === undefined ? '' : String(v))
+      if (same) continue
+      const label = ASSET_FIELD_LABEL[k] || k
+      let bShow = before, aShow = v
+      if (k === 'holderEmpId') {
+        bShow = (employees.find(e => e.empId === before) || {}).name || ''
+        aShow = emp ? emp.name : ''
+      }
+      if (k === 'orgId') { bShow = before ? orgNameOf(before) : ''; aShow = v ? orgNameOf(v) : '' }
+      if (k === 'catId') { bShow = a.catName || ''; aShow = cat.name }
+      if (k === 'files') { bShow = _filesBrief(before); aShow = _filesBrief(v) }
+      _pushAssetLog(a.assetId, k, label, bShow, aShow)
+      a[k] = v
+    }
+    a._ver = Number(a._ver || 1) + 1
+    return getAsset(assetId)
+  }
+
+  ASSET_SEQ += 1
+  const id = 'AS' + String(ASSET_SEQ).padStart(4, '0')
+  const assetNo = _assetNoNext()
+  const rec = {
+    assetId: id,
+    assetNo,
+    ...patch,
+    qrToken: _assetToken(`${id}|${assetNo}|${nm}`),
+    createdAt: _now(),
+    createdBy: currentOperator().name,
+    _ver: 1
+  }
+  ASSETS.push(rec)
+  _pushAssetLog(id, 'create', '新增资产', '', `${nm}（${assetNo}）`)
+  return getAsset(id)
+}
+
+export const assetLogsOf = assetId => _logOf(assetId)
+
+/** 顶部 KPI */
+export function assetSummary() {
+  const list = ASSETS.map(_assetRowOf)
+  const totalValue = list.reduce((s, a) => s + (Number(a.price) || 0), 0)
+  const byStatus = ASSET_STATUS.map(s => ({ status: s, count: list.filter(a => a.status === s).length }))
+  const soon = list.filter(a => a.warrantySoon)
+  const expired = list.filter(a => a.warrantyExpired)
+  /* 分类被停用、但下面还挂着资产 —— 这些资产改分类时会卡住，值得在 KPI 里露出来 */
+  const disabledCatIds = new Set(ASSET_CATS.filter(c => !c.enabled).map(c => c.catId))
+  const noCat = list.filter(a => disabledCatIds.has(a.catId)).length
+  return {
+    total: list.length,
+    totalValue: Math.round(totalValue * 100) / 100,
+    idle: byStatus.find(x => x.status === '闲置')?.count || 0,
+    inUse: byStatus.find(x => x.status === '在用')?.count || 0,
+    scrapped: byStatus.find(x => x.status === '报废')?.count || 0,
+    byStatus,
+    warrantySoon: soon.length,
+    warrantyExpired: expired.length,
+    catCount: ASSET_CATS.filter(c => c.enabled).length,
+    noCat
+  }
+}
+
+/** 按分类汇总（列表页右侧或无数据时的说明用） */
+export function assetByCategory() {
+  return assetCatFlat()
+    .filter(c => c.assetCountAll > 0)
+    .map(c => ({
+      catId: c.catId, name: c.name, catPath: c.catPath, depth: c.depth,
+      count: c.assetCountAll,
+      value: Math.round(ASSETS.filter(a => a.catId === c.catId).reduce((s, a) => s + (Number(a.price) || 0), 0) * 100) / 100
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/* ---------------- 免登录公开视图 ---------------- */
+
+/**
+ * 扫码页数据：**只返回白名单字段**。
+ *
+ * 为什么不让扫码页直接调详情接口：详情里有原值、供应商、序列号、内部备注。
+ * 扫码不需要登录，等于任何人捡到一台电脑就能看到这些 —— 序列号能被拿去伪造保修，
+ * 原值泄露采购价，供应商暴露商务关系。所以这里另开一个「公开视图」，字段是配置出来的，
+ * 不是从详情里挑几个删掉。
+ *
+ * 用户确认的口径：**只显示使用部门，不显示使用人姓名**。
+ *
+ * **设备图片也不在公开视图里**（2026-11-05 第 60 批加图片时一并定的）：
+ * 照片是现场随手拍的，背景里常有工位、白板、同事，公开出去不是"设备长什么样"的问题。
+ * 要给人看实物，走登录后的详情页。
+ */
+export const ASSET_PUBLIC_FIELDS = ['name', 'assetNo', 'catPath', 'status', 'orgName', 'location', 'warrantyEnd']
+
+export function assetPublicView(token) {
+  const t = String(token || '').trim()
+  if (!t) return { ok: false, reason: 'empty' }
+  const a = ASSETS.find(x => x.qrToken === t)
+  /* token 无效不抛错、不区分"格式错"与"不存在"—— 区分了就等于告诉别人怎么猜 */
+  if (!a) return { ok: false, reason: 'notfound' }
+  const row = _assetRowOf(a)
+  return {
+    ok: true,
+    scrapped: row.status === '报废',
+    asset: {
+      name: row.name,
+      assetNo: row.assetNo,
+      catPath: row.catPath,
+      status: row.status,
+      orgName: row.orgName || '—',
+      location: row.location || '—',
+      warrantyEnd: row.warrantyEnd || '—',
+      warrantyExpired: row.warrantyExpired
+    }
+  }
+}
+
+/** 打印标签用的行（批量）：只取标签上印得下的字段 */
+export function assetLabelRows(assetIds = []) {
+  const ids = Array.isArray(assetIds) ? assetIds : []
+  return ASSETS
+    .filter(a => ids.includes(a.assetId))
+    .map(a => {
+      const r = _assetRowOf(a)
+      return {
+        assetId: r.assetId, assetNo: r.assetNo, name: r.name,
+        catName: r.catName, holderName: r.holderName, orgName: r.orgName,
+        qrToken: r.qrToken, scanUrl: `/scan/${r.qrToken}`
+      }
+    })
+}
+
+/* ---------------- 种子 ---------------- */
+
+/**
+ * 种子：5 个大类 + 14 个小类 + 120 件办公资产。
+ * 走独立随机流（SEED+95），不扰动主数据 —— 重跑后只有 K 域的产物变化。
+ */
+const _ASSET_CAT_SEED = [
+  ['办公设备', '', 'BG', [
+    ['电脑', '电脑'],
+    ['显示器', '显示器'],
+    ['打印机/复印机', '打印机'],
+    ['投影设备', '投影'],
+    ['网络设备', '网络']
+  ]],
+  ['办公家具', '', 'JJ', [
+    ['桌椅', '桌椅'],
+    ['文件柜', '柜子'],
+    ['沙发茶几', '沙发']
+  ]],
+  ['电子电器', '', 'DZ', [
+    ['空调', '空调'],
+    ['饮水机', '饮水'],
+    ['冰箱微波炉', '冰箱']
+  ]],
+  ['工具器具', '', 'GJ', [
+    ['维修工具', '工具'],
+    ['电工工具', '电工'],
+    ['测量仪器', '仪器']
+  ]],
+  ['其他资产', '', 'QT', [
+    ['未分类待定', '待分']
+  ]]
+]
+
+/* 每件资产的候选（名称 / 品牌 / 型号 / 价格区间） */
+const _ASSET_ITEM_SPECS = {
+  电脑: [['联想 ThinkPad E14', '联想', 'E14 Gen4', 4800, 6800], ['戴尔 Latitude 5440', '戴尔', '5440', 5200, 7200], ['惠普 战 66', '惠普', 'ProBook 440', 4200, 5600], ['苹果 MacBook Air', '苹果', 'M2 13"', 7800, 9800]],
+  显示器: [['戴尔 24 寸显示器', '戴尔', 'P2422H', 900, 1300], ['AOC 27 寸', 'AOC', 'Q27B2S', 800, 1200]],
+  打印机: [['惠普激光打印机', '惠普', 'M403d', 1600, 2400], ['兄弟多功能一体机', '兄弟', 'DCP-7090', 1400, 2100], ['佳能复印机', '佳能', 'iR2625', 9800, 14000]],
+  投影: [['爱普生投影仪', '爱普生', 'CB-X50', 3800, 5200], ['明基商务投影', '明基', 'MX560', 2600, 3600]],
+  网络: [['华为交换机', '华为', 'S5720', 2200, 3600], ['H3C 无线 AP', 'H3C', 'WA6320', 600, 900], ['TP-Link 路由器', 'TP-Link', 'ER605', 400, 700]],
+  桌椅: [['人体工学办公椅', '西昊', 'M18', 800, 1600], ['主管办公桌 1.6m', '震旦', 'D16', 1800, 3200], ['会议桌 2.4m', '震旦', 'M24', 3600, 5600]],
+  柜子: [['钢制文件柜四门', '得力', 'FC-4', 600, 1100], ['档案密集柜', '震旦', 'MJ-6', 4200, 6800]],
+  沙发: [['接待沙发三人位', '全友', 'SF-3', 2200, 3600], ['茶几 1.2m', '全友', 'CJ-12', 600, 1000]],
+  空调: [['格力挂机 1.5 匹', '格力', 'KFR-35GW', 2600, 3600], ['美的柜机 3 匹', '美的', 'KFR-72LW', 5600, 7800]],
+  饮水: [['沁园商用饮水机', '沁园', 'QY-2', 1200, 2200], ['安吉尔直饮机', '安吉尔', 'AHR27', 2800, 4200]],
+  冰箱: [['海尔双门冰箱', '海尔', 'BCD-216', 1800, 2600], ['微波炉', '美的', 'M1-L213B', 400, 700]],
+  工具: [['世达工具套装 46 件', '世达', '09014', 600, 1200], ['电动螺丝刀', '博世', 'GSB120', 400, 800]],
+  电工: [['数字万用表', '优利德', 'UT61E', 300, 600], ['绝缘工具组套', '世达', 'SATA-7', 500, 900]],
+  仪器: [['激光测距仪', '博世', 'GLM50', 400, 700], ['红外测温仪', '优利德', 'UT300S', 300, 600]],
+  待分: [['待确认资产', '—', '—', 100, 500]]
+}
+
+const _ASSET_LOCATIONS = ['总部 3F 财务部', '总部 3F 会议室', '总部 2F 行政办公室', '总部 4F 总经理室', '翡翠城项目部办公室', '锦绣家园项目部办公室', '星光天地项目部办公室', '总部 1F 前台', '总部 B1 库房']
+
+/** 确定性随机器（LCG）：种子里必须可复现，且不能借用主数据的随机流 */
+function _assetRand(seed) {
+  let x = seed >>> 0
+  return () => {
+    x = (x * 1664525 + 1013904223) >>> 0
+    return x / 4294967296
+  }
+}
+
+function _assetSeedBuild() {
+  const rng = _assetRand(20261104 + 95)
+  const pick = arr => arr[Math.floor(rng() * arr.length)]
+  const int = (a, b) => a + Math.floor(rng() * (b - a + 1))
+
+  /* 分类 */
+  for (const [topName, , topPrefix, kids] of _ASSET_CAT_SEED) {
+    const top = saveAssetCategorySeed({ name: topName, parentId: '', prefix: topPrefix, sort: int(10, 50) })
+    kids.forEach(([kidName, key], i) => {
+      saveAssetCategorySeed({ name: kidName, parentId: top.catId, prefix: `${topPrefix}-${String(i + 1).padStart(2, '0')}`, sort: (i + 1) * 10 })
+    })
+  }
+
+  /* 资产：按小类分布，电脑最多。
+     [分类全名, 物品规格的 key, 件数] —— 分类名必须和 _ASSET_CAT_SEED 里一字不差，
+     写成短名（"打印机" vs "打印机/复印机"）会静默跳过，资产总数莫名少一半。 */
+  const dist = [
+    ['电脑', '电脑', 26], ['显示器', '显示器', 18],
+    ['打印机/复印机', '打印机', 8], ['投影设备', '投影', 4], ['网络设备', '网络', 6],
+    ['桌椅', '桌椅', 20], ['文件柜', '柜子', 6], ['沙发茶几', '沙发', 3],
+    ['空调', '空调', 8], ['饮水机', '饮水', 4], ['冰箱微波炉', '冰箱', 2],
+    ['维修工具', '工具', 7], ['电工工具', '电工', 5], ['测量仪器', '仪器', 3]
+  ]
+  const activeEmps = employees.filter(e => e.status !== '离职')
+  const byCatName = new Map(ASSET_CATS.map(c => [c.name, c]))
+  let seq = 0
+
+  for (const [catName, specKey, count] of dist) {
+    const cat = byCatName.get(catName)
+    if (!cat) continue
+    const specs = _ASSET_ITEM_SPECS[specKey] || _ASSET_ITEM_SPECS.待分
+    for (let i = 0; i < count; i++) {
+      const [nm, brand, model, lo, hi] = pick(specs)
+      const emp = rng() < 0.82 ? pick(activeEmps) : null
+      const buy = new Date(2021 + int(0, 4), int(0, 11), int(1, 28))
+      const buyDate = buy.toISOString().slice(0, 10)
+      /* 保修日期刻意留出两端：约 8% 临期（30 天内到期）、14% 已过保。
+         全按「购置 + 2~4 年」生成的话，KPI 里"保修临期"永远是 0，这条指标就成了摆设。 */
+      const shift = (base, days) => {
+        const t = new Date(base)
+        t.setDate(t.getDate() + days)
+        return t.toISOString().slice(0, 10)
+      }
+      const roll = rng()
+      let wy
+      if (roll < 0.08) wy = shift(TODAY, int(2, 28))
+      else if (roll < 0.22) wy = shift(TODAY, -int(20, 380))
+      else wy = shift(buy, int(730, 1460))
+      seq += 1
+      saveAssetSeed({
+        name: nm, catId: cat.catId,
+        assetCode: `${cat.prefix || 'QT'}-${String(i + 1).padStart(3, '0')}`,
+        brand, model,
+        sn: `${brand === '—' ? 'NA' : brand.slice(0, 2).toUpperCase()}${int(100000, 999999)}`,
+        buyDate, price: int(lo, hi) > 0 ? Math.round(int(lo, hi) / 10) * 10 - 1 : 0,
+        vendor: pick(['成都联创科技有限公司', '四川办公之家', '京东企业购', '本地供应商', '—']),
+        warrantyEnd: wy,
+        holderEmpId: emp ? emp.empId : '',
+        orgId: emp ? (teamOf(emp) || emp.orgId) : pick(['O-HEAD', 'O-P01', 'O-P02', 'O-P03']),
+        location: pick(_ASSET_LOCATIONS),
+        status: rng() < 0.72 ? '在用' : (rng() < 0.6 ? '闲置' : '报废'),
+        remark: '',
+        /* 每 9 件留一张示例图：台账缩略图和详情页图片区不至于是空的，
+           但只给一小部分 —— 现实里也不可能所有资产都拍过照 */
+        withPhoto: seq % 9 === 0
+      })
+    }
+  }
+}
+
+/** 种子专用：绕过权限与校验（种子产生时还没有登录人） */
+function saveAssetCategorySeed({ name, parentId = '', prefix = '', sort = 10 }) {
+  AC_SEQ += 1
+  const rec = { catId: 'AC' + String(AC_SEQ).padStart(4, '0'), name, parentId, prefix, sort, note: '', enabled: true, createdAt: '2026-01-01 00:00' }
+  ASSET_CATS.push(rec)
+  return rec
+}
+
+const _xmlText = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/**
+ * 种子示例图：640×420 的占位图，明写「示例图」。
+ * 不做成假照片 —— 假照片会被当成实拍，评审时说不清"这张图哪来的"；
+ * 占位图上写清是示例，反而能把「这里应该有一张实拍」讲明白。
+ */
+function _assetDemoPhoto(name) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420">'
+    + '<rect width="640" height="420" fill="#e9edf4"/>'
+    + '<rect x="28" y="28" width="584" height="364" rx="14" fill="none" stroke="#c2cad9" stroke-dasharray="10 7"/>'
+    + `<text x="320" y="206" font-size="27" fill="#79839a" text-anchor="middle" font-family="sans-serif">${_xmlText(name)}</text>`
+    + '<text x="320" y="250" font-size="17" fill="#9aa4b8" text-anchor="middle" font-family="sans-serif">示例图 · 可上传实拍替换</text>'
+    + '</svg>'
+  const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(svg)))
+  return `data:image/svg+xml;base64,${b64}`
+}
+
+function saveAssetSeed({ name, catId, assetCode, brand, model, sn, buyDate, price, vendor, warrantyEnd, holderEmpId, orgId, location, status, remark, withPhoto = false }) {
+  ASSET_SEQ += 1
+  const id = 'AS' + String(ASSET_SEQ).padStart(4, '0')
+  const assetNo = _assetNoNext()
+  const cat = _catOf(catId)
+  const files = withPhoto
+    ? [{
+        fileId: 'AF' + id, kind: 'image', name: `${name}.png`,
+        url: _assetDemoPhoto(name), size: 0, mime: 'image/svg+xml',
+        at: `${buyDate} 10:00`, by: '张敏'
+      }]
+    : []
+  ASSETS.push({
+    assetId: id, assetNo, name, catId,
+    catName: cat ? cat.name : '', catPath: _catPathOf(catId),
+    assetCode, brand, model, sn, buyDate, price, vendor, warrantyEnd,
+    holderEmpId, orgId, location, status, remark, files,
+    qrToken: _assetToken(`${id}|${assetNo}|${name}`),
+    createdAt: `${buyDate} 09:00`, createdBy: '张敏',
+    _ver: 1
+  })
+}
+
+_assetSeedBuild()
+
+/* 给一部分种子资产补一条「新增」记录。
+   不补的话，详情页的变更记录区整个是空的 —— 看不出这块是干什么用的，
+   而它恰恰是「没有领用单时唯一的留痕」。时间用资产自己的创建时间，不用当前时间。 */
+for (const a of ASSETS) {
+  ASSET_LOG_SEQ += 1
+  ASSET_LOGS.push({
+    logId: 'AL' + String(ASSET_LOG_SEQ).padStart(5, '0'),
+    assetId: a.assetId,
+    at: a.createdAt || '2026-01-05 09:00',
+    by: a.createdBy || '人事专员',
+    field: 'create', fieldLabel: '新增资产',
+    before: '', after: `${a.name}（${a.assetNo}）`
+  })
+}
+
+/* ---------------- 会签演示单（2026-11-03 第 53 批） ----------------
+ * 采购申请走会签：部门负责人节点要正职 + 副职都签。
+ * 这张单正职已签、副职待签，用来演示「会签没签完不推进下一级」，
+ * 以及"副职在单签节点轮不到、在会签节点必须参与"这条差别。
+ */
+{
+  const applicant = employees.find(e => e.orgId === 'O-P01' && e.position === '维修工' && e.status !== '离职')
+    || employees.find(e => e.orgId === 'O-P01' && e.status !== '离职')
+  const zheng = leadersOf('O-P01').find(r => r.duty === '正职' && r.active)
+  const vice = leadersOf('O-P01').find(r => r.duty === '副职' && r.active)
+  const finance = employees.find(e => e.position === '财务主管' && e.status !== '离职')
+  APPROVAL_SEQ += 1
+  approvals.unshift({
+    approvalId: 'AP' + String(APPROVAL_SEQ).padStart(5, '0'),
+    approvalNo: 'SP-' + String(TODAY).slice(0, 4) + '-' + String(APPROVAL_SEQ).padStart(4, '0'),
+    bizType: '采购申请',
+    bizId: '',
+    changeId: '',
+    title: '采购申请 · 翡翠城地下车库照明改造灯具（120 套）',
+    formData: {
+      itemName: 'LED 感应灯具', amount: 18600, quantity: 120, communityId: 'P01',
+      supplier: '成都恒光照明', reason: '车库灯具老化严重，夜间照度不足，业主投诉集中在 B1 区'
+    },
+    files: [],
+    communityId: 'P01',
+    communityName: communityName('P01'),
+    amount: 18600,
+    applicant: applicant.name,
+    applicantRole: applicant.position,
+    applicantEmpId: applicant.empId,
+    applicantOrgId: applicant.orgId,
+    applicantOrgName: orgNameOf(applicant.orgId),
+    scopeOrgId: applicant.orgId,
+    scopeOrgName: orgNameOf(applicant.orgId),
+    applyTime: '2026-10-19 10:24',
+    status: '审批中',
+    currentNode: '部门负责人审批（会签 1/2）',
+    urgency: '普通',
+    waitHours: 31,
+    flow: [
+      {
+        node: '部门负责人审批',
+        signMode: 'all',
+        handler: vice?.name || '',
+        approvers: [
+          { name: zheng?.name || '', empId: zheng?.empId || '', duty: '正职', action: '同意', time: '2026-10-19 14:02', comment: '预算内，同意采购' },
+          { name: vice?.name || '', empId: vice?.empId || '', duty: '副职', action: '待处理', time: '', comment: '' }
+        ],
+        action: '待处理', time: '', comment: '', limitHours: 24, skipNote: ''
+      },
+      {
+        node: '财务预算复核',
+        signMode: 'single',
+        handler: finance?.name || '',
+        approvers: [{ name: finance?.name || '', empId: finance?.empId || '', duty: '', action: '待处理', time: '', comment: '' }],
+        action: '待处理', time: '', comment: '', limitHours: 24, skipNote: ''
+      }
+    ],
+    _isNew: true
+  })
+}

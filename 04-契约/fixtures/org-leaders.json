@@ -1,0 +1,227 @@
+[
+ {
+  "id": "OL0001",
+  "orgId": "O-ROOT",
+  "empId": "EM0001",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0002",
+  "orgId": "O-HEAD",
+  "empId": "EM0002",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0003",
+  "orgId": "O-FIN",
+  "empId": "EM0080",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0004",
+  "orgId": "O-HR",
+  "empId": "EM0003",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0005",
+  "orgId": "O-QS",
+  "empId": "EM0004",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0006",
+  "orgId": "O-ENG",
+  "empId": "EM0005",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0007",
+  "orgId": "O-P01",
+  "empId": "EM0008",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0008",
+  "orgId": "O-P02",
+  "empId": "EM0009",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0009",
+  "orgId": "O-P03",
+  "empId": "EM0010",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0010",
+  "orgId": "O-P01-T1",
+  "empId": "EM0019",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0011",
+  "orgId": "O-P01-T2",
+  "empId": "EM0064",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0012",
+  "orgId": "O-P01-T4",
+  "empId": "EM0048",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0013",
+  "orgId": "O-P02-T1",
+  "empId": "EM0018",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0014",
+  "orgId": "O-P02-T2",
+  "empId": "EM0065",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0015",
+  "orgId": "O-P02-T3",
+  "empId": "EM0033",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0016",
+  "orgId": "O-P02-T4",
+  "empId": "EM0049",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0017",
+  "orgId": "O-P03-T1",
+  "empId": "EM0019",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0018",
+  "orgId": "O-P03-T2",
+  "empId": "EM0066",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0019",
+  "orgId": "O-P03-T3",
+  "empId": "EM0034",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0020",
+  "orgId": "O-P03-T4",
+  "empId": "EM0050",
+  "duty": "正职",
+  "startDate": "",
+  "endDate": "",
+  "note": ""
+ },
+ {
+  "id": "OL0021",
+  "orgId": "O-P01-T3",
+  "empId": "EM0034",
+  "duty": "正职",
+  "startDate": "2025-06-01",
+  "endDate": "2026-10-15",
+  "note": "正职调岗离任"
+ },
+ {
+  "id": "OL0022",
+  "orgId": "O-P01-T3",
+  "empId": "EM0036",
+  "duty": "代理",
+  "startDate": "2026-10-16",
+  "endDate": "2026-12-31",
+  "note": "正职空缺期间代理，到期自动失效"
+ },
+ {
+  "id": "OL0023",
+  "orgId": "O-P01",
+  "empId": "EM0010",
+  "duty": "副职",
+  "startDate": "2026-02-01",
+  "endDate": "",
+  "note": "分管工程与采购，采购类会签需与正职共同签署"
+ },
+ {
+  "id": "OL0024",
+  "orgId": "O-P01-T4",
+  "empId": "EM0055",
+  "duty": "副职",
+  "startDate": "2026-03-01",
+  "endDate": "",
+  "note": "分管绿化，不参与审批"
+ },
+ {
+  "id": "OL0025",
+  "orgId": "O-P02-T4",
+  "empId": "EM0051",
+  "duty": "代理",
+  "startDate": "2026-08-01",
+  "endDate": "2026-09-30",
+  "note": "休假期间代理，已结束"
+ }
+]

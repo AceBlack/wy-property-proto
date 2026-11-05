@@ -65,6 +65,14 @@
                 <el-option v-for="o in creditOpts" :key="o" :label="o" :value="o" />
               </el-select>
             </el-form-item>
+            <el-form-item label="业主标签">
+              <el-select v-model="query.tagId" placeholder="全部" clearable filterable style="width:150px">
+                <el-option v-for="t in allTags" :key="t.tagId" :label="t.name" :value="t.tagId">
+                  <span>{{ t.name }}</span>
+                  <span class="muted" style="float:right;font-size:12px;">{{ t.ownerCount }} 人</span>
+                </el-option>
+              </el-select>
+            </el-form-item>
             <el-form-item label="关键字">
               <el-input v-model="query.kw" placeholder="姓名 / 手机 / 房号" clearable style="width:180px" @keyup.enter="search" />
             </el-form-item>
@@ -99,6 +107,19 @@
               </template>
             </el-table-column>
             <el-table-column prop="ownerType" label="类型" width="90" />
+            <el-table-column label="标签" min-width="180">
+              <template #default="{ row }">
+                <!-- 最多显示 3 个：列表里是"扫一眼看出这人什么情况"，不是标签墙 -->
+                <template v-if="row.tagIds && row.tagIds.length">
+                  <span v-for="t in tagsOfRow(row).slice(0, 3)" :key="t.tagId" class="otag"
+                    :style="chipStyle(t.color)" :title="t.desc">{{ t.name }}</span>
+                  <span v-if="row.tagIds.length > 3" class="muted" style="font-size:12px;">
+                    +{{ row.tagIds.length - 3 }}
+                  </span>
+                </template>
+                <span v-else class="muted">—</span>
+              </template>
+            </el-table-column>
             <el-table-column label="名下房屋" min-width="170" show-overflow-tooltip>
               <template #default="{ row }">
                 <span v-if="row.houseCount === 1">{{ row.houseNames[0] }}</span>
@@ -302,7 +323,9 @@ import {
   PAGE_SIZES, creditLevelOpts, getOwnerDetail, houseTree, houseTreeSearchKeys,
   ownerTree, ownerTypeOpts, ownerVirtualNodes, queryOwners
 } from '@/utils/api'
+import { useRoute } from 'vue-router'
 import { useDetail, useListQuery } from '@/composables/useQuery'
+import { queryOwnerTags } from '@/api'
 import { checkMergeOwners, housesOfOwner, mergeOwners, revealSensitive, splitOwnerHouses, updateOwnerField } from '@/utils/api'
 import { pathOf, useFocusLanding } from '@/composables/useFocus'
 import SpaceTree from '@/components/SpaceTree.vue'
@@ -315,6 +338,9 @@ import { money } from '@/utils/format'
 import { exportList } from '@/utils/export'
 
 const router = useRouter()
+/* tagId 刻意**不放进 BLANK**：切空间时不该顺手把「按标签筛」清掉——
+   先按标签筛、再点某栋楼是常见动作。要清它走「重置」。
+   （放进去的后果实测过：进页→clearScope 重置→tagId 被清空→列表回到全量 682 条） */
 const BLANK = { communityId: '', buildingId: '', unitId: '', vf: '', creditLevel: '' }
 
 
@@ -337,6 +363,29 @@ const { rows, total, pageNo, size, loading, query, load, search } = useListQuery
   queryOwners,
   { immediate: false, filters: { ...BLANK, ownerType: '', kw: '' } }
 )
+
+/* 标签字典（筛选下拉与行内展示共用一份）；从标签页跳过来时带上 ?tagId= */
+const allTags = ref([])
+queryOwnerTags({ enabled: 'true' })
+  .then(r => { allTags.value = r.rows })
+  .catch(() => { allTags.value = [] })
+const route = useRoute()
+if (route.query.tagId) query.tagId = String(route.query.tagId)
+const TAG_CHIP = {
+  red: { bg: '#fdecec', fg: '#c0392b', bd: '#f5c2c2' },
+  orange: { bg: '#fdf1e3', fg: '#b96a12', bd: '#f3d3a8' },
+  green: { bg: '#e9f7ee', fg: '#227a41', bd: '#bce3c9' },
+  blue: { bg: '#eaf1fb', fg: '#2b5f9e', bd: '#c3d7f0' },
+  cyan: { bg: '#e6f6f4', fg: '#0b7a70', bd: '#b3e3dd' },
+  gray: { bg: '#f1f2f5', fg: '#5b6472', bd: '#dcdfe6' }
+}
+const chipStyle = c => {
+  const k = TAG_CHIP[c] || TAG_CHIP.gray
+  return { background: k.bg, color: k.fg, borderColor: k.bd }
+}
+/* 行的 tagIds → 词条（顺序按字典 sort，保证每行展示顺序一致） */
+const tagMap = computed(() => new Map(allTags.value.map(t => [t.tagId, t])))
+const tagsOfRow = row => (row.tagIds || []).map(id => tagMap.value.get(id)).filter(Boolean)
 
 const spaceTree = houseTree()
 const ownerTreeData = ownerTree()
@@ -408,7 +457,7 @@ function clearScope() {
   search()
 }
 function reset() {
-  Object.assign(query, { ...BLANK, ownerType: '', kw: '' })
+  Object.assign(query, { ...BLANK, ownerType: '', kw: '', tagId: '' })
   activeId.value = ''
   activeChain.value = []
   activeVn.value = ''
@@ -517,6 +566,10 @@ useFocusLanding(async ({ focus, open, location }) => {
 </script>
 
 <style scoped>
+.otag {
+  display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px;
+  line-height: 18px; border: 1px solid transparent; margin-right: 4px;
+}
 .axis { margin-bottom: 10px; }
 .axis :deep(.el-radio-button__inner) { padding: 6px 12px; }
 </style>

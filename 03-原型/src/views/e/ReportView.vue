@@ -100,7 +100,7 @@
         empty-desc="当前筛选条件下没有数据，换个条件试试"
         :skeleton-rows="6" @retry="load"
       >
-        <el-table :data="rows" size="small" border stripe height="440">
+        <el-table :data="rows" size="small" border stripe height="440" :row-class-name="rowClass">
           <el-table-column type="index" label="#" width="50" />
           <el-table-column
             v-for="c in (cfg?.columns || [])" :key="c.prop"
@@ -137,8 +137,9 @@ import AsyncBlock from '@/components/AsyncBlock.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useListQuery } from '@/composables/useQuery'
 import {
-  PAGE_SIZES, queryBills, queryBusiness, queryDeposits, queryInspectReport, queryPayments,
-  queryRepairSummary, querySupFindingReport, queryUnpaidHouses, queryWoBuildingReport, reportSummary
+  PAGE_SIZES, queryBills, queryBusiness, queryDeposits, queryInspectReport, queryMultiRevenueReport,
+  queryPayments, queryRepairSummary, querySupFindingReport, queryUnpaidHouses, queryWoBuildingReport,
+  reportSummary
 } from '@/utils/api'
 /* 统计报表走适配层（mock/http 同一签名，见 src/api/reports.js） */
 import {
@@ -154,11 +155,23 @@ const code = computed(() => String(route.params.code || ''))
 const cfg = computed(() => reportOf(code.value))
 
 /* ---------------- 实时报表：直接查业务表 ---------------- */
+/**
+ * 行级样式：营业报表末段的「多种经营收入」是小计行，下面两个分项是它的明细。
+ * 不加样式的话，三行看起来像三个独立科目，合计会重复加两遍。
+ */
+function rowClass({ row }) {
+  if (row?.rowLevel === 1) return 'row-subtotal'
+  if (row?.rowLevel === 2) return 'row-subitem'
+  return ''
+}
+
 const FETCHER = {
   bills: queryBills, unpaidHouses: queryUnpaidHouses,
   payments: queryPayments, business: queryBusiness, repair: queryRepairSummary,
   deposits: queryDeposits, inspect: queryInspectReport,
-  supFinding: querySupFindingReport, woBuilding: queryWoBuildingReport
+  supFinding: querySupFindingReport, woBuilding: queryWoBuildingReport,
+  /* 2026-11-02：多种经营收入表（商业服务 + 商业合作） */
+  'multi-revenue': queryMultiRevenueReport
 }
 
 /* ---------------- 统计报表：读快照 ---------------- */
@@ -370,4 +383,17 @@ function onExport() {
 }
 .periodhint .up { color: #c45656; }
 .periodhint .down { color: #4a9d5f; }
+
+/* 报表行层级：小计行加粗 + 浅底，分项行缩进（明细要看起来像明细） */
+:deep(.el-table .row-subtotal) {
+  font-weight: 600;
+  background: rgba(91, 108, 255, .045);
+}
+:deep(.el-table .row-subitem) {
+  color: var(--biz-text-2);
+}
+:deep(.el-table .row-subitem td:first-child),
+:deep(.el-table .row-subitem td:nth-child(2)) {
+  padding-left: 22px;
+}
 </style>
