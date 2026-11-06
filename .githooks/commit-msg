@@ -1,0 +1,5 @@
+#!/bin/sh
+# Git commit-msg 钩子（2026-11-06 第 68 批）
+# 规则见 提交规范.md，校验逻辑在 tools/check-commit-msg.mjs
+# 启用方式（仓库级，一次即够）：git config core.hooksPath .githooks
+exec node "$(git rev-parse --show-toplevel)/tools/check-commit-msg.mjs" "$1"
