@@ -34,6 +34,9 @@ export * from '@/api/employees'
 export * from '@/api/payrolls'
 export * from '@/api/access'
 export * from '@/api/assets'
+export * from '@/api/contacts'
+export * from '@/api/tempCharges'
+export * from '@/api/invoiceSettings'
 
 /** 当前环境摘要（页面角标 / 埋点用） */
 export const apiInfo = () => ({

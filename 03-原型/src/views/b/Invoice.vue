@@ -57,7 +57,20 @@
             <el-table-column prop="invoiceNo" label="票据号" width="150" />
             <el-table-column prop="type" label="类型" width="140" />
             <el-table-column prop="houseName" label="房屋" min-width="170" show-overflow-tooltip />
-            <el-table-column prop="ownerName" label="业主" width="90" />
+            <el-table-column label="付款方" width="132">
+              <template #default="{ row }">
+                <div>{{ row.ownerName }}</div>
+                <div class="muted" style="font-size:11.5px;">
+                  {{ row.isTemp ? '临时收费' : row.houseName }}
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="购买方 / 项目" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <div>{{ row.buyerTitle || row.ownerName }}</div>
+                <div class="muted" style="font-size:11.5px;">{{ row.itemName || '—' }}</div>
+              </template>
+            </el-table-column>
             <el-table-column label="金额" width="110" align="right">
               <template #default="{ row }"><span class="money">¥ {{ money(row.amount) }}</span></template>
             </el-table-column>
@@ -105,7 +118,7 @@
         </div>
         <div class="panel" style="margin-top:16px;">
           <div class="toolbar">
-            <el-button type="primary" :icon="'Printer'" :disabled="!picked.length" @click="issueVisible = true">
+            <el-button type="primary" :icon="'Printer'" :disabled="!picked.length" @click="openBatch">
               批量开票{{ picked.length ? `（${picked.length} 笔）` : '' }}
             </el-button>
             <span class="spacer" />
@@ -142,8 +155,8 @@
     </el-tabs>
 
     <!-- 批量开票 -->
-    <el-dialog v-model="issueVisible" title="开具票据" width="460">
-      <el-form label-width="88px">
+    <el-dialog v-model="issueVisible" title="开具票据" width="500">
+      <el-form label-width="96px">
         <el-form-item label="开票笔数"><b>{{ picked.length }}</b> 笔</el-form-item>
         <el-form-item label="金额合计"><span class="money">¥ {{ money(pickedAmount) }}</span></el-form-item>
         <el-form-item label="票据类型">
@@ -151,6 +164,36 @@
             <el-option v-for="t in INVOICE_TYPES" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
+        <el-form-item label="开票信息" v-if="issueProfiles.length">
+          <el-select v-model="issueProfileId" style="width:100%" placeholder="默认开给房主">
+            <!-- 没建档的临时抬头 profileId 是空串，el-select 会把空串当成"未选"而显示 placeholder，
+                 所以用哨兵值占位，提交时再转回空串 -->
+            <el-option v-for="p in issueProfiles" :key="p.profileId || p.title"
+              :label="`${p.title}${p.roleLabel ? '（' + p.roleLabel + '）' : ''}${p._adhoc ? ' · 未建档' : ''}`"
+              :value="p.profileId || '__adhoc__'" />
+          </el-select>
+        </el-form-item>
+
+        <!-- 没有房屋就没有档案可带（外来缴费人 / 临时收费）：直接手填，
+             不给输入框的话这类单永远开不出票 —— 而摆摊费恰恰是最常要收据的 -->
+        <el-form-item v-else label="发票抬头">
+          <el-input v-if="!isBatch" v-model="issueBuyerTitle" maxlength="60"
+            placeholder="外来缴费人没有档案，手填抬头（可与「开票设置」里的档案并存）" />
+          <span v-else class="muted" style="font-size:12px;">
+            多笔合并开票按各自付款方抬头开具；要指定抬头请单张开票。
+          </span>
+        </el-form-item>
+        <el-form-item label="项目名称">
+          <!-- allow-create：临时收费的项目名可以手打，字典只是少打几遍 -->
+          <el-select v-model="issueItem" filterable allow-create default-first-option style="width:100%"
+            placeholder="选字典或直接输入">
+            <el-option v-for="i in itemOpts" :key="i.value" :label="`${i.label}（税率 ${i.taxRate}%）`" :value="i.value" />
+          </el-select>
+        </el-form-item>
+        <div class="dlg-tip">
+          <template v-if="issueType === '收据'">收据不计税额，开具后可到「开票设置」调整版式与套打偏移。</template>
+          <template v-else>税额按所选费用项目的默认税率计算；项目名称可手填，不限于字典。</template>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="issueVisible = false">取消</el-button>
@@ -169,8 +212,8 @@ import { useListQuery } from '@/composables/useQuery'
 import { exportList } from '@/utils/export'
 import { money } from '@/utils/format'
 import {
-  INVOICE_TYPES, PAGE_SIZES, communityOpts, invoiceSummary, issueInvoice,
-  pendingInvoiceRows, queryInvoices, redInvoice
+  INVOICE_TYPES, PAGE_SIZES, communityOpts, invoiceItemNameOpts, invoiceProfilesOfHouse,
+  invoiceSummary, issueInvoice, pendingInvoiceRows, queryInvoices, redInvoice
 } from '@/utils/api'
 
 const tab = ref('list')
@@ -225,14 +268,48 @@ function onSel(list) { picked.value = list }
 
 const issueVisible = ref(false)
 const issueType = ref('电子发票')
-async function issueOne(row) {
-  picked.value = [row]
-  issueType.value = '电子发票'
+const issueItem = ref('物业服务费')
+const issueProfileId = ref('')
+const issueProfiles = ref([])
+const issueBuyerTitle = ref('')
+/* 多笔合并：没法共用一条抬头，只能按各自付款方开 */
+const isBatch = ref(false)
+const itemOpts = invoiceItemNameOpts()
+
+/* 批量：清空候选与手填，让后端按各自付款方兜底 */
+function openBatch() {
+  isBatch.value = true
+  issueProfiles.value = []
+  issueProfileId.value = ''
+  issueBuyerTitle.value = ''
+  issueItem.value = ''
   issueVisible.value = true
 }
+
+/**
+ * 单张：按这笔流水所属房屋取抬头候选（房主在前、在住租户在后）。
+ * **临时收费没有房屋**（外来摊贩），拿不到候选 —— 这时改用「手填抬头」，
+ * 默认值填付款方名称，否则这类单永远开不出票。
+ */
+async function issueOne(row) {
+  picked.value = [row]
+  isBatch.value = false
+  issueType.value = '电子发票'
+  /* 项目名跟着这一笔的实际科目走：账单可能是水费，临时收费可能是摆摊费 */
+  issueItem.value = row.itemName || ''
+  issueProfiles.value = row.houseId ? await invoiceProfilesOfHouse(row.houseId) : []
+  issueProfileId.value = issueProfiles.value[0]?.profileId || '__adhoc__'
+  issueBuyerTitle.value = row.isTemp ? (row.tempPartyName || row.ownerName || '') : ''
+  issueVisible.value = true
+}
+
 async function doIssue() {
   try {
-    const res = issueInvoice(picked.value.map(r => r.payId), issueType.value)
+    const res = issueInvoice(picked.value.map(r => r.payId), issueType.value, {
+      profileId: issueProfileId.value === '__adhoc__' ? '' : issueProfileId.value,
+      itemName: issueItem.value,
+      buyerTitle: issueBuyerTitle.value
+    })
     ElMessage.success(`已开具 ${res.count} 张${issueType.value}${res.skipped.length ? `，跳过 ${res.skipped.length} 笔` : ''}`)
     issueVisible.value = false
     picked.value = []

@@ -1838,8 +1838,29 @@ PERM_GROUPS = [
         ('feeDash', '费用驾驶舱', ('view',), '/b/dashboard'),
         # 多种经营收入单独一个权限位：收入结构比收缴数据更敏感，收银员该看收缴、不该看经营毛利
         ('multiRevenue', '多种经营收入', ('view',), '/b/multi-revenue'),
+        # 2026-11-06：开票设置（抬头档案 / 费用项目 / 票据模板）。
+        # 与开票动作分开：开票是收银员每笔都在做的事，改版式参数是财务配一次的事 ——
+        # 但原型里两者都落在这一个码上，因为实际投入使用后维护抬头最频繁的就是前台。
+        ('invoiceSet', '开票设置', ('view', 'edit'), '/b/invoice-settings'),
+        # 2026-11-06（63 批）：临时收费（摆摊费、场地租用等与业务无关联的收费）。
+        # 与账单分成两个权限位：收银员要能收，但不代表能改收费科目。
+        ('tempCharges', '临时收费', ('view', 'edit'), '/b/temp-charges'),
+    ]),
+    # 2026-11-06（68 批）：邻里运营 —— 业主端「邻里」的后台一侧。
+    # 公告**不在这里立权限位**：复用 c.notices（同一张表，已发布即同步到邻里）。
+    # 投票与活动的 edit 合成一个码：发布、结束、流团、代报名都是「维护」这一个动作域。
+    # 闲置与举报各有独立的 audit / handle：审核内容和处理投诉不是同一个人常做的事。
+    ('n', 'N 邻里运营', [
+        ('workbench', '邻里运营', ('view',), '/n/workbench'),
+        ('votes', '投票管理', ('view', 'edit'), '/n/votes'),
+        ('activities', '活动管理', ('view', 'edit', 'enroll'), '/n/activities'),
+        ('items', '闲置审核', ('view', 'audit'), '/n/items'),
+        ('reports', '举报处理', ('view', 'handle'), '/n/reports'),
     ]),
     ('c', 'C 办公协同', [
+        # 2026-11-06（66 批）：通讯录。与员工档案分成两个权限位 ——
+        # 档案里有薪资、证件、紧急联系人，通讯录只该看到"怎么联系到人"。
+        ('contacts', '通讯录', ('view',), '/c/contacts'),
         ('employees', '员工档案', ('view', 'edit'), '/c/employee'),
         ('payroll', '工资表', ('view', 'edit'), '/c/payroll'),
         ('contracts', '合同管理', ('view', 'edit'), '/c/contracts'),
@@ -1940,12 +1961,18 @@ def _expand(rules):
 # --- 角色：权限按业务规则显式定义，不用随机（权限是要评审的，不能随机） ---
 ROLE_SPEC = [
     ('R-GM', '集团总经理', '集团', '全部项目', [], ['总经理'],
-     '集团经营负责人，全量查看与关键审批', [('*', '*', ('view', 'edit', 'eval'))]),
+     '集团经营负责人，全量查看与关键审批',
+     [('*', '*', ('view', 'edit', 'eval')),
+      # 2026-11-06（68 批）：邻里。audit / handle 不在通配里（它们不是 view/edit），要单列，
+      # 否则总经理进得去页面却点不动审核按钮。
+      ('n', '*', ('view', 'edit', 'audit', 'handle'))]),
     ('R-PM', '项目经理', '项目', '本项目', [], ['项目经理'],
      '单项目第一责任人，统筹收费、工单与现场，不含人事与工资',
      [('a', '*', ('view', 'edit')),
       ('e', 'accessLog', ('view',)),
       ('b', 'bills|payments|feeDash|feeItems|multiRevenue', ('view',)),
+      ('b', 'invoiceSet', ('view',)),
+      ('b', 'tempCharges', ('view',)),
       ('c', 'notices', ('view', 'edit')), ('c', 'contracts', ('view',)),
       ('d', '*', ('view',)),
       ('e', 'reports|downloads', ('view',)),
@@ -1956,6 +1983,8 @@ ROLE_SPEC = [
       ('f', 'planTpl', ('view',)),
       ('a', 'stewards', ('view', 'edit')),
       ('e', 'audit', ('view',)),
+      # 2026-11-06（68 批）：邻里四频道全给他 —— 项目经理是项目里唯一能发布投票与活动的人
+      ('n', '*', ('view', 'edit', 'enroll', 'audit', 'handle')),
       ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval|supFinding', ('view',))]),
     ('R-CS', '客服专员', '项目', '本项目', [], ['客服专员'],
      '一线客服：受理业主诉求、执行巡检任务，不含公告发布与档案编辑',
@@ -1966,7 +1995,13 @@ ROLE_SPEC = [
       ('f', 'inspectTasks', ('view',)),
       ('f', 'inspect', ('view', 'exec')),
       ('f', 'workorders|woDetail', ('view', 'edit')),
-      ('f', 'serviceItems|woPoints', ('view',))]),
+      ('f', 'serviceItems|woPoints', ('view',)),
+      # 2026-11-06（68 批）：邻里。客服是邻里的一线：审闲置、处理举报、看活动名单；
+      # 不给 edit —— 发布投票与收费活动是项目经理的事。
+      ('n', 'workbench|votes|activities|items|reports', ('view',)),
+      # 代报名与「建活动」分开：客服在现场帮业主报名，但不该能建活动、改价格、确认流团
+      ('n', 'activities', ('enroll',)),
+      ('n', 'items', ('audit',)), ('n', 'reports', ('handle',))]),
     ('R-CHG', '收银员', '项目', '本项目', [], ['收银员'],
      '前台收费与开票：可收款，不可改账单金额；租户到场代缴时可补充租户信息',
      [('a', 'owners|houses', ('view',)),
@@ -1977,6 +2012,10 @@ ROLE_SPEC = [
       ('b', 'cashier', ('view', 'edit')), ('b', 'bills', ('view', 'edit')),
       ('f', 'serviceItems', ('view',)),
       ('b', 'payments|feeItems|feeDash|multiRevenue', ('view',)),
+      # 2026-11-06：前台是最常建抬头的人 —— 只给 view 的话每笔开票都要手打税号
+      ('b', 'invoiceSet', ('view', 'edit')),
+      # 2026-11-06（63 批）：摆摊费这类钱直接在前台收，不能让人先去找财务建单
+      ('b', 'tempCharges', ('view', 'edit')),
       # 2026-10-30：收银员要能自己日结（现金实点 + 差异说明）
       ('b', 'dailyClose', ('view', 'edit')),
       ('e', 'downloads', ('view',))]),
@@ -2037,6 +2076,8 @@ ROLE_SPEC = [
       ('b', 'bills|payments', ('view',)),
       ('f', 'workorders|woDetail', ('view', 'edit')),
       ('a', 'stewards', ('view',)),
+      # 2026-11-06（68 批）：楼管在邻里只读 + 看本范围的待审闲置，审核仍归客服/项目
+      ('n', 'workbench|items|reports', ('view',)),
       ('e', 'downloads', ('view',))]),
     ('R-SEC', '部门经理', '项目', '本部门', [], ['客服主管', '工程主管', '安保主管', '环境主管'],
      '班组长级：负责本班组现场核验、监督，以及本班组月度计划的提报与执行（不含评分，评价由上级与运营做）',
@@ -2053,6 +2094,10 @@ ROLE_SPEC = [
       ('f', 'plans', ('view', 'edit')),
       ('f', 'planTpl', ('view',)),
       ('a', 'stewards', ('view',)),
+      # 2026-11-06（68 批）：主管级能看到邻里的完整链路，活动可编辑（班组活动常由主管发起）
+      ('n', 'workbench|votes|items|reports', ('view',)),
+      ('n', 'activities', ('view', 'edit', 'enroll')),
+      ('n', 'items', ('audit',)), ('n', 'reports', ('handle',)),
       ('e', 'downloads', ('view',))]),
     ('R-CLN', '环境保洁', '项目', '本项目', [], ['保洁员', '绿化员'],
      '环境类巡检与工单执行，不含收费与业主档案',
@@ -2089,6 +2134,11 @@ for _rid, _name, _scope, _ds, _comms, _pos, _desc, _rules in ROLE_SPEC:
     # 按审计口径只给脱敏数据（「看了什么」的留痕他仍然能查）
     if _rid == 'R-VIEW':
         _perms = [x for x in _perms if x != 'a.sensitive.view']
+    # 2026-11-06（66 批）：通讯录**所有角色都给**。
+    # 它是"找人"的基础能力（谁在哪个部门、怎么联系），不该按岗位开；
+    # 真要收，也应该收在"员工档案"（薪资/证件）那一侧，而不是这里。
+    if 'c.contacts.view' not in _perms:
+        _perms = sorted(_perms + ['c.contacts.view'])
     ROLES.append({
         'roleId': _rid, 'name': _name, 'scope': _scope,
         'dataScope': _ds, 'communities': _comms, 'positions': _pos,

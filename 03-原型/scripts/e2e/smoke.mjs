@@ -155,7 +155,9 @@ console.log(`渲染成功 ${stats.length - blanks.length}/${stats.length}｜有�
 const NO_TABLE = new Set(['/shell/form', '/shell/board', '/c/workbench', '/c/oa-apply', '/c/oa-mine',
   '/e/reports', '/e/downloads', '/e/import',
   /* 树形维护页：左树右表单，本来就没有表格 */
-  '/c/asset-categories'])
+  '/c/asset-categories',
+  /* 通讯录：卡片墙 + 部门树，结构上就没有表格（第 66 批） */
+  '/c/contacts'])
 const noRows = stats
   .filter(s => s.rows === 0 && !/\/new$|\/edit$|^\/error\//.test(s.p) && !NO_TABLE.has(s.p))
   .map(s => s.p)

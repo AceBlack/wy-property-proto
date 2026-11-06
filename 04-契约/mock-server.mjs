@@ -90,7 +90,7 @@ const USERS = {
     roleId: 'R-STW', roleName: '楼栋管家',
     /* 与种子里 R-STW 一致：楼管能改范围内的业主资料（含打标签），
        但**没有** e.ownerTags.edit —— 字典由平台维护，楼管只能选不能改 */
-    permissions: ['a.owners.view', 'a.owners.edit', 'a.sensitive.view', 'b.bills.view', 'f.workorders.view'],
+    permissions: ['a.owners.view', 'a.owners.edit', 'a.sensitive.view', 'b.bills.view', 'f.workorders.view', 'c.contacts.view'],
     dataScope: '责任范围', communities: stewardCommunities, houseIds: stewardsHouses
   },
   /* 员工自助视角：数据范围「仅本人」。用来验证工资表**不会把全表下发再让前端藏**——
@@ -98,7 +98,7 @@ const USERS = {
   staff: {
     password: '123456', empId: 'EM0020', name: (EMP.get('EM0020') || {}).name || '普通员工',
     roleId: 'R-ENG', roleName: '工程维修',
-    permissions: ['c.payroll.view', 'f.workorders.view'],
+    permissions: ['c.payroll.view', 'f.workorders.view', 'c.contacts.view'],
     dataScope: '仅本人'
   }
 }
@@ -263,16 +263,21 @@ function paymentRow(p) {
   const b = BILL.get(p.billId)
   const h = HOUSE.get(p.houseId)
   const o = OWNER.get(p.ownerId)
+  const cid = p.communityId || (h ? h.communityId : '')
   return {
     ...p,
-    communityId: h ? h.communityId : '',
-    communityName: h ? communityNameOf(h.communityId) : '',
-    subjectType: p.houseId ? 'house' : 'park',
+    communityId: cid,
+    communityName: cid ? communityNameOf(cid) : '',
+    /* 临时收费既没有房屋也没有车位，承载对象是「付款方」 */
+    subjectType: p.tempChargeId ? 'temp' : (p.houseId ? 'house' : (b ? 'park' : '')),
     houseName: h ? h.fullName : '',
-    ownerName: o ? o.name : '',
-    subject: h ? h.fullName : (b ? '车位' : ''),
-    itemName: b ? b.itemName : '',
-    period: b ? b.period : ''
+    ownerName: o ? o.name : (p.tempPartyName || ''),
+    subject: p.tempChargeId ? `临时 · ${p.tempPartyName || '—'}` : (h ? h.fullName : (b ? '车位' : '')),
+    itemName: b ? b.itemName : (p.tempItemName || ''),
+    period: b ? b.period : '',
+    /* 收据与发票是**两个独立状态**（第 64 批）：只开收据的流水仍算"没开发票" */
+    receiptStatus: p.receiptStatus || '未开具',
+    receiptNo: p.receiptNo || ''
   }
 }
 function woRow(w) {
@@ -780,6 +785,66 @@ const PAY_VF = {
 on('GET', '/payments', (ctx) => {
   assertInScope(ctx.user, ctx.query)
   return page(payFilter(ctx.user, ctx.query).map(paymentRow), ctx.query)
+})
+
+/* ---------------- 开票 / 开收据（2026-11-06 第 64 批） ----------------
+ * 收据与发票是**两个独立状态**，不是一个"开没开票"：
+ *   收据 `receiptStatus` / `receiptNo`（税额恒 0，不是扣税凭证）
+ *   发票 `invoiceStatus` / `invoiceNo`（按项目税率）
+ * 只开收据的流水**仍然留在待开票池里** —— 它还差一张发票。
+ */
+const TICKET_TYPES = ['收据', '电子发票', '增值税普通发票']
+let TICKET_SEQ = 0
+
+on('POST', '/payments/{payId}/tickets', (ctx) => {
+  requirePerm(ctx.user, 'b.invoices.edit', '缺少权限位 b.invoices.edit：无权开票')
+  const p = payments.find(x => x.payId === ctx.params.payId)
+  if (!p) throw new ApiError(404, 40401, '流水不存在')
+
+  const body = ctx.body || {}
+  const types = (Array.isArray(body.types) ? body.types : [body.types || '电子发票'])
+    .filter(t => TICKET_TYPES.includes(t))
+  if (!types.length) throw invalid(`票据类型只能是 ${TICKET_TYPES.join(' / ')}`)
+
+  const buyerTitle = String(body.buyerTitle || '').trim()
+  const itemName = String(body.itemName || '').trim()
+  const b = BILL.get(p.billId)
+  const created = []
+  const skipped = []
+
+  for (const type of types) {
+    const isReceipt = type === '收据'
+    const done = isReceipt ? p.receiptStatus === '已开具' : p.invoiceStatus === '已开票'
+    if (done) { skipped.push(type); continue }
+    TICKET_SEQ += 1
+    const no = isReceipt
+      ? 'SJ' + String(10000000 + TICKET_SEQ)
+      : '0264' + String(10000000 + TICKET_SEQ)
+    /* 项目名取**这一笔的实际科目**，不写死「物业服务费」——
+       临时收费写"物业服务费"是错的，水费写"物业服务费"也是错的 */
+    const name = itemName || (b ? b.itemName : '') || p.tempItemName || '物业服务费'
+    const inv = {
+      ticketId: 'TK' + String(TICKET_SEQ).padStart(6, '0'),
+      ticketNo: no, type, isReceipt,
+      payId: p.payId,
+      tempChargeId: p.tempChargeId || '',
+      amount: p.amount,
+      /* 收据不产生税额 —— 它不是增值税扣税凭证 */
+      taxAmount: isReceipt ? 0 : r2((p.amount || 0) * 0.06),
+      /* 购买方三档：手填 > 档案 > 房主。外来缴费人没有档案也没有房主，只能手填 */
+      buyerTitle: buyerTitle || (OWNER.get(p.ownerId) || {}).name || p.tempPartyName || '',
+      itemName: name,
+      communityId: p.communityId || '',
+      issueTime: `${DATA_DATE} 10:00`,
+      issuer: ctx.user.name,
+      status: '已开具'
+    }
+    if (isReceipt) { p.receiptStatus = '已开具'; p.receiptNo = no }
+    else { p.invoiceStatus = '已开票'; p.invoiceNo = no }
+    created.push(inv)
+  }
+  if (!created.length) throw new ApiError(409, 40926, '所选票据都已开具过')
+  return { created, skipped, count: created.length }
 })
 
 /* 汇总必须注册在 /payments/{payId} 之前，否则 "summary" 会被当成 payId 匹配掉 */
@@ -6296,6 +6361,920 @@ on('PATCH', '/orgs/{orgId}', (ctx) => {
   DESC.clear()   /* 移动后子树缓存失效 */
   bumpVer('org', o.orgId)
   return orgRow(o)
+})
+
+/* ==================== 收银台收款 + 组合支付（2026-11-06 第 62 批） ====================
+ * 与原型 `payBills` 同口径（改一处必须改另一处）：
+ *   ① 一笔收款最多 3 种方式，同一种方式只能一行；
+ *   ② 各方式合计必须等于实收（应缴 − 减免），差一分都不让过；
+ *   ③ 一次收款只能针对同一位业主；
+ *   ④ **按账单拆流水**：payment 是「一条流水对一张账单」，开票、催缴、账单详情都按这个口径查，
+ *      所以按各账单应收比例把 splits 拆开，加起来等于整笔；
+ *   ⑤ 契约数据集没有预存账户（fixtures 里没 prepayAccounts），含预存抵扣一律 409/40928。
+ */
+const PAY_METHODS = ['现金', '微信支付', '支付宝', 'POS刷卡', '银行代扣', '预存抵扣']
+const PAY_SPLIT_MAX = 3
+let MOCK_PAY_SEQ = payments.reduce((m, p) => Math.max(m, +String(p.payId).replace(/\D/g, '') || 0), 0)
+let MOCK_BATCH_SEQ = 0
+
+const payR2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+function splitCheck(splits, total) {
+  const errs = []
+  const rows = (Array.isArray(splits) ? splits : [])
+    .filter(s => s && s.method)
+    .map(s => ({ method: s.method, amount: payR2(s.amount) }))
+  if (!rows.length) errs.push('请至少选择一种收款方式')
+  if (rows.length > PAY_SPLIT_MAX) errs.push(`最多 ${PAY_SPLIT_MAX} 种收款方式（再多对账时分不清是系统错还是人填错）`)
+  const seen = new Set()
+  for (const s of rows) {
+    if (!PAY_METHODS.includes(s.method)) errs.push(`不支持的收款方式「${s.method}」`)
+    if (!(s.amount > 0)) errs.push(`「${s.method}」的金额必须大于 0`)
+    if (seen.has(s.method)) errs.push(`「${s.method}」出现了两次，同一种方式请合成一行`)
+    seen.add(s.method)
+  }
+  const sum = payR2(rows.reduce((a, s) => a + s.amount, 0))
+  const target = payR2(total)
+  const diff = payR2(target - sum)
+  if (rows.length && Math.abs(diff) > 0.01) {
+    errs.push(diff > 0 ? `已分配 ¥${sum}，还差 ¥${diff} 未分配` : `已分配 ¥${sum}，超出 ¥${payR2(-diff)}`)
+  }
+  return { rows, sum, total: target, diff, ok: errs.length === 0, msg: errs.join('；') }
+}
+
+function allocSplits(splits, weights) {
+  const cents = splits.map(s => Math.round(s.amount * 100))
+  const totalW = weights.reduce((a, w) => a + w, 0) || 1
+  return weights.map((w, i) => {
+    const isLast = i === weights.length - 1
+    const row = splits.map((s, j) => {
+      const take = isLast ? cents[j] : Math.round(s.amount * 100 * w / totalW)
+      cents[j] -= take
+      return { method: s.method, amount: take / 100 }
+    }).filter(x => x.amount > 0.004)
+    const sum = payR2(row.reduce((a, r) => a + r.amount, 0))
+    const diff = payR2(w - sum)
+    if (Math.abs(diff) > 0.004 && row.length) {
+      const big = row.reduce((m, r) => (r.amount > m.amount ? r : m), row[0])
+      big.amount = payR2(big.amount + diff)
+    }
+    return row
+  })
+}
+
+on('POST', '/payments/batch', (ctx) => {
+  requirePerm(ctx.user, 'b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const b = ctx.body || {}
+  const ids = Array.isArray(b.billIds) ? b.billIds : []
+  if (!ids.length) throw invalid('请先勾选要收款的账单')
+
+  const list = ids.map(id => BILL.get(id)).filter(Boolean)
+  if (list.length !== ids.length) throw new ApiError(404, 40401, '有账单不存在，请刷新后重试')
+  const dead = list.find(x => !(x.unpaid > 0))
+  if (dead) throw new ApiError(409, 40926, `账单 ${dead.billId} 当前不是欠费状态，请刷新后重试`)
+  const owners = [...new Set(list.map(x => x.ownerId))]
+  if (owners.length > 1) throw invalid('一次收款只能针对同一位业主，不同业主请分开收')
+
+  const unpaidSum = payR2(list.reduce((a, x) => a + (x.unpaid || 0), 0))
+  const disc = payR2(b.discount)
+  if (disc < 0) throw invalid('减免金额不能为负')
+  if (disc > unpaidSum + 0.01) throw invalid(`减免 ¥${disc} 超过应缴 ¥${unpaidSum}`)
+  const received = payR2(unpaidSum - disc)
+
+  const chk = splitCheck(b.splits, received)
+  if (!chk.ok) throw new ApiError(422, 42212, chk.msg)
+  if (chk.rows.some(x => x.method === '预存抵扣')) {
+    /* 契约数据集没有 preplyAccounts；真实实现要按房屋查账户、校验余额、扣减并记预存流水 */
+    throw new ApiError(409, 40928, '契约数据集不含预存账户，无法演示预存抵扣')
+  }
+
+  const weights = list.map(x => x.unpaid || 0)
+  const discParts = []
+  {
+    let left = Math.round(disc * 100)
+    const totalW = weights.reduce((a, w) => a + w, 0) || 1
+    weights.forEach((w, i) => {
+      const isLast = i === weights.length - 1
+      const c = isLast ? left : Math.round(disc * 100 * w / totalW)
+      left -= c
+      discParts.push(c / 100)
+    })
+  }
+  const billReceived = list.map((x, i) => payR2((x.unpaid || 0) - discParts[i]))
+  const billSplits = allocSplits(chk.rows, billReceived)
+
+  MOCK_BATCH_SEQ += 1
+  const day = String(b.at || DATA_DATE).slice(0, 10)
+  const batchNo = `SK${day.replace(/-/g, '')}-${String(MOCK_BATCH_SEQ).padStart(3, '0')}`
+  const created = []
+  for (let i = 0; i < list.length; i++) {
+    const bill = list[i]
+    const mine = billSplits[i]
+    if (!mine.length) continue
+    MOCK_PAY_SEQ += 1
+    const pay = {
+      payId: 'PM' + String(MOCK_PAY_SEQ).padStart(6, '0'),
+      billId: bill.billId, houseId: bill.houseId, ownerId: bill.ownerId,
+      amount: billReceived[i],
+      method: mine.reduce((m, x) => (x.amount > m.amount ? x : m), mine[0]).method,
+      splits: mine,
+      payTime: `${day} 10:00`,
+      transNo: 'TXN' + String(Date.now()).slice(-10) + String(i).padStart(2, '0'),
+      operator: ctx.user.name,
+      invoiceStatus: '未开票', invoiceNo: '',
+      channel: '前台收款', batchNo,
+      remark: String(b.remark || '').trim()
+    }
+    payments.unshift(pay)
+    created.push(pay)
+
+    bill.paidAmount = payR2((bill.paidAmount || 0) + billReceived[i])
+    bill.discount = payR2((bill.discount || 0) + discParts[i])
+    bill.unpaid = 0
+    bill.status = '已缴'
+    bill.payTime = pay.payTime
+    bill.payMethod = pay.method
+    bill.overdueDays = 0
+  }
+
+  return {
+    batchNo, count: created.length,
+    payable: unpaidSum, discount: disc, received,
+    splits: chk.rows,
+    payments: created.map(p => ({
+      payId: p.payId, billId: p.billId, amount: p.amount, method: p.method,
+      splits: p.splits, batchNo: p.batchNo, payTime: p.payTime, channel: p.channel,
+      invoiceStatus: p.invoiceStatus, receiptStatus: p.receiptStatus || '未开具'
+    }))
+  }
+})
+
+/* ==================== 临时收费（2026-11-06 第 63 批） ====================
+ * 与原型 `saveTempCharge` / `payTempCharge` 同一套口径（改一处必须改另一处）：
+ *   ① **独立成表**：不写 bills、不生成应收 —— 所以**不进收缴率**；
+ *   ② 收款写一条 `payments`（`billId` 空、`tempChargeId` 指回、`channel='临时收费'`），
+ *      日结按方式汇总时能看到，开票池也能开票；
+ *   ③ 计入营业收入：`/temp-charges/income` 只算已收款，按 `itemName` 分组；
+ *   ④ 只有「待收款」能改、能作废；作废**必须写原因**；
+ *   ⑤ 付款方三选一，**项目必填**（收入要按项目入账）。
+ */
+const tempCharges = readJson('fixtures/temp-charges.json').map(x => ({ ...x }))
+let TC_SEQ = tempCharges.length
+let TC_PAY_SEQ = payments.reduce((m, p) => Math.max(m, +String(p.payId).replace(/\D/g, '') || 0), 0)
+
+const TC_PERM_VIEW = 'b.tempCharges.view'
+const TC_PERM_EDIT = 'b.tempCharges.edit'
+const TC_PARTY = ['业主', '租户', '外部']
+const TC_STATUS = ['待收款', '已收款', '已作废']
+const TC_REASONS = ['摆摊费', '场地租用', '赔偿款', '押金', '其他']
+
+const tcR2 = n => Math.round((Number(n) || 0) * 100) / 100
+const tcNotFound = msg => new ApiError(404, 40401, msg)
+
+const tcRow = x => {
+  const cmName = COMM_NAME.get(x.communityId)
+  const house = x.houseId ? HOUSE.get(x.houseId) : null
+  return {
+    ...x,
+    amount: tcR2(x.amount),
+    communityName: cmName || '—',
+    houseName: house ? house.fullName : '',
+    statusType: x.status === '已收款' ? 'success' : (x.status === '已作废' ? 'info' : 'warning'),
+    /* 显式声明：这部分钱**不进收缴率**（没有应收），但计入营业收入 */
+    countsInCollectionRate: false,
+    countsInIncome: x.status === '已收款'
+  }
+}
+
+on('GET', '/temp-charges', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_VIEW, '缺少权限位 b.tempCharges.view：无权查看临时收费')
+  const { kw = '', communityId = '', partyType = '', status = '' } = ctx.query
+  const list = tempCharges
+    .filter(x => !communityId || x.communityId === communityId)
+    .filter(x => !partyType || x.partyType === partyType)
+    .filter(x => !status || x.status === status)
+    .filter(x => !kw || `${x.chargeNo}${x.partyName}${x.partyPhone}${x.reason}${x.itemName}`.includes(kw))
+    .map(tcRow)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+  return page(list, ctx.query)
+})
+
+on('GET', '/temp-charges/stats', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_VIEW, '缺少权限位 b.tempCharges.view：无权查看临时收费')
+  const paid = tempCharges.filter(x => x.status === '已收款')
+  const month = String(DATA_DATE).slice(0, 7)
+  return {
+    total: tempCharges.length,
+    pending: tempCharges.filter(x => x.status === '待收款').length,
+    pendingAmount: tcR2(tempCharges.filter(x => x.status === '待收款').reduce((s, x) => s + x.amount, 0)),
+    paidCount: paid.length,
+    paidAmount: tcR2(paid.reduce((s, x) => s + x.amount, 0)),
+    monthAmount: tcR2(paid.filter(x => String(x.payTime).startsWith(month)).reduce((s, x) => s + x.amount, 0)),
+    voided: tempCharges.filter(x => x.status === '已作废').length,
+    external: tempCharges.filter(x => x.partyType === '外部').length
+  }
+})
+
+/**
+ * 临时收费收入 —— **只算已收款**，且**不影响收缴率**。
+ * 营收报表与「公司收入结构」都从这一个口子取，两处各算一次迟早差几分钱。
+ */
+on('GET', '/temp-charges/income', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_VIEW, '缺少权限位 b.tempCharges.view：无权查看临时收费')
+  const { communityId = '', year = '' } = ctx.query
+  const list = tempCharges
+    .filter(x => x.status === '已收款')
+    .filter(x => !communityId || x.communityId === communityId)
+    .filter(x => !year || String(x.payTime).slice(0, 4) === String(year))
+  const m = new Map()
+  for (const x of list) {
+    const k = x.itemName || '其他'
+    const cur = m.get(k) || { itemName: k, count: 0, amount: 0 }
+    cur.count += 1
+    cur.amount = tcR2(cur.amount + x.amount)
+    m.set(k, cur)
+  }
+  return {
+    count: list.length,
+    total: tcR2(list.reduce((s, x) => s + x.amount, 0)),
+    byItem: [...m.values()].sort((a, b) => b.amount - a.amount),
+    countsInCollectionRate: false
+  }
+})
+
+on('GET', '/temp-charges/reason-options', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_VIEW, '缺少权限位 b.tempCharges.view：无权查看临时收费')
+  /* 与开票的费用项目同源：发票上写的项目名就是收费事由 */
+  const items = invItems.filter(i => i.enabled).map(i => i.name)
+  return [...new Set([...TC_REASONS, ...items])].map(v => ({ value: v, label: v }))
+})
+
+on('GET', '/temp-charges/{chargeId}', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_VIEW, '缺少权限位 b.tempCharges.view：无权查看临时收费')
+  const c = tempCharges.find(x => x.chargeId === ctx.params.chargeId)
+  if (!c) throw tcNotFound('临时收费单不存在')
+  return { ...tcRow(c), payment: c.payId ? (payments.find(p => p.payId === c.payId) || null) : null }
+})
+
+function tcPayload(body, user) {
+  const partyType = TC_PARTY.includes(body.partyType) ? body.partyType : ''
+  if (!partyType) throw invalid(`付款方类型只能是 ${TC_PARTY.join(' / ')}`)
+
+  const partyName = String(body.partyName || '').trim()
+  if (!partyName) throw invalid(partyType === '外部' ? '请填写缴费单位或个人名称' : '请选择付款方')
+  if (partyName.length > 40) throw invalid('付款方名称不超过 40 字')
+
+  let ownerId = ''
+  let tenantId = ''
+  let houseId = String(body.houseId || '')
+  if (partyType === '业主') {
+    const o = OWNER.get(body.ownerId)
+    if (!o) throw invalid('选择的业主不存在')
+    ownerId = o.ownerId
+    if (!houseId) houseId = (o.houseIds || [])[0] || ''
+  } else if (partyType === '租户') {
+    const t = tenants.find(x => x.tenantId === body.tenantId)
+    if (!t) throw invalid('选择的租户不存在')
+    tenantId = t.tenantId
+    if (!houseId) houseId = t.houseId || ''
+  }
+
+  /* 项目必填：收入要按项目统计，没有项目的收入只能进「集团」，事后查不出来源 */
+  const communityId = String(body.communityId || (houseId ? ((HOUSE.get(houseId) || {}).communityId || '') : ''))
+  if (!communityId) throw invalid('请选择所属项目（收入要按项目入账）')
+  if (!COMM_NAME.has(communityId)) throw invalid('所属项目不存在')
+
+  const reason = String(body.reason || '').trim()
+  if (!reason) throw invalid('请填写收费事由')
+  if (reason.length > 40) throw invalid('收费事由不超过 40 字')
+
+  const amount = tcR2(body.amount)
+  if (!(amount > 0)) throw invalid('收费金额必须大于 0')
+  if (amount > 1000000) throw invalid('单笔金额不能超过 100 万，超过请拆单或走合同')
+
+  const partyPhone = String(body.partyPhone || '').trim()
+  if (partyPhone && !/^1\d{10}$/.test(partyPhone)) throw invalid('联系电话应为 11 位手机号')
+  const remark = String(body.remark || '').trim()
+  if (remark.length > 120) throw invalid('备注不超过 120 字')
+
+  return {
+    partyType, partyName, partyPhone, ownerId, tenantId, houseId, communityId,
+    reason,
+    /* 收入科目默认等于事由：发票上写的就是它，让人填两遍没意义 */
+    itemName: String(body.itemName || reason).trim().slice(0, 20),
+    amount, remark
+  }
+}
+
+on('POST', '/temp-charges', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_EDIT, '缺少权限位 b.tempCharges.edit：无权建临时收费单')
+  const rec = tcPayload(ctx.body || {}, ctx.user)
+  const day = String(DATA_DATE)
+  const sameDay = tempCharges.filter(x => String(x.chargeNo).includes(day.replace(/-/g, ''))).length
+  TC_SEQ += 1
+  const created = {
+    chargeId: 'TC' + String(TC_SEQ).padStart(5, '0'),
+    chargeNo: `LSF${day.replace(/-/g, '')}-${String(sameDay + 1).padStart(3, '0')}`,
+    ...rec,
+    status: '待收款',
+    method: '', splits: [], payTime: '', payId: '', batchNo: '',
+    operator: '',
+    createdAt: `${day} 10:00`, createdBy: ctx.user.name,
+    voidReason: '', voidAt: '', voidBy: ''
+  }
+  tempCharges.unshift(created)
+  return tcRow(created)
+})
+
+on('PATCH', '/temp-charges/{chargeId}', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_EDIT, '缺少权限位 b.tempCharges.edit：无权修改临时收费单')
+  const c = tempCharges.find(x => x.chargeId === ctx.params.chargeId)
+  if (!c) throw tcNotFound('临时收费单不存在')
+  /* 收了钱再改金额，等于让流水与单据对不上，而流水已经进了日结 */
+  if (c.status !== '待收款') throw new ApiError(409, 40927, `「${c.status}」的单据不能修改，需先作废重开`)
+  Object.assign(c, tcPayload({ ...c, ...(ctx.body || {}) }, ctx.user), { updatedAt: `${DATA_DATE} 10:00` })
+  return tcRow(c)
+})
+
+on('POST', '/temp-charges/{chargeId}/pay', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_EDIT, '缺少权限位 b.tempCharges.edit：无权收款')
+  const c = tempCharges.find(x => x.chargeId === ctx.params.chargeId)
+  if (!c) throw tcNotFound('临时收费单不存在')
+  if (c.status === '已收款') throw new ApiError(409, 40926, '这笔已经收过款了')
+  if (c.status === '已作废') throw new ApiError(409, 40927, '已作废的单据不能收款')
+
+  const body = ctx.body || {}
+  const chk = splitCheck(body.splits, c.amount)
+  if (!chk.ok) throw new ApiError(422, 42212, chk.msg)
+  if (chk.rows.some(x => x.method === '预存抵扣')) {
+    /* 预存账户挂在房屋上，而临时收费的对象可以是外来摊贩（没有房屋） */
+    throw new ApiError(409, 40928, '临时收费不挂房屋，用不了预存抵扣')
+  }
+
+  TC_PAY_SEQ += 1
+  const pay = {
+    payId: 'PM' + String(TC_PAY_SEQ).padStart(6, '0'),
+    billId: '',
+    tempChargeId: c.chargeId,
+    tempChargeNo: c.chargeNo,
+    tempItemName: c.itemName,
+    tempPartyName: c.partyName,
+    houseId: c.houseId || '',
+    ownerId: c.ownerId || '',
+    communityId: c.communityId,
+    amount: c.amount,
+    method: chk.rows.reduce((m, s) => (s.amount > m.amount ? s : m), chk.rows[0]).method,
+    splits: chk.rows.map(s => ({ method: s.method, amount: tcR2(s.amount) })),
+    payTime: `${DATA_DATE} 10:00`,
+    transNo: 'TXN' + String(TC_PAY_SEQ).padStart(8, '0') + 'T',
+    operator: ctx.user.name,
+    invoiceStatus: '未开票', invoiceNo: '',
+    /* 收据是**独立状态**（第 64 批）：只开收据的流水仍算"没开发票" */
+    receiptStatus: '未开具', receiptNo: '',
+    channel: '临时收费',
+    batchNo: `SK${String(DATA_DATE).replace(/-/g, '')}-T${String(TC_PAY_SEQ).padStart(3, '0')}`,
+    remark: String(body.remark || '').trim()
+  }
+  payments.unshift(pay)
+
+  Object.assign(c, {
+    status: '已收款', method: pay.method, splits: pay.splits,
+    payTime: pay.payTime, payId: pay.payId, batchNo: pay.batchNo, operator: pay.operator
+  })
+  return { charge: tcRow(c), payment: pay, methodText: pay.method }
+})
+
+on('POST', '/temp-charges/{chargeId}/void', (ctx) => {
+  requirePerm(ctx.user, TC_PERM_EDIT, '缺少权限位 b.tempCharges.edit：无权作废临时收费单')
+  const c = tempCharges.find(x => x.chargeId === ctx.params.chargeId)
+  if (!c) throw tcNotFound('临时收费单不存在')
+  if (c.status === '已收款') throw new ApiError(409, 40927, '已收款的单据不能作废，需走退款流程')
+  if (c.status === '已作废') throw new ApiError(409, 40928, '这张单已经作废了')
+  const why = String((ctx.body || {}).reason || '').trim()
+  if (!why) throw invalid('作废必须写原因 —— 台账要能解释这张单为什么没收钱')
+  c.status = '已作废'
+  c.voidReason = why.slice(0, 60)
+  c.voidAt = `${DATA_DATE} 10:00`
+  c.voidBy = ctx.user.name
+  return tcRow(c)
+})
+
+/* ==================== 通讯录（2026-11-06 第 66 批） ====================
+ * 与员工档案是**两件事**：档案有薪资/证件/紧急联系人（HR 用），
+ * 通讯录只回答"这个人在哪个部门、怎么联系"（所有人用）。
+ *
+ * 三条硬口径：
+ *   ① 只取在职（含试用，排除离职）—— 给离职的人打电话是这类工具最常见的错误；
+ *   ② 手机号**不脱敏**：同事之间看全号。与档案的"揭示留痕"刻意相反；
+ *   ③ **字段白名单在服务端**：薪资、证件、银行卡、紧急联系人根本不在返回里。
+ */
+const CONTACT_PERM = 'c.contacts.view'
+const CONTACT_FIELDS = ['empId', 'name', 'position', 'orgId', 'orgName', 'phone', 'gender']
+
+const ctActive = () => employees.filter(e => e.status !== '离职')
+const ctOrgName = id => (ORG.get(id) || {}).name || '—'
+
+function ctSubtree(orgId) {
+  const out = new Set([orgId])
+  let added = true
+  let guard = 0
+  while (added && guard++ < 12) {
+    added = false
+    for (const o of orgs) {
+      if (o.parentId && out.has(o.parentId) && !out.has(o.orgId)) { out.add(o.orgId); added = true }
+    }
+  }
+  return out
+}
+
+on('GET', '/contacts', (ctx) => {
+  requirePerm(ctx.user, CONTACT_PERM, '缺少权限位 c.contacts.view：无权查看通讯录')
+  const { orgId = '', kw = '' } = ctx.query
+  const includeSub = ctx.query.includeSub !== 'false'
+  const k = String(kw).trim()
+  let list = ctActive()
+  if (orgId) {
+    const ids = includeSub ? ctSubtree(orgId) : new Set([orgId])
+    list = list.filter(e => ids.has(e.orgId))
+  }
+  if (k) {
+    list = list.filter(e =>
+      `${e.name}${e.position}${e.phone}${ctOrgName(e.orgId)}`.includes(k) ||
+      /* 手机号支持搜后 4 位：前台记不住完整号码，但记得尾巴 */
+      (k.length >= 4 && String(e.phone || '').endsWith(k))
+    )
+  }
+  const rows = list.map(e => ({
+    empId: e.empId, name: e.name, position: e.position || '—',
+    orgId: e.orgId, orgName: ctOrgName(e.orgId),
+    phone: e.phone || '', gender: e.gender || ''
+  })).sort((a, b) => a.orgName.localeCompare(b.orgName, 'zh') || a.name.localeCompare(b.name, 'zh'))
+
+  const m = new Map()
+  for (const r of rows) {
+    if (!m.has(r.orgId)) m.set(r.orgId, { orgId: r.orgId, orgName: r.orgName, rows: [] })
+    m.get(r.orgId).rows.push(r)
+  }
+  return {
+    rows,
+    groups: [...m.values()].sort((a, b) => b.rows.length - a.rows.length),
+    total: rows.length
+  }
+})
+
+on('GET', '/contacts/tree', (ctx) => {
+  requirePerm(ctx.user, CONTACT_PERM, '缺少权限位 c.contacts.view：无权查看通讯录')
+  const direct = new Map()
+  for (const e of ctActive()) direct.set(e.orgId, (direct.get(e.orgId) || 0) + 1)
+  const build = parentId => orgs
+    .filter(o => (o.parentId || '') === parentId)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(o => {
+      const children = build(o.orgId)
+      const self = direct.get(o.orgId) || 0
+      return {
+        orgId: o.orgId, name: o.name, type: o.type,
+        directCount: self,
+        totalCount: self + children.reduce((s, c) => s + c.totalCount, 0),
+        children
+      }
+    })
+  /* 只留有人的节点：班组层面不一定有直属员工，0 人节点铺出来只会让人多点三层 */
+  const prune = list => list.filter(n => n.totalCount > 0)
+    .map(n => ({ ...n, children: prune(n.children || []) }))
+  return prune(build(''))
+})
+
+on('GET', '/contacts/stats', (ctx) => {
+  requirePerm(ctx.user, CONTACT_PERM, '缺少权限位 c.contacts.view：无权查看通讯录')
+  const active = ctActive()
+  return {
+    total: active.length,
+    orgCount: new Set(active.map(e => e.orgId)).size,
+    withPhone: active.filter(e => e.phone).length
+  }
+})
+
+/* ==================== 开票设置（2026-11-06 第 61 批） ====================
+ * 三个资源，对应三件不同的事：
+ *   /invoice-items     费用项目（票据上「项目名称」的词条）
+ *   /invoice-profiles  开票信息（抬头档案）
+ *   /invoice-template  票据模板（单例）
+ *
+ * 口径（与 03-原型/src/utils/api.js 同一套，改一处必须改另一处）：
+ *   · 带入 ≠ 建档：`/from-owner`、`/from-tenant` 只返回**草稿**，不落库；
+ *   · 档案存的是**抬头快照**，业主改名不回写；要改走 `/refresh` 显式覆盖；
+ *   · `taxNo` 企业必填（15–20 位），个人可空；同一「抬头 + 税号」不可重复；
+ *   · 默认抬头全库唯一（`/default` 会把其他条置 false）；
+ *   · **押金 / 赔偿款税率 0**：前者代收、后者不征增值税；
+ *   · 模板是单例，参数校验不通过整单拒绝（422/42213）。
+ *
+ * 契约数据集里没有发票台账，所以 `usageCount` 恒为 0 —— 这是数据缺失，
+ * 不是接口不算，真实实现里按 `invoices.itemName` / `profileId` 统计。
+ */
+const INV_SET = readJson('fixtures/invoice-settings.json')
+const invItems = INV_SET.items.map(x => ({ ...x }))
+const invProfiles = INV_SET.profiles.map(x => ({ ...x }))
+let invTpl = JSON.parse(JSON.stringify(INV_SET.template))
+let INV_ITEM_SEQ = invItems.length
+let INV_PROFILE_SEQ = invProfiles.length
+
+const INV_SET_PERM = 'b.invoiceSet.edit'
+const INV_TAX_RATES = [0, 3, 5, 6, 9, 13]
+const INV_TITLE_TYPES = ['个人', '企业']
+const INV_SOURCES = ['手动', '业主', '租户']
+const invR2 = n => Math.round((Number(n) || 0) * 100) / 100
+const invNotFound = msg => new ApiError(404, 40401, msg)
+const invState = msg => new ApiError(409, 40927, msg)
+const nowText = () => '2026-11-06 10:00'
+
+const invItemRow = x => ({ ...x, usageCount: 0 })
+const invProfileRow = x => ({ ...x, usageCount: 0 })
+
+const invOwnerName = id => (OWNER.get(id) || {}).name || ''
+const invHouseOfOwner = ownerId => houses.find(h => h.ownerId === ownerId) || null
+
+function invCleanItems(list) {
+  if (!Array.isArray(list)) throw invalid('items 必须是数组')
+  return list.map((x, i) => {
+    const name = String(x.name || '').trim()
+    if (!name) throw invalid(`第 ${i + 1} 个项目没有名称`)
+    if (name.length > 20) throw invalid(`项目名称「${name}」超过 20 字（票据上放不下）`)
+    const rate = Number(x.taxRate)
+    if (!INV_TAX_RATES.includes(rate)) throw invalid(`税率只能是 0 / 3 / 5 / 6 / 9 / 13，「${name}」填的是 ${x.taxRate}`)
+    return {
+      name, taxRate: rate,
+      taxClass: String(x.taxClass || '').trim(),
+      remark: String(x.remark || '').trim(),
+      enabled: x.enabled !== false,
+      builtin: !!x.builtin
+    }
+  })
+}
+
+/* ---------------- 费用项目 ---------------- */
+on('GET', '/invoice-items', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const kw = String(ctx.query.kw || '')
+  const includeDisabled = ctx.query.includeDisabled !== 'false'
+  return invItems
+    .filter(i => includeDisabled || i.enabled)
+    .filter(i => !kw || `${i.name}${i.taxClass}`.includes(kw))
+    .slice()
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(invItemRow)
+})
+
+on('GET', '/invoice-items/options', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  return invItems.filter(i => i.enabled)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(i => ({ value: i.name, label: i.name, taxRate: i.taxRate, taxClass: i.taxClass }))
+})
+
+/* 开票时的项目名：收费科目 + 费用项目。契约数据集没有收费科目（bills / feeItems 不在 fixtures 里），
+   所以这里只能回费用项目 —— 真实实现要把 `/fee-items` 一并并进来并按名称去重 */
+on('GET', '/invoice-items/name-options', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  return invItems.filter(i => i.enabled)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(i => ({ value: i.name, label: i.name, taxRate: i.taxRate, taxClass: i.taxClass, from: 'item' }))
+})
+
+on('POST', '/invoice-items', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护费用项目')
+  const [clean] = invCleanItems([ctx.body || {}])
+  if (invItems.some(i => i.name === clean.name)) throw conflictUnique(`费用项目「${clean.name}」已经存在`)
+  INV_ITEM_SEQ += 1
+  const rec = {
+    itemId: 'II' + String(INV_ITEM_SEQ).padStart(2, '0'),
+    ...clean,
+    sort: invItems.reduce((m, i) => Math.max(m, i.sort || 0), 0) + 10,
+    createdAt: nowText(), updatedAt: nowText()
+  }
+  invItems.push(rec)
+  return invItemRow(rec)
+})
+
+on('PATCH', '/invoice-items/{itemId}', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护费用项目')
+  const it = invItems.find(i => i.itemId === ctx.params.itemId)
+  if (!it) throw invNotFound('费用项目不存在')
+  const merged = { ...it, ...(ctx.body || {}) }
+  const [clean] = invCleanItems([merged])
+  if (invItems.some(i => i.name === clean.name && i.itemId !== it.itemId)) {
+    throw conflictUnique(`费用项目「${clean.name}」已经存在`)
+  }
+  Object.assign(it, clean, { updatedAt: nowText() })
+  return invItemRow(it)
+})
+
+on('POST', '/invoice-items/{itemId}/toggle', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护费用项目')
+  const it = invItems.find(i => i.itemId === ctx.params.itemId)
+  if (!it) throw invNotFound('费用项目不存在')
+  it.enabled = ctx.body && ctx.body.enabled !== undefined ? !!ctx.body.enabled : !it.enabled
+  it.updatedAt = nowText()
+  return invItemRow(it)
+})
+
+/* ---------------- 开票信息 ---------------- */
+/* 注意注册顺序：/stats、/owner-options 这类固定路径必须排在 /{profileId} 之前，
+   否则会被当成 id 吃掉（组织负责人那一批踩过一次） */
+on('GET', '/invoice-profiles', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const { kw = '', titleType = '', sourceType = '', enabled = '' } = ctx.query
+  return invProfiles
+    .filter(p => (enabled === '' || enabled === undefined ? true : p.enabled === (enabled === 'true')))
+    .filter(p => !titleType || p.titleType === titleType)
+    .filter(p => !sourceType || p.sourceType === sourceType)
+    .filter(p => !kw || `${p.title}${p.taxNo}${p.contactName}${p.contactPhone}${p.sourceName}`.includes(kw))
+    .slice()
+    .sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || String(a.title).localeCompare(String(b.title), 'zh'))
+    .map(invProfileRow)
+})
+
+on('GET', '/invoice-profiles/stats', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  return {
+    total: invProfiles.length,
+    personal: invProfiles.filter(p => p.titleType === '个人').length,
+    company: invProfiles.filter(p => p.titleType === '企业').length,
+    manual: invProfiles.filter(p => p.sourceType === '手动').length,
+    fromOwner: invProfiles.filter(p => p.sourceType === '业主').length,
+    fromTenant: invProfiles.filter(p => p.sourceType === '租户').length,
+    disabled: invProfiles.filter(p => !p.enabled).length
+  }
+})
+
+on('GET', '/invoice-profiles/owner-options', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const kw = String(ctx.query.kw || '')
+  return owners
+    .filter(o => !kw || `${o.name}${o.phone || ''}`.includes(kw))
+    .slice(0, 50)
+    .map(o => {
+      const h = invHouseOfOwner(o.ownerId)
+      return { value: o.ownerId, label: o.name, phone: o.phone || '', houseName: h ? h.fullName : '' }
+    })
+})
+
+on('GET', '/invoice-profiles/tenant-options', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const kw = String(ctx.query.kw || '')
+  return tenants
+    .filter(t => t.status === '在住')
+    .filter(t => !kw || `${t.name}${t.companyName || ''}${t.phone || ''}`.includes(kw))
+    .slice(0, 50)
+    .map(t => ({
+      value: t.tenantId,
+      label: t.tenantType === '公司' ? (t.companyName || t.name) : t.name,
+      tenantType: t.tenantType, creditCode: t.creditCode || '', phone: t.phone || '',
+      houseName: (HOUSE.get(t.houseId) || {}).fullName || ''
+    }))
+})
+
+on('GET', '/invoice-profiles/from-owner/{ownerId}', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const o = OWNER.get(ctx.params.ownerId)
+  if (!o) throw invNotFound('业主不存在')
+  const h = invHouseOfOwner(o.ownerId)
+  return {
+    profileId: '', titleType: '个人', title: o.name, taxNo: '',
+    bankName: '', bankAccount: '', regAddress: '', regPhone: '',
+    contactName: o.name, contactPhone: o.phone || '', contactEmail: o.email || '',
+    sourceType: '业主', sourceId: o.ownerId, sourceName: o.name,
+    houseId: h ? h.houseId : '',
+    remark: `从业主档案带入（${o.ownerId}）`
+  }
+})
+
+on('GET', '/invoice-profiles/from-tenant/{tenantId}', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const t = tenants.find(x => x.tenantId === ctx.params.tenantId)
+  if (!t) throw invNotFound('租户不存在')
+  const isCompany = t.tenantType === '公司' || !!t.creditCode
+  if (isCompany) {
+    return {
+      profileId: '', titleType: '企业', title: t.companyName || t.name, taxNo: t.creditCode || '',
+      bankName: '', bankAccount: '',
+      regAddress: t.regAddress || '', regPhone: t.phone || '',
+      contactName: t.agentName || t.legalPerson || t.name,
+      contactPhone: t.agentPhone || t.legalPersonPhone || t.phone || '',
+      contactEmail: '',
+      sourceType: '租户', sourceId: t.tenantId, sourceName: t.companyName || t.name,
+      houseId: t.houseId || '',
+      remark: `从企业租户档案带入（${t.tenantId}）`
+    }
+  }
+  return {
+    profileId: '', titleType: '个人', title: t.name, taxNo: '',
+    bankName: '', bankAccount: '', regAddress: '', regPhone: '',
+    contactName: t.name, contactPhone: t.phone || '', contactEmail: '',
+    sourceType: '租户', sourceId: t.tenantId, sourceName: t.name,
+    houseId: t.houseId || '',
+    remark: `从租户档案带入（${t.tenantId}）`
+  }
+})
+
+on('GET', '/invoice-profiles/of-house/{houseId}', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const h = HOUSE.get(ctx.params.houseId)
+  if (!h) throw invNotFound('房屋不存在')
+  const out = []
+  out.push(...invProfiles
+    .filter(p => p.enabled && p.sourceType === '业主' && p.sourceId === h.ownerId)
+    .map(p => ({ ...invProfileRow(p), roleLabel: '房主' })))
+  const tenantIds = tenants.filter(t => t.houseId === h.houseId && t.status === '在住').map(t => t.tenantId)
+  out.push(...invProfiles
+    .filter(p => p.enabled && p.sourceType === '租户' && tenantIds.includes(p.sourceId))
+    .map(p => ({ ...invProfileRow(p), roleLabel: '租户' })))
+  if (!out.length) {
+    out.push({
+      profileId: '', titleType: '个人', title: invOwnerName(h.ownerId), taxNo: '',
+      roleLabel: '房主', sourceType: '业主', sourceId: h.ownerId, _adhoc: true
+    })
+  }
+  return out
+})
+
+on('GET', '/invoice-profiles/{profileId}', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  const p = invProfiles.find(x => x.profileId === ctx.params.profileId)
+  if (!p) throw invNotFound('开票信息不存在')
+  return invProfileRow(p)
+})
+
+on('POST', '/invoice-profiles', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护开票信息')
+  const rec = invProfilePayload(ctx.body || {})
+  INV_PROFILE_SEQ += 1
+  const created = {
+    profileId: 'IP' + String(INV_PROFILE_SEQ).padStart(4, '0'),
+    ...rec, isDefault: !!ctx.body.isDefault,
+    createdAt: nowText(), updatedAt: nowText(), createdBy: ctx.user.name
+  }
+  invProfiles.push(created)
+  if (created.isDefault) invSetDefault(created.profileId)
+  return invProfileRow(created)
+})
+
+on('PATCH', '/invoice-profiles/{profileId}', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护开票信息')
+  const p = invProfiles.find(x => x.profileId === ctx.params.profileId)
+  if (!p) throw invNotFound('开票信息不存在')
+  const rec = invProfilePayload({ ...p, ...(ctx.body || {}) })
+  Object.assign(p, rec, { updatedAt: nowText() })
+  if (ctx.body.isDefault) invSetDefault(p.profileId)
+  return invProfileRow(p)
+})
+
+on('POST', '/invoice-profiles/{profileId}/default', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护开票信息')
+  const p = invProfiles.find(x => x.profileId === ctx.params.profileId)
+  if (!p) throw invNotFound('开票信息不存在')
+  if (!p.enabled) throw invState('已停用的抬头不能设为默认')
+  invSetDefault(p.profileId)
+  return invProfileRow(p)
+})
+
+on('POST', '/invoice-profiles/{profileId}/toggle', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护开票信息')
+  const p = invProfiles.find(x => x.profileId === ctx.params.profileId)
+  if (!p) throw invNotFound('开票信息不存在')
+  p.enabled = ctx.body && ctx.body.enabled !== undefined ? !!ctx.body.enabled : !p.enabled
+  if (!p.enabled && p.isDefault) p.isDefault = false
+  p.updatedAt = nowText()
+  return invProfileRow(p)
+})
+
+on('POST', '/invoice-profiles/{profileId}/refresh', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护开票信息')
+  const p = invProfiles.find(x => x.profileId === ctx.params.profileId)
+  if (!p) throw invNotFound('开票信息不存在')
+  if (!p.sourceId || p.sourceType === '手动') throw invState('这条是手工填写的，没有可带入的来源')
+  const before = p.title
+  if (p.sourceType === '业主') {
+    const o = OWNER.get(p.sourceId)
+    if (!o) throw invNotFound('来源业主已不存在')
+    p.title = o.name
+    p.contactName = o.name
+    p.contactPhone = o.phone || p.contactPhone
+    p.titleType = '个人'
+  } else {
+    const t = tenants.find(x => x.tenantId === p.sourceId)
+    if (!t) throw invNotFound('来源租户已不存在')
+    const isCompany = t.tenantType === '公司' || !!t.creditCode
+    p.titleType = isCompany ? '企业' : '个人'
+    p.title = isCompany ? (t.companyName || t.name) : t.name
+    if (isCompany) {
+      p.taxNo = t.creditCode || p.taxNo
+      p.regAddress = t.regAddress || p.regAddress
+      p.contactName = t.agentName || t.legalPerson || p.contactName
+      p.contactPhone = t.agentPhone || t.phone || p.contactPhone
+    }
+  }
+  p.updatedAt = nowText()
+  return { ...invProfileRow(p), _before: before }
+})
+
+function invSetDefault(profileId) {
+  for (const p of invProfiles) p.isDefault = p.profileId === profileId
+}
+
+function invProfilePayload(body) {
+  const title = String(body.title || '').trim()
+  if (!title) throw invalid('发票抬头不能为空')
+  if (title.length > 60) throw invalid('发票抬头不超过 60 字')
+  const titleType = INV_TITLE_TYPES.includes(body.titleType) ? body.titleType : '个人'
+  const taxNo = String(body.taxNo || '').trim().toUpperCase()
+  if (titleType === '企业' && !taxNo) throw invalid('企业抬头必须填纳税人识别号（开票要用）')
+  if (taxNo && !/^[0-9A-Z]{15,20}$/.test(taxNo)) throw invalid('纳税人识别号应为 15–20 位数字或大写字母')
+  const dup = invProfiles.find(p => p.title === title && p.taxNo === taxNo && p.profileId !== body.profileId)
+  if (dup) throw conflictUnique(`抬头「${title}」${taxNo ? `（${taxNo}）` : ''}已经存在`)
+  return {
+    titleType, title, taxNo,
+    bankName: String(body.bankName || '').trim(),
+    bankAccount: String(body.bankAccount || '').trim(),
+    regAddress: String(body.regAddress || '').trim(),
+    regPhone: String(body.regPhone || '').trim(),
+    contactName: String(body.contactName || '').trim(),
+    contactPhone: String(body.contactPhone || '').trim(),
+    contactEmail: String(body.contactEmail || '').trim(),
+    sourceType: INV_SOURCES.includes(body.sourceType) ? body.sourceType : '手动',
+    sourceId: String(body.sourceId || ''),
+    sourceName: String(body.sourceName || ''),
+    houseId: String(body.houseId || ''),
+    enabled: body.enabled !== false,
+    remark: String(body.remark || '').trim()
+  }
+}
+
+/* ---------------- 票据模板（单例） ---------------- */
+const INV_FONTS = ['宋体', '仿宋', '黑体', '楷体']
+
+function invTplCheck(t) {
+  const errs = []
+  const w = Number(t.paper && t.paper.width)
+  const h = Number(t.paper && t.paper.height)
+  if (!(w >= 100 && w <= 420)) errs.push('纸张宽度应在 100–420mm（241 是针打连续纸的标准宽）')
+  if (!(h >= 60 && h <= 297)) errs.push('纸张高度应在 60–297mm')
+  const m = t.margin || {}
+  for (const k of ['top', 'right', 'bottom', 'left']) {
+    const v = Number(m[k])
+    if (!(v >= 0 && v <= 60)) errs.push(`页边距「${k}」应在 0–60mm`)
+  }
+  if (Number(m.left) + Number(m.right) >= w - 40) errs.push('左右边距太大，内容区宽度不足 40mm')
+  if (Number(m.top) + Number(m.bottom) >= h - 30) errs.push('上下边距太大，内容区高度不足 30mm')
+  const size = Number(t.font && t.font.size)
+  if (!(size >= 6 && size <= 16)) errs.push('字号应在 6–16pt（针打低于 6pt 会糊，高于 16pt 一页放不下）')
+  const lh = Number(t.font && t.font.lineHeight)
+  if (!(lh >= 1 && lh <= 3)) errs.push('行高倍数应在 1.0–3.0')
+  const copies = Number(t.copies)
+  if (!(copies >= 1 && copies <= 4)) errs.push('联数应为 1–4（再多针打一次过不去）')
+  if (!String(t.title || '').trim()) errs.push('票据标题不能为空')
+  if (!INV_FONTS.includes(t.font && t.font.family)) errs.push('字体只能选宋体 / 仿宋 / 黑体 / 楷体（针打自带字库就这几套）')
+  return { ok: errs.length === 0, errs }
+}
+
+on('GET', '/invoice-template', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  return JSON.parse(JSON.stringify(invTpl))
+})
+
+on('PUT', '/invoice-template', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护票据模板')
+  const b = ctx.body || {}
+  const draft = {
+    ...JSON.parse(JSON.stringify(invTpl)),
+    ...b,
+    paper: { ...invTpl.paper, ...(b.paper || {}) },
+    margin: { ...invTpl.margin, ...(b.margin || {}) },
+    offset: { ...invTpl.offset, ...(b.offset || {}) },
+    font: { ...invTpl.font, ...(b.font || {}) }
+  }
+  const chk = invTplCheck(draft)
+  if (!chk.ok) throw new ApiError(422, 42213, `模板参数不合法：${chk.errs.join('；')}`)
+  draft.copies = Number(draft.copies)
+  draft.copyTitles = (draft.copyTitles || []).slice(0, draft.copies)
+  while (draft.copyTitles.length < draft.copies) draft.copyTitles.push(`第 ${draft.copyTitles.length + 1} 联`)
+  draft.updatedAt = nowText()
+  draft.updatedBy = ctx.user.name
+  invTpl = draft
+  return JSON.parse(JSON.stringify(invTpl))
+})
+
+on('POST', '/invoice-template/reset', (ctx) => {
+  requirePerm(ctx.user, INV_SET_PERM, '缺少权限位 b.invoiceSet.edit：无权维护票据模板')
+  invTpl = JSON.parse(JSON.stringify(INV_SET.template))
+  invTpl.updatedAt = nowText()
+  invTpl.updatedBy = ctx.user.name
+  return JSON.parse(JSON.stringify(invTpl))
+})
+
+on('POST', '/invoice-template/check', (ctx) => {
+  requirePerm(ctx.user, 'b.invoiceSet.view', '缺少权限位 b.invoiceSet.view：无权查看开票设置')
+  return invTplCheck({ ...invTpl, ...(ctx.body || {}) })
 })
 
 /* ------------------------------ HTTP ------------------------------ */

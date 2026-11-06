@@ -6,7 +6,9 @@ import {
   decorationDeposits, devices, employees, feeItems, houses, inspectPlans, inspectTasks,
   inspectTemplates, invoices, maintenanceRecords, members, meterReadings, meters, metrics,
   notices, operationLogs, orgs, ownerTags, owners, parkings, passRecords, payments, permissions,
-  prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders
+  prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders,
+  // N 域（邻里）复用的存量数据：公告不另建源，投票/活动/闲置都从业主端同一份数据出发
+  activities, activityEnrollments, secondhandItems, surveys
 } from '@/mock'
 import repairPrices from '@/mock/repairPrices.json'
 import { TODAY, daysBetween, maskId, maskPhone } from '@/utils/format'
@@ -1423,6 +1425,148 @@ export function queryEmployees({ pageNo = 1, size = 20, filters = {} } = {}) {
 }
 
 /* ==================================================================
+ * C 域 · 通讯录（2026-11-06 第 66 批）
+ *
+ * 通讯录不是"员工档案的简版"，是**另一件事**：
+ *   档案回答"这个人的薪资、证件、合同、紧急联系人是什么"（HR 用）；
+ *   通讯录回答"这个人在哪个部门、怎么联系"（所有人用）。
+ *
+ * 所以它是**独立权限位**（`c.contacts.view`）而不是复用 `c.employees.view`：
+ * 让全员看档案等于把 120 人的薪资表发出去；而按岗位逐个开通讯录，
+ * 结果就是"想找个人还得先问 HR"。
+ *
+ * 四条口径：
+ *   ① **只取在职**（含试用，排除离职）—— 给离职的人打电话是这类工具最常见的错误；
+ *   ② **手机号不脱敏**：同事之间看全号。这条与员工档案的"揭示留痕"相反，
+ *      因为在档案里看手机是"查个人信息"，在通讯录里看手机就是它的用途本身；
+ *   ③ **字段白名单**：姓名 / 岗位 / 部门 / 手机 / 性别。薪资、证件、银行卡、
+ *      紧急联系人一律不出现在返回里（不是页面不显示，是**数据层不给**）；
+ *   ④ 不带座机 / 分机 / 邮箱 —— 数据模型里也没有，不为了"看起来全"造字段。
+ * ================================================================== */
+
+const CONTACT_PERM = 'c.contacts.view'
+export const canViewContacts = () => _hasPerm(CONTACT_PERM)
+
+/** 通讯录字段白名单。**只在这里列一次**，页面按它渲染，接口按它返回 */
+export const CONTACT_FIELDS = ['empId', 'name', 'position', 'orgId', 'phone', 'gender']
+
+const _ctActive = () => employees.filter(e => e.status !== '离职')
+
+const _orgOf = orgId => orgs.find(o => o.orgId === orgId) || null
+const _orgNameOf = orgId => (_orgOf(orgId) || {}).name || '—'
+
+/** 部门的全部下级 orgId（含自己） */
+function _orgSubtree(orgId) {
+  const out = new Set([orgId])
+  let added = true
+  let guard = 0
+  while (added && guard++ < 12) {
+    added = false
+    for (const o of orgs) {
+      if (o.parentId && out.has(o.parentId) && !out.has(o.orgId)) { out.add(o.orgId); added = true }
+    }
+  }
+  return out
+}
+
+/**
+ * 部门树 + 人数。`totalCount` 含下级 —— 集团节点显示 118 人，
+ * 点进去才按部门分开看，这样"哪个部门人多"一眼能看出来。
+ */
+export function contactTree() {
+  const active = _ctActive()
+  const direct = new Map()
+  for (const e of active) direct.set(e.orgId, (direct.get(e.orgId) || 0) + 1)
+
+  const build = (parentId) => {
+    const list = orgs.filter(o => (o.parentId || '') === parentId)
+      .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    return list.map(o => {
+      const children = build(o.orgId)
+      const self = direct.get(o.orgId) || 0
+      const totalCount = self + children.reduce((s, c) => s + c.totalCount, 0)
+      return {
+        orgId: o.orgId, name: o.name, type: o.type,
+        directCount: self, totalCount, children
+      }
+    })
+  }
+  /* 只留有人的节点：组织树是按管理口径建的，班组层面不一定有直属员工，
+     把二十多个 0 人节点全铺出来，找一个部门要点开三层还全是空的 */
+  const prune = list => list
+    .filter(n => n.totalCount > 0)
+    .map(n => ({ ...n, children: prune(n.children || []) }))
+  return prune(build(''))
+}
+
+/** 某部门的直属人员（不含下级）；页面分组显示用 */
+function _contactRowOf(e) {
+  return {
+    empId: e.empId,
+    name: e.name,
+    position: e.position || '—',
+    orgId: e.orgId,
+    orgName: _orgNameOf(e.orgId),
+    /* **明文**：同事之间不需要脱敏，见文件头第 ② 条 */
+    phone: e.phone || '',
+    gender: e.gender || ''
+  }
+}
+
+/**
+ * 通讯录查询。
+ * @param {{orgId?:string, kw?:string, includeSub?:boolean}} opt
+ * @returns {{rows:Array, groups:Array, total:number}}
+ */
+export function queryContacts({ orgId = '', kw = '', includeSub = true } = {}) {
+  return delay(() => {
+    if (!canViewContacts()) {
+      throw Object.assign(new Error(`当前角色没有查看通讯录的权限（${CONTACT_PERM}）`), { code: 403 })
+    }
+    const k = String(kw || '').trim()
+    let list = _ctActive()
+    if (orgId) {
+      const ids = includeSub ? _orgSubtree(orgId) : new Set([orgId])
+      list = list.filter(e => ids.has(e.orgId))
+    }
+    if (k) {
+      /* 手机号支持搜后 4 位 —— 前台记不住完整号码，但记得尾巴 */
+      list = list.filter(e =>
+        `${e.name}${e.position}${e.phone}${_orgNameOf(e.orgId)}`.includes(k) ||
+        (k.length >= 4 && String(e.phone || '').endsWith(k))
+      )
+    }
+    const rows = list.map(_contactRowOf)
+      .sort((a, b) => a.orgName.localeCompare(b.orgName, 'zh') || a.name.localeCompare(b.name, 'zh'))
+
+    /* 按部门分组：卡片墙上一堆人，不分部门等于没有结构 */
+    const m = new Map()
+    for (const r of rows) {
+      if (!m.has(r.orgId)) m.set(r.orgId, { orgId: r.orgId, orgName: r.orgName, rows: [] })
+      m.get(r.orgId).rows.push(r)
+    }
+    const groups = [...m.values()].sort((a, b) => b.rows.length - a.rows.length)
+    return { rows, groups, total: rows.length }
+  })
+}
+
+/** 顶部三个数：在职人数、部门数、有手机号的人数 */
+export function contactStats() {
+  const active = _ctActive()
+  return {
+    total: active.length,
+    orgCount: new Set(active.map(e => e.orgId)).size,
+    withPhone: active.filter(e => e.phone).length
+  }
+}
+
+/** 当前登录人（页面高亮"我"） */
+export function contactMe() {
+  const me = currentOperator()
+  return { empId: me.empId || '', name: me.name || '' }
+}
+
+/* ==================================================================
  * L4 第二批（21–28 页）：缴费流水 / 收费科目 / 巡检计划 / 巡检任务 /
  * 告警中心 / 车辆管理 / 通行记录 / 房屋台账
  * 同上：页面只 await 本段函数
@@ -1467,7 +1611,8 @@ export const subjectLabel = (houseId, parkId) => {
 /** 缴费流水行：补上项目（来自房屋）与科目（来自账单），列表页不再自己 join */
 const payRow = p => {
   const bill = BILL_OF.get(p.billId)
-  const cid = HOUSE_COMMUNITY.get(p.houseId) || bill?.communityId || ''
+  /* 临时收费的流水没有账单、外部缴费人也没有房屋，所以先看流水自己带的 communityId */
+  const cid = p.communityId || HOUSE_COMMUNITY.get(p.houseId) || bill?.communityId || ''
   const hs = HOUSE_SPACE.get(p.houseId)
   return {
     ...p,
@@ -1480,10 +1625,22 @@ const payRow = p => {
     /** house = 房屋类账单（可上溯到单元）；park = 车位管理费（无楼栋，只能落到项目） */
     subjectType: p.houseId ? 'house' : (bill?.parkId ? 'park' : ''),
     ownerName: ownerNameOf(p.ownerId),
-    /** 车位管理费类流水没有 houseId，统一落到「车位 xxx」 */
-    subject: subjectLabel(p.houseId, bill?.parkId),
-    itemName: bill?.itemName || '',
-    period: bill?.period || ''
+    /** 车位管理费类流水没有 houseId，统一落到「车位 xxx」；
+        临时收费没有承载房屋，承载对象是「付款方」 */
+    subject: p.tempChargeId
+      ? `临时 · ${p.tempPartyName || '—'}`
+      : subjectLabel(p.houseId, bill?.parkId),
+    itemName: bill?.itemName || p.tempItemName || '',
+    period: bill?.period || '',
+    /** 临时收费标记：流水页据此显示「临时」标签并按它筛选 */
+    isTemp: !!p.tempChargeId,
+    /* 收据与发票是**两个独立状态**（第 64 批）：只开收据的笔数不少，
+       合成一个「已开票」会让台账查不出"还差一张发票"。老数据没有这个字段，兜底"未开具" */
+    receiptStatus: p.receiptStatus || '未开具',
+    receiptNo: p.receiptNo || '',
+    /* 组合支付：这一笔实际由哪几种方式组成。老数据没有 splits，_splitsOf 用 method 兜底 */
+    splits: _splitsOf(p),
+    splitCount: _splitsOf(p).length
   }
 }
 const PAY_ROWS = payments.map(payRow)
@@ -1493,10 +1650,13 @@ const PAY_ROWS = payments.map(payRow)
 // parkonly 供「车位收费」分支复用；其余四个是收银对账视角
 const PAY_VF = {
   parkonly: p => p.subjectType === 'park',
-  cash: p => p.method === '现金',
+  /* 组合支付时 method 只存金额最大的一笔，光看它会漏掉"现金 + 微信"里的现金 */
+  cash: p => _splitsOf(p).some(s => s.method === '现金'),
   uninvoiced: p => p.invoiceStatus === '未开票',
   red: p => p.invoiceStatus === '已冲红',
-  deposit: p => p.channel === '预存抵扣'
+  deposit: p => p.channel === '预存抵扣',
+  temp: p => !!p.isTemp,
+  unreceipted: p => (p.receiptStatus || '未开具') === '未开具'
 }
 
 /**
@@ -4943,13 +5103,18 @@ export function multiRevenueContracts(filters = {}) {
 export function companyRevenue(filters = {}) {
   const fee = feeSummary(filters.communityId || null)
   const multi = multiRevenue(filters)
+  /* 临时收费（摆摊费一类）：**计入收入但不进收缴率** ——
+     它有实收、没有应收，塞进收缴率的分母会让收缴率凭空下降。 */
+  const temp = tempChargeIncome(filters)
   const main = Math.round((fee.received || 0) * 100) / 100
-  const total = Math.round((main + multi.total) * 100) / 100
+  const total = Math.round((main + multi.total + temp.total) * 100) / 100
   return {
     main,
     multi: multi.total,
+    temp: temp.total,
     total,
-    multiRatio: total ? Math.round(multi.total / total * 1000) / 10 : 0
+    multiRatio: total ? Math.round(multi.total / total * 1000) / 10 : 0,
+    tempRatio: total ? Math.round(temp.total / total * 1000) / 10 : 0
   }
 }
 
@@ -4987,6 +5152,28 @@ function businessRows(filters = {}) {
   const multiPaid = r2(cs.paid + co.income)          // 合同收入按履约确认，不产生"应收未收"
   const cid = filters.communityId || ''
   const cname = cid ? communityName(cid) : '全部项目'
+  /* 临时收费单独一行：它既不是账单科目、也不是经营合同，但同时要能加进"收入合计"。
+     `rate` 给 null 是**故意的** —— 没有应收就没有收缴率，给它 0 或 100 都是错的。 */
+  const tc = tempChargeIncome(filters)
+  if (tc.total > 0 && kwHit({ itemName: '临时收费收入', communityName: cname }, filters.kw, ['itemName', 'communityName'])) {
+    rows.push({
+      key: 'TC|临时收费' + cid, communityId: cid, communityName: cname,
+      itemId: 'TC', itemName: '临时收费收入', rowLevel: 1, isTemp: true,
+      count: tc.count, payable: tc.total, paid: tc.total, unpaid: 0,
+      rate: null, cost: 0, profit: tc.total,
+      /* 让报表页能显示"不计入收缴率"的说明，而不是显示一个空的百分比 */
+      rateNote: '不计入收缴率'
+    })
+    for (const it of tc.byItem) {
+      rows.push({
+        key: `TC|${it.itemName}` + cid, communityId: cid, communityName: cname,
+        itemId: 'TC-' + it.itemName, itemName: '其中：' + it.itemName, rowLevel: 2, isTemp: true,
+        count: it.count, payable: it.amount, paid: it.amount, unpaid: 0,
+        rate: null, cost: 0, profit: it.amount, rateNote: '不计入收缴率'
+      })
+    }
+  }
+
   if (multiTotal > 0 && kwHit({ itemName: '多种经营收入', communityName: cname }, filters.kw, ['itemName', 'communityName'])) {
     rows.push({
       key: 'MR|多种经营' + cid, communityId: cid, communityName: cname,
@@ -6665,37 +6852,165 @@ export function invoiceSummary() {
 }
 
 let IV_SEQ = invoices.length
-/** 开票：单张或批量（内存态），并回写缴费流水的开票状态 */
-export function issueInvoice(payIds, type = '电子发票') {
+/**
+ * 开票：单张或批量（内存态），并回写缴费流水的开票状态。
+ *
+ * 第 61 批接了「开票信息」与「费用项目」：
+ *   - `profileId` 指定抬头档案。**不传就按房主兜底** —— 用户的口径是
+ *     「默认开给房主，有租户信息时可切」，所以这里不能强制必填；
+ *   - `itemName` 是票据上的项目名称，可以从字典选，也可以是手打的任意文字
+ *     （控制不了的临时收费不该被字典卡住）；
+ *   - 税率按**费用项目的默认税率**算，不再写死 6%。收据一律 0 ——
+ *     收据不是发票，不产生税额，按 6% 算什么都不对。
+ */
+export function issueInvoice(payIds, types = '电子发票', opts = {}) {
   const ids = Array.isArray(payIds) ? payIds : [payIds]
   if (!ids.length) throw new Error('请先选择需要开票的收款记录')
-  const created = []; const skipped = []
+
+  /* 一次可以两种都开：`issueInvoice(ids, ['收据', '电子发票'])`。
+     收银台一次点击要出两张票，分两次调用会出现"收据开成功、发票失败"的半截状态 */
+  const list = (Array.isArray(types) ? types : [types]).filter(t => INVOICE_TYPES.includes(t))
+  if (!list.length) throw new Error(`票据类型只能是 ${INVOICE_TYPES.join(' / ')}`)
+
+  const profileId = String(opts.profileId || '')
+  const itemName = String(opts.itemName || '').trim()
+  const buyerTitle = String(opts.buyerTitle || '').trim()
+  const buyerTaxNo = String(opts.buyerTaxNo || '').trim()
+  const prof = profileId ? INVOICE_PROFILES.find(x => x.profileId === profileId) : null
+  if (profileId && !prof) throw _invErr('所选开票信息不存在（可能已被停用）', 40401)
+
+  const created = []
+  const skipped = []
+
   for (const pid of ids) {
     const p = payments.find(x => x.payId === pid)
     if (!p) { skipped.push(pid); continue }
-    if (p.invoiceStatus === '已开票') { skipped.push(pid); continue }
-    IV_SEQ += 1
-    const amt = p.amount || 0
-    const inv = {
-      invoiceId: 'IV' + String(IV_SEQ).padStart(6, '0'),
-      invoiceNo: type === '收据' ? 'SJ' + String(10000000 + IV_SEQ) : '0264' + String(10000000 + IV_SEQ),
-      type, status: '已开具', payId: p.payId, billId: p.billId,
-      communityId: _HOUSE_CM.get(p.houseId) || 'P01',
-      communityName: communityName(_HOUSE_CM.get(p.houseId) || 'P01'),
-      houseId: p.houseId, houseName: houseName(p.houseId),
-      ownerId: p.ownerId, ownerName: ownerName(p.ownerId),
-      itemName: '物业服务费', amount: amt, taxAmount: type === '收据' ? 0 : Math.round(amt * 0.06 * 100) / 100,
-      issueTime: _now(), issuer: '当前登录人', channel: '前台开具',
-      redReason: '', redTime: '', failReason: '', _isNew: true
+    const bill = BILL_OF.get(p.billId)
+
+    for (const type of list) {
+      const isReceipt = type === '收据'
+      /* 两个状态各自独立判：只开了收据的流水，发票仍然可以开 */
+      const done = isReceipt
+        ? (p.receiptStatus === '已开具')
+        : (p.invoiceStatus === '已开票')
+      if (done) { if (!skipped.includes(pid)) skipped.push(pid); continue }
+
+      IV_SEQ += 1
+      const amt = p.amount || 0
+      /* 项目名取**这一笔的实际科目**，不再写死「物业服务费」 ——
+         临时收费开出来写"物业服务费"是错的，账单开出来写"摆摊费"也是错的 */
+      const name = itemName || bill?.itemName || p.tempItemName || '物业服务费'
+      const item = invoiceItemOf(name)
+      const rate = Number(item ? item.taxRate : 6)
+      const cid = p.communityId || _HOUSE_CM.get(p.houseId) || bill?.communityId || 'P01'
+
+      const inv = {
+        invoiceId: 'IV' + String(IV_SEQ).padStart(6, '0'),
+        invoiceNo: isReceipt ? 'SJ' + String(10000000 + IV_SEQ) : '0264' + String(10000000 + IV_SEQ),
+        type,
+        isReceipt,
+        status: '已开具',
+        payId: p.payId,
+        billId: p.billId,
+        tempChargeId: p.tempChargeId || '',
+        communityId: cid,
+        communityName: communityName(cid),
+        houseId: p.houseId || '',
+        houseName: p.houseId ? houseName(p.houseId) : '',
+        ownerId: p.ownerId || '',
+        ownerName: p.ownerId ? ownerName(p.ownerId) : (p.tempPartyName || ''),
+        /* 购买方三档：手填 > 档案 > 房主。外来缴费人没有档案也没有房主，只能手填 */
+        profileId: prof ? prof.profileId : '',
+        buyerType: prof ? prof.titleType : (buyerTitle ? '个人' : '个人'),
+        buyerTitle: prof ? prof.title : (buyerTitle || ownerName(p.ownerId) || p.tempPartyName || ''),
+        buyerTaxNo: prof ? prof.taxNo : buyerTaxNo,
+        itemName: name,
+        amount: amt,
+        /* 收据不产生税额 —— 它不是增值税扣税凭证 */
+        taxAmount: isReceipt ? 0 : Math.round(amt * rate) / 100,
+        taxRate: isReceipt ? 0 : rate,
+        /* 收据要能追溯"这笔钱是怎么收的"，打印模板上要显示 */
+        payMethodText: payMethodText(p),
+        issueTime: _now(),
+        issuer: currentOperator().name,
+        channel: '前台开具',
+        redReason: '', redTime: '', failReason: '', _isNew: true
+      }
+      invoices.unshift(inv)
+
+      if (isReceipt) {
+        p.receiptStatus = '已开具'
+        p.receiptNo = inv.invoiceNo
+      } else {
+        p.invoiceStatus = '已开票'
+        p.invoiceNo = inv.invoiceNo
+      }
+      _syncPayRow(p)
+      created.push(inv)
     }
-    invoices.unshift(inv)
-    p.invoiceStatus = '已开票'
-    p.invoiceNo = inv.invoiceNo
-    _syncPayRow(p)          // 缴费流水的「未开票 / 已冲红」虚拟节点读 PAY_ROWS
-    created.push(inv)
   }
-  if (!created.length) throw new Error('所选记录均已开票或不存在')
-  return { created, skipped, count: created.length }
+  if (!created.length) {
+    throw new Error(list.length > 1 ? '所选记录的收据与发票都已开具' : '所选记录已开过该票据或不存在')
+  }
+  return {
+    created, skipped, count: created.length,
+    receipts: created.filter(x => x.isReceipt),
+    invoices: created.filter(x => !x.isReceipt)
+  }
+}
+
+/**
+ * 领取一笔流水已开的票据。收银台结果卡与流水详情都用它，
+ * 免得两处各写一套「收据在不在、发票在不在」的判断。
+ */
+export function paymentTickets(payId) {
+  const list = invoices.filter(x => x.payId === payId && x.status === '已开具')
+  return {
+    receipt: list.find(x => x.isReceipt || x.type === '收据') || null,
+    invoice: list.find(x => !(x.isReceipt || x.type === '收据')) || null
+  }
+}
+
+/**
+ * 金额大写（收据上「合计人民币（大写）」那一栏）。
+ * 收据不写大写是可以被财务打回的 —— 手写凭证的行业习惯，打印也一样。
+ */
+export function amountInWords(n) {
+  const num = Math.round((Number(n) || 0) * 100)
+  if (num === 0) return '零元整'
+  const digits = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+  const units = ['', '拾', '佰', '仟']
+  const bigUnits = ['', '万', '亿', '万亿']
+  const intPart = Math.floor(num / 100)
+  const jiao = Math.floor(num / 10) % 10
+  const fen = num % 10
+
+  let out = ''
+  if (intPart > 0) {
+    const groups = []
+    let rest = intPart
+    while (rest > 0) { groups.push(rest % 10000); rest = Math.floor(rest / 10000) }
+    for (let g = groups.length - 1; g >= 0; g--) {
+      const seg = groups[g]
+      let segText = ''
+      let zero = false
+      for (let i = 3; i >= 0; i--) {
+        const d = Math.floor(seg / Math.pow(10, i)) % 10
+        if (d === 0) { zero = true; continue }
+        if (zero && segText) segText += '零'
+        zero = false
+        segText += digits[d] + units[i]
+      }
+      if (segText) out += segText + bigUnits[g]
+      /* 中间整段为零（如 100000005）要补一个「零」，否则读成"壹亿伍元" */
+      else if (out && g > 0) out += '零'
+    }
+    out = out.replace(/零+$/, '') + '元'
+  }
+  if (jiao === 0 && fen === 0) return out + '整'
+  if (jiao === 0) return `${out}零${digits[fen]}分`
+  if (fen === 0) return `${out}${digits[jiao]}角整`
+  return `${out}${digits[jiao]}角${digits[fen]}分`
 }
 
 /** 红冲：必须填原因，红冲后流水回到「未开票」 */
@@ -6719,18 +7034,659 @@ export function pendingInvoiceRows({ pageNo = 1, size = 20, filters = {} } = {})
       .filter(p => p.invoiceStatus !== '已开票')
       .filter(p => !communityId || (_HOUSE_CM.get(p.houseId) || 'P01') === communityId)
       .filter(p => !kw || `${p.payId}${p.billId}${ownerName(p.ownerId)}${p.transNo}`.includes(kw))
-      .map(p => ({
-        payId: p.payId, billId: p.billId, amount: p.amount, method: p.method,
-        payTime: p.payTime, transNo: p.transNo, channel: p.channel,
-        houseId: p.houseId, houseName: houseName(p.houseId),
-        ownerId: p.ownerId, ownerName: ownerName(p.ownerId),
-        communityId: _HOUSE_CM.get(p.houseId) || 'P01',
-        communityName: communityName(_HOUSE_CM.get(p.houseId) || 'P01'),
-        invoiceStatus: p.invoiceStatus || '未开票'
-      }))
+      .map(p => {
+        const cid = p.communityId || _HOUSE_CM.get(p.houseId) || 'P01'
+        return {
+          payId: p.payId, billId: p.billId, amount: p.amount, method: p.method,
+          payTime: p.payTime, transNo: p.transNo, channel: p.channel,
+          houseId: p.houseId || '', houseName: p.houseId ? houseName(p.houseId) : '',
+          ownerId: p.ownerId || '',
+          /* 临时收费没有业主，付款方是流水上的快照 */
+          ownerName: p.ownerId ? ownerName(p.ownerId) : (p.tempPartyName || '外来缴费人'),
+          isTemp: !!p.tempChargeId,
+          tempPartyName: p.tempPartyName || '',
+          itemName: (BILL_OF.get(p.billId) || {}).itemName || p.tempItemName || '',
+          communityId: cid,
+          communityName: communityName(cid),
+          invoiceStatus: p.invoiceStatus || '未开票',
+          /* 收据是独立状态：只开了收据的流水仍在这里（还差一张发票） */
+          receiptStatus: p.receiptStatus || '未开具'
+        }
+      })
     return paged(list, pageNo, size)
   })
 }
+
+/* ==================================================================
+ * B5 · 开票设置（2026-11-06 第 61 批）
+ *
+ * 三张表，解决三件不同的事：
+ *   ① 开票信息（抬头档案）：抬头 / 税号 / 开户行 / 地址电话 / 联系人。
+ *      **手动填写是常态**，能从业主或租户带出来只是省事 ——
+ *      所以「带入」只预填表单，**不自动建档**。否则 682 个业主会变成
+ *      682 条没人维护的档案，真正的常用抬头反而被淹没。
+ *   ② 费用项目：票据上「项目名称」的词条。默认 5 项（摆摊费 / 场地租用 /
+ *      赔偿款 / 押金 / 其他），**允许自由填写**（不入字典），也允许新增词条。
+ *   ③ 票据模板：1 套通用版式 + 参数可调（纸张 / 边距 / 字号 / 份数 / 套打偏移）。
+ *
+ * 四条口径（后端实现时别丢）：
+ *   · 档案存的是**抬头快照**。业主后来改名不回写档案 —— 票据一旦开出，
+ *     抬头就不能变（税务要求）；改了档案会让"当时开的什么"说不清。
+ *     要跟着改，页面上点「从来源重新带入」显式覆盖，并留痕。
+ *   · **押金与赔偿款税率 0**：押金是代收不是收入（退还时冲回），
+ *     赔偿款不征增值税。这不是可配项，是两个真实的税务口径，
+ *     把它们和"其他"混成 6% 会让账做不平。
+ *   · 模板只有 **1 套**：多套的代价是每张票据都要选版式，
+ *     而现在只有一种纸（241×140 连续纸）。真出现第二种纸再加。
+ *   · 票据上的金额要同时给**小写与大写**。大写不是装饰 ——
+ *     手写票据时代沿下来的防篡改手段，财务退单最常挑的就是这一条。
+ * ================================================================== */
+
+export const INVOICE_SET_PERM = 'b.invoiceSet.edit'
+export const canEditInvoiceSet = () => _hasPerm(INVOICE_SET_PERM)
+
+const _invErr = (msg, code) => Object.assign(new Error(msg), { code })
+const _invR2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+/* ---------------- ① 费用项目 ---------------- */
+
+/**
+ * 内置五项。`taxRate` 是默认税率，开票时可按单项覆盖 ——
+ * 同一个"场地租用"，租会议室是 9%，租广告位可能按 6%，一刀切会出错。
+ */
+const INVOICE_ITEM_SPECS = [
+  ['摆摊费', 6, '现代服务 · 其他现代服务', '外来摊贩按次 / 按天收取，与物业费无关'],
+  ['场地租用', 9, '不动产经营租赁', '公共区域、大堂、车位的场地对外出租'],
+  ['赔偿款', 0, '不征税项目', '损坏赔偿、违约金；不征增值税，开收据即可'],
+  ['押金', 0, '代收款项', '装修 / 门禁卡押金；代收不确认收入，退还时冲回'],
+  ['其他', 6, '现代服务 · 其他现代服务', '未列明的临时收费，开票时写清具体事由']
+]
+
+const INVOICE_ITEMS = []
+let INV_ITEM_SEQ = 0
+function _invItemSeed(name, taxRate, taxClass, remark) {
+  INV_ITEM_SEQ += 1
+  const rec = {
+    itemId: 'II' + String(INV_ITEM_SEQ).padStart(2, '0'),
+    name, taxRate: Number(taxRate) || 0, taxClass,
+    builtin: true, enabled: true, sort: INV_ITEM_SEQ * 10,
+    remark, createdAt: '2026-01-01 00:00', updatedAt: '2026-01-01 00:00'
+  }
+  INVOICE_ITEMS.push(rec)
+  return rec
+}
+for (const [n, r, c, m] of INVOICE_ITEM_SPECS) _invItemSeed(n, r, c, m)
+
+/** 被多少张票据用过（改名不回写历史票据，所以按名称统计，按 itemId 会统计成 0） */
+const _invItemUsage = () => {
+  const m = new Map()
+  for (const v of invoices) m.set(v.itemName, (m.get(v.itemName) || 0) + 1)
+  return m
+}
+
+/** 费用项目列表：选择弹层只要启用中的；维护页传 includeDisabled */
+export function invoiceItemRows({ kw = '', includeDisabled = true } = {}) {
+  const use = _invItemUsage()
+  return INVOICE_ITEMS
+    .filter(i => includeDisabled || i.enabled)
+    .filter(i => !kw || `${i.name}${i.taxClass}`.includes(kw))
+    .slice()
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(i => ({ ...i, usageCount: use.get(i.name) || 0 }))
+}
+
+export const invoiceItemOpts = () => invoiceItemRows({ includeDisabled: false })
+  .map(i => ({ value: i.name, label: i.name, taxRate: i.taxRate, taxClass: i.taxClass }))
+
+export const invoiceItemOf = name => INVOICE_ITEMS.find(i => i.name === name) || null
+
+/**
+ * 开票项目名的**全部**候选：收费科目在前，费用项目在后。
+ *
+ * 为什么要把两个表合起来：账单开票的项目名是「物业服务费 / 水费」这类**收费科目**，
+ * 而第 61 批加的「摆摊费 / 场地租用」是**临时收费**的项目。只给后者，
+ * 物业费开票时默认值"物业服务费"不在选项里，看着像数据错了。
+ * 去重按名称（同名取科目那条，税率以科目为准）。
+ */
+export const invoiceItemNameOpts = () => {
+  const out = []
+  const seen = new Set()
+  for (const f of feeItems) {
+    if (!f.name || seen.has(f.name)) continue
+    seen.add(f.name)
+    out.push({ value: f.name, label: f.name, taxRate: Number(f.taxRate) || 0, taxClass: f.category || '', from: 'fee' })
+  }
+  for (const i of INVOICE_ITEMS.filter(x => x.enabled)) {
+    if (seen.has(i.name)) continue
+    seen.add(i.name)
+    out.push({ value: i.name, label: i.name, taxRate: i.taxRate, taxClass: i.taxClass, from: 'item' })
+  }
+  return out
+}
+
+export function saveInvoiceItem({ itemId = '', name = '', taxRate = 6, taxClass = '', remark = '', enabled = true } = {}) {
+  assertPerm(INVOICE_SET_PERM, `维护费用项目需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const n = String(name || '').trim()
+  if (!n) throw _invErr('项目名称不能为空')
+  if (n.length > 20) throw _invErr('项目名称不超过 20 字（票据上放不下）')
+  const rate = Number(taxRate)
+  if (![0, 3, 5, 6, 9, 13].includes(rate)) {
+    throw _invErr(`税率只能是 0 / 3 / 5 / 6 / 9 / 13，当前填的是 ${taxRate}`)
+  }
+  const dup = INVOICE_ITEMS.find(i => i.name === n && i.itemId !== itemId)
+  if (dup) throw _invErr(`费用项目「${n}」已经存在`, 40902)
+
+  const t = _now()
+  if (itemId) {
+    const it = INVOICE_ITEMS.find(i => i.itemId === itemId)
+    if (!it) throw _invErr('费用项目不存在', 40401)
+    /* 内置项可以改名，但改完就不再是"摆摊费"了 —— 允许，因为业务口径会变；
+       只禁止删除（历史票据要靠名称追） */
+    Object.assign(it, { name: n, taxRate: rate, taxClass: String(taxClass || '').trim(), remark: String(remark || '').trim(), enabled: !!enabled, updatedAt: t })
+    return { ...it, usageCount: _invItemUsage().get(it.name) || 0 }
+  }
+  INV_ITEM_SEQ += 1
+  const rec = {
+    itemId: 'II' + String(INV_ITEM_SEQ).padStart(2, '0'),
+    name: n, taxRate: rate, taxClass: String(taxClass || '').trim(),
+    remark: String(remark || '').trim(), builtin: false, enabled: !!enabled,
+    sort: INVOICE_ITEMS.reduce((m, i) => Math.max(m, i.sort || 0), 0) + 10,
+    createdAt: t, updatedAt: t
+  }
+  INVOICE_ITEMS.push(rec)
+  return { ...rec, usageCount: 0 }
+}
+
+/** 停用不删除：历史票据上写的是名称，删了以后"这个项目还在不在字典里"就查不清了 */
+export function toggleInvoiceItem(itemId, enabled) {
+  assertPerm(INVOICE_SET_PERM, `维护费用项目需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const it = INVOICE_ITEMS.find(i => i.itemId === itemId)
+  if (!it) throw _invErr('费用项目不存在', 40401)
+  const used = _invItemUsage().get(it.name) || 0
+  if (!enabled && used > 0 && it.builtin) {
+    throw _invErr(`「${it.name}」已被 ${used} 张票据使用，内置项目不能停用`, 40927)
+  }
+  it.enabled = !!enabled
+  it.updatedAt = _now()
+  return { ...it, usageCount: used }
+}
+
+/* ---------------- ② 开票信息（抬头档案） ---------------- */
+
+export const INVOICE_TITLE_TYPES = ['个人', '企业']
+export const INVOICE_SOURCES = ['手动', '业主', '租户']
+
+const INVOICE_PROFILES = []
+let INV_PROFILE_SEQ = 0
+
+const _invProfileNo = () => 'IP' + String(INV_PROFILE_SEQ).padStart(4, '0')
+
+/** 税号校验：企业必须 15–20 位（统一社会信用代码固定 18 位）；个人可空 */
+const _taxNoOk = v => /^[0-9A-Z]{15,20}$/.test(String(v || '').trim())
+
+function _invProfileSeed(p) {
+  INV_PROFILE_SEQ += 1
+  const rec = {
+    profileId: _invProfileNo(),
+    titleType: p.titleType || '个人',
+    title: p.title,
+    taxNo: p.taxNo || '',
+    bankName: p.bankName || '',
+    bankAccount: p.bankAccount || '',
+    regAddress: p.regAddress || '',
+    regPhone: p.regPhone || '',
+    contactName: p.contactName || '',
+    contactPhone: p.contactPhone || '',
+    contactEmail: p.contactEmail || '',
+    sourceType: p.sourceType || '手动',
+    sourceId: p.sourceId || '',
+    sourceName: p.sourceName || '',
+    houseId: p.houseId || '',
+    isDefault: !!p.isDefault,
+    enabled: true,
+    remark: p.remark || '',
+    createdAt: p.createdAt || '2026-10-12 10:00',
+    updatedAt: p.updatedAt || '2026-10-12 10:00',
+    createdBy: p.createdBy || '财务部'
+  }
+  INVOICE_PROFILES.push(rec)
+  return rec
+}
+
+export function invoiceProfileRows({ kw = '', titleType = '', sourceType = '', enabled = null } = {}) {
+  const use = _invProfileUsage()
+  return INVOICE_PROFILES
+    .filter(p => (enabled === null || enabled === '' ? true : p.enabled === enabled))
+    .filter(p => !titleType || p.titleType === titleType)
+    .filter(p => !sourceType || p.sourceType === sourceType)
+    .filter(p => !kw || `${p.title}${p.taxNo}${p.contactName}${p.contactPhone}${p.sourceName}`.includes(kw))
+    .slice()
+    .sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || String(a.title).localeCompare(String(b.title), 'zh'))
+    .map(p => ({ ...p, usageCount: use.get(p.profileId) || 0 }))
+}
+
+const _invProfileUsage = () => {
+  const m = new Map()
+  for (const v of invoices) if (v.profileId) m.set(v.profileId, (m.get(v.profileId) || 0) + 1)
+  return m
+}
+
+export const invoiceProfileOf = id => {
+  const p = INVOICE_PROFILES.find(x => x.profileId === id)
+  return p ? { ...p, usageCount: _invProfileUsage().get(id) || 0 } : null
+}
+
+export function invoiceProfileStats() {
+  return {
+    total: INVOICE_PROFILES.length,
+    personal: INVOICE_PROFILES.filter(p => p.titleType === '个人').length,
+    company: INVOICE_PROFILES.filter(p => p.titleType === '企业').length,
+    manual: INVOICE_PROFILES.filter(p => p.sourceType === '手动').length,
+    fromOwner: INVOICE_PROFILES.filter(p => p.sourceType === '业主').length,
+    fromTenant: INVOICE_PROFILES.filter(p => p.sourceType === '租户').length,
+    disabled: INVOICE_PROFILES.filter(p => !p.enabled).length
+  }
+}
+
+/**
+ * 从业主带入 → 返回**草稿**，不落库。
+ * 个人抬头不需要税号；身份证号也不当税号用（个人开票凭姓名即可），
+ * 所以这里只带姓名和手机，税号留空让人自己决定填不填。
+ */
+export function invoiceProfileFromOwner(ownerId) {
+  const o = owners.find(x => x.ownerId === ownerId)
+  if (!o) throw _invErr('业主不存在', 40401)
+  const h = houses.find(x => x.ownerId === ownerId)
+  return {
+    profileId: '', titleType: '个人', title: o.name, taxNo: '',
+    contactName: o.name, contactPhone: o.phone || '',
+    contactEmail: o.email || '',
+    sourceType: '业主', sourceId: o.ownerId, sourceName: o.name,
+    houseId: h ? h.houseId : '',
+    remark: `从业主档案带入（${o.ownerId}）`
+  }
+}
+
+/**
+ * 从租户带入 → 草稿。企业租户把已有的工商信息一起带出来
+ * （名称 / 统一社会信用代码 / 注册地址），这些字段租户档案里本来就有，
+ * 让人再抄一遍是最没道理的重复劳动。
+ */
+export function invoiceProfileFromTenant(tenantId) {
+  const t = tenants.find(x => x.tenantId === tenantId)
+  if (!t) throw _invErr('租户不存在', 40401)
+  const isCompany = t.tenantType === '公司' || !!t.creditCode
+  if (isCompany) {
+    return {
+      profileId: '', titleType: '企业',
+      title: t.companyName || t.name,
+      taxNo: t.creditCode || '',
+      regAddress: t.regAddress || '',
+      regPhone: t.phone || '',
+      contactName: t.agentName || t.legalPerson || t.name,
+      contactPhone: t.agentPhone || t.legalPersonPhone || t.phone || '',
+      contactEmail: '',
+      sourceType: '租户', sourceId: t.tenantId, sourceName: t.companyName || t.name,
+      houseId: t.houseId || '',
+      remark: `从企业租户档案带入（${t.tenantId}）`
+    }
+  }
+  return {
+    profileId: '', titleType: '个人', title: t.name, taxNo: '',
+    contactName: t.name, contactPhone: t.phone || '', contactEmail: '',
+    sourceType: '租户', sourceId: t.tenantId, sourceName: t.name,
+    houseId: t.houseId || '',
+    remark: `从租户档案带入（${t.tenantId}）`
+  }
+}
+
+/**
+ * 某个房屋的开票信息候选：业主的在前，在住租户在后。
+ * 收银台开票时默认选第一条 —— 用户的原话是「默认开给房主，
+ * 有租户信息时可切」，所以顺序就是优先级。
+ *//** 带入用的人选：业主 682 人只回前 50（下拉里翻 682 条没人受得了），关键字可缩小 */
+export const invoiceOwnerOpts = (kw = '') => {
+  const k = String(kw || '').trim()
+  const list = k ? owners.filter(o => `${o.name}${o.phone}`.includes(k)) : owners
+  return list.slice(0, 50).map(o => {
+    const h = houses.find(x => x.ownerId === o.ownerId)
+    return {
+      value: o.ownerId, label: o.name, phone: o.phone,
+      houseName: h ? h.fullName : '',
+      /* 临时收费建单要按房屋带出项目，靠名字匹配项目名太脆（楼栋命名一改就断） */
+      houseId: h ? h.houseId : '', communityId: h ? h.communityId : ''
+    }
+  })
+}
+
+/** 带入用的租户：只在住（搬走的人不会再开票） */
+export const invoiceTenantOpts = (kw = '') => {
+  const k = String(kw || '').trim()
+  return tenants
+    .filter(t => t.status === '在住')
+    .filter(t => !k || `${t.name}${t.companyName || ''}${t.phone}`.includes(k))
+    .slice(0, 50)
+    .map(t => ({
+      value: t.tenantId,
+      label: t.tenantType === '公司' ? (t.companyName || t.name) : t.name,
+      tenantType: t.tenantType,
+      creditCode: t.creditCode || '',
+      phone: t.phone,
+      houseName: houses.find(x => x.houseId === t.houseId)?.fullName || '',
+      houseId: t.houseId || '',
+      communityId: HOUSE_COMMUNITY.get(t.houseId) || ''
+    }))
+}
+
+export function invoiceProfilesOfHouse(houseId) {
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) return []
+  const out = []
+  const byOwner = INVOICE_PROFILES.filter(p => p.enabled && p.sourceType === '业主' && p.sourceId === h.ownerId)
+  const ownerName = (owners.find(o => o.ownerId === h.ownerId) || {}).name || ''
+  const tenantIds = tenants.filter(t => t.houseId === houseId && t.status === '在住').map(t => t.tenantId)
+  const byTenant = INVOICE_PROFILES.filter(p => p.enabled && p.sourceType === '租户' && tenantIds.includes(p.sourceId))
+  out.push(...byOwner.map(p => ({ ...p, roleLabel: '房主' })))
+  out.push(...byTenant.map(p => ({ ...p, roleLabel: '租户' })))
+  /* 没有档案时给一条"临时抬头"占位：直接手填，不拦人 */
+  if (!out.length) {
+    out.push({
+      profileId: '', titleType: '个人', title: ownerName, taxNo: '',
+      roleLabel: '房主', sourceType: '业主', sourceId: h.ownerId, _adhoc: true
+    })
+  }
+  return out
+}
+
+export function saveInvoiceProfile(payload = {}) {
+  assertPerm(INVOICE_SET_PERM, `维护开票信息需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const title = String(payload.title || '').trim()
+  if (!title) throw _invErr('发票抬头不能为空')
+  if (title.length > 60) throw _invErr('发票抬头不超过 60 字')
+  const titleType = INVOICE_TITLE_TYPES.includes(payload.titleType) ? payload.titleType : '个人'
+  const taxNo = String(payload.taxNo || '').trim().toUpperCase()
+  if (titleType === '企业' && !taxNo) throw _invErr('企业抬头必须填纳税人识别号（开票要用）')
+  if (taxNo && !_taxNoOk(taxNo)) throw _invErr('纳税人识别号应为 15–20 位数字或大写字母')
+  const dup = INVOICE_PROFILES.find(p => p.title === title && p.taxNo === taxNo && p.profileId !== (payload.profileId || ''))
+  if (dup) throw _invErr(`抬头「${title}」${taxNo ? `（${taxNo}）` : ''}已经存在`, 40902)
+
+  const t = _now()
+  const common = {
+    titleType, title, taxNo,
+    bankName: String(payload.bankName || '').trim(),
+    bankAccount: String(payload.bankAccount || '').trim(),
+    regAddress: String(payload.regAddress || '').trim(),
+    regPhone: String(payload.regPhone || '').trim(),
+    contactName: String(payload.contactName || '').trim(),
+    contactPhone: String(payload.contactPhone || '').trim(),
+    contactEmail: String(payload.contactEmail || '').trim(),
+    sourceType: INVOICE_SOURCES.includes(payload.sourceType) ? payload.sourceType : '手动',
+    sourceId: String(payload.sourceId || ''),
+    sourceName: String(payload.sourceName || ''),
+    houseId: String(payload.houseId || ''),
+    enabled: payload.enabled !== false,
+    remark: String(payload.remark || '').trim(),
+    updatedAt: t
+  }
+
+  if (payload.profileId) {
+    const p = INVOICE_PROFILES.find(x => x.profileId === payload.profileId)
+    if (!p) throw _invErr('开票信息不存在', 40401)
+    Object.assign(p, common)
+    if (payload.isDefault) _setDefaultProfile(p.profileId)
+    return { ...p, usageCount: _invProfileUsage().get(p.profileId) || 0 }
+  }
+  INV_PROFILE_SEQ += 1
+  const rec = {
+    profileId: _invProfileNo(), ...common,
+    isDefault: !!payload.isDefault,
+    createdAt: t, createdBy: '当前登录人'
+  }
+  INVOICE_PROFILES.push(rec)
+  if (rec.isDefault) _setDefaultProfile(rec.profileId)
+  return { ...rec, usageCount: 0 }
+}
+
+/** 默认抬头全库唯一：收银台"默认开给房主"要的是确定的一个，不能有并列 */
+function _setDefaultProfile(profileId) {
+  for (const p of INVOICE_PROFILES) p.isDefault = p.profileId === profileId
+}
+
+export function setDefaultInvoiceProfile(profileId) {
+  assertPerm(INVOICE_SET_PERM, `维护开票信息需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const p = INVOICE_PROFILES.find(x => x.profileId === profileId)
+  if (!p) throw _invErr('开票信息不存在', 40401)
+  if (!p.enabled) throw _invErr('已停用的抬头不能设为默认', 40927)
+  _setDefaultProfile(profileId)
+  return invoiceProfileOf(profileId)
+}
+
+export function toggleInvoiceProfile(profileId, enabled) {
+  assertPerm(INVOICE_SET_PERM, `维护开票信息需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const p = INVOICE_PROFILES.find(x => x.profileId === profileId)
+  if (!p) throw _invErr('开票信息不存在', 40401)
+  p.enabled = !!enabled
+  p.updatedAt = _now()
+  if (!p.enabled && p.isDefault) p.isDefault = false
+  return invoiceProfileOf(profileId)
+}
+
+/** 从来源重新带入：显式覆盖，覆盖前把旧值留在 remark 里，事后能说清改了什么 */
+export function refreshProfileFromSource(profileId) {
+  assertPerm(INVOICE_SET_PERM, `维护开票信息需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const p = INVOICE_PROFILES.find(x => x.profileId === profileId)
+  if (!p) throw _invErr('开票信息不存在', 40401)
+  if (!p.sourceId || p.sourceType === '手动') throw _invErr('这条是手工填写的，没有可带入的来源', 40928)
+  const draft = p.sourceType === '业主'
+    ? invoiceProfileFromOwner(p.sourceId)
+    : invoiceProfileFromTenant(p.sourceId)
+  const before = p.title
+  p.title = draft.title
+  p.titleType = draft.titleType
+  p.taxNo = draft.taxNo || p.taxNo
+  p.contactName = draft.contactName || p.contactName
+  p.contactPhone = draft.contactPhone || p.contactPhone
+  p.regAddress = draft.regAddress || p.regAddress
+  p.updatedAt = _now()
+  return { ...invoiceProfileOf(profileId), _before: before }
+}
+
+/* ---------------- ③ 票据模板（1 套，参数可调） ---------------- */
+
+export const INVOICE_TPL_DEFAULT = {
+  tplId: 'IT01',
+  name: '通用收款票据模板',
+  title: '收 款 收 据',
+  paper: { width: 241, height: 140 },
+  margin: { top: 12, right: 10, bottom: 8, left: 10 },
+  offset: { x: 0, y: 0 },
+  font: { family: '宋体', size: 10, lineHeight: 1.7 },
+  copies: 3,
+  copyTitles: ['存根联', '客户联', '财务联'],
+  showStub: true,
+  showQr: false,
+  footerLeft: '收款人：',
+  footerRight: '复核：',
+  note: '本收据仅作收款凭证，不作报销凭证。',
+  updatedAt: '2026-11-01 09:00',
+  updatedBy: '财务部'
+}
+
+let INVOICE_TPL = JSON.parse(JSON.stringify(INVOICE_TPL_DEFAULT))
+
+export const invoiceTplGet = () => JSON.parse(JSON.stringify(INVOICE_TPL))
+
+export const INVOICE_FONT_FAMILIES = ['宋体', '仿宋', '黑体', '楷体']
+export const INVOICE_PAPER_PRESETS = [
+  { name: '241 × 140（常见针打收据，三联）', width: 241, height: 140 },
+  { name: '241 × 93（针打小票，单联）', width: 241, height: 93 },
+  { name: '210 × 140（A5 横向）', width: 210, height: 140 },
+  { name: 'A4（激光 / 喷墨）', width: 210, height: 297 }
+]
+
+export function invoiceTplCheck(patch = {}) {
+  const errs = []
+  const w = Number(patch.paper?.width)
+  const h = Number(patch.paper?.height)
+  if (!(w >= 100 && w <= 420)) errs.push('纸张宽度应在 100–420mm（241 是针打连续纸的标准宽）')
+  if (!(h >= 60 && h <= 297)) errs.push('纸张高度应在 60–297mm')
+  const m = patch.margin || {}
+  for (const k of ['top', 'right', 'bottom', 'left']) {
+    const v = Number(m[k])
+    if (!(v >= 0 && v <= 60)) errs.push(`页边距「${k}」应在 0–60mm`)
+  }
+  if (Number(m.left) + Number(m.right) >= w - 40) errs.push('左右边距太大，内容区宽度不足 40mm')
+  if (Number(m.top) + Number(m.bottom) >= h - 30) errs.push('上下边距太大，内容区高度不足 30mm')
+  const size = Number(patch.font?.size)
+  if (!(size >= 6 && size <= 16)) errs.push('字号应在 6–16pt（针打低于 6pt 会糊，高于 16pt 一页放不下）')
+  const lh = Number(patch.font?.lineHeight)
+  if (!(lh >= 1 && lh <= 3)) errs.push('行高倍数应在 1.0–3.0')
+  const copies = Number(patch.copies)
+  if (!(copies >= 1 && copies <= 4)) errs.push('联数应为 1–4（再多针打一次过不去）')
+  if (!String(patch.title || '').trim()) errs.push('票据标题不能为空')
+  if (!['宋体', '仿宋', '黑体', '楷体'].includes(patch.font?.family)) errs.push('字体只能选宋体 / 仿宋 / 黑体 / 楷体（针打自带字库就这几套）')
+  return { ok: errs.length === 0, errs }
+}
+
+export function saveInvoiceTpl(patch = {}) {
+  assertPerm(INVOICE_SET_PERM, `维护票据模板需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  const draft = {
+    ...invoiceTplGet(),
+    ...patch,
+    paper: { ...INVOICE_TPL.paper, ...(patch.paper || {}) },
+    margin: { ...INVOICE_TPL.margin, ...(patch.margin || {}) },
+    offset: { ...INVOICE_TPL.offset, ...(patch.offset || {}) },
+    font: { ...INVOICE_TPL.font, ...(patch.font || {}) }
+  }
+  const chk = invoiceTplCheck(draft)
+  if (!chk.ok) throw _invErr(`模板参数不合法：${chk.errs.join('；')}`, 42213)
+  draft.copies = Number(draft.copies)
+  draft.copyTitles = (draft.copyTitles || []).slice(0, draft.copies)
+  while (draft.copyTitles.length < draft.copies) draft.copyTitles.push(`第 ${draft.copyTitles.length + 1} 联`)
+  draft.updatedAt = _now()
+  draft.updatedBy = '当前登录人'
+  INVOICE_TPL = draft
+  return invoiceTplGet()
+}
+
+export function resetInvoiceTpl() {
+  assertPerm(INVOICE_SET_PERM, `维护票据模板需要「开票设置」操作权限（${INVOICE_SET_PERM}）`)
+  INVOICE_TPL = JSON.parse(JSON.stringify(INVOICE_TPL_DEFAULT))
+  INVOICE_TPL.updatedAt = _now()
+  INVOICE_TPL.updatedBy = '当前登录人'
+  return invoiceTplGet()
+}
+
+/* ---------------- 金额大写（票据上必须有） ---------------- */
+
+const _RMB_D = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+const _RMB_U = ['', '拾', '佰', '仟']
+const _RMB_S = ['', '万', '亿', '万亿']
+
+function _rmbSection(n) {
+  let s = ''
+  let zero = false
+  for (let i = 3; i >= 0; i--) {
+    const d = Math.floor(n / Math.pow(10, i)) % 10
+    if (d === 0) {
+      if (s) zero = true
+    } else {
+      if (zero) { s += '零'; zero = false }
+      s += _RMB_D[d] + _RMB_U[i]
+    }
+  }
+  return s
+}
+
+/** 金额转人民币大写：票据上小写与大写必须一致，财务退单最常挑这一条 */
+export function rmbUpper(value) {
+  const num = Math.round((Number(value) || 0) * 100)
+  if (!Number.isFinite(num) || num < 0) return ''
+  if (num === 0) return '零元整'
+  const yuan = Math.floor(num / 100)
+  const jiao = Math.floor((num % 100) / 10)
+  const fen = num % 10
+
+  let out = ''
+  if (yuan > 0) {
+    const secs = []
+    let y = yuan
+    while (y > 0) { secs.push(y % 10000); y = Math.floor(y / 10000) }
+    for (let i = secs.length - 1; i >= 0; i--) {
+      const sec = secs[i]
+      if (sec === 0) {
+        if (out && !out.endsWith('零')) out += '零'
+        continue
+      }
+      if (out && !out.endsWith('零') && sec < 1000) out += '零'
+      out += _rmbSection(sec) + _RMB_S[i]
+    }
+    out = out.replace(/零+$/, '') + '元'
+  } else {
+    out = '零元'
+  }
+  if (jiao === 0 && fen === 0) return out + '整'
+  if (jiao > 0) out += _RMB_D[jiao] + '角'
+  else out += '零'
+  if (fen > 0) out += _RMB_D[fen] + '分'
+  else out += '整'
+  return out
+}
+
+/* ---------------- 种子 ---------------- */
+
+/* 个人抬头：从真实业主里挑，来源记业主 id —— 演示"带入"后的档案长什么样 */
+;(function _seedInvoiceProfiles() {
+  const pickOwner = (idx) => owners[idx]
+  const personal = [
+    [pickOwner(3), true, '经常来前台开票，已存为默认'],
+    [pickOwner(27), false, ''],
+    [pickOwner(101), false, '']
+  ]
+  for (const [o, isDef, remark] of personal) {
+    if (!o) continue
+    const h = houses.find(x => x.ownerId === o.ownerId)
+    _invProfileSeed({
+      titleType: '个人', title: o.name,
+      contactName: o.name, contactPhone: o.phone,
+      sourceType: '业主', sourceId: o.ownerId, sourceName: o.name,
+      houseId: h ? h.houseId : '', isDefault: !!isDef, remark
+    })
+  }
+
+  /* 企业抬头：从真实企业租户带出工商信息 —— 名称/税号/注册地址本来就在档案里 */
+  const companies = tenants.filter(t => t.tenantType === '公司' && t.creditCode).slice(0, 4)
+  for (const t of companies) {
+    _invProfileSeed({
+      titleType: '企业', title: t.companyName || t.name,
+      taxNo: t.creditCode, regAddress: t.regAddress, regPhone: t.phone,
+      contactName: t.agentName || t.legalPerson || t.name,
+      contactPhone: t.agentPhone || t.phone,
+      sourceType: '租户', sourceId: t.tenantId, sourceName: t.companyName || t.name,
+      houseId: t.houseId,
+      remark: `企业承租，开票信息从租户档案带入`
+    })
+  }
+
+  /* 纯手工档：临时收费遇到的单位，业主表里根本没有 */
+  _invProfileSeed({
+    titleType: '企业', title: '成都锦江夜市管理有限公司',
+    taxNo: '91510104MA6C8X2K3P', regAddress: '成都市锦江区东大街 88 号',
+    regPhone: '028-86661234',
+    contactName: '刘敏', contactPhone: '13880001234',
+    sourceType: '手动', remark: '摆摊费月结客户，与业主无关'
+  })
+  _invProfileSeed({
+    titleType: '企业', title: '四川会展服务有限公司',
+    taxNo: '91510100MA61YQ7N2B', regAddress: '成都市武侯区人民南路四段 1 号',
+    contactName: '陈立', contactPhone: '13908012345',
+    sourceType: '手动', remark: '场地租用，按次开票'
+  })
+  _invProfileSeed({
+    titleType: '个人', title: '王秀兰', contactName: '王秀兰', contactPhone: '13550123456',
+    sourceType: '手动', remark: '临时摊位个人缴费'
+  })
+})()
 
 /* ---------------- B4 装修押金台账（写操作） ---------------- */
 
@@ -7735,6 +8691,747 @@ export function toggleAutoDeduct(accountId) {
 }
 
 export const prepayAccountOf = houseId => prepayAccounts.find(a => a.houseId === houseId) || null
+
+/* ==================================================================
+ * B6 · 收银台收款 + 组合支付（2026-11-06 第 62 批）
+ *
+ * 本批之前收银台是**假销账**：只改账单行的 status / paidAmount / unpaid，
+ * 一条 payment 都没写。后果是日结拿不到这笔钱、开票池里也没有它、
+ * 报表口径自然对不上 —— 界面上"收款成功"了，账上什么都没发生。
+ *
+ * 现在补上真实链路：**写流水 → 销账 → 回写账单**，三步一起，缺一步账就不平。
+ *
+ * 组合支付的口径：
+ *   ① 一笔收款最多 **3 种**方式。再多，对账时分不清是系统错还是人填错；
+ *   ② 同一种方式只能一行（两行现金合成一行，否则日结会出现两条"现金"）；
+ *   ③ 各方式金额合计**必须等于实收**，差一分都不让提交 —— 收银台宁可多问一句；
+ *   ④ **预存抵扣可以与其他方式组合**，固定排第一行，先抵余额再补差；
+ *   ⑤ 挂账不进组合：挂账是"没收到钱"，塞进金额行会让实收虚高。
+ *
+ * 分摊：一笔收款可能覆盖多张账单，而 payment 是「一条流水对一张账单」
+ * （开票、催缴、账单详情都按这个口径查）。所以按账单应收比例把各方式拆开，
+ * 每条 payment 带自己的 `splits`，加起来正好是整笔的 —— 日结按 splits 汇总就不会重复计。
+ *
+ * 老数据没有 `splits`（3300 多条种子流水），统一用 `method` 兜底，
+ * 见 `_splitsOf`：**这是唯一的分支点**，别在页面里再判断一次。
+ * ================================================================== */
+
+export const PAY_METHODS = ENUM.payMethod
+export const PAY_SPLIT_MAX = 3
+
+const _cash2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+/** 一条流水实际拆成了哪几种方式；老数据没有 splits 就用 method 兜底 */
+export function _splitsOf(p) {
+  if (Array.isArray(p && p.splits) && p.splits.length) return p.splits
+  return p && p.method ? [{ method: p.method, amount: Number(p.amount) || 0 }] : []
+}
+
+/** 组合支付的展示文本：`现金 200 + 微信支付 122.39`，列表与详情共用 */
+export function payMethodText(p) {
+  const rows = _splitsOf(p)
+  if (!rows.length) return p && p.method ? p.method : '—'
+  if (rows.length === 1) return rows[0].method
+  return rows.map(s => `${s.method} ${_cash2(s.amount)}`).join(' + ')
+}
+
+/**
+ * 组合支付校验。**返回错误清单而不是抛第一个** —— 收银台要一次说清所有问题，
+ * 改一处试一次会让人在窗口前排队。
+ */
+export function paySplitCheck(splits = [], total = 0) {
+  const errs = []
+  const rows = (Array.isArray(splits) ? splits : [])
+    .filter(s => s && s.method)
+    .map(s => ({ method: s.method, amount: _cash2(s.amount) }))
+
+  if (!rows.length) errs.push('请至少选择一种收款方式')
+  if (rows.length > PAY_SPLIT_MAX) errs.push(`最多 ${PAY_SPLIT_MAX} 种收款方式（再多对账时分不清是系统错还是人填错）`)
+
+  const seen = new Set()
+  for (const s of rows) {
+    if (!PAY_METHODS.includes(s.method)) errs.push(`不支持的收款方式「${s.method}」`)
+    if (!(s.amount > 0)) errs.push(`「${s.method}」的金额必须大于 0`)
+    if (seen.has(s.method)) errs.push(`「${s.method}」出现了两次，同一种方式请合成一行`)
+    seen.add(s.method)
+  }
+
+  const sum = _cash2(rows.reduce((a, s) => a + s.amount, 0))
+  const target = _cash2(total)
+  const diff = _cash2(target - sum)
+  if (rows.length && Math.abs(diff) > 0.01) {
+    errs.push(diff > 0
+      ? `已分配 ¥${sum}，还差 ¥${diff} 未分配`
+      : `已分配 ¥${sum}，超出 ¥${_cash2(-diff)}`)
+  }
+  return { rows, sum, total: target, diff, ok: errs.length === 0, msg: errs.join('；') }
+}
+
+/** 按权重把一组金额拆成 n 份（分到「分」为单位，最后一份兜底差额） */
+function _allocSplits(splits, weights) {
+  const cents = splits.map(s => Math.round(s.amount * 100))
+  const totalW = weights.reduce((a, w) => a + w, 0) || 1
+  return weights.map((w, i) => {
+    const isLast = i === weights.length - 1
+    const row = splits.map((s, j) => {
+      const take = isLast ? cents[j] : Math.round(s.amount * 100 * w / totalW)
+      cents[j] -= take
+      return { method: s.method, amount: take / 100 }
+    }).filter(x => x.amount > 0.004)
+    /* 舍入会让这一条的合计差几分，补到最大的一笔上 —— 否则每条流水的
+       splits 加起来不等于它自己的 amount，开票金额就会飘 */
+    const sum = _cash2(row.reduce((a, r) => a + r.amount, 0))
+    const diff = _cash2(w - sum)
+    if (Math.abs(diff) > 0.004 && row.length) {
+      const big = row.reduce((m, r) => (r.amount > m.amount ? r : m), row[0])
+      big.amount = _cash2(big.amount + diff)
+    }
+    return row
+  })
+}
+
+let _PAY_BATCH_SEQ = 0
+const _payBatchNo = day => {
+  _PAY_BATCH_SEQ += 1
+  return `SK${String(day).replace(/-/g, '')}-${String(_PAY_BATCH_SEQ).padStart(3, '0')}`
+}
+
+const _payErr = (msg, code) => Object.assign(new Error(msg), { code: code || 42201 })
+
+/**
+ * 收银台收款。
+ *
+ * @param {{billIds:string[], splits:{method:string,amount:number}[], discount?:number,
+ *          remark?:string, operator?:string, at?:string}} payload
+ */
+export function payBills({ billIds = [], splits = [], discount = 0, remark = '', operator = '当前登录人', at = '' } = {}) {
+  const ids = Array.isArray(billIds) ? billIds : [billIds]
+  if (!ids.length) throw _payErr('请先勾选要收款的账单')
+
+  const list = ids.map(id => bills.find(b => b.billId === id))
+  const missIdx = list.findIndex(b => !b)
+  if (missIdx >= 0) throw _payErr(`账单 ${ids[missIdx]} 不存在`, 40401)
+
+  const dead = list.find(b => !isDebt(b))
+  if (dead) throw _payErr(`账单 ${dead.billId} 当前不是欠费状态（${dead.status}），请刷新后重试`, 40926)
+
+  const owners = [...new Set(list.map(b => b.ownerId))]
+  if (owners.length > 1) throw _payErr('一次收款只能针对同一位业主，不同业主请分开收', 42201)
+
+  const unpaidSum = _cash2(list.reduce((s, b) => s + (b.unpaid || 0), 0))
+  const disc = _cash2(discount)
+  if (disc < 0) throw _payErr('减免金额不能为负')
+  if (disc > unpaidSum + 0.01) throw _payErr(`减免 ¥${disc} 超过应缴 ¥${unpaidSum}`)
+  const received = _cash2(unpaidSum - disc)
+
+  const chk = paySplitCheck(splits, received)
+  if (!chk.ok) throw _payErr(chk.msg, 42212)
+
+  /* 每条账单的实收：按应缴比例分减免，最后一条兜底 */
+  const weights = list.map(b => b.unpaid || 0)
+  const discParts = []
+  {
+    let left = Math.round(disc * 100)
+    const totalW = weights.reduce((a, w) => a + w, 0) || 1
+    weights.forEach((w, i) => {
+      const isLast = i === weights.length - 1
+      const c = isLast ? left : Math.round(disc * 100 * w / totalW)
+      left -= c
+      discParts.push(c / 100)
+    })
+  }
+  const billReceived = list.map((b, i) => _cash2((b.unpaid || 0) - discParts[i]))
+  const billSplits = _allocSplits(chk.rows, billReceived)
+
+  /* 预存抵扣：按账单所属房屋逐笔扣，先验证再加账 ——
+     边扣边失败会留下"扣了钱但没销账"的中间态 */
+  const prepayPlan = []
+  for (let i = 0; i < list.length; i++) {
+    const need = _cash2(billSplits[i].filter(s => s.method === '预存抵扣').reduce((a, s) => a + s.amount, 0))
+    if (need <= 0) continue
+    const hid = list[i].houseId
+    const acc = prepayAccounts.find(a => a.houseId === hid)
+    if (!acc) throw _payErr(`房屋 ${houseName(hid)} 没有预存账户，不能用预存抵扣`, 40928)
+    if (acc.status !== '正常') throw _payErr(`房屋 ${houseName(hid)} 的预存账户状态为「${acc.status}」，不可抵扣`, 40929)
+    prepayPlan.push({ acc, need })
+  }
+  {
+    const byAcc = new Map()
+    for (const p of prepayPlan) byAcc.set(p.acc.accountId, (byAcc.get(p.acc.accountId) || 0) + p.need)
+    for (const [accountId, need] of byAcc) {
+      const acc = prepayAccounts.find(a => a.accountId === accountId)
+      if (_cash2(need) > _cash2(acc.balance) + 0.01) {
+        throw _payErr(`预存余额不足：${houseName(acc.houseId)} 可用 ¥${_cash2(acc.balance)}，本次要抵扣 ¥${_cash2(need)}`, 42213)
+      }
+    }
+  }
+
+  /* ---- 写入 ----
+     时间用**数据集当下**（TODAY）的日期 + 真实时分：种子数据全在 2026-10-21，
+     新收款若记成真实今天（11 月），当天的日结页会一条都看不到，看着像没收上钱 */
+  const time = at || _now().replace(/^\d{4}-\d{2}-\d{2}/, TODAY)
+  const day = time.slice(0, 10)
+  const batchNo = _payBatchNo(day)
+  const created = []
+
+  for (let i = 0; i < list.length; i++) {
+    const b = list[i]
+    const mine = billSplits[i]
+    if (!mine.length) continue
+
+    PAY_SEQ += 1
+    const pay = {
+      payId: 'PM' + String(PAY_SEQ).padStart(6, '0'),
+      billId: b.billId,
+      houseId: b.houseId,
+      ownerId: b.ownerId,
+      amount: billReceived[i],
+      /* method 保留为「金额最大的一笔」：老报表、日结旧逻辑、导出都还在读它，
+         拆掉等于让所有下游同时改 */
+      method: mine.reduce((m, s) => (s.amount > m.amount ? s : m), mine[0]).method,
+      splits: mine.map(s => ({ method: s.method, amount: _cash2(s.amount) })),
+      payTime: time,
+      transNo: 'TXN' + String(Date.now()).slice(-10) + String(i).padStart(2, '0'),
+      operator,
+      invoiceStatus: '未开票',
+      invoiceNo: '',
+      channel: '前台收款',
+      batchNo,
+      remark: String(remark || '').trim(),
+      _isNew: true
+    }
+    payments.unshift(pay)
+    _syncPayRow(pay, { insert: true })
+    created.push(pay)
+
+    /* 销账：paidAmount 加实收、discount 单独记（不能并进 paidAmount，
+       否则"减免了多少"事后查不出来），unpaid 归零 */
+    b.paidAmount = _cash2((b.paidAmount || 0) + billReceived[i])
+    b.discount = _cash2((b.discount || 0) + discParts[i])
+    b.unpaid = 0
+    b.status = '已缴'
+    b.payTime = time
+    b.payMethod = pay.method
+    b.overdueDays = 0
+    _syncBillRow(b)
+  }
+
+  /* 预存扣款：放在流水写完之后，扣不动上面的校验已经拦住了 */
+  const prepayTouched = []
+  for (const p of prepayPlan) {
+    const amt = _cash2(p.need)
+    if (amt <= 0) continue
+    p.acc.balance = _cash2(p.acc.balance - amt)
+    p.acc.totalDeduct = _cash2((p.acc.totalDeduct || 0) + amt)
+    p.acc.lastDeductDate = day
+    PL_SEQ += 1
+    PREPAY_LOGS.unshift({
+      logId: 'PL' + String(PL_SEQ).padStart(6, '0'), accountId: p.acc.accountId, type: '抵扣',
+      amount: -amt, balance: p.acc.balance, method: '收银台抵扣', time,
+      operator, remark: `收银台收款抵扣（${batchNo}）`
+    })
+    prepayTouched.push({ accountId: p.acc.accountId, houseId: p.acc.houseId, amount: amt })
+  }
+
+  track('cashier_pay', { batchNo, count: created.length, amount: received, splits: chk.rows.length })
+
+  return {
+    batchNo,
+    count: created.length,
+    payable: unpaidSum,
+    discount: disc,
+    received,
+    splits: chk.rows,
+    payments: created,
+    prepay: prepayTouched,
+    methodText: chk.rows.length > 1
+      ? chk.rows.map(s => `${s.method} ${_cash2(s.amount)}`).join(' + ')
+      : (chk.rows[0] ? chk.rows[0].method : '')
+  }
+}
+
+/** 某房屋的预存可用余额（收银台抵扣行要显示） */
+export const prepayBalanceOf = houseId => {
+  const a = prepayAccounts.find(x => x.houseId === houseId)
+  return a && a.status === '正常' ? _cash2(a.balance) : 0
+}
+
+/* ==================================================================
+ * B6 域 · 临时收费（2026-11-06 第 63 批）
+ *
+ * 「摆摊费」这类钱与业务无关：没有应收、不挂房屋、也不进账单。
+ * 硬塞进 bills 会有两个后果，都是隐性的：
+ *   ① 收缴率的分母被污染 —— 收缴率是「应收 vs 实收」，而临时收费压根没有"应收"
+ *      这一步，进了分母只会让收缴率凭空下降，没人能解释；
+ *   ② 账单页出现一堆没有房屋、没有业主的怪行，催缴、账龄、欠费排行全部要加豁免。
+ *
+ * 所以独立成表，只做三件事：
+ *   ① 建单（对象三选一：业主 / 租户 / 外部单位或个人）；
+ *   ② 收款（写一条 payments，`channel='临时收费'`，日结能看见、开票池能开票）；
+ *   ③ 计入收入（按科目汇总进营业收入，但**不进收缴率**）。
+ *
+ * 与账单的关系：零。没有 billId、不改 bills、不生成应收。
+ * 与流水的关系：收款后写一条 payment，`billId` 为空、`tempChargeId` 指回单据。
+ *
+ * 对象三选一不是"统一成一张人脸"：业主/租户能挂上房屋，是为了扫码开票和
+ * 以后对账时能说清"3 号楼那位业主的场地费"；外来摊贩没有档案，只能记名字和电话。
+ * ================================================================== */
+
+const TC_PERM_VIEW = 'b.tempCharges.view'
+const TC_PERM_EDIT = 'b.tempCharges.edit'
+
+export const canViewTempCharges = () => _hasPerm(TC_PERM_VIEW)
+export const canEditTempCharges = () => _hasPerm(TC_PERM_EDIT)
+
+/** 付款方类型。`外部` = 单位或个人，不要求有业主/租户档案 */
+export const TEMP_CHARGE_PARTY = ['业主', '租户', '外部']
+export const TEMP_CHARGE_STATUS = ['待收款', '已收款', '已作废']
+
+/**
+ * 收费事由预设。**不是白名单** —— 事由可以自由填写，
+ * 这五个只是"用得最多的几个"，省一遍打字。
+ * 与开票的「费用项目」同源（`invoiceItemOpts()`），因为发票上写的项目名就是它。
+ */
+export const TEMP_CHARGE_REASONS = ['摆摊费', '场地租用', '赔偿款', '押金', '其他']
+
+let TC_SEQ = 0
+const TEMP_CHARGES = []
+
+const _tcR2 = n => Math.round((Number(n) || 0) * 100) / 100
+const _tcError = (msg, code = 42212) => Object.assign(new Error(msg), { code })
+
+/** 编号 `LSF{日期}-{当日序号}`。**不是主键**，chargeId 才是 */
+function _tcNextNo(day) {
+  const d = String(day || TODAY).replace(/-/g, '')
+  const n = TEMP_CHARGES.filter(x => String(x.chargeNo || '').startsWith(`LSF${d}`)).length
+  return `LSF${d}-${String(n + 1).padStart(3, '0')}`
+}
+
+const _tcOf = chargeId => TEMP_CHARGES.find(x => x.chargeId === chargeId) || null
+
+/** 派生行：付款方展示名、项目名、状态色一次算好，页面不再各写一套 */
+function _tcRowOf(x) {
+  const cm = communities.find(c => c.communityId === x.communityId)
+  return {
+    ...x,
+    amount: _tcR2(x.amount),
+    communityName: cm ? cm.name : '—',
+    houseName: x.houseId ? houseName(x.houseId) : '',
+    /** 业主/租户显示档案名 + 房屋；外部只显示手填的名字 */
+    partyLabel: x.partyType === '外部'
+      ? `${x.partyName}${x.partyPhone ? ' · ' + x.partyPhone : ''}`
+      : `${x.partyName}${x.houseId ? ' · ' + houseName(x.houseId) : ''}`,
+    statusType: x.status === '已收款' ? 'success' : (x.status === '已作废' ? 'info' : 'warning'),
+    /* 临时收费**永远不进收缴率**：这里显式给 false，防止以后有人顺手把它加进分母 */
+    countsInCollectionRate: false,
+    countsInIncome: x.status === '已收款'
+  }
+}
+
+/**
+ * 建单 / 改单。
+ * **只有「待收款」能改** —— 收了钱再改金额，等于让流水与单据对不上，
+ * 而流水是已经进了日结的。要改先作废重开。
+ */
+export function saveTempCharge(payload = {}, chargeId = '') {
+  if (!canEditTempCharges()) throw _tcError(`当前角色没有维护临时收费的权限（${TC_PERM_EDIT}）`, 403)
+
+  const partyType = TEMP_CHARGE_PARTY.includes(payload.partyType) ? payload.partyType : ''
+  if (!partyType) throw _tcError(`付款方类型只能是 ${TEMP_CHARGE_PARTY.join(' / ')}`)
+
+  const partyName = String(payload.partyName || '').trim()
+  if (!partyName) throw _tcError(partyType === '外部' ? '请填写缴费单位或个人名称' : '请选择付款方')
+  if (partyName.length > 40) throw _tcError('付款方名称不超过 40 字')
+
+  let ownerId = ''
+  let tenantId = ''
+  let houseId = ''
+  if (partyType === '业主') {
+    const o = owners.find(x => x.ownerId === payload.ownerId)
+    if (!o) throw _tcError('选择的业主不存在', 40401)
+    ownerId = o.ownerId
+    houseId = String(payload.houseId || (o.houseIds || [])[0] || '')
+  } else if (partyType === '租户') {
+    const t = tenants.find(x => x.tenantId === payload.tenantId)
+    if (!t) throw _tcError('选择的租户不存在', 40401)
+    tenantId = t.tenantId
+    houseId = String(t.houseId || payload.houseId || '')
+  } else {
+    houseId = String(payload.houseId || '')
+  }
+
+  /* 项目必填：收入报表按项目统计，没有项目的收入只能进「集团」，等于查不出来源 */
+  const communityId = String(payload.communityId || (houseId ? (HOUSE_COMMUNITY.get(houseId) || '') : ''))
+  if (!communityId) throw _tcError('请选择所属项目（收入要按项目入账）')
+  if (!communities.some(c => c.communityId === communityId)) throw _tcError('所属项目不存在', 40401)
+
+  const reason = String(payload.reason || '').trim()
+  if (!reason) throw _tcError('请填写收费事由')
+  if (reason.length > 40) throw _tcError('收费事由不超过 40 字')
+
+  /* 收入科目默认等于事由：发票上写的就是它，让人填两遍没意义 */
+  const itemName = String(payload.itemName || reason).trim().slice(0, 20)
+
+  const amount = _tcR2(payload.amount)
+  if (!(amount > 0)) throw _tcError('收费金额必须大于 0')
+  if (amount > 1000000) throw _tcError('单笔金额不能超过 100 万，超过请拆单或走合同')
+
+  const partyPhone = String(payload.partyPhone || '').trim()
+  if (partyPhone && !/^1\d{10}$/.test(partyPhone)) throw _tcError('联系电话应为 11 位手机号')
+  const remark = String(payload.remark || '').trim()
+  if (remark.length > 120) throw _tcError('备注不超过 120 字')
+
+  const now = _now().replace(/^\d{4}-\d{2}-\d{2}/, TODAY)
+
+  if (chargeId) {
+    const cur = _tcOf(chargeId)
+    if (!cur) throw _tcError('临时收费单不存在', 40401)
+    if (cur.status !== '待收款') throw _tcError(`「${cur.status}」的单据不能修改，需先作废重开`, 40927)
+    Object.assign(cur, {
+      partyType, partyName, partyPhone, ownerId, tenantId, houseId, communityId,
+      reason, itemName, amount, remark, updatedAt: now
+    })
+    return _tcRowOf(cur)
+  }
+
+  TC_SEQ += 1
+  const rec = {
+    chargeId: 'TC' + String(TC_SEQ).padStart(5, '0'),
+    chargeNo: _tcNextNo(TODAY),
+    partyType, partyName, partyPhone, ownerId, tenantId, houseId, communityId,
+    reason, itemName, amount,
+    status: '待收款',
+    method: '', splits: [], payTime: '', payId: '', batchNo: '',
+    operator: '', remark,
+    createdAt: now, createdBy: currentOperator().name,
+    voidReason: '', voidAt: '', voidBy: ''
+  }
+  TEMP_CHARGES.unshift(rec)
+  return _tcRowOf(rec)
+}
+
+/**
+ * 收款。**先校验再写**，任何一步失败都不留半截。
+ *
+ * 写一条 `payments`：`billId` 为空、`tempChargeId` 指回单据 —— 日结按 splits
+ * 展开就能看到这笔钱，开票池也能拿它开票（临时收费照样要发票）。
+ */
+export function payTempCharge(chargeId, { splits = [], remark = '', operator = '', at = '' } = {}) {
+  if (!canEditTempCharges()) throw _tcError(`当前角色没有收款的权限（${TC_PERM_EDIT}）`, 403)
+  const c = _tcOf(chargeId)
+  if (!c) throw _tcError('临时收费单不存在', 40401)
+  if (c.status === '已收款') throw _tcError('这笔已经收过款了，请刷新后查看', 40926)
+  if (c.status === '已作废') throw _tcError('已作废的单据不能收款', 40927)
+
+  const chk = paySplitCheck(splits, c.amount)
+  if (!chk.ok) throw _tcError(chk.msg, 42212)
+
+  const time = at || _now().replace(/^\d{4}-\d{2}-\d{2}/, TODAY)
+  const day = time.slice(0, 10)
+  const batchNo = _payBatchNo(day)
+
+  PAY_SEQ += 1
+  const pay = {
+    payId: 'PM' + String(PAY_SEQ).padStart(6, '0'),
+    billId: '',
+    tempChargeId: c.chargeId,
+    tempChargeNo: c.chargeNo,
+    /* 冗余三个快照：payRow 是模块顶层生成的，读不到后面的 TEMP_CHARGES（TDZ），
+       而且单据作废/改名后流水也该显示当时的样子 */
+    tempItemName: c.itemName,
+    tempPartyName: c.partyName,
+    houseId: c.houseId || '',
+    ownerId: c.ownerId || '',
+    communityId: c.communityId,
+    amount: c.amount,
+    method: chk.rows.reduce((m, s) => (s.amount > m.amount ? s : m), chk.rows[0]).method,
+    splits: chk.rows.map(s => ({ method: s.method, amount: _tcR2(s.amount) })),
+    payTime: time,
+    transNo: 'TXN' + String(Date.now()).slice(-10) + 'T',
+    operator: operator || currentOperator().name,
+    invoiceStatus: '未开票',
+    invoiceNo: '',
+    /* 第 64 批：收据与发票是**两个独立状态** —— 只开收据的笔数不少，
+       合成一个「已开票」会让台账查不出"还差一张发票" */
+    receiptStatus: '未开具',
+    receiptNo: '',
+    channel: '临时收费',
+    batchNo,
+    remark: String(remark || '').trim(),
+    _isNew: true
+  }
+  PAY_SEQ -= 0
+  payments.unshift(pay)
+  _syncPayRow(pay, { insert: true })
+
+  Object.assign(c, {
+    status: '已收款',
+    method: pay.method,
+    splits: pay.splits,
+    payTime: time,
+    payId: pay.payId,
+    batchNo,
+    operator: pay.operator
+  })
+
+  track('temp_charge_pay', { chargeId: c.chargeId, amount: c.amount, splits: chk.rows.length })
+  return { charge: _tcRowOf(c), payment: pay, methodText: payMethodText(pay) }
+}
+
+/**
+ * 作废。**只有「待收款」能作废**；已收款的要走退款（本期不做），
+ * 直接作废会让日结里那笔钱凭空消失，而且找不到凭据。
+ */
+export function voidTempCharge(chargeId, reason = '') {
+  if (!canEditTempCharges()) throw _tcError(`当前角色没有维护临时收费的权限（${TC_PERM_EDIT}）`, 403)
+  const c = _tcOf(chargeId)
+  if (!c) throw _tcError('临时收费单不存在', 40401)
+  if (c.status === '已收款') throw _tcError('已收款的单据不能作废，需走退款流程', 40927)
+  if (c.status === '已作废') throw _tcError('这张单已经作废了', 40928)
+  const why = String(reason || '').trim()
+  if (!why) throw _tcError('作废必须写原因 —— 台账要能解释这张单为什么没收钱')
+  c.status = '已作废'
+  c.voidReason = why.slice(0, 60)
+  c.voidAt = _now().replace(/^\d{4}-\d{2}-\d{2}/, TODAY)
+  c.voidBy = currentOperator().name
+  return _tcRowOf(c)
+}
+
+/* ---------------- 读 ---------------- */
+
+export function queryTempCharges({ pageNo = 1, size = 20, filters = {} } = {}) {
+  return delay(() => {
+    assertInScope({ communityId: filters.communityId })
+    const list = TEMP_CHARGES
+      .filter(x => eq(x, filters.communityId, 'communityId'))
+      .filter(x => eq(x, filters.partyType, 'partyType'))
+      .filter(x => eq(x, filters.status, 'status'))
+      .filter(x => eq(x, filters.itemName, 'itemName'))
+      .filter(x => !filters.range || between(x.payTime || x.createdAt, filters.range))
+      .filter(x => kwHit(x, filters.kw, ['chargeNo', 'partyName', 'partyPhone', 'reason', 'itemName'],
+        `${x.operator || ''}`))
+      .map(_tcRowOf)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    return paged(list, pageNo, size)
+  })
+}
+
+export function getTempCharge(chargeId) {
+  return delay(() => {
+    const c = _tcOf(chargeId)
+    if (!c) return null
+    const row = _tcRowOf(c)
+    return { ...row, payment: c.payId ? (payments.find(p => p.payId === c.payId) || null) : null }
+  })
+}
+
+/** 台账顶部四个数：待收、本月已收、累计已收、已作废 */
+export function tempChargeStats() {
+  const month = TODAY.slice(0, 7)
+  const paid = TEMP_CHARGES.filter(x => x.status === '已收款')
+  return {
+    total: TEMP_CHARGES.length,
+    pending: TEMP_CHARGES.filter(x => x.status === '待收款').length,
+    pendingAmount: _tcR2(TEMP_CHARGES.filter(x => x.status === '待收款').reduce((s, x) => s + x.amount, 0)),
+    paidCount: paid.length,
+    paidAmount: _tcR2(paid.reduce((s, x) => s + x.amount, 0)),
+    monthAmount: _tcR2(paid.filter(x => String(x.payTime).startsWith(month)).reduce((s, x) => s + x.amount, 0)),
+    voided: TEMP_CHARGES.filter(x => x.status === '已作废').length,
+    external: TEMP_CHARGES.filter(x => x.partyType === '外部').length
+  }
+}
+
+/**
+ * 临时收费收入（**只算已收款**）。
+ *
+ * 这是「计入收入」的取数口：`companyRevenue` 与营业报表都从这里拿，
+ * 不收第二遍 —— 两处各算一次，迟早会差几分钱，然后没人说得清谁对。
+ *
+ * 注意：**不进收缴率**。收缴率的定义是「应收 vs 实收」，而临时收费没有应收。
+ */
+export function tempChargeIncome(filters = {}) {
+  const list = TEMP_CHARGES
+    .filter(x => x.status === '已收款')
+    .filter(x => !filters.communityId || x.communityId === filters.communityId)
+    .filter(x => !filters.year || String(x.payTime).slice(0, 4) === String(filters.year))
+  const byItem = new Map()
+  for (const x of list) {
+    const k = x.itemName || '其他'
+    const cur = byItem.get(k) || { itemName: k, count: 0, amount: 0 }
+    cur.count += 1
+    cur.amount = _tcR2(cur.amount + x.amount)
+    byItem.set(k, cur)
+  }
+  return {
+    count: list.length,
+    total: _tcR2(list.reduce((s, x) => s + x.amount, 0)),
+    byItem: [...byItem.values()].sort((a, b) => b.amount - a.amount),
+    /** 显式声明：这部分钱不进收缴率分母 */
+    countsInCollectionRate: false
+  }
+}
+
+/** 台账的下拉选项：事由、科目（与开票费用项目同源） */
+export const tempChargeReasonOpts = () => {
+  const items = invoiceItemOpts().map(x => x.value)
+  const all = [...new Set([...TEMP_CHARGE_REASONS, ...items])]
+  return all.map(v => ({ value: v, label: v }))
+}
+
+/* ---------------- 种子 ----------------
+ * 独立随机流（LCG），不碰全局 Math.random —— 重跑数据集要能复现。
+ * 状态分布：已收款 6 / 待收款 5 / 已作废 1。
+ * **已收款的会同时写 payments**（channel='临时收费'），否则日结与台账两个口径
+ * 一开始就对不上，后面谁都不敢信这个数。
+ */
+function _tcRand(seed) {
+  let s = seed % 2147483647
+  if (s <= 0) s += 2147483646
+  return () => (s = (s * 16807) % 2147483647) / 2147483647
+}
+
+function _tcSeed() {
+  const rng = _tcRand(20261106 + 63)
+  const pick = list => list[Math.floor(rng() * list.length) % list.length]
+  const int = (a, b) => a + Math.floor(rng() * (b - a + 1))
+
+  /* 外部缴费人：摆摊、场地、赔偿，名字来自真实场景，不是"张三李四" */
+  const outside = [
+    ['陈记糖油果子', '13800002101', '摆摊费'], ['王姐手工艺品摊', '13800002102', '摆摊费'],
+    ['李师傅修鞋配钥匙', '13800002103', '摆摊费'], ['鲜果时光（临时摊位）', '13800002104', '摆摊费'],
+    ['社区便民集市 · 周三场', '13800002105', '场地租用'],
+    ['阳光健身（小区中庭推广）', '13800002106', '场地租用'],
+    ['罗记卤味', '13800002107', '摆摊费'],
+    ['临时仓库存放（3 号楼架空层）', '13800002108', '场地租用'],
+    ['快递柜占地费（丰巢）', '', '场地租用'],
+    ['电动车充电桩场地费', '13800002109', '场地租用'],
+    ['装修垃圾清运费（2-301）', '13800002110', '赔偿款'],
+    ['公共区域损坏赔偿（电梯门）', '', '赔偿款']
+  ]
+  const reasons = ['摆摊费', '场地租用', '赔偿款', '押金', '其他']
+
+  const cmIds = communities.map(c => c.communityId)
+  const months = ['2026-09', '2026-10']
+
+  const mk = (spec, i) => {
+    const [partyName, partyPhone, reason] = spec
+    const communityId = pick(cmIds)
+    const day = `${pick(months)}-${String(int(1, 20)).padStart(2, '0')}`
+    const amount = _tcR2(reason === '场地租用' ? int(300, 2400) : (reason === '赔偿款' ? int(120, 900) : int(50, 400)))
+    TC_SEQ += 1
+    return {
+      chargeId: 'TC' + String(TC_SEQ).padStart(5, '0'),
+      chargeNo: `LSF${day.replace(/-/g, '')}-${String(i + 1).padStart(3, '0')}`,
+      partyType: '外部', partyName, partyPhone,
+      ownerId: '', tenantId: '', houseId: '', communityId,
+      reason, itemName: reason === '其他' ? '其他收入' : reason, amount,
+      status: '待收款', method: '', splits: [], payTime: '', payId: '', batchNo: '',
+      operator: '', remark: '',
+      createdAt: `${day} ${String(int(9, 17)).padStart(2, '0')}:${String(int(0, 59)).padStart(2, '0')}`,
+      createdBy: '张丽（收银员）',
+      voidReason: '', voidAt: '', voidBy: ''
+    }
+  }
+
+  /* 6 条外部 + 3 条业主 + 2 条租户 = 11 条，前 6 条设为已收款 */
+  const recs = outside.slice(0, 6).map((s, i) => mk(s, i))
+
+  const ownerPool = owners.filter(o => (o.houseIds || []).length).slice(0, 400)
+  for (let i = 0; i < 3; i++) {
+    const o = pick(ownerPool)
+    const hid = (o.houseIds || [])[0]
+    const cid = HOUSE_COMMUNITY.get(hid) || cmIds[0]
+    const reason = pick(['场地租用', '押金', '其他'])
+    TC_SEQ += 1
+    const day = `${pick(months)}-${String(int(1, 20)).padStart(2, '0')}`
+    recs.push({
+      chargeId: 'TC' + String(TC_SEQ).padStart(5, '0'),
+      chargeNo: `LSF${day.replace(/-/g, '')}-${String(6 + i + 1).padStart(3, '0')}`,
+      partyType: '业主', partyName: o.name, partyPhone: o.phone || '',
+      ownerId: o.ownerId, tenantId: '', houseId: hid, communityId: cid,
+      reason, itemName: reason, amount: _tcR2(int(200, 1500)),
+      status: '待收款', method: '', splits: [], payTime: '', payId: '', batchNo: '',
+      operator: '', remark: '业主自用场地',
+      createdAt: `${day} 10:${String(int(10, 50)).padStart(2, '0')}`,
+      createdBy: '张丽（收银员）',
+      voidReason: '', voidAt: '', voidBy: ''
+    })
+  }
+
+  const tenantPool = tenants.filter(t => t.status === '在住' && t.houseId).slice(0, 200)
+  for (let i = 0; i < 2; i++) {
+    const t = pick(tenantPool)
+    if (!t) break
+    const reason = pick(reasons)
+    TC_SEQ += 1
+    const day = `${pick(months)}-${String(int(1, 20)).padStart(2, '0')}`
+    recs.push({
+      chargeId: 'TC' + String(TC_SEQ).padStart(5, '0'),
+      chargeNo: `LSF${day.replace(/-/g, '')}-${String(9 + i + 1).padStart(3, '0')}`,
+      partyType: '租户',
+      partyName: t.tenantType === '公司' ? (t.companyName || t.name) : t.name,
+      partyPhone: t.phone || '',
+      ownerId: '', tenantId: t.tenantId, houseId: t.houseId,
+      communityId: HOUSE_COMMUNITY.get(t.houseId) || cmIds[0],
+      reason, itemName: reason, amount: _tcR2(int(100, 800)),
+      status: '待收款', method: '', splits: [], payTime: '', payId: '', batchNo: '',
+      operator: '', remark: '',
+      createdAt: `${day} 15:${String(int(10, 50)).padStart(2, '0')}`,
+      createdBy: '张丽（收银员）',
+      voidReason: '', voidAt: '', voidBy: ''
+    })
+  }
+
+  /* 前 6 条已收款：写 payments，让日结、流水、收入三处一开始就同源。
+     日期都在 10-20 及以前 —— 10-21 是「今天」，留空才能验证"当场收一笔"的链路 */
+  const methods = ['微信支付', '现金', '支付宝']
+  for (let i = 0; i < 6; i++) {
+    const c = recs[i]
+    const m = methods[i % methods.length]
+    const payTime = `${String(c.createdAt).slice(0, 10)} ${String(c.createdAt).slice(11)}`
+    PAY_SEQ += 1
+    const pay = {
+      payId: 'PM' + String(PAY_SEQ).padStart(6, '0'),
+      billId: '',
+      tempChargeId: c.chargeId, tempChargeNo: c.chargeNo,
+      tempItemName: c.itemName, tempPartyName: c.partyName,
+      houseId: c.houseId || '', ownerId: c.ownerId || '', communityId: c.communityId,
+      amount: c.amount,
+      method: m,
+      splits: [{ method: m, amount: c.amount }],
+      payTime, transNo: 'TXN' + String(9000000000 + i),
+      operator: '张丽（收银员）',
+      invoiceStatus: '未开票', invoiceNo: '',
+      receiptStatus: '未开具', receiptNo: '',
+      channel: '临时收费', batchNo: `SK${payTime.slice(0, 10).replace(/-/g, '')}-T${String(i + 1).padStart(3, '0')}`,
+      remark: '', _isNew: true
+    }
+    payments.unshift(pay)
+    payments.sort((a, b) => (a.payTime < b.payTime ? 1 : -1))
+    _syncPayRow(pay, { insert: true })
+    /* 往后的单不抢前面已排好的顺序：这里直接改 c 的收款字段 */
+    c.status = '已收款'
+    c.method = m
+    c.splits = pay.splits
+    c.payTime = payTime
+    c.payId = pay.payId
+    c.batchNo = pay.batchNo
+    c.operator = pay.operator
+  }
+
+  /* 最后一条作废，演示台账要能解释"为什么没收钱" */
+  const last = recs[recs.length - 1]
+  last.status = '已作废'
+  last.voidReason = '缴费人取消，改为下周再来'
+  last.voidAt = `${String(last.createdAt).slice(0, 10)} 17:30`
+  last.voidBy = '张丽（收银员）'
+  last.paidCount = undefined
+
+  for (const r of recs) TEMP_CHARGES.push(r)
+  TEMP_CHARGES.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+}
+
+_tcSeed()
 
 /* ---------------- A3 业主合并 / 拆分（含 X3 批量回执） ---------------- */
 
@@ -10440,6 +12137,20 @@ export function refundPayment(payId, { amount, reason = '', operator = '项目�
   if (String(reason).trim().length < 4) throw new Error('请填写退款原因（至少 4 个字）')
 
   const day = _dayOf(at || _now())
+  /* 原路退：按原收款各方式的比例退回去。整笔按最大方式退的话，
+     现金那部分会被记成微信退款，日结的现金实点就对不上了 */
+  const src = _splitsOf(p)
+  const refundSplits = (() => {
+    const cents = src.map(x => Math.round(x.amount * 100))
+    const total = cents.reduce((a, c) => a + c, 0) || 1
+    let leftC = Math.round(amt * 100)
+    return src.map((x, i) => {
+      const isLast = i === src.length - 1
+      const take = isLast ? leftC : Math.round(Math.round(amt * 100) * cents[i] / total)
+      leftC -= take
+      return { method: x.method, amount: take / 100 }
+    }).filter(x => x.amount > 0.004)
+  })()
   _RF_SEQ += 1
   const row = {
     refundId: 'RF' + String(_RF_SEQ).padStart(5, '0'),
@@ -10447,7 +12158,9 @@ export function refundPayment(payId, { amount, reason = '', operator = '项目�
     payId: p.payId, billId: p.billId, houseId: p.houseId, ownerId: p.ownerId,
     ownerName: ownerName(p.ownerId), houseName: houseName(p.houseId),
     communityId: (houses.find(h => h.houseId === p.houseId) || {}).communityId || '',
-    method: p.method, channel: p.channel,
+    method: refundSplits.reduce((m, x) => (x.amount > m.amount ? x : m), refundSplits[0] || { method: p.method }).method,
+    splits: refundSplits.length ? refundSplits : [{ method: p.method, amount: amt }],
+    channel: p.channel,
     amount: amt, kind: amt >= left - 0.01 ? '全额' : '部分',
     reason: String(reason).trim(), operator, at: at || _now(),
     invoiceRedFlushed: p.invoiceStatus === '已开票'
@@ -10500,8 +12213,12 @@ export function refundSummary(filters = {}) {
 /** 某个日期可用的日结数据：按收款方式汇总「收款 / 退款 / 净额」 */
 export function dailyCloseRows(date = '2026-10-21') {
   const day = _dayOf(date)
-  const pays = PAY_ROWS.filter(p => _dayOf(p.payTime) === day)
-  const refs = REFUND_ROWS.filter(r => _dayOf(r.at) === day)
+  /* 组合支付必须**按方式拆开**再加总：一笔「现金 200 + 微信 122」如果整笔记在
+     金额最大的方式下，现金实点会少 200，而对账时又查不出差在哪 */
+  const flat = (rows, timeKey) => rows.flatMap(r =>
+    _splitsOf(r).map(x => ({ ...r, method: x.method, amount: x.amount, _at: r[timeKey] })))
+  const pays = flat(PAY_ROWS.filter(p => _dayOf(p.payTime) === day), 'payTime')
+  const refs = flat(REFUND_ROWS.filter(r => _dayOf(r.at) === day), 'at')
   const methods = [...new Set([...pays.map(p => p.method), ...refs.map(r => r.method)])]
     .filter(Boolean).sort()   /* 空渠道不出一行：汇总里出现无名的行比少一行更糟 */
   return methods.map(m => {
@@ -14647,3 +16364,1330 @@ for (const a of ASSETS) {
     _isNew: true
   })
 }
+
+/* ==================================================================
+ * N 域 · 邻里运营（2026-11-06 第 68 批）
+ *
+ * 邻里是**业主端**的入口，后台这一侧只做三件事：发布、审核、看数。
+ *
+ * 为什么不做话题广场 / 跟帖：那属于微信【社交-社区/论坛】类目，主体要提供
+ * 《非经营性互联网信息服务备案核准》或 ICP 许可证，证本身不难 —— 难的是
+ * **常态化内容审核**：邻里纠纷、指名骂物业、涉政涉黄、造谣，每条都要有人在
+ * 24 小时内处理并留证。物业没有这个编制。砍掉之后闲置成为全站唯一 UGC 源，
+ * 反而好办：一个队列、一套词、一份举报规则。
+ *
+ * 与 C 域公告的关系：**同一张表**。后台不另发一遍 —— 两处各发一次的结果是
+ * 运营要发两遍、阅读数还对不上。这里只补一个「是否同步到邻里」的开关。
+ *
+ * 四条硬口径（页面与接口按这个来，后端别改）：
+ *   ① 投票只做**意见征询**，不做《民法典》278 条的业主共同决定。表决要人数 +
+ *      专有部分面积双过半、要公示期、要能出纸质票，小程序替代不了票箱；
+ *      做了反而给人「已经表决过」的错觉。所以结果页只给参与率与分布，
+ *      **不给「是否通过」** —— 那句话一旦出现，就要承担法律效力。
+ *   ② 投票一旦开始，题目与选项都不能改。已投出去的票会指向不存在的选项，
+ *      改完票数合计还对不上。要改就复制一份新的。
+ *   ③ 收费活动必须有**成团下限**，「已截止但没到下限」是独立状态（待成行），
+ *      既不是"报名中"也不是"已结束"。少了这一态，钱收了团没成，退款没入口。
+ *   ④ 闲置**先审后发**，驳回必须写理由 —— 业主会拿着驳回通知来问「为什么」。
+ * ================================================================== */
+
+/* ---------- 权限 ---------- */
+const NV_PERM = {
+  workbench: 'n.workbench.view',
+  voteView: 'n.votes.view', voteEdit: 'n.votes.edit',
+  actView: 'n.activities.view', actEdit: 'n.activities.edit', actEnroll: 'n.activities.enroll',
+  itemView: 'n.items.view', itemAudit: 'n.items.audit',
+  reportView: 'n.reports.view', reportHandle: 'n.reports.handle'
+}
+
+export const canViewNeighborWorkbench = () => _hasPerm(NV_PERM.workbench)
+export const canViewVotes = () => _hasPerm(NV_PERM.voteView)
+export const canEditVotes = () => _hasPerm(NV_PERM.voteEdit)
+export const canViewActivities = () => _hasPerm(NV_PERM.actView)
+export const canEditActivities = () => _hasPerm(NV_PERM.actEdit)
+/**
+ * 代报名 / 取消 / 退款 / 签到：单独一个码，不跟「建活动」共用。
+ *
+ * 为什么拆：一线客服在现场帮业主报名，但**不该能建活动、改价格、确认流团**。
+ * 合成一个码的结果只有两种 —— 要么客服报不了名（现在这样），
+ * 要么把发布权一起放给客服。移动端上线后这条会更明显：手机上只做代报名。
+ */
+export const canEnrollActivities = () => _hasPerm(NV_PERM.actEnroll)
+export const canViewItems = () => _hasPerm(NV_PERM.itemView)
+export const canAuditItems = () => _hasPerm(NV_PERM.itemAudit)
+export const canViewReports = () => _hasPerm(NV_PERM.reportView)
+export const canHandleReports = () => _hasPerm(NV_PERM.reportHandle)
+
+/* ---------- 字典 ---------- */
+export const VOTE_TYPES = ['意见征询', '满意度调查', '方案征询']
+export const VOTE_STATUS = ['草稿', '进行中', '已结束']
+export const ACTIVITY_TYPES = ['公益', '收费']
+/** 草稿不在活动列表的主筛选里，但新建后、发布前就是这个状态 */
+export const ACTIVITY_PHASES = ['草稿', '报名中', '待成行', '已成行', '已流团', '已结束']
+export const ITEM_STATUSES = ['待审核', '已上架', '已驳回', '已下架', '已售出', '已过期']
+export const REPORT_REASONS = ['虚假信息', '违禁品', '骚扰辱骂', '疑似诈骗', '重复刷屏', '其他']
+export const REPORT_ACTIONS = ['忽略', '下架并警告', '仅警告', '封禁 7 天']
+
+const _nvError = (msg, code = 42230) => Object.assign(new Error(msg), { code })
+const _nvR2 = n => Math.round((Number(n) || 0) * 100) / 100
+const _nvStamp = () => `${TODAY} ${_now().slice(11, 16)}`
+const _nvStaff = pos => employees.find(e => e.position === pos && e.status !== '离职')
+  || employees.find(e => e.status !== '离职') || employees[0]
+
+const _NV_PHASE_TYPE = {
+  草稿: 'info', 报名中: 'success', 待成行: 'warning', 已成行: 'success', 已流团: 'danger', 已结束: ''
+}
+const _NV_STATUS_TYPE = {
+  待审核: 'warning', 已上架: 'success', 已驳回: 'danger', 已下架: 'info', 已售出: '', 已过期: 'info'
+}
+const _NV_VOTE_TYPE = { 草稿: 'info', 进行中: 'success', 已结束: '' }
+
+/* ==================================================================
+ * ① 投票（意见征询）
+ * ================================================================== */
+
+const NV_VOTES = []
+let _nvVoteSeq = 0
+
+const _nvVoteOf = voteId => NV_VOTES.find(v => v.voteId === voteId) || null
+
+/** 应投人数 = 该项目下有房号的业主去重数。租户不计：征询的是产权人意见 */
+function _nvTargetOf(communityId) {
+  return new Set(houses.filter(h => h.communityId === communityId && h.ownerId).map(h => h.ownerId)).size
+}
+
+function _nvVoteRow(v) {
+  const total = v.options.reduce((s, o) => s + (Number(o.votes) || 0), 0)
+  const target = _nvTargetOf(v.communityId)
+  /* 应投户数取「有房号的业主去重数」，且不小于已投票数：
+     种子里的票数是独立随机生成的，会出现 310 票 / 189 户这种硬伤。
+     参与率一旦超过 100%，这一页的数字就没人信了 —— 分母兜住上限。 */
+  const base = Math.max(target, total)
+  return {
+    voteId: v.voteId,
+    title: v.title,
+    type: v.type,
+    communityId: v.communityId,
+    communityName: communityName(v.communityId),
+    audience: v.audience || '全部业主',
+    startAt: v.startAt,
+    endAt: v.endAt,
+    status: v.status,
+    statusType: _NV_VOTE_TYPE[v.status] || '',
+    multi: !!v.multi,
+    maxPick: v.maxPick || 1,
+    anonymous: !!v.anonymous,
+    optionCount: v.options.length,
+    options: v.options.map(o => ({ ...o })),
+    totalVotes: total,
+    target: base,
+    partRate: base ? _nvR2((total / base) * 100) : 0,
+    createdBy: v.createdBy,
+    createdAt: v.createdAt,
+    publishedAt: v.publishedAt || '',
+    endedAt: v.endedAt || ''
+  }
+}
+
+function _nvSeedVotes() {
+  const cs = _nvStaff('客服主管')
+  surveys.forEach(s => {
+    NV_VOTES.push({
+      voteId: s.surveyId,
+      title: s.title,
+      type: s.type === '问卷' ? '满意度调查' : '意见征询',
+      communityId: s.communityId,
+      desc: s.desc || '',
+      startAt: s.startAt,
+      endAt: s.endAt,
+      status: s.status,
+      multi: !!s.multi,
+      maxPick: s.multi ? 2 : 1,
+      anonymous: !!s.anonymous,
+      options: s.options.map(o => ({ ...o })),
+      audience: '全部业主',
+      createdBy: cs.name,
+      createdAt: `${s.startAt} 09:20`,
+      publishedAt: `${s.startAt} 10:00`,
+      endedAt: s.status === '已结束' ? `${s.endAt} 23:59` : ''
+    })
+  })
+
+  /* 两条草稿：演示"建 → 改 → 发布"的完整路径，也让列表有非空态可看 */
+  const drafts = [
+    {
+      communityId: 'P01', title: '地下车库充电桩加装位置征询', type: '方案征询',
+      desc: '拟在 B1 层东侧加装 12 个慢充桩，三个方案各有利弊，想先听听业主的意见。本征询不构成业主共同决定。',
+      endAt: '2026-11-05', options: ['A · 靠近东出入口（离车流最近）', 'B · 中部靠墙（不占车道，但要走 30 米）', 'C · 分散布置（每区 4 个）']
+    },
+    {
+      communityId: 'P02', title: '2027 年社区文化活动偏好调查', type: '满意度调查',
+      desc: '为排明年的活动预算，想先摸一下大家更愿意参加哪一类。多选，最多选 2 项。',
+      endAt: '2026-11-12', multi: true, maxPick: 2,
+      options: ['亲子手工 / 市集', '健康讲座与义诊', '节日联欢', '户外出游', '老年兴趣班']
+    }
+  ]
+  drafts.forEach((d, i) => {
+    NV_VOTES.push({
+      voteId: `SV01${String(i + 1).padStart(2, '0')}`,
+      title: d.title,
+      type: d.type,
+      communityId: d.communityId,
+      desc: d.desc,
+      startAt: '',
+      endAt: d.endAt,
+      status: '草稿',
+      multi: !!d.multi,
+      maxPick: d.maxPick || 1,
+      anonymous: true,
+      options: d.options.map((label, k) => ({ key: `A${k + 1}`, label, votes: 0 })),
+      audience: '全部业主',
+      createdBy: cs.name,
+      createdAt: '2026-10-20 16:40',
+      publishedAt: '',
+      endedAt: ''
+    })
+  })
+}
+
+/* ---------- 读 ---------- */
+
+/**
+ * 票数归一。
+ *
+ * 种子里的票数是独立随机的，会出现「310 票 / 189 户」这种硬伤 —— 参与率 164%，
+ * 这一页的数字立刻没人信了。真实系统里不可能发生（一户一票），所以按户数上限压回来：
+ * 超过 55% 的按比例缩到 55%，余数补给票数最高的选项，保证合计对得上。
+ *
+ * 只压不回补：本来就低于 55% 的不动，避免把「参与率低」这个真实信号抹平。
+ */
+function _nvNormalizeVotes() {
+  NV_VOTES.forEach(v => {
+    const target = _nvTargetOf(v.communityId)
+    const total = v.options.reduce((s, o) => s + (Number(o.votes) || 0), 0)
+    if (!target || !total || total <= target * 0.55) return
+    const cap = Math.round(target * 0.55)
+    const factor = cap / total
+    let acc = 0
+    v.options.forEach(o => {
+      o.votes = Math.floor((Number(o.votes) || 0) * factor)
+      acc += o.votes
+    })
+    const rest = cap - acc
+    if (rest > 0) {
+      const top = v.options.reduce((m, o) => (o.votes > m.votes ? o : m), v.options[0])
+      top.votes += rest
+    }
+  })
+}
+
+export function queryVotes({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewVotes()) throw _nvError(`当前角色没有查看投票的权限（${NV_PERM.voteView}）`, 403)
+  return delay(() => {
+    assertInScope({ communityId: filters.communityId })
+    const list = NV_VOTES
+      .filter(v => eq(v, filters.communityId, 'communityId'))
+      .filter(v => eq(v, filters.type, 'type'))
+      .filter(v => eq(v, filters.status, 'status'))
+      .filter(v => kwHit(v, filters.kw, ['title', 'voteId'], v.desc || ''))
+      .map(_nvVoteRow)
+      /* 进行中排最前：运营每天要看的是"还在跑的这几个" */
+      .sort((a, b) => {
+        const rank = { 进行中: 0, 草稿: 1, 已结束: 2 }
+        if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status]
+        return String(b.endAt).localeCompare(String(a.endAt))
+      })
+    return paged(list, pageNo, size)
+  })
+}
+
+export function voteStats() {
+  const running = NV_VOTES.filter(v => v.status === '进行中').map(_nvVoteRow)
+  const ended = NV_VOTES.filter(v => v.status === '已结束').map(_nvVoteRow)
+  const avg = list => (list.length ? _nvR2(list.reduce((s, v) => s + v.partRate, 0) / list.length) : 0)
+  return {
+    total: NV_VOTES.length,
+    running: running.length,
+    draft: NV_VOTES.filter(v => v.status === '草稿').length,
+    ended: ended.length,
+    runningPartRate: avg(running),
+    endedPartRate: avg(ended),
+    votesTotal: NV_VOTES.reduce((s, v) => s + v.options.reduce((n, o) => n + o.votes, 0), 0)
+  }
+}
+
+export function getVote(voteId) {
+  const v = _nvVoteOf(voteId)
+  return v ? _nvVoteRow(v) : null
+}
+
+/**
+ * 结果聚合。
+ *
+ * 刻意**不返回「是否通过」**：这是意见征询，不是表决。给了一句"通过"，
+ * 明天就有人拿它去主张业主大会决议。只给参与率、票数、分布。
+ */
+export function voteResult(voteId) {
+  const v = _nvVoteOf(voteId)
+  if (!v) return null
+  const row = _nvVoteRow(v)
+  const options = row.options
+    .map(o => ({ ...o, pct: row.totalVotes ? _nvR2((o.votes / row.totalVotes) * 100) : 0 }))
+    .sort((a, b) => b.votes - a.votes)
+  const byHouse = {}
+  const target = row.target || 1
+  return {
+    ...row,
+    options,
+    topOption: options[0] || null,
+    /** 参与率低于 30% 时结果只能"参考"，不能拿去对外说"业主都同意" */
+    confidence: row.partRate >= 50 ? '有效' : row.partRate >= 30 ? '可参考' : '偏低',
+    notVoted: Math.max(0, target - row.totalVotes),
+    target,
+    conclusion: ''
+  }
+}
+
+/* ---------- 写 ---------- */
+
+function _nvValidateVote(body = {}) {
+  const title = String(body.title || '').trim()
+  if (!title) throw _nvError('投票标题必填')
+  if (title.length > 40) throw _nvError('标题最多 40 字')
+  if (!VOTE_TYPES.includes(body.type)) throw _nvError(`投票类型只能是 ${VOTE_TYPES.join(' / ')}`)
+  if (!body.communityId) throw _nvError('必须选择项目 —— 投票范围是按项目算的')
+  if (!body.endAt) throw _nvError('必须设置截止日期')
+  const opts = (body.options || []).map(o => String(o.label ?? o).trim()).filter(Boolean)
+  if (opts.length < 2) throw _nvError('至少需要 2 个选项')
+  if (opts.length > 10) throw _nvError('选项最多 10 个')
+  if (new Set(opts).size !== opts.length) throw _nvError('选项有重复，请合并')
+  if (opts.some(o => o.length > 30)) throw _nvError('单个选项最多 30 字')
+  if (body.multi) {
+    const max = Number(body.maxPick) || 0
+    if (max < 1 || max > opts.length) throw _nvError(`多选时「最多可选」须在 1 ~ ${opts.length} 之间`)
+  }
+  return opts
+}
+
+export function saveVote(body = {}, voteId = '') {
+  if (!canEditVotes()) throw _nvError(`当前角色没有维护投票的权限（${NV_PERM.voteEdit}）`, 403)
+  const opts = _nvValidateVote(body)
+  const cur = voteId ? _nvVoteOf(voteId) : null
+  if (voteId && !cur) throw _nvError('投票不存在', 40430)
+  /* 已开始的投票改选项 = 让已投出的票指向不存在的选项 */
+  if (cur && cur.status !== '草稿') {
+    throw _nvError('投票已开始，题目与选项都不能再改。要调整请复制一份新的', 40930)
+  }
+
+  const next = {
+    title: String(body.title).trim(),
+    type: body.type,
+    communityId: body.communityId,
+    desc: String(body.desc || '').trim(),
+    startAt: cur ? cur.startAt : '',
+    endAt: body.endAt,
+    status: '草稿',
+    multi: !!body.multi,
+    maxPick: body.multi ? Number(body.maxPick) || 1 : 1,
+    anonymous: body.anonymous !== false,
+    audience: body.audience || '全部业主',
+    options: opts.map((label, i) => {
+      const old = cur ? cur.options.find(o => o.label === label) : null
+      return { key: old ? old.key : `A${i + 1}`, label, votes: old ? old.votes : 0 }
+    })
+  }
+
+  if (cur) {
+    /* 保留原 key 上已累积的票数；被删掉的选项直接丢弃（草稿没有票，安全） */
+    Object.assign(cur, next)
+    return _nvVoteRow(cur)
+  }
+  _nvVoteSeq += 1
+  const row = {
+    ...next,
+    voteId: `SV${String(100 + _nvVoteSeq).padStart(4, '0')}`,
+    createdBy: currentOperator().name,
+    createdAt: _nvStamp(),
+    publishedAt: '',
+    endedAt: ''
+  }
+  NV_VOTES.unshift(row)
+  return _nvVoteRow(row)
+}
+
+export function publishVote(voteId) {
+  if (!canEditVotes()) throw _nvError(`当前角色没有发布投票的权限（${NV_PERM.voteEdit}）`, 403)
+  const v = _nvVoteOf(voteId)
+  if (!v) throw _nvError('投票不存在', 40430)
+  if (v.status === '进行中') throw _nvError('这个投票已经在进行中了', 40931)
+  if (v.status === '已结束') throw _nvError('已结束的投票不能重新发布，请复制一份', 40932)
+  if (toDay(v.endAt) < TODAY) throw _nvError(`截止日期 ${v.endAt} 已经过了，改一下再发布`)
+  if (v.options.length < 2) throw _nvError('至少需要 2 个选项才能发布')
+  Object.assign(v, { status: '进行中', startAt: TODAY, publishedAt: _nvStamp() })
+  track('neighbor_vote_publish', { voteId })
+  return _nvVoteRow(v)
+}
+
+export function endVote(voteId) {
+  if (!canEditVotes()) throw _nvError(`当前角色没有结束投票的权限（${NV_PERM.voteEdit}）`, 403)
+  const v = _nvVoteOf(voteId)
+  if (!v) throw _nvError('投票不存在', 40430)
+  if (v.status !== '进行中') throw _nvError('只有在进行中的投票才能结束', 40933)
+  Object.assign(v, { status: '已结束', endedAt: _nvStamp() })
+  track('neighbor_vote_end', { voteId })
+  return _nvVoteRow(v)
+}
+
+export function deleteVote(voteId) {
+  if (!canEditVotes()) throw _nvError(`当前角色没有删除投票的权限（${NV_PERM.voteEdit}）`, 403)
+  const i = NV_VOTES.findIndex(v => v.voteId === voteId)
+  if (i < 0) throw _nvError('投票不存在', 40430)
+  if (NV_VOTES[i].status !== '草稿') throw _nvError('只有草稿能删除，已发布的投票要保留留痕', 40934)
+  NV_VOTES.splice(i, 1)
+  return true
+}
+
+/* ==================================================================
+ * ② 活动（公益 / 收费）
+ * ================================================================== */
+
+const NV_ACTS = []
+let _nvActSeq = 0
+
+const _nvActOf = activityId => NV_ACTS.find(a => a.activityId === activityId) || null
+
+/** 已报名人数（含同行人，不含已取消） */
+function _nvEnrolledOf(activityId) {
+  return NV_ENROLLS
+    .filter(e => e.activityId === activityId && e.status !== '已取消' && e.status !== '已退款')
+    .reduce((s, e) => s + (Number(e.people) || 1), 0)
+}
+
+function _nvPhaseOf(a) {
+  if (a.status === '草稿') return '草稿'
+  /* 先判流团：confirmFlow 会把 status 一并置成「已结束」，
+     如果先判「已结束」，刚确认流团的活动会显示成正常结束，退款记录就看不出来了 */
+  if (a.flowedAt) return '已流团'
+  if (a.status === '已结束') return '已结束'
+  const enrolled = _nvEnrolledOf(a.activityId)
+  const deadline = a.enrollDeadline || String(a.startAt).slice(0, 10)
+  if (toDay(deadline) >= TODAY) return '报名中'
+  const min = Number(a.minCapacity) || 0
+  if (!min) return '已成行'
+  return enrolled >= min ? '已成行' : '待成行'
+}
+
+function _nvActRow(a) {
+  const enrolled = _nvEnrolledOf(a.activityId)
+  const phase = _nvPhaseOf(a)
+  const min = Number(a.minCapacity) || 0
+  const paid = NV_ENROLLS
+    /* 直接用原始记录判状态：`payStatus` 是派生字段，只存在于 _nvEnrollRow 的返回里，
+       在这里读 e.payStatus 永远是 undefined —— 已收活动费会一直显示 ¥0.00 */
+    .filter(e => e.activityId === a.activityId
+      && !['已取消', '已退款'].includes(e.status)
+      && Number(a.fee) > 0)
+    .reduce((s, e) => s + (_nvR2((a.fee || 0) * (e.people || 1))), 0)
+  return {
+    activityId: a.activityId,
+    title: a.title,
+    type: a.type,
+    fee: Number(a.fee) || 0,
+    feeText: a.fee > 0 ? `¥${_nvR2(a.fee)}/人` : '免费',
+    communityId: a.communityId,
+    communityName: communityName(a.communityId),
+    startAt: a.startAt,
+    endAt: a.endAt,
+    place: a.place,
+    capacity: a.capacity,
+    minCapacity: min,
+    enrollDeadline: a.enrollDeadline,
+    enrolled,
+    left: Math.max(0, a.capacity - enrolled),
+    /* 进度条最多 100%：种子里有报名数超过名额的活动（42/20），
+       直接按比例画会出 210% 的进度条，看起来像算错了。超额单独给一个数。 */
+    fillRate: a.capacity ? Math.min(100, _nvR2((enrolled / a.capacity) * 100)) : 0,
+    over: Math.max(0, enrolled - a.capacity),
+    /** 距成团还差几人：待成行时这是运营最想看的数 */
+    gap: min ? Math.max(0, min - enrolled) : 0,
+    phase,
+    phaseType: _NV_PHASE_TYPE[phase] || '',
+    needInsurance: !!a.needInsurance,
+    attendeeLimit: a.attendeeLimit || 1,
+    refundPolicy: a.refundPolicy || [],
+    feeInclude: a.feeInclude || '',
+    feeExclude: a.feeExclude || '',
+    organizer: a.organizer || '物业服务中心',
+    desc: a.desc || '',
+    paidAmount: _nvR2(paid),
+    createdBy: a.createdBy || '',
+    flowedAt: a.flowedAt || '',
+    flowReason: a.flowReason || ''
+  }
+}
+
+function _nvSeedActivities() {
+  const cs = _nvStaff('客服主管')
+  activities.forEach(a => {
+    NV_ACTS.push({
+      ...a,
+      enrollDeadline: a.enrollDeadline || String(a.startAt).slice(0, 10),
+      minCapacity: 0,
+      needInsurance: false,
+      attendeeLimit: 3,
+      refundPolicy: [],
+      createdBy: cs.name
+    })
+  })
+
+  /* 补三条收费活动，专门覆盖「报名中 / 待成行 / 已成行」三个分支 ——
+     原数据里收费活动只有两条且都已结束，光看它们没法验证成团逻辑。 */
+  const extra = [
+    {
+      activityId: 'AC0013', communityId: 'P02', title: '邻里出游 · 青城前山一日游',
+      type: '出游', cover: 3, startAt: '2026-11-15 07:30', endAt: '2026-11-15 18:00',
+      place: '青城山前山景区（小区南门集合上车）', capacity: 40, minCapacity: 20, fee: 180,
+      enrollDeadline: '2026-11-10', needInsurance: true, attendeeLimit: 4,
+      feeInclude: '往返大巴、景区门票、团队午餐、随车导游、旅游意外险',
+      feeExclude: '索道、观光车、个人消费',
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }],
+      desc: '费用按车费、门票、餐费成本分摊，不构成旅行社业务。出行人需实名，用于购买当日意外险；活动结束后 30 天身份信息自动脱敏。'
+    },
+    {
+      activityId: 'AC0014', communityId: 'P01', title: '秋日露营 · 亲子两天一夜',
+      type: '出游', cover: 5, startAt: '2026-11-01 14:00', endAt: '2026-11-02 12:00',
+      place: '青龙湖露营地（统一大巴往返）', capacity: 30, minCapacity: 15, fee: 260,
+      enrollDeadline: '2026-10-18', needInsurance: true, attendeeLimit: 4,
+      feeInclude: '营位、帐篷租赁、两正餐一早餐、往返交通、意外险',
+      feeExclude: '睡袋（可自带或现场租 30 元）',
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }],
+      desc: '按 15 人成团，不足则全额退款。'
+    },
+    {
+      activityId: 'AC0015', communityId: 'P03', title: '亲子农场采摘 · 含午餐',
+      type: '出游', cover: 2, startAt: '2026-10-25 09:00', endAt: '2026-10-25 16:00',
+      place: '禾田农场（自驾前往，园区东门集合）', capacity: 60, minCapacity: 20, fee: 88,
+      enrollDeadline: '2026-10-20', needInsurance: true, attendeeLimit: 5,
+      feeInclude: '采摘 2 斤、农场午餐、儿童手作材料',
+      feeExclude: '超出 2 斤按 15 元/斤计',
+      refundPolicy: [{ days: 3, ratio: 100 }, { days: 0, ratio: 50 }],
+      desc: '已达成团人数，按报名顺序确认。'
+    }
+  ]
+  extra.forEach(a => {
+    NV_ACTS.push({
+      ...a,
+      status: '报名中',
+      organizer: '物业服务中心',
+      views: 0,
+      enrolled: 0,
+      createdBy: cs.name
+    })
+  })
+}
+
+/* ---------- 报名（活动与名单共用） ---------- */
+
+const NV_ENROLLS = []
+let _nvEnrollSeq = 0
+
+const _nvEnrollOf = enrollId => NV_ENROLLS.find(e => e.enrollId === enrollId) || null
+
+const _NV_ENROLL_TYPE = {
+  已报名: 'success', 已签到: '', 已取消: 'info', 已退款: 'warning', 候补中: 'warning'
+}
+
+function _nvEnrollRow(e) {
+  const a = _nvActOf(e.activityId)
+  const fee = a ? Number(a.fee) || 0 : 0
+  return {
+    enrollId: e.enrollId,
+    activityId: e.activityId,
+    activityTitle: a ? a.title : '（活动已删除）',
+    activityStart: a ? a.startAt : '',
+    ownerId: e.ownerId || '',
+    name: e.name,
+    phone: e.phone,
+    houseShort: e.houseShort || '',
+    people: e.people || 1,
+    at: e.at,
+    status: e.status,
+    statusType: _NV_ENROLL_TYPE[e.status] || '',
+    fee,
+    amount: _nvR2(fee * (e.people || 1)),
+    payStatus: fee > 0
+      ? (['已取消', '已退款'].includes(e.status) ? '已退款' : '已支付')
+      : '无需支付',
+    attendees: (e.attendees || []).map(t => ({ ...t })),
+    source: e.source || '业主自助',
+    remark: e.remark || '',
+    refundAmount: e.refundAmount || 0,
+    refundAt: e.refundAt || '',
+    cancelReason: e.cancelReason || ''
+  }
+}
+
+const _NV_SURNAME = ['王', '李', '张', '刘', '陈', '杨', '黄', '周', '吴', '徐', '孙', '马', '朱', '胡', '郭', '何', '林', '罗']
+const _NV_GIVEN = ['语桐', '子墨', '思远', '雨桐', '浩然', '若曦', '宇轩', '梓涵', '沐宸', '一诺', '晨曦', '安然']
+
+function _nvPerson(rng, i) {
+  const pick = list => list[Math.floor(rng() * list.length) % list.length]
+  return `${pick(_NV_SURNAME)}${pick(_NV_GIVEN)}`
+}
+
+function _nvSeedEnrolls() {
+  activityEnrollments.forEach(e => {
+    NV_ENROLLS.push({ ...e, source: '业主自助' })
+  })
+
+  /* 三条收费活动的报名：让「待成行」差 7 人、「已成行」刚过线，数字能对上 */
+  const rng = (seed => {
+    let s = seed % 2147483647
+    if (s <= 0) s += 2147483646
+    return () => (s = (s * 16807) % 2147483647) / 2147483647
+  })(20261106 + 68)
+  const plan = [
+    { activityId: 'AC0013', count: 14, day: '2026-10-19' },
+    { activityId: 'AC0014', count: 8, day: '2026-10-15' },
+    { activityId: 'AC0015', count: 22, day: '2026-10-18' }
+  ]
+  const units = ['0701', '1102', '0302', '0503', '0901', '0204', '1201', '0802']
+  plan.forEach(p => {
+    for (let i = 0; i < p.count; i += 1) {
+      _nvEnrollSeq += 1
+      const people = rng() > 0.55 ? 2 : 1
+      const attendees = []
+      for (let k = 0; k < people; k += 1) {
+        attendees.push({
+          name: _nvPerson(rng, i + k),
+          idType: '身份证',
+          idNo: `5101${String(10 + (i % 80)).padStart(2, '0')}19${80 + (i % 20)}${String(1010 + i).slice(0, 4)}${String(1000 + i * 7).slice(-4)}`.slice(0, 18),
+          phone: `138${String(10000000 + i * 137 + k).slice(-8)}`,
+          ageType: k === 0 ? '成人' : (rng() > 0.6 ? '儿童' : '成人'),
+          emergencyName: _nvPerson(rng, i + 3),
+          emergencyPhone: `139${String(20000000 + i * 211).slice(-8)}`
+        })
+      }
+      NV_ENROLLS.push({
+        enrollId: `AE${String(300 + _nvEnrollSeq).padStart(4, '0')}`,
+        activityId: p.activityId,
+        ownerId: `OW${String(100 + i).padStart(5, '0')}`,
+        name: attendees[0].name,
+        phone: attendees[0].phone,
+        houseShort: `${_nvActOf(p.activityId).communityId}-0${(i % 9) + 1}-${units[i % units.length]}`,
+        people,
+        at: `${p.day} ${String(9 + (i % 9)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`,
+        status: i % 11 === 10 ? '已取消' : '已报名',
+        attendees,
+        source: i % 5 === 0 ? '前台代报' : '业主自助'
+      })
+    }
+  })
+}
+
+/* ---------- 读 ---------- */
+
+export function queryActivities({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewActivities()) throw _nvError(`当前角色没有查看活动的权限（${NV_PERM.actView}）`, 403)
+  return delay(() => {
+    assertInScope({ communityId: filters.communityId })
+    const list = NV_ACTS
+      .filter(a => eq(a, filters.communityId, 'communityId'))
+      .filter(a => eq(a, filters.type, 'type'))
+      .filter(a => (filters.phase ? _nvPhaseOf(a) === filters.phase : true))
+      .filter(a => kwHit(a, filters.kw, ['title', 'activityId', 'place']))
+      .map(_nvActRow)
+      .sort((a, b) => String(b.startAt).localeCompare(String(a.startAt)))
+    return paged(list, pageNo, size)
+  })
+}
+
+export function activityStats() {
+  const rows = NV_ACTS.map(_nvActRow)
+  const money = rows.filter(r => r.fee > 0)
+  return {
+    total: rows.length,
+    running: rows.filter(r => r.phase === '报名中').length,
+    waiting: rows.filter(r => r.phase === '待成行').length,
+    odd: rows.filter(r => r.phase === '已成行').length,
+    flowed: rows.filter(r => r.phase === '已流团').length,
+    paidAmount: _nvR2(money.reduce((s, r) => s + r.paidAmount, 0)),
+    enrollPeople: rows.reduce((s, r) => s + r.enrolled, 0),
+    /** 待成行的活动一共还差多少人成团 —— 决定要不要发推送拉一把 */
+    gapTotal: rows.filter(r => r.phase === '待成行').reduce((s, r) => s + r.gap, 0)
+  }
+}
+
+export function getActivity(activityId) {
+  const a = _nvActOf(activityId)
+  return a ? _nvActRow(a) : null
+}
+
+/** 活动下拉（代报名、举报页跳转用） */
+export function activityOpts() {
+  return NV_ACTS
+    .filter(a => _nvPhaseOf(a) !== '已结束' && _nvPhaseOf(a) !== '草稿')
+    .map(a => ({ value: a.activityId, label: `${a.title} · ${String(a.startAt).slice(0, 10)}` }))
+}
+
+/* ---------- 写 ---------- */
+
+function _nvValidateActivity(body = {}, cur = null) {
+  const title = String(body.title || '').trim()
+  if (!title) throw _nvError('活动名称必填')
+  if (title.length > 40) throw _nvError('活动名称最多 40 字')
+  if (!ACTIVITY_TYPES.includes(body.type)) throw _nvError('活动类型只能是 公益 / 收费')
+  if (!body.communityId) throw _nvError('必须选择项目')
+  if (!body.startAt || !body.endAt) throw _nvError('开始与结束时间都要填')
+  if (String(body.endAt) < String(body.startAt)) throw _nvError('结束时间不能早于开始时间')
+  if (!String(body.place || '').trim()) throw _nvError('活动地点必填 —— 业主报名后要知道去哪')
+  const capacity = Number(body.capacity) || 0
+  if (capacity < 1) throw _nvError('名额至少 1 人')
+  const deadline = String(body.enrollDeadline || '').slice(0, 10)
+  if (!deadline) throw _nvError('报名截止时间必填')
+  if (deadline > String(body.startAt).slice(0, 10)) {
+    throw _nvError('报名截止不能晚于活动开始 —— 否则活动开始了还在收人')
+  }
+  const enrolled = cur ? _nvEnrolledOf(cur.activityId) : 0
+  if (cur && capacity < enrolled) throw _nvError(`名额不能小于已报名人数（${enrolled} 人）`)
+
+  const fee = Number(body.fee) || 0
+  if (body.type === '收费') {
+    if (fee <= 0) throw _nvError('收费活动必须填单价，公益请把类型改成「公益」')
+    const min = Number(body.minCapacity) || 0
+    if (min < 1) throw _nvError('收费活动必须设成团下限 —— 否则收完钱团没成，退款没依据')
+    if (min > capacity) throw _nvError('成团下限不能大于名额')
+    const policy = body.refundPolicy || []
+    if (!policy.length) throw _nvError('收费活动必须配退款分档')
+    for (const p of policy) {
+      const d = Number(p.days)
+      const r = Number(p.ratio)
+      if (!(d >= 0)) throw _nvError('退款分档的「提前天数」必须是 0 或正整数')
+      if (!(r >= 0 && r <= 100)) throw _nvError('退款比例须在 0 ~ 100 之间')
+    }
+    /* 提前越久退得越多：反过来就是在惩罚早取消的人 */
+    const sorted = [...policy].sort((a, b) => Number(b.days) - Number(a.days))
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (Number(sorted[i].ratio) > Number(sorted[i - 1].ratio)) {
+        throw _nvError('退款比例应随「提前天数」减少而降低，请检查分档')
+      }
+    }
+    /* 钱已经收了再改单价，已报名的人金额就对不上 */
+    if (cur && enrolled > 0 && Number(cur.fee) !== fee) {
+      throw _nvError('已有人报名，不能再改单价。要调价请另开一场活动')
+    }
+  }
+  return { capacity, fee, deadline }
+}
+
+export function saveActivity(body = {}, activityId = '') {
+  if (!canEditActivities()) throw _nvError(`当前角色没有维护活动的权限（${NV_PERM.actEdit}）`, 403)
+  const cur = activityId ? _nvActOf(activityId) : null
+  if (activityId && !cur) throw _nvError('活动不存在', 40440)
+  if (cur && (cur.status === '已结束' || cur.flowedAt)) {
+    throw _nvError('已结束或已流团的活动不能再改，请复制一份新的', 40940)
+  }
+  const { capacity, fee, deadline } = _nvValidateActivity(body, cur)
+
+  const patch = {
+    title: String(body.title).trim(),
+    type: body.type,
+    communityId: body.communityId,
+    startAt: body.startAt,
+    endAt: body.endAt,
+    place: String(body.place).trim(),
+    capacity,
+    minCapacity: body.type === '收费' ? Number(body.minCapacity) || 0 : 0,
+    enrollDeadline: deadline,
+    fee,
+    feeInclude: String(body.feeInclude || '').trim(),
+    feeExclude: String(body.feeExclude || '').trim(),
+    refundPolicy: body.type === '收费' ? (body.refundPolicy || []).map(p => ({ days: Number(p.days), ratio: Number(p.ratio) })) : [],
+    needInsurance: !!body.needInsurance,
+    attendeeLimit: Math.max(1, Number(body.attendeeLimit) || 1),
+    desc: String(body.desc || '').trim()
+  }
+
+  if (cur) {
+    Object.assign(cur, patch)
+    return _nvActRow(cur)
+  }
+  _nvActSeq += 1
+  const row = {
+    ...patch,
+    activityId: `AC${String(100 + _nvActSeq).padStart(4, '0')}`,
+    status: '草稿',
+    organizer: '物业服务中心',
+    views: 0,
+    enrolled: 0,
+    createdBy: currentOperator().name
+  }
+  NV_ACTS.unshift(row)
+  return _nvActRow(row)
+}
+
+export function publishActivity(activityId) {
+  if (!canEditActivities()) throw _nvError(`当前角色没有发布活动的权限（${NV_PERM.actEdit}）`, 403)
+  const a = _nvActOf(activityId)
+  if (!a) throw _nvError('活动不存在', 40440)
+  if (a.status === '已结束') throw _nvError('已结束的活动不能重新发布，请复制一份', 40941)
+  if (a.status === '报名中' && !a.flowedAt) throw _nvError('活动已经在报名中了', 40942)
+  const phase = _nvPhaseOf(a)
+  if (phase !== '草稿' && phase !== '已流团') throw _nvError(`当前状态是「${phase}」，不能重新发布`, 40943)
+  if (toDay(a.enrollDeadline) < TODAY) throw _nvError(`报名截止 ${a.enrollDeadline} 已经过了，改一下再发布`)
+  if (toDay(String(a.startAt).slice(0, 10)) < TODAY) throw _nvError('开始时间已经过了，改一下再发布')
+  Object.assign(a, { status: '报名中', flowedAt: '', flowReason: '' })
+  track('neighbor_activity_publish', { activityId })
+  return _nvActRow(a)
+}
+
+export function endActivity(activityId) {
+  if (!canEditActivities()) throw _nvError(`当前角色没有结束活动的权限（${NV_PERM.actEdit}）`, 403)
+  const a = _nvActOf(activityId)
+  if (!a) throw _nvError('活动不存在', 40440)
+  if (a.status === '已结束') throw _nvError('活动已经结束了', 40944)
+  Object.assign(a, { status: '已结束' })
+  return _nvActRow(a)
+}
+
+/**
+ * 确认流团：未达下限 → 全额退款。
+ *
+ * 这是「待成行」唯一的出口。不做的后果很具体：钱收了、团没成、活动日期到了，
+ * 报名人自己发现没车来接，然后在群里炸。
+ * 收费活动按已支付金额原路退，公益的只置取消。
+ */
+export function confirmFlow(activityId, reason = '') {
+  if (!canEditActivities()) throw _nvError(`当前角色没有确认流团的权限（${NV_PERM.actEdit}）`, 403)
+  const a = _nvActOf(activityId)
+  if (!a) throw _nvError('活动不存在', 40440)
+  if (_nvPhaseOf(a) !== '待成行') throw _nvError('只有「待成行」的活动才能确认流团', 40945)
+  if (!String(reason || '').trim()) throw _nvError('流团必须写原因 —— 业主会来问为什么没成行')
+
+  const list = NV_ENROLLS.filter(e => e.activityId === activityId && !['已取消', '已退款'].includes(e.status))
+  let refunded = 0
+  list.forEach(e => {
+    if (a.fee > 0) {
+      e.status = '已退款'
+      e.refundAmount = _nvR2(a.fee * (e.people || 1))
+      e.refundAt = _nvStamp()
+      e.cancelReason = '未达成团人数，全额退款'
+      refunded = _nvR2(refunded + e.refundAmount)
+    } else {
+      e.status = '已取消'
+      e.cancelReason = '未达成团人数'
+    }
+  })
+  Object.assign(a, { flowedAt: _nvStamp(), flowReason: String(reason).trim(), status: '已结束' })
+  track('neighbor_activity_flow', { activityId, people: list.length, refunded })
+  return { activity: _nvActRow(a), count: list.length, refunded }
+}
+
+/* ==================================================================
+ * ③ 报名名单
+ * ================================================================== */
+
+export function queryEnrolls({ activityId = '', pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewActivities()) throw _nvError(`当前角色没有查看报名名单的权限（${NV_PERM.actView}）`, 403)
+  return delay(() => {
+    const list = NV_ENROLLS
+      .filter(e => !activityId || e.activityId === activityId)
+      .filter(e => eq(e, filters.status, 'status'))
+      .filter(e => kwHit(e, filters.kw, ['enrollId', 'name', 'phone', 'houseShort'],
+        (e.attendees || []).map(t => t.name).join(',')))
+      .map(_nvEnrollRow)
+      .sort((a, b) => String(a.at).localeCompare(String(b.at)))
+    return paged(list, pageNo, size)
+  })
+}
+
+export function enrollStats(activityId) {
+  const a = _nvActOf(activityId)
+  const list = NV_ENROLLS.filter(e => e.activityId === activityId)
+  const active = list.filter(e => !['已取消', '已退款'].includes(e.status))
+  const fee = a ? Number(a.fee) || 0 : 0
+  const paid = active.filter(e => e.status !== '已取消')
+  return {
+    total: list.length,
+    people: active.reduce((s, e) => s + (e.people || 1), 0),
+    checkedIn: list.filter(e => e.status === '已签到').length,
+    cancelled: list.filter(e => e.status === '已取消').length,
+    refunded: list.filter(e => e.status === '已退款').length,
+    paidAmount: _nvR2(paid.reduce((s, e) => s + fee * (e.people || 1), 0)),
+    refundAmount: _nvR2(list.reduce((s, e) => s + (e.refundAmount || 0), 0)),
+    capacity: a ? a.capacity : 0,
+    minCapacity: a ? Number(a.minCapacity) || 0 : 0,
+    gap: a ? Math.max(0, (Number(a.minCapacity) || 0) - _nvEnrolledOf(activityId)) : 0,
+    phase: a ? _nvPhaseOf(a) : ''
+  }
+}
+
+/**
+ * 代报名（前台/客服替业主报）。
+ *
+ * 现场最常见的场景：阿姨不会用小程序，前台帮她报、顺手收现金。
+ * 所以这里允许直接标记"已收款"，而不是生成一笔待支付让人自己再去付。
+ */
+export function enrollActivity(activityId, body = {}) {
+  if (!canEnrollActivities()) throw _nvError(`当前角色没有代报名的权限（${NV_PERM.actEnroll}）`, 403)
+  const a = _nvActOf(activityId)
+  if (!a) throw _nvError('活动不存在', 40440)
+  const phase = _nvPhaseOf(a)
+  if (phase !== '报名中') throw _nvError(`活动当前是「${phase}」，不能再报名`, 40946)
+
+  const name = String(body.name || '').trim()
+  if (!name) throw _nvError('联系人姓名必填')
+  const phone = String(body.phone || '').trim()
+  if (!/^1\d{10}$/.test(phone)) throw _nvError('联系电话须为 11 位手机号')
+  const people = Math.max(1, Number(body.people) || 1)
+  if (people > (a.attendeeLimit || 1)) throw _nvError(`这场活动每户最多报 ${a.attendeeLimit} 人`)
+  if (_nvEnrolledOf(activityId) + people > a.capacity) {
+    throw _nvError(`名额只剩 ${Math.max(0, a.capacity - _nvEnrolledOf(activityId))} 人`)
+  }
+  /* 要投保就必须有每一位出行人的实名信息 —— 只有联系人的话买不了保险 */
+  const attendees = (body.attendees || []).filter(t => String(t.name || '').trim())
+  if (a.needInsurance) {
+    if (attendees.length !== people) throw _nvError(`需要投保，必须填满 ${people} 位出行人`)
+    for (const t of attendees) {
+      if (!String(t.idNo || '').trim()) throw _nvError(`出行人「${t.name}」缺证件号，无法投保`)
+    }
+  }
+
+  _nvEnrollSeq += 1
+  const row = {
+    enrollId: `AE${String(300 + _nvEnrollSeq).padStart(4, '0')}`,
+    activityId,
+    ownerId: body.ownerId || '',
+    name,
+    phone,
+    houseShort: body.houseShort || '',
+    people,
+    at: _nvStamp(),
+    status: '已报名',
+    attendees: attendees.map(t => ({
+      name: t.name,
+      idType: t.idType || '身份证',
+      idNo: String(t.idNo || '').trim(),
+      phone: t.phone || phone,
+      ageType: t.ageType || '成人',
+      emergencyName: t.emergencyName || '',
+      emergencyPhone: t.emergencyPhone || ''
+    })),
+    source: '前台代报',
+    remark: String(body.remark || '').trim(),
+    /** 前台代收现金：直接记已支付，日结里能看到这笔 */
+    paidCash: a.fee > 0 ? !!body.paid : false
+  }
+  NV_ENROLLS.unshift(row)
+  track('neighbor_enroll', { activityId, people })
+  return _nvEnrollRow(row)
+}
+
+export function cancelEnroll(enrollId, reason = '') {
+  if (!canEnrollActivities()) throw _nvError(`当前角色没有取消报名的权限（${NV_PERM.actEnroll}）`, 403)
+  const e = _nvEnrollOf(enrollId)
+  if (!e) throw _nvError('报名记录不存在', 40447)
+  if (['已取消', '已退款'].includes(e.status)) throw _nvError('这条报名已经取消了', 40948)
+  if (e.status === '已签到') throw _nvError('已签到的不能再取消，请走退款并备注', 40949)
+  const a = _nvActOf(e.activityId)
+  if (a && Number(a.fee) > 0) {
+    throw _nvError('收费活动的报名取消要同时退款，请用「取消并退款」', 40950)
+  }
+  Object.assign(e, { status: '已取消', cancelReason: String(reason || '').trim() || '业主主动取消' })
+  return _nvEnrollRow(e)
+}
+
+/** 按分档算退款比例：距开始 ≥N 天 → 对应比例，否则取最后一档 */
+export function refundRatioOf(activityId, atDay = TODAY) {
+  const a = _nvActOf(activityId)
+  if (!a || !a.refundPolicy || !a.refundPolicy.length) return 100
+  const start = String(a.startAt).slice(0, 10)
+  const gap = Math.floor((new Date(`${start}T00:00:00`) - new Date(`${toDay(atDay)}T00:00:00`)) / 86400000)
+  const tier = [...a.refundPolicy]
+    .sort((x, y) => Number(x.days) - Number(y.days))
+    .find(p => gap >= Number(p.days))
+  return tier ? Number(tier.ratio) : 0
+}
+
+export function refundEnroll(enrollId, reason = '') {
+  if (!canEnrollActivities()) throw _nvError(`当前角色没有办理退款的权限（${NV_PERM.actEnroll}）`, 403)
+  const e = _nvEnrollOf(enrollId)
+  if (!e) throw _nvError('报名记录不存在', 40447)
+  if (e.status === '已退款') throw _nvError('这条报名已经退过款了', 40951)
+  const a = _nvActOf(e.activityId)
+  if (!a || Number(a.fee) <= 0) throw _nvError('公益活动的报名只需取消，无需退款', 40952)
+
+  const ratio = refundRatioOf(e.activityId)
+  const full = _nvR2(Number(a.fee) * (e.people || 1))
+  const amount = _nvR2(full * ratio / 100)
+  Object.assign(e, {
+    status: '已退款',
+    refundAmount: amount,
+    refundAt: _nvStamp(),
+    cancelReason: String(reason || '').trim() || `按退款规则（提前档位 ${ratio}%）退款`
+  })
+  track('neighbor_enroll_refund', { enrollId, amount, ratio })
+  return { enroll: _nvEnrollRow(e), ratio, full, amount }
+}
+
+export function checkinEnroll(enrollId) {
+  if (!canEnrollActivities()) throw _nvError(`当前角色没有签到的权限（${NV_PERM.actEnroll}）`, 403)
+  const e = _nvEnrollOf(enrollId)
+  if (!e) throw _nvError('报名记录不存在', 40447)
+  if (e.status === '已签到') throw _nvError('已经签到过了', 40953)
+  if (e.status !== '已报名') throw _nvError(`「${e.status}」的报名不能签到`, 40954)
+  const a = _nvActOf(e.activityId)
+  if (a && _nvPhaseOf(a) === '待成行') throw _nvError('活动还没确定成行，暂时不能签到', 40955)
+  Object.assign(e, { status: '已签到' })
+  return _nvEnrollRow(e)
+}
+
+/* ==================================================================
+ * ④ 闲置（先审后发）
+ * ================================================================== */
+
+const NV_ITEMS = []
+let _nvItemSeq = 0
+
+const _nvItemOf = itemId => NV_ITEMS.find(i => i.itemId === itemId) || null
+
+function _nvItemRow(i) {
+  return {
+    itemId: i.itemId,
+    title: i.title,
+    category: i.category,
+    price: Number(i.price) || 0,
+    originPrice: Number(i.originPrice) || 0,
+    freeGive: !i.price,
+    condition: i.condition || '九成新',
+    images: i.images || 0,
+    desc: i.desc || '',
+    communityId: i.communityId,
+    communityName: communityName(i.communityId),
+    sellerName: i.sellerName,
+    sellerType: i.sellerType || '业主',
+    sellerHouse: i.sellerHouse,
+    sellerPhone: i.sellerPhone || '',
+    contactMode: i.contactMode || '站内私信',
+    publishAt: i.publishAt,
+    status: i.status,
+    statusType: _NV_STATUS_TYPE[i.status] || '',
+    rejectReason: i.rejectReason || '',
+    auditBy: i.auditBy || '',
+    auditAt: i.auditAt || '',
+    offlineReason: i.offlineReason || '',
+    expireAt: i.expireAt || '',
+    views: i.views || 0,
+    wants: i.wants || 0,
+    reportCount: i.reportCount || 0,
+    source: i.source || '业主发布'
+  }
+}
+
+function _nvSeedItems() {
+  secondhandItems.forEach(i => {
+    NV_ITEMS.push({
+      ...i,
+      status: '已上架',
+      sellerType: '业主',
+      sellerPhone: i.wechat ? '' : '138****' + String(1000 + (i.views || 0)).slice(-4),
+      contactMode: '站内私信',
+      auditBy: '物业代发（历史数据）',
+      auditAt: i.publishAt,
+      expireAt: '',
+      reportCount: 0,
+      source: '物业代发'
+    })
+  })
+
+  /* 待审 / 驳回 / 下架 / 过期 四类各来几条，审核队列才有东西可点 */
+  const seed = [
+    ['宜家儿童书桌（白色）', '家具', 120, 399, 'P01', '陈**', 'P01-012-0302', '九成新', '待审核', '2026-10-21 09:12', '业主'],
+    ['小米空气净化器 4', '家电', 260, 899, 'P02', '李**', 'P02-003-1102', '八成新', '待审核', '2026-10-21 08:40', '业主'],
+    ['捷安特山地车 26 寸', '其他', 420, 1580, 'P03', '王**', 'P03-005-0701', '七成新', '待审核', '2026-10-20 20:15', '租户'],
+    ['全新未拆封 乐高得宝 10874', '母婴', 150, 399, 'P01', '周**', 'P01-007-0403', '全新', '待审核', '2026-10-20 19:02', '业主'],
+    ['实木餐椅 4 把（自提）', '家具', 200, 1200, 'P02', '吴**', 'P02-009-0802', '八成新', '待审核', '2026-10-20 16:30', '业主'],
+    ['罗技 MX Keys 键盘', '数码', 380, 899, 'P03', '徐**', 'P03-002-1201', '九成新', '待审核', '2026-10-20 14:20', '租户'],
+    ['儿童安全座椅 0-4 岁', '母婴', 350, 1299, 'P01', '孙**', 'P01-003-0601', '九成新', '待审核', '2026-10-20 11:05', '业主'],
+    ['西门子嵌入式洗碗机（需自拆）', '家电', 600, 6800, 'P02', '马**', 'P02-011-0301', '六成新', '待审核', '2026-10-19 22:41', '业主'],
+    ['茅台飞天 53 度 500ml ×2', '其他', 2600, 2999, 'P01', '朱**', 'P01-001-0101', '全新', '已驳回', '2026-10-19 10:30', '业主'],
+    ['布偶猫幼崽 2 个月', '其他', 1800, 0, 'P02', '胡**', 'P02-006-0903', '全新', '已驳回', '2026-10-18 15:22', '租户'],
+    ['自制药酒（外用）', '其他', 80, 0, 'P03', '郭**', 'P03-008-0502', '全新', '已驳回', '2026-10-18 09:10', '业主'],
+    ['某品牌代餐粉（无中文标签）', '其他', 99, 398, 'P01', '何**', 'P01-009-1104', '全新', '已下架', '2026-10-17 13:45', '业主'],
+    ['二手笔记本电脑 i5 8G', '数码', 1200, 4999, 'P02', '林**', 'P02-004-0205', '七成新', '已下架', '2026-10-16 18:20', '业主'],
+    ['三人位布艺沙发 免费送', '家具', 0, 2600, 'P03', '罗**', 'P03-006-0304', '五成新', '已过期', '2026-09-12 10:00', '业主']
+  ]
+  seed.forEach((s, i) => {
+    _nvItemSeq += 1
+    NV_ITEMS.push({
+      itemId: `SH${String(100 + _nvItemSeq).padStart(4, '0')}`,
+      title: s[0], category: s[1], price: s[2], originPrice: s[3],
+      communityId: s[4], sellerName: s[5], sellerHouse: s[6], condition: s[7],
+      status: s[8], publishAt: s[9], sellerType: s[10],
+      images: 2 + (i % 4),
+      desc: '自用闲置，功能正常，成色见实拍。小区内自提，介意议价勿扰。',
+      sellerPhone: `138****${String(2000 + i * 37).slice(-4)}`,
+      contactMode: '站内私信',
+      views: 10 + i * 7,
+      wants: i % 6,
+      auditBy: ['已驳回', '已下架', '已过期'].includes(s[8]) ? '物业服务中心' : '',
+      auditAt: ['已驳回', '已下架'].includes(s[8]) ? s[9] : '',
+      rejectReason: s[0].includes('茅台') ? '平台禁售酒类，请自行线下处理'
+        : s[0].includes('布偶猫') ? '禁止发布活体动物'
+          : s[0].includes('药酒') ? '自制药酒属食品/药品，无资质不得发布' : '',
+      offlineReason: s[0].includes('代餐') ? '举报核实：无中文标签，涉嫌三无食品'
+        : s[0].includes('笔记本') ? '举报核实：无法说明来源' : '',
+      expireAt: s[8] === '已过期' ? '2026-10-12' : '',
+      reportCount: s[8] === '已下架' ? 3 : 0,
+      source: '业主发布'
+    })
+  })
+}
+
+/* ---------- 读 ---------- */
+
+export function queryItems({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewItems()) throw _nvError(`当前角色没有查看闲置内容的权限（${NV_PERM.itemView}）`, 403)
+  return delay(() => {
+    assertInScope({ communityId: filters.communityId })
+    const list = NV_ITEMS
+      .filter(i => eq(i, filters.communityId, 'communityId'))
+      .filter(i => eq(i, filters.status, 'status'))
+      .filter(i => eq(i, filters.category, 'category'))
+      .filter(i => eq(i, filters.sellerType, 'sellerType'))
+      .filter(i => kwHit(i, filters.kw, ['itemId', 'title', 'sellerName', 'desc'],
+        `${i.sellerHouse || ''}`))
+      .map(_nvItemRow)
+      .sort((a, b) => {
+        /* 待审永远排最前：队列页要的就是"下一步做什么" */
+        if ((a.status === '待审核') !== (b.status === '待审核')) return a.status === '待审核' ? -1 : 1
+        return String(b.publishAt).localeCompare(String(a.publishAt))
+      })
+    return paged(list, pageNo, size)
+  })
+}
+
+export function itemStats() {
+  const all = NV_ITEMS
+  const audited = all.filter(i => ['已上架', '已驳回'].includes(i.status))
+  const todayNew = all.filter(i => String(i.publishAt).slice(0, 10) === TODAY).length
+  return {
+    total: all.length,
+    pending: all.filter(i => i.status === '待审核').length,
+    online: all.filter(i => i.status === '已上架').length,
+    rejected: all.filter(i => i.status === '已驳回').length,
+    offline: all.filter(i => i.status === '已下架').length,
+    expired: all.filter(i => i.status === '已过期').length,
+    todayNew,
+    passRate: audited.length ? _nvR2((audited.filter(i => i.status === '已上架').length / audited.length) * 100) : 0,
+    reported: all.reduce((s, i) => s + (i.reportCount || 0), 0)
+  }
+}
+
+export function getItem(itemId) {
+  const i = _nvItemOf(itemId)
+  return i ? _nvItemRow(i) : null
+}
+
+export function itemCategories() {
+  return [...new Set(NV_ITEMS.map(i => i.category))]
+}
+
+/* ---------- 写 ---------- */
+
+export function auditItem(itemId, { pass = true, reason = '' } = {}) {
+  if (!canAuditItems()) throw _nvError(`当前角色没有审核闲置的权限（${NV_PERM.itemAudit}）`, 403)
+  const i = _nvItemOf(itemId)
+  if (!i) throw _nvError('内容不存在', 40460)
+  if (i.status !== '待审核') throw _nvError(`这条已经是「${i.status}」，不能重复审核`, 40960)
+  const why = String(reason || '').trim()
+  if (!pass && !why) throw _nvError('驳回必须写理由 —— 业主会拿着通知来问为什么')
+  Object.assign(i, {
+    status: pass ? '已上架' : '已驳回',
+    rejectReason: pass ? '' : why,
+    auditBy: currentOperator().name,
+    auditAt: _nvStamp()
+  })
+  track('neighbor_item_audit', { itemId, pass })
+  return _nvItemRow(i)
+}
+
+export function offlineItem(itemId, reason = '') {
+  if (!canAuditItems()) throw _nvError(`当前角色没有下架内容的权限（${NV_PERM.itemAudit}）`, 403)
+  const i = _nvItemOf(itemId)
+  if (!i) throw _nvError('内容不存在', 40460)
+  if (i.status === '已下架') throw _nvError('这条已经下架了', 40961)
+  if (i.status !== '已上架') throw _nvError(`只有「已上架」的内容能下架，当前是「${i.status}」`, 40962)
+  const why = String(reason || '').trim()
+  if (!why) throw _nvError('下架必须写理由')
+  Object.assign(i, { status: '已下架', offlineReason: why, auditBy: currentOperator().name, auditAt: _nvStamp() })
+  track('neighbor_item_offline', { itemId })
+  return _nvItemRow(i)
+}
+
+/* ==================================================================
+ * ⑤ 举报
+ * ================================================================== */
+
+const NV_REPORTS = []
+let _nvReportSeq = 0
+
+const _nvReportOf = reportId => NV_REPORTS.find(r => r.reportId === reportId) || null
+
+function _nvReportRow(r) {
+  const i = _nvItemOf(r.itemId)
+  return {
+    reportId: r.reportId,
+    itemId: r.itemId,
+    itemTitle: i ? i.title : '（内容已删除）',
+    itemStatus: i ? i.status : '',
+    sellerName: i ? i.sellerName : '',
+    sellerHouse: i ? i.sellerHouse : '',
+    reason: r.reason,
+    detail: r.detail,
+    reporterName: r.reporterName,
+    reporterHouse: r.reporterHouse,
+    at: r.at,
+    status: r.status,
+    statusType: r.status === '待处理' ? 'warning' : 'info',
+    action: r.action || '',
+    note: r.note || '',
+    handledBy: r.handledBy || '',
+    handledAt: r.handledAt || ''
+  }
+}
+
+function _nvSeedReports() {
+  const seed = [
+    ['SH0109', '违禁品', '这酒是假的吧？物业也不管管，小区里能随便卖酒？', '周**', 'P01-003-0602', '2026-10-20 21:10', '待处理'],
+    ['SH0110', '违禁品', '在小区里卖活体宠物，卫生谁负责', '李**', 'P02-002-0801', '2026-10-19 09:30', '待处理'],
+    ['SH0112', '虚假信息', '这个代餐粉我买过，吃完拉肚子，包装上全是英文没有中文标签', '陈**', 'P01-009-1105', '2026-10-18 14:02', '待处理'],
+    ['SH0113', '疑似诈骗', '笔记本来源不明，价格低得离谱，怕是赃物', '王**', 'P02-004-0206', '2026-10-17 11:20', '待处理'],
+    ['SH0007', '骚扰辱骂', '私信里骂人，说话很难听', '刘**', 'P01-002-0301', '2026-10-16 19:40', '已处理'],
+    ['SH0012', '重复刷屏', '同一个人连发五条一样的', '杨**', 'P02-008-0402', '2026-10-15 08:55', '已处理']
+  ]
+  seed.forEach(s => {
+    _nvReportSeq += 1
+    NV_REPORTS.push({
+      reportId: `RP${String(100 + _nvReportSeq).padStart(4, '0')}`,
+      itemId: s[0], reason: s[1], detail: s[2], reporterName: s[3], reporterHouse: s[4],
+      at: s[5], status: s[6],
+      action: s[6] === '已处理' ? (s[1] === '骚扰辱骂' ? '仅警告' : '忽略') : '',
+      note: s[6] === '已处理' ? '已联系双方，暂不涉及违规内容' : '',
+      handledBy: s[6] === '已处理' ? _nvStaff('客服主管').name : '',
+      handledAt: s[6] === '已处理' ? s[5].replace(/\d{2}:\d{2}$/, '20:30') : ''
+    })
+  })
+}
+
+export function queryReports({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewReports()) throw _nvError(`当前角色没有查看举报的权限（${NV_PERM.reportView}）`, 403)
+  return delay(() => {
+    const list = NV_REPORTS
+      .filter(r => eq(r, filters.status, 'status'))
+      .filter(r => eq(r, filters.reason, 'reason'))
+      .filter(r => {
+        const i = _nvItemOf(r.itemId)
+        return kwHit({ ...r, itemTitle: i ? i.title : '' }, filters.kw, ['itemTitle', 'reporterName', 'detail'])
+      })
+      .map(_nvReportRow)
+      .sort((a, b) => {
+        if ((a.status === '待处理') !== (b.status === '待处理')) return a.status === '待处理' ? -1 : 1
+        return String(b.at).localeCompare(String(a.at))
+      })
+    return paged(list, pageNo, size)
+  })
+}
+
+export function reportStats() {
+  return {
+    total: NV_REPORTS.length,
+    pending: NV_REPORTS.filter(r => r.status === '待处理').length,
+    handled: NV_REPORTS.filter(r => r.status === '已处理').length,
+    offline: NV_REPORTS.filter(r => r.action === '下架并警告').length
+  }
+}
+
+export function handleReport(reportId, { action = '', note = '' } = {}) {
+  if (!canHandleReports()) throw _nvError(`当前角色没有处理举报的权限（${NV_PERM.reportHandle}）`, 403)
+  const r = _nvReportOf(reportId)
+  if (!r) throw _nvError('举报不存在', 40470)
+  if (r.status === '已处理') throw _nvError('这条举报已经处理过了', 40970)
+  if (!REPORT_ACTIONS.includes(action)) throw _nvError('请选择处理方式')
+  if (!String(note || '').trim()) throw _nvError('处理说明必填 —— 事后要能解释为什么这么判')
+
+  const i = _nvItemOf(r.itemId)
+  if (action === '下架并警告' && i && i.status === '已上架') {
+    i.status = '已下架'
+    i.offlineReason = `举报核实：${r.reason}`
+    i.auditBy = currentOperator().name
+    i.auditAt = _nvStamp()
+  }
+  Object.assign(r, {
+    status: '已处理',
+    action,
+    note: String(note).trim(),
+    handledBy: currentOperator().name,
+    handledAt: _nvStamp()
+  })
+  track('neighbor_report_handle', { reportId, action })
+  return _nvReportRow(r)
+}
+
+/* ==================================================================
+ * ⑥ 工作台汇总
+ * ================================================================== */
+
+export function neighborSummary() {
+  if (!canViewNeighborWorkbench()) throw _nvError(`当前角色没有查看邻里工作台的权限（${NV_PERM.workbench}）`, 403)
+  const votes = NV_VOTES.map(_nvVoteRow)
+  const acts = NV_ACTS.map(_nvActRow)
+  const items = NV_ITEMS.map(_nvItemRow)
+  const reports = NV_REPORTS.map(_nvReportRow)
+
+  /* 公告阅读率取自已发布公告：邻里不另建一套阅读统计，否则两个数会不一样 */
+  const published = notices.filter(n => n.status === '已发布' && n.targetHouses)
+  const readRate = published.length
+    ? _nvR2(published.reduce((s, n) => s + (n.readCount || 0) / n.targetHouses, 0) / published.length * 100)
+    : 0
+
+  const enrollAll = acts.filter(a => a.phase !== '草稿').reduce((s, a) => s + a.enrolled, 0)
+  const capAll = acts.filter(a => a.phase !== '草稿').reduce((s, a) => s + a.capacity, 0)
+
+  return {
+    todo: {
+      items: items.filter(i => i.status === '待审核').length,
+      reports: reports.filter(r => r.status === '待处理').length,
+      waiting: acts.filter(a => a.phase === '待成行').length,
+      votes: votes.filter(v => v.status === '进行中').length
+    },
+    kpi: {
+      readRate,
+      /* 活动报名率上限 100%：有活动的报名数超过名额（种子数据），不封顶会算出 100%+ */
+      enrollFill: capAll ? Math.min(100, _nvR2(enrollAll / capAll * 100)) : 0,
+      votePart: votes.filter(v => v.status === '进行中').length
+        ? _nvR2(votes.filter(v => v.status === '进行中').reduce((s, v) => s + v.partRate, 0) / votes.filter(v => v.status === '进行中').length)
+        : 0,
+      itemPass: (() => {
+        const a = items.filter(i => ['已上架', '已驳回'].includes(i.status))
+        return a.length ? _nvR2(a.filter(i => i.status === '已上架').length / a.length * 100) : 0
+      })(),
+      reportPending: reports.filter(r => r.status === '待处理').length
+    },
+    votes: votes.filter(v => v.status === '进行中').sort((a, b) => a.partRate - b.partRate).slice(0, 3),
+    acts: acts.filter(a => a.phase === '待成行' || a.phase === '报名中')
+      .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt))).slice(0, 4),
+    items: items.filter(i => i.status === '待审核')
+      .sort((a, b) => String(a.publishAt).localeCompare(String(b.publishAt))).slice(0, 5),
+    reports: reports.filter(r => r.status === '待处理').slice(0, 3),
+    at: _nvStamp()
+  }
+}
+
+/* 统一初始化：模块加载时跑一次，顺序有依赖 ---------- */
+_nvSeedVotes()
+_nvNormalizeVotes()
+_nvSeedActivities()
+_nvSeedEnrolls()
+_nvSeedItems()
+_nvSeedReports()

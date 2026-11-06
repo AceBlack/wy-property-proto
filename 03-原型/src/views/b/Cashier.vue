@@ -4,7 +4,11 @@
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
         <b>PC 收银台</b>：前台按「业主」检索，一次带出名下全部房产与账单，勾选后合并收款。
-        左侧选人（一人多房）、中间选账单（可按房筛选）、右侧结算；支持现金/扫码/POS/预存抵扣，收款后即时销账。
+        左侧选人（一人多房）、中间选账单（可按房筛选）、右侧结算。
+        <br />
+        <b>支持组合支付</b>：一笔收款可以拆到最多 <b>3 种</b>方式（现金 + 微信 + 预存抵扣…），
+        各方式金额合计必须等于实收，差一分都不让提交。收款后<b>真实写流水</b>（不是只改账单状态）——
+        日结、开票池、报表都读它。
       </div>
     </div>
 
@@ -25,6 +29,8 @@
           >{{ o.name }}</el-tag>
         </div>
         <span class="spacer" />
+        <!-- 临时收费：摆摊费这类与业务无关的钱，不挂业主账单，单独一个口子 -->
+        <el-button v-if="canTemp" :icon="'Yen'" plain @click="tcOpen = true">临时收费</el-button>
         <el-button :icon="'Document'" plain>交班对账</el-button>
         <el-button :icon="'Tickets'" plain>今日流水</el-button>
       </div>
@@ -176,24 +182,131 @@
           <div class="tenant-card__tip">租户代缴时可直接补充/修正信息，保存即生效，无需业主确认。</div>
         </div>
 
-        <div class="sec__hd" style="margin:18px 0 10px;"><h4>收款方式</h4></div>
-        <el-radio-group v-model="method" class="methods">
-          <el-radio-button label="扫码">扫码</el-radio-button>
-          <el-radio-button label="现金">现金</el-radio-button>
-          <el-radio-button label="POS">POS</el-radio-button>
-          <el-radio-button label="预存抵扣">预存抵扣</el-radio-button>
-          <el-radio-button label="转账">转账</el-radio-button>
-        </el-radio-group>
+        <div class="sec__hd" style="margin:18px 0 10px;">
+          <h4>收款方式</h4>
+          <span class="desc">最多 {{ PAY_SPLIT_MAX }} 种 · 合计须等于实收</span>
+        </div>
+
+        <div class="splits" :key="splitKey">
+          <div v-for="(row, i) in splitRows" :key="i" class="split-row">
+            <el-select v-model="row.method" size="small" style="width:116px" @change="onMethodChange(row)">
+              <el-option v-for="m in PAY_METHODS" :key="m" :label="m" :value="m"
+                :disabled="m !== row.method && isMethodUsed(m)" />
+            </el-select>
+            <el-input-number v-model="row.amount" :min="0" :max="999999" :precision="2" :step="10"
+              size="small" controls-position="right" style="flex:1;" @change="onAmountChange" />
+            <el-button link type="danger" :disabled="splitRows.length === 1" @click="removeSplit(i)">删</el-button>
+          </div>
+          <div class="split-foot">
+            <el-button link type="primary" :disabled="splitRows.length >= PAY_SPLIT_MAX" @click="addSplit">
+              + 再加一种方式
+            </el-button>
+            <span class="spacer" />
+            <span v-if="prepayAvail > 0" class="muted" style="font-size:11.5px;">
+              预存可用 ¥{{ money(prepayAvail) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="split-check" :class="!sel.length ? '' : (splitCheck.ok ? 'is-ok' : 'is-warn')">
+          <span v-if="sel.length">
+            已分配 <b class="money">¥{{ money(splitCheck.sum) }}</b> / 实收 <b class="money">¥{{ money(splitCheck.total) }}</b>
+          </span>
+          <span v-else>尚未勾选账单</span>
+          <span class="split-check__m">
+            {{ !sel.length ? '在中间列表勾选要收的账单，或直接点「合并全部」' : (splitCheck.ok ? '✓ 可以收款' : splitCheck.msg) }}
+          </span>
+        </div>
 
         <div class="sec__hd" style="margin:18px 0 10px;"><h4>备注</h4></div>
         <el-input v-model="remark" type="textarea" :rows="2" placeholder="选填，如：业主现场缴纳、发票后补" />
 
         <div class="pay-actions">
           <el-button style="width:100px;" @click="reset">清空</el-button>
-          <el-button style="width:100px;" :disabled="!sel.length">挂账</el-button>
-          <el-button type="primary" style="flex:1;" :disabled="!sel.length" :loading="paying" @click="confirmPay">
+          <!-- 挂账是「没收到钱」，不进金额行：塞进去实收会虚高 -->
+          <el-button style="width:100px;" :disabled="!sel.length" title="挂账不产生收款流水，本期未开放">挂账</el-button>
+          <el-button type="primary" style="flex:1;" :disabled="!canPay" :loading="paying" @click="confirmPay">
             确认收款
           </el-button>
+        </div>
+
+        <div v-if="lastResult" class="pay-done">
+          <div class="pay-done__h">
+            <b>收款成功</b>
+            <span class="muted">{{ lastResult.batchNo }}</span>
+          </div>
+          <div class="pay-done__b">
+            ¥{{ money(lastResult.received) }} · {{ lastResult.count }} 笔账单
+            <template v-if="lastResult.discount > 0">（含减免 ¥{{ money(lastResult.discount) }}）</template>
+          </div>
+          <div class="pay-done__s">{{ lastResult.methodText }}</div>
+
+          <!-- 开具票据：就在收款结果里开完，不让人为了开一张收据再跳一次页面 -->
+          <div class="tk">
+            <div class="tk__hd">
+              <span>开具票据</span>
+              <span class="spacer" />
+              <el-button link type="primary" size="small" @click="$router.push('/b/payments')">查看流水</el-button>
+            </div>
+
+            <template v-if="!ticket.done">
+              <div class="tk__row">
+                <el-checkbox v-model="ticket.receipt">收据</el-checkbox>
+                <el-checkbox v-model="ticket.invoice">发票</el-checkbox>
+                <span class="tk__hint">可只开其一，也可都开</span>
+              </div>
+
+              <div class="tk__row">
+                <span class="tk__k">购买方</span>
+                <el-select v-model="ticket.profileId" size="small" style="flex:1" :disabled="ticket.multiHouse">
+                  <el-option value="__owner__" :label="ticket.multiHouse ? '多房合并 · 按各自房主开具' : '按房主开具（默认）'" />
+                  <el-option
+                    v-for="pf in ticket.profiles" :key="pf.profileId || pf.title"
+                    :label="`${pf.title}${pf.roleLabel ? '（' + pf.roleLabel + '）' : ''}`"
+                    :value="pf.profileId || '__adhoc__'"
+                  />
+                </el-select>
+              </div>
+
+              <div class="tk__row">
+                <span class="tk__k">项目</span>
+                <el-select v-model="ticket.itemName" size="small" filterable allow-create style="flex:1"
+                  placeholder="按各笔流水的实际科目">
+                  <el-option value="" label="按各笔流水的实际科目（推荐）" />
+                  <el-option v-for="it in ticketItemOpts" :key="it.value"
+                    :label="`${it.label}（税率 ${it.taxRate}%）`" :value="it.value" />
+                </el-select>
+              </div>
+
+              <el-button
+                type="primary" size="small" :loading="ticket.loading"
+                style="width:100%;margin-top:6px" @click="doIssueTicket"
+              >开具{{ ticketLabel }}</el-button>
+            </template>
+
+            <template v-else>
+              <div class="tk__ok">
+                <!-- 一次收 N 笔会出 N 张收据（+ N 张发票），全列出来会把右栏撑爆：
+                     只列前 3 张，其余给汇总 -->
+                <div v-for="t in ticket.created.slice(0, 3)" :key="t.invoiceId" class="tk__item">
+                  <el-tag size="small" effect="plain" :type="t.isReceipt ? 'success' : 'primary'">
+                    {{ t.isReceipt ? '收据' : '发票' }}
+                  </el-tag>
+                  <span class="mono">{{ t.invoiceNo }}</span>
+                  <span class="tk__amt">¥ {{ money(t.amount) }}</span>
+                </div>
+                <div v-if="ticket.created.length > 3" class="tk__more">
+                  共 {{ ticket.created.length }} 张（每笔流水一张，收据按房拆）
+                </div>
+              </div>
+              <div class="tk__f">
+                <el-button v-if="ticket.receiptDoc" link type="primary" size="small" @click="openPrint(ticket.receiptDoc)">
+                  打印收据
+                </el-button>
+                <el-button link type="primary" size="small" @click="$router.push('/b/invoices')">票据台账</el-button>
+              </div>
+            </template>
+          </div>
         </div>
 
         <div class="tip">
@@ -203,6 +316,11 @@
       </div>
     </div>
 
+    <!-- 临时收费：建单 + 收款一步做完，与账单收款完全独立 -->
+    <TempChargeDialog v-model="tcOpen" @done="onTempPaid" />
+    <!-- 收据打印：走「开票设置 → 票据模板」的参数，针打套打 -->
+    <ReceiptPrint v-model="printVisible" :invoice="printDoc" />
+
     <TenantSupplementDrawer
       v-model="tsVisible" :tenant="tsTarget" @saved="onTenantSaved"
     />
@@ -210,12 +328,15 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  cashierBuildingOpts, cashierOwnerList, cashierOwnerRoom, cashierUnitOpts, debtOf, isDebt,
-  ownerProfile, tenantsOfOwner
+  PAY_METHODS, PAY_SPLIT_MAX, canEditTempCharges, cashierBuildingOpts, cashierOwnerList,
+  cashierOwnerRoom, cashierUnitOpts, debtOf, invoiceItemNameOpts, invoiceProfilesOfHouse,
+  isDebt, issueInvoice, ownerProfile, payBills, paySplitCheck, prepayBalanceOf, tenantsOfOwner
 } from '@/utils/api'
+import TempChargeDialog from '@/components/TempChargeDialog.vue'
+import ReceiptPrint from '@/components/ReceiptPrint.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import TenantSupplementDrawer from '@/components/TenantSupplementDrawer.vue'
@@ -227,10 +348,92 @@ const ownerId = ref('OW00001')
 const houseFilter = ref('__all')
 const sel = ref([])
 const discount = ref(0)
-const method = ref('扫码')
 const remark = ref('')
 const paying = ref(false)
 const tableRef = ref()
+/* 收款后要重算「待收账单」：只改账单字段不会让 computed 的 filter 重跑 */
+const payVer = ref(0)
+const lastResult = ref(null)
+/* 临时收费弹窗：不选账单单据，直接建单 + 收款 */
+const tcOpen = ref(false)
+
+/* ---------------- 收款后同页开票 ----------------
+ * 收据与发票是**两个独立状态**（`receiptStatus` / `invoiceStatus`），不是"开没开票"一个开关：
+ * 只开收据的笔数不少，合成一个状态会让台账查不出"还差一张发票"。
+ */
+const ticket = reactive({
+  receipt: true, invoice: false,
+  profileId: '__owner__', itemName: '',
+  profiles: [], multiHouse: false,
+  loading: false, done: false, created: [], receiptDoc: null
+})
+const ticketItemOpts = invoiceItemNameOpts()
+const ticketLabel = computed(() => {
+  const n = (ticket.receipt ? 1 : 0) + (ticket.invoice ? 1 : 0)
+  if (n === 2) return '收据 + 发票'
+  if (n === 1) return ticket.receipt ? '收据' : '发票'
+  return '票据'
+})
+
+async function initTicket(res) {
+  const houses = [...new Set((res.payments || []).map(p => p.houseId).filter(Boolean))]
+  ticket.multiHouse = houses.length > 1
+  ticket.profileId = '__owner__'
+  ticket.itemName = ''
+  ticket.created = []
+  ticket.receiptDoc = null
+  ticket.done = false
+  ticket.receipt = true
+  ticket.invoice = false
+  ticket.profiles = []
+  /* 多房合并没法共用一条抬头档案：收据按房拆，各自按房主开 */
+  if (!ticket.multiHouse && houses.length === 1) {
+    try { ticket.profiles = await invoiceProfilesOfHouse(houses[0]) } catch { ticket.profiles = [] }
+  }
+}
+
+async function doIssueTicket() {
+  if (!ticket.receipt && !ticket.invoice) {
+    ElMessage.warning('至少勾一种票据；都不开就点「查看流水」，之后仍可在票据台账补开')
+    return
+  }
+  ticket.loading = true
+  try {
+    const types = []
+    if (ticket.receipt) types.push('收据')
+    if (ticket.invoice) types.push('电子发票')
+    const res = issueInvoice((lastResult.value?.payments || []).map(p => p.payId), types, {
+      profileId: ticket.profileId === '__owner__' || ticket.profileId === '__adhoc__' ? '' : ticket.profileId,
+      itemName: ticket.itemName
+    })
+    ticket.created = res.created
+    ticket.receiptDoc = res.receipts[0] || null
+    ticket.done = true
+    ElMessage.success(`已开具 ${res.count} 张 ${types.join(' / ')}`)
+  } catch (e) {
+    ElMessage.error(e?.message || '开票失败')
+  } finally {
+    ticket.loading = false
+  }
+}
+
+/* 收据打印预览 */
+const printVisible = ref(false)
+const printDoc = ref(null)
+function openPrint(doc) {
+  printDoc.value = doc
+  printVisible.value = true
+}
+const canTemp = computed(() => canEditTempCharges())
+function onTempPaid(res) {
+  ElMessage.success(`临时收费已入账 ¥${money(res.charge.amount)}，可在「临时收费」台账查看`)
+}
+
+/** 金额行。默认一行、金额跟实收走 —— 绝大多数收款是单方式全额 */
+const splitRows = ref([{ method: '微信支付', amount: 0 }])
+/* 金额行的重建标记：el-input-number 内部有 currentValue 缓存，外部把 amount 改回 0
+   时输入框不一定跟着清（截图里收款后还留着上一笔的 1981.01）。换 key 强制重建最稳 */
+const splitKey = ref(0)
 
 const p = computed(() => ownerProfile(ownerId.value))
 
@@ -282,10 +485,11 @@ watch([bldgId, unitId], () => {
   if (list.length && !list.some(o => o.ownerId === ownerId.value)) ownerId.value = list[0].ownerId
 })
 
-const debtRows = computed(() =>
-  p.value.bills.filter(isDebt).map(b => ({ ...b, room: roomOf(b.houseId) }))
+const debtRows = computed(() => {
+  void payVer.value
+  return p.value.bills.filter(isDebt).map(b => ({ ...b, room: roomOf(b.houseId) }))
     .sort((a, b) => b.overdueDays - a.overdueDays)
-)
+})
 const shownRows = computed(() =>
   houseFilter.value === '__all' ? debtRows.value : debtRows.value.filter(b => b.houseId === houseFilter.value)
 )
@@ -299,6 +503,79 @@ const sum = computed(() => {
   }
 })
 const payableTotal = computed(() => Math.max(0, sum.value.unpaid - (discount.value || 0)))
+
+/* 校验口径与数据层同一份实现：页面提示与提交拦截不可能说两套话。
+   一笔都没勾时不报错 —— 收款成功后 sel 被清空，若继续校验，右栏会立刻变红，
+   看着像刚刚那笔出错了 */
+const splitCheck = computed(() => {
+  if (!sel.value.length) {
+    return { ok: true, rows: [], sum: 0, total: 0, diff: 0, msg: '' }
+  }
+  return paySplitCheck(splitRows.value, payableTotal.value)
+})
+const isMethodUsed = m => splitRows.value.some(r => r.method === m)
+
+/** 选中账单涉及房屋的预存余额合计（跨房时是各房账户之和） */
+const prepayAvail = computed(() => {
+  const hs = [...new Set(sel.value.map(b => b.houseId))]
+  return hs.reduce((a, h) => a + prepayBalanceOf(h), 0)
+})
+
+const canPay = computed(() => sel.value.length > 0 && splitCheck.value.ok && !paying.value)
+
+/* 单行时金额跟随实收；多行时不动用户已填的值 */
+watch(payableTotal, v => {
+  if (splitRows.value.length === 1) splitRows.value[0].amount = v
+})
+/* 只在换业主时清结果条。跟着 sel 一起清的话，收款后 sel 被清空，
+   "收款成功"提示会瞬间消失（第一版就是这样，用户完全看不到结果） */
+watch(() => ownerId.value, () => { lastResult.value = null })
+
+function addSplit() {
+  if (splitRows.value.length >= PAY_SPLIT_MAX) return
+  const used = new Set(splitRows.value.map(r => r.method))
+  const next = PAY_METHODS.find(m => !used.has(m)) || '现金'
+  /* 从金额最大的一行分一半出来，让新行立刻有数 —— 加完马上报红
+     「金额必须大于 0」，是最容易让人放弃组合支付的地方 */
+  const host = splitRows.value.reduce((m, r) => (r.amount > m.amount ? r : m), splitRows.value[0])
+  const half = Math.round((Number(host.amount) || 0) / 2 * 100) / 100
+  host.amount = Math.round(((Number(host.amount) || 0) - half) * 100) / 100
+  splitRows.value.push({ method: next, amount: half })
+  if (next === '预存抵扣') onMethodChange(splitRows.value[splitRows.value.length - 1])
+}
+function removeSplit(i) {
+  if (splitRows.value.length === 1) return
+  splitRows.value.splice(i, 1)
+}
+/** 选到预存抵扣时自动填「余额与该行剩余额度里较小的那个」 */
+function onMethodChange(row) {
+  if (row.method !== '预存抵扣') return
+  /* 车位费没有 houseId，挂不到房屋预存账户上；不给提示的话这里会出现
+     "选了预存抵扣但金额填不进去"，看着像坏了 */
+  if (prepayAvail.value <= 0) {
+    ElMessage.warning('这些账单没有可用的预存账户（车位费不挂房屋，用不了房屋预存）')
+    row.amount = 0
+    return
+  }
+  const others = splitCheck.value.sum - (Number(row.amount) || 0)
+  const rest = Math.max(0, payableTotal.value - others)
+  row.amount = Math.min(prepayAvail.value, rest)
+  /* 预存只抵一部分时，剩下的要由另一行补上 —— 不补的话合计对不上，
+     用户还得自己算「总价减余额是多少」 */
+  const restRows = splitRows.value.filter(r => r !== row)
+  if (restRows.length === 1) {
+    restRows[0].amount = Math.round((payableTotal.value - row.amount) * 100) / 100
+  }
+}
+function onAmountChange() { /* el-input-number 双向绑定即生效，这里只留钩子便于以后加千分位 */ }
+
+/* 收款成功 / 清空之后回到「一行、零金额」。
+   这里不要读 payableTotal —— sel 刚被清空，computed 的求值时机不好把控，
+   出现过金额停在上一笔的旧值上（截图里 1981.01 一直留着）；直接给 0 最稳 */
+function resetSplits() {
+  splitRows.value = [{ method: '微信支付', amount: 0 }]
+  splitKey.value++
+}
 
 function quickDebt(id) {
   return debtOf(p.value.ownerId === id ? p.value.bills : ownerBills(id))
@@ -314,6 +591,8 @@ function pick(id) {
   houseFilter.value = '__all'
   discount.value = 0
   sel.value = []
+  lastResult.value = null
+  splitKey.value++
 }
 
 function onSel(rows) { sel.value = rows }
@@ -331,28 +610,32 @@ function reset() {
   discount.value = 0
   remark.value = ''
   tableRef.value?.clearSelection()
+  resetSplits()
 }
 
-function confirmPay() {
-  if (!sel.value.length) return
+async function confirmPay() {
+  if (!canPay.value) return
   paying.value = true
-  setTimeout(() => {
-    // 原型内本地销账：改内存数据，刷新后恢复
-    const now = '2026-10-21'
-    for (const row of sel.value) {
-      row.status = '已缴'
-      row.paidAmount = row.payable
-      row.unpaid = 0
-      row.payTime = now
-      row.payMethod = method.value
-      row.overdueDays = 0
-    }
-    paying.value = false
-    ElMessage.success(`收款成功 ¥${money(payableTotal.value)} · ${sel.value.length} 笔账单已销账`)
+  try {
+    const res = payBills({
+      billIds: sel.value.map(b => b.billId),
+      splits: splitRows.value,
+      discount: discount.value,
+      remark: remark.value
+    })
+    lastResult.value = res
+    await initTicket(res)
+    payVer.value++
+    ElMessage.success(`收款 ¥${money(res.received)} · ${res.count} 笔账单已销账`)
     sel.value = []
     discount.value = 0
     remark.value = ''
-  }, 700)
+    resetSplits()
+  } catch (e) {
+    ElMessage.error(e?.message || '收款失败')
+  } finally {
+    paying.value = false
+  }
 }
 </script>
 
@@ -414,8 +697,42 @@ function confirmPay() {
 }
 .pay-total b { font-size: 22px; color: var(--el-color-primary); font-family: var(--biz-font-num); }
 
-.methods { display: flex; flex-wrap: wrap; gap: 6px; }
-.methods :deep(.el-radio-button__inner) { border-radius: 6px !important; border-left: 1px solid var(--biz-border) !important; }
+.splits { display: flex; flex-direction: column; gap: 8px; }
+.split-row { display: flex; align-items: center; gap: 8px; }
+.split-foot { display: flex; align-items: center; gap: 8px; }
+.split-foot .spacer { flex: 1; }
+.split-check {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 10px; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; background: var(--biz-bg-fill);
+}
+.split-check.is-ok { color: var(--biz-success, #2f9e6e); }
+.split-check.is-warn { color: var(--biz-danger, #d64545); }
+.split-check .money { font-family: var(--biz-font-num); }
+.split-check__m { font-size: 11.5px; opacity: .9; }
+
+.pay-done {
+  margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(47,158,110,.08); border: 1px solid rgba(47,158,110,.25);
+}
+.pay-done__h { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--biz-success, #2f9e6e); }
+.pay-done__h .muted { font-size: 11px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
+.pay-done__b { font-size: 12.5px; color: var(--biz-text-1); margin-top: 4px; }
+.pay-done__s { font-size: 11.5px; color: var(--biz-text-3); margin-top: 2px; }
+.pay-done__f { margin-top: 6px; }
+
+/* 收款结果里的开票区 */
+.tk { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(47,158,110,.3); }
+.tk__hd { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--biz-text-1); font-weight: 600; }
+.tk__hd .spacer { flex: 1; }
+.tk__row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tk__k { font-size: 12px; color: var(--biz-text-3); width: 44px; flex: 0 0 44px; }
+.tk__hint { font-size: 11px; color: var(--biz-text-3); }
+.tk__ok { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.tk__item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.tk__amt { margin-left: auto; font-family: var(--biz-font-num); color: var(--biz-text-2); }
+.tk__f { margin-top: 4px; }
+.tk__more { font-size: 11.5px; color: var(--biz-text-3); }
 
 .pay-actions { display: flex; gap: 8px; margin-top: 18px; }
 .tip {

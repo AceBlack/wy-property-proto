@@ -116,9 +116,10 @@ else ok('适配层 → mock 函数', `${apiFiles.length} 个域文件全部对�
  */
 const perms = JSON.parse(fs.readFileSync(path.join(SRC, 'mock', 'permissions.json'), 'utf8'))
 const permCodes = new Set(perms.map(p => p.code))
-/* 第三段必须是已知操作（view/edit/exec…）：否则 `d.house.houseId` 这类字段名会被误报 */
+/* 第三段必须是已知操作（view/edit/exec…）：否则 `d.house.houseId` 这类字段名会被误报。
+   域字母：a 资产 / b 费用 / c 办公 / d 物联 / e 平台 / f 现场 / n 邻里（第 68 批）*/
 const permOps = new Set(perms.map(p => p.op))
-const CODE_RE = /['"`]([a-f]\.[A-Za-z0-9]+\.[a-z][A-Za-z]*)['"`]/g
+const CODE_RE = /['"`]([a-fn]\.[A-Za-z0-9]+\.[a-z][A-Za-z]*)['"`]/g
 const unknownPerm = []
 for (const f of files) {
   const text = fs.readFileSync(f, 'utf8')
@@ -212,6 +213,25 @@ for (const [name, src] of [['PlanForm.vue', planFormSrc], ['PlanDetail.vue', det
 }
 if (stepLeak.length) bad('权重 5% 步长约束被破坏', stepLeak.join('、'))
 else ok('权重 5% 步长', `常量 5 + ${weightInputsOf(planFormSrc).length + weightInputsOf(detailSrc).length} 个权重输入框都是 step=WEIGHT_STEP + step-strictly`)
+
+/* ---------- ⑨ 邻里投票不得产出「通过 / 不通过」的结论（第 68 批） ----------
+ * 投票只做意见征询，不做《民法典》278 条的业主共同决定。一旦结果里出现 passed /
+ * approved 这类字段，或者页面上写「已通过」，它就会被当成业主大会决议来主张 ——
+ * 而正式表决要人数 + 专有部分面积双过半、要公示期、要能出纸质票，小程序替代不了。
+ * 这条检查防的是"顺手加一个结论字段"，因为那正好是产品经理最想要的那一个字段。
+ */
+const NV_DOMAIN = API_SRC.slice(API_SRC.indexOf('N 域 · 邻里运营'))
+const NV_LEAK = []
+if (/\bpassed\s*:/.test(NV_DOMAIN)) NV_LEAK.push('api.js N 域出现 passed 字段')
+if (/\bapproved\s*:/.test(NV_DOMAIN)) NV_LEAK.push('api.js N 域出现 approved 字段')
+/* 只看结果抽屉那一段：说明文案里写「不给是否通过」是对的，页面上写「已通过」才是问题 */
+const voteSrc = fs.readFileSync(path.join(SRC, 'views', 'n', 'VoteManage.vue'), 'utf8')
+const resFrom = voteSrc.indexOf('res.visible')
+const resBlock = resFrom < 0 ? '' : voteSrc.slice(resFrom, voteSrc.indexOf('</el-drawer>', resFrom))
+if (!resBlock) NV_LEAK.push('VoteManage.vue 找不到结果抽屉（结果区被删了？）')
+else if (/通过/.test(resBlock)) NV_LEAK.push('VoteManage.vue 结果抽屉出现「通过」字样')
+if (NV_LEAK.length) bad('邻里投票产出了表决结论', NV_LEAK.join('、'))
+else ok('投票不给结论', 'N 域无 passed/approved 字段，结果抽屉无「通过」字样')
 
 /* ---------- ⑤ 骨架一致性（信息项） ---------- */
 const viewFiles = walk(path.join(SRC, 'views')).filter(f => f.endsWith('.vue'))

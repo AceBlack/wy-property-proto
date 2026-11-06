@@ -377,12 +377,27 @@
   vertical-align: middle;
 }
 .el-table .el-button.is-link + .el-button.is-link { margin-left: 12px; }
-.el-button--primary {
+/* 只给**实心**主色按钮上底色。
+   必须同时排除 plain / link / text 三种变体：它们的文字色也是主色，
+   一旦被刷上主色背景就变成"蓝底蓝字"的纯色块（实测踩过两次：
+   先是 plain 的「新建收费单」，再是 link 的「查看流水」「打印收据」）。 */
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
   background: var(--el-color-primary);
   box-shadow: var(--biz-shadow-primary);
 }
-.el-button--primary:hover { background: var(--biz-primary-hover); }
-.el-button--primary:active { background: var(--biz-primary-active); }
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover { background: var(--biz-primary-hover); }
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):active { background: var(--biz-primary-active); }
+/* plain 主色：浅底 + 主色字 + 浅色描边 */
+.el-button--primary.is-plain {
+  background: rgba(91, 108, 255, .08);
+  color: var(--el-color-primary);
+  border-color: rgba(91, 108, 255, .28);
+}
+.el-button--primary.is-plain:hover {
+  background: rgba(91, 108, 255, .14);
+  border-color: rgba(91, 108, 255, .42);
+  color: var(--el-color-primary);
+}
 .el-button.is-disabled,
 .el-button.is-disabled:hover {
   background: var(--biz-state-disabled-bg);

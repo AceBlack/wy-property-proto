@@ -9,6 +9,9 @@ export const GROUPS = [
   { key: 'shell', name: '原型框架', icon: 'Files', desc: 'L1 骨架与四类页面模板' },
   { key: 'a', name: 'A · 资产', icon: 'House', desc: '人 · 车 · 房' },
   { key: 'b', name: 'B · 费用', icon: 'Wallet', desc: '物业运营收费' },
+  // N 邻里（2026-11-06 第 68 批）：业主端「邻里」入口的后台一侧，只做发布 / 审核 / 看数。
+  // 单独成域而不是塞进 C 办公协同：C 是「内部管理」，邻里是「面向业主的运营」，评价口径不同。
+  { key: 'n', name: 'N · 邻里', icon: 'ChatDotRound', desc: '公告 · 投票 · 活动 · 闲置审核' },
   { key: 'c', name: 'C · 办公协同', icon: 'OfficeBuilding', desc: 'OA 审批 · 考勤 · 人力' },
   { key: 'f', name: 'F · 现场运营', icon: 'Compass', desc: '工单 · 巡检 · 品质' },
   { key: 'd', name: 'D · 物联', icon: 'Cpu', desc: '门禁 · 车行 · 监控' },
@@ -81,12 +84,49 @@ export const PAGES = [
     component: () => import('@/views/b/Collection.vue') },
   { path: '/b/invoices', name: 'Invoice', title: '发票与收据', group: 'b', status: 'done', icon: 'Printer', desc: '票据台账 · 批量开票 · 红冲',
     component: () => import('@/views/b/Invoice.vue') },
+  // 开票设置（2026-11-06）：抬头档案 / 费用项目 / 票据模板。
+  // 这三样是开票时反复要填的东西，收到字典里才不用每次手打；
+  // 与「发票与收据」分开：那边是开票动作，这边是开票前的口径。
+  { path: '/b/invoice-settings', name: 'InvoiceSettings', title: '开票设置', group: 'b', status: 'done', icon: 'Setting',
+    desc: '开票信息 · 费用项目 · 票据模板与套打参数',
+    component: () => import('@/views/b/InvoiceSettings.vue') },
+  // 临时收费（2026-11-06 第 63 批）：摆摊费、场地租用这类与业务无关的收费。
+  // 独立成台账而不是并进账单：**不进收缴率**（收缴率是应收 vs 实收，它没有应收），
+  // 但要计入营业收入，所以要有一个能按科目汇总的地方。
+  { path: '/b/temp-charges', name: 'TempChargeList', title: '临时收费', group: 'b', status: 'done', icon: 'Yen',
+    desc: '摆摊费 · 场地租用等非业务收费（计入收入、不计收缴率）',
+    component: () => import('@/views/b/TempChargeList.vue') },
   { path: '/b/deposits', name: 'DepositList', title: '装修押金台账', group: 'b', status: 'done', icon: 'CreditCard', desc: '收取 · 验收 · 退款扣款全流程',
     component: () => import('@/views/b/DepositList.vue') },
   { path: '/b/meters', name: 'Meter', title: '抄表与公摊', group: 'b', status: 'done', icon: 'Odometer', desc: '抄表录入 · 用量复核 · 公摊分摊',
     component: () => import('@/views/b/Meter.vue') },
   { path: '/b/prepay', name: 'Prepay', title: '预存与抵扣', group: 'b', status: 'done', icon: 'Wallet', desc: '预存账户 · 充值 · 余额抵扣账单',
     component: () => import('@/views/b/Prepay.vue') },
+
+  // ---------- N 邻里（业主端「邻里」的后台一侧） ----------
+  /* 2026-11-06 第 68 批。四条频道：公告 / 投票 / 活动 / 闲置，外加举报处理。
+     公告不在这里另开页面 —— 复用 C 域「公告通知」（同一张表），
+     否则运营要在两处发同一条通知、阅读数还对不上。工作台里给一个跳转入口。
+     不做话题广场与跟帖：属【社交-社区/论坛】类目，要常态化内容审核，物业没有这个编制。 */
+  { path: '/n/workbench', name: 'NeighborWorkbench', title: '邻里运营', group: 'n', status: 'done', icon: 'Monitor',
+    desc: '待办 · 阅读与参与 · 成团预警',
+    component: () => import('@/views/n/NeighborWorkbench.vue') },
+  { path: '/n/votes', name: 'VoteManage', title: '投票管理', group: 'n', status: 'done', icon: 'Histogram',
+    desc: '意见征询 · 参与率 · 结果分布（不做业主大会表决）',
+    component: () => import('@/views/n/VoteManage.vue') },
+  { path: '/n/activities', name: 'ActivityManage', title: '活动管理', group: 'n', status: 'done', icon: 'Ticket',
+    desc: '公益 / 收费 · 成团下限 · 退款分档',
+    component: () => import('@/views/n/ActivityManage.vue') },
+  { path: '/n/activities/:id/enrolls', name: 'ActivityEnrolls', title: '报名名单', group: 'n', status: 'done', icon: 'List', hidden: true,
+    desc: '出行人 · 代报名 · 退款 · 签到',
+    component: () => import('@/views/n/ActivityEnrolls.vue') },
+  // 闲置审核：先审后发。这是全站唯一的 UGC 源，队列要能一眼看完「图 + 文 + 发布人」
+  { path: '/n/items', name: 'ItemAudit', title: '闲置审核', group: 'n', status: 'done', icon: 'Goods',
+    desc: '待审队列 · 通过 / 驳回 · 已上架下架',
+    component: () => import('@/views/n/ItemAudit.vue') },
+  { path: '/n/reports', name: 'ReportList', title: '举报处理', group: 'n', status: 'done', icon: 'Warning',
+    desc: '业主举报 · 下架并警告 · 处理留痕',
+    component: () => import('@/views/n/ReportList.vue') },
 
   // ---------- C 办公协同（内部管理：OA / 考勤 / 人力） ----------
   { path: '/c/workbench', name: 'Workbench', title: '办公工作台', group: 'c', status: 'done', icon: 'Monitor', desc: '待办 · 审批 · 考勤 · 公告',
@@ -104,6 +144,11 @@ export const PAGES = [
     component: () => import('@/views/c/Attendance.vue') },
   { path: '/c/approval/:id', name: 'ApprovalDetail', title: '审批处理', group: 'c', status: 'done', icon: 'Stamp', hidden: true,
     desc: '同意 / 驳回 / 转办 / 加签 + 流程时间线', component: () => import('@/views/c/ApprovalDetail.vue') },
+  // 通讯录（2026-11-06 第 66 批）：所有在职同事的联系方式，只读。
+  // 与员工档案分开：档案里有薪资/证件/紧急联系人，通讯录只有"怎么联系到人"。
+  { path: '/c/contacts', name: 'Contacts', title: '通讯录', group: 'c', status: 'done', icon: 'Phone',
+    desc: '按部门找人 · 姓名/岗位/手机搜索 · 一键复制与拨打',
+    component: () => import('@/views/c/Contacts.vue') },
   { path: '/c/employee', name: 'Employee', title: '员工档案', group: 'c', status: 'done', icon: 'UserFilled', desc: '档案 · 合同 · 证照 · 异动',
     component: () => import('@/views/c/Employee.vue') },
   /* ---------- 办公资产（2026-11-04 第 58 批）----------

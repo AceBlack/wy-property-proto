@@ -6,6 +6,9 @@
         <b>公告通知 · 以「发布」为行</b>：一条公告 = 一次对业主的触达动作，所以要盯的不是「写了没写」，而是<b>触达率</b>——
         <b>{{ summary.lowRead }} 条已发布公告触达率低于 60%</b>，进常用视图可直接筛出来补推。
         树轴按<b>公告类型 → 项目</b>切，与业主视角的「按类找公告」一致。
+        <br />
+        <b>与业主端「邻里 · 公告」是同一张表</b>：<b>已发布即同步</b>，草稿 / 待审核 / 已撤回都不同步。
+        不另开一套「邻里公告」—— 否则运营要在两个地方发同一条通知，两边的阅读数还对不上。
       </div>
     </div>
 
@@ -104,6 +107,17 @@
             </el-table-column>
             <el-table-column label="状态" min-width="92">
               <template #default="{ row }"><StatusTag domain="notice" :value="row.status" /></template>
+            </el-table-column>
+            <!-- 邻里同步（2026-11-06 第 68 批）：公告与业主端「邻里 · 公告」**同一张表**，
+                 不做二次发布。规则只有一条：已发布才同步，草稿 / 待审核 / 已撤回都不同步。 -->
+            <el-table-column label="邻里" width="88" align="center">
+              <template #default="{ row }">
+                <el-tooltip v-if="row.status === '已发布'" placement="top"
+                  content="已同步到业主端「邻里 · 公告」，业主可见并可签收">
+                  <el-tag size="small" type="success" effect="plain">已同步</el-tag>
+                </el-tooltip>
+                <span v-else class="ps-sub">不同步</span>
+              </template>
             </el-table-column>
             <el-table-column label="操作" width="176" fixed="right">
               <template #default="{ row }">

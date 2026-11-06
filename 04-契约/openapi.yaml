@@ -816,6 +816,126 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /payments/batch:
+    post:
+      tags: [payments]
+      operationId: payBills
+      summary: 收银台收款（含组合支付）
+      description: |
+        **一个事务四件事**：写流水（每条账单一条，带 `splits`）→ 账单销账 →
+        预存账户扣减 → 记预存流水。后端别拆开做 —— 拆开就会出现「扣了余额但没销账」
+        或「销了账但日结查不到这笔钱」。
+
+        规则：
+        - 一次收款只能针对**同一位业主**，不同业主请分开收；
+        - 最多 **3 种**收款方式，同一种方式只能一行；
+        - 各方式金额合计必须等于 `应缴 − 减免`，差一分都返回 422/42212；
+        - 账单已不是欠费状态返回 409/40926；
+        - 预存抵扣按**账单所属房屋**扣账户余额，余额不足 422/42213；
+        - 减免按各账单应缴比例分摊，记在账单的 `discount` 上（不并进 `paidAmount`，
+          否则「减免了多少」事后查不出来）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentBatchInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      batchNo: { type: string, example: SK20261021-001 }
+                      count: { type: integer, description: 写了几条流水（= 几张账单） }
+                      payable: { type: number, description: 应缴合计 }
+                      discount: { type: number }
+                      received: { type: number, description: 实收合计 }
+                      splits:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            method: { $ref: '#/components/schemas/PayMethod' }
+                            amount: { type: number }
+                      payments:
+                        type: array
+                        items: { $ref: '#/components/schemas/Payment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 账单已不是欠费 / 预存账户异常 }
+        '422': { $ref: '#/components/responses/Unprocessable', description: 金额不闭合 / 方式超限 / 余额不足 }
+
+  /payments/{payId}/tickets:
+    post:
+      tags: [payments, invoices]
+      operationId: issuePaymentTickets
+      summary: 开票 / 开收据（收据与发票是两个独立状态）
+      description: |
+        **一次可以两种都开**：`types: ['收据', '电子发票']`。
+        分两次调用会出现"收据开成功、发票失败"的半截状态，而用户只看到一句"开票失败"。
+
+        两个状态各自独立判重：已经开过收据的流水，发票仍然可以开；
+        同一种票据重复开返回 409（全部跳过时）。
+
+        项目名取**这一笔的实际科目**（`itemName` 入参 > 账单科目 > 临时收费科目 > 物业服务费），
+        不写死「物业服务费」—— 临时收费开出来写"物业服务费"是错的，水费写也是错的。
+
+        **收据税额恒 0**：它不是增值税扣税凭证。
+      parameters:
+        - name: payId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [types]
+              properties:
+                types:
+                  type: array
+                  items: { type: string, enum: [收据, 电子发票, 增值税普通发票] }
+                buyerTitle:
+                  type: string
+                  description: |
+                    购买方抬头。**三档回落：手填 > 档案 > 房主**。
+                    外来缴费人（临时收费）没有档案也没有房主，只能手填 ——
+                    这一档不做，摆摊费永远开不出票。
+                buyerTaxNo: { type: string }
+                itemName: { type: string, description: 不传则取这一笔的实际科目 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      created:
+                        type: array
+                        items: { $ref: '#/components/schemas/Ticket' }
+                      skipped:
+                        type: array
+                        description: 已经开过的票据类型
+                        items: { type: string }
+                      count: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 所选票据都已开具过（40926） }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
   /payments/{payId}/refund:
     post:
       tags: [payments]
@@ -7020,6 +7140,1080 @@ paths:
         '409': { $ref: '#/components/responses/Conflict', description: 未完工 / 已有待确认增项 }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  # ================= 开票设置（2026-11-06 · 第 61 批） =================
+  # 三块内容三个资源：抬头档案 / 费用项目 / 票据模板。
+  # 与「发票与收据」分开：那边是开票动作，这边是开票前的口径。
+  /invoice-items:
+    get:
+      tags: [invoice-settings]
+      operationId: queryInvoiceItems
+      summary: 费用项目（全量，不分页）
+      description: |
+        票据上「项目名称」的词条。**开票时不受这张表限制** —— 项目名可以直接手打，
+        控制不了的临时收费不该被字典卡住；字典解决的是"常用的少打几遍"。
+
+        默认五项：摆摊费 6% / 场地租用 9% / 赔偿款 0% / 押金 0% / 其他 6%。
+        **押金与赔偿款税率 0 不是漏填**：前者是代收款项（退还时冲回，确认收入会重复计税），
+        后者不属于增值税应税行为。
+
+        全量返回不分页：字典量级是几十条，分页只会让下拉选择变复杂。
+        `usageCount` 按票据的 `itemName` 统计（改名不回写历史票据）。
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+        - name: includeDisabled
+          in: query
+          description: 维护页要 true（默认），下拉选择传 false
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  message: { type: string }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/InvoiceItem' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [invoice-settings]
+      operationId: createInvoiceItem
+      summary: 新增费用项目
+      description: 名称唯一（含已停用的也算占用，否则会出现两个「摆摊费」）。税率只接受 0/3/5/6/9/13。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceItemInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/InvoiceItem' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict', description: 同名项目已存在（40902） }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /invoice-items/options:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceItemOptions
+      summary: 费用项目下拉（只回启用中的）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+                        taxRate: { type: number }
+                        taxClass: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-items/name-options:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceItemNameOptions
+      summary: 开票项目名的全部候选（收费科目 + 费用项目）
+      description: |
+        账单开票的项目名是「物业服务费 / 水费」这类**收费科目**，
+        而费用项目字典里是「摆摊费 / 场地租用」这类**临时收费**。
+        开票下拉要把两者合起来，否则物业费开票时默认值"物业服务费"不在选项里，看着像数据错了。
+
+        去重按名称（同名取收费科目那条，税率以科目为准）。
+        **顺序固定**：科目在前、临时收费项目在后。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+                        taxRate: { type: number }
+                        taxClass: { type: string }
+                        from:
+                          type: string
+                          enum: [fee, item]
+                          description: fee = 收费科目；item = 临时收费的费用项目
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-items/{itemId}:
+    patch:
+      tags: [invoice-settings]
+      operationId: updateInvoiceItem
+      summary: 修改费用项目
+      description: 内置项可以改名，但已用过的不能停用 —— 历史票据靠名称追溯。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceItemInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceItem' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /invoice-items/{itemId}/toggle:
+    post:
+      tags: [invoice-settings]
+      operationId: toggleInvoiceItem
+      summary: 启用 / 停用费用项目
+      description: 停用不删除 —— 历史票据上写的是名称，删了就说不清"当时这个项目还在不在字典里"。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceItem' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoice-profiles:
+    get:
+      tags: [invoice-settings]
+      operationId: queryInvoiceProfiles
+      summary: 开票信息（抬头档案，全量）
+      description: |
+        票据抬头、税号、开户行、地址电话、联系人。**手填是常态**，
+        能从业主 / 租户带出来只是省事。
+
+        档案存的是**抬头快照**：业主后来改名不回写 —— 票据一旦开出，抬头就不能变（税务要求）。
+        要跟着改走 `POST /invoice-profiles/{profileId}/refresh`，显式覆盖并留痕。
+
+        量级是百级（常用抬头几十条），因此不分页；超过 500 条应改分页。
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+        - name: titleType
+          in: query
+          schema: { $ref: '#/components/schemas/InvoiceTitleType' }
+        - name: sourceType
+          in: query
+          schema: { $ref: '#/components/schemas/InvoiceSource' }
+        - name: enabled
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/InvoiceProfile' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [invoice-settings]
+      operationId: createInvoiceProfile
+      summary: 新增开票信息
+      description: |
+        企业抬头**必须**带纳税人识别号（开票要用）；个人抬头可不填 ——
+        个人开票凭姓名即可，身份证号不当税号用。
+
+        同一「抬头 + 税号」不可重复（409/40902）。`isDefault=true` 会把其他条置为 false。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceProfileInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfile' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /invoice-profiles/stats:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceProfileStats
+      summary: 抬头档案统计（个人 / 企业 / 各来源条数）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      personal: { type: integer }
+                      company: { type: integer }
+                      manual: { type: integer }
+                      fromOwner: { type: integer }
+                      fromTenant: { type: integer }
+                      disabled: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-profiles/owner-options:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceOwnerOptions
+      summary: 带入用的人选（业主，最多 50 条）
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+                        phone: { type: string }
+                        houseName: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-profiles/tenant-options:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceTenantOptions
+      summary: 带入用的人选（在住租户，最多 50 条）
+      description: 只回在住 —— 搬走的人不会再开票。
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+                        tenantType: { type: string }
+                        creditCode: { type: string }
+                        phone: { type: string }
+                        houseName: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-profiles/from-owner/{ownerId}:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceProfileFromOwner
+      summary: 从业主带入（返回草稿，不落库）
+      description: |
+        **带入 ≠ 建档**。682 个业主如果都自动建档，真正的常用抬头会被淹没。
+        个人抬头只带姓名与手机，税号留空 —— 让人自己决定要不要填。
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfileDraft' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoice-profiles/from-tenant/{tenantId}:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceProfileFromTenant
+      summary: 从租户带入（返回草稿，不落库）
+      description: 企业租户会把名称、统一社会信用代码、注册地址一起带出来 —— 这些字段租户档案里本来就有。
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfileDraft' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoice-profiles/of-house/{houseId}:
+    get:
+      tags: [invoice-settings]
+      operationId: invoiceProfilesOfHouse
+      summary: 某房屋的可选抬头（房主在前、在住租户在后）
+      description: |
+        「默认开给房主，有租户信息时可切」——**顺序就是优先级**，前端取第一条即默认值。
+        一条都没有时返回一条 `_adhoc: true` 的临时抬头（抬头取业主姓名），不拦人。
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/InvoiceProfile'
+                        - type: object
+                          properties:
+                            roleLabel: { type: string, enum: [房主, 租户] }
+                            _adhoc: { type: boolean, description: 临时抬头，未建档 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoice-profiles/{profileId}:
+    get:
+      tags: [invoice-settings]
+      operationId: getInvoiceProfile
+      summary: 开票信息详情
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfile' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [invoice-settings]
+      operationId: updateInvoiceProfile
+      summary: 修改开票信息
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceProfileInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfile' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /invoice-profiles/{profileId}/default:
+    post:
+      tags: [invoice-settings]
+      operationId: setDefaultInvoiceProfile
+      summary: 设为默认抬头
+      description: 全库唯一 —— 收银台「默认开给房主」要的是确定的一条，不能并列。已停用的不能设为默认（409/40927）。
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfile' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /invoice-profiles/{profileId}/toggle:
+    post:
+      tags: [invoice-settings]
+      operationId: toggleInvoiceProfile
+      summary: 启用 / 停用开票信息
+      description: 停用不影响历史票据（票据上是当时的快照）。停用后若原为默认，默认位清空。
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceProfile' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /invoice-profiles/{profileId}/refresh:
+    post:
+      tags: [invoice-settings]
+      operationId: refreshInvoiceProfileFromSource
+      summary: 从来源重新带入（显式覆盖）
+      description: |
+        业主 / 租户改了名字之后，让档案跟上。**必须是显式动作**，不做自动同步 ——
+        自动同步会让已经开出去的票据"跟着变"，那才是真说不清。
+
+        手工填写的档案没有来源，调用返回 409/40928。
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/InvoiceProfile'
+                      - type: object
+                        properties:
+                          _before: { type: string, description: 覆盖前的抬头，便于提示「从 A 改成 B」 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 手工档案没有来源（40928） }
+
+  /invoice-template:
+    get:
+      tags: [invoice-settings]
+      operationId: getInvoiceTemplate
+      summary: 票据模板（单例）
+      description: |
+        只有 **1 套**。多套的代价是每张票据都要选版式，而现在只有一种纸（241×140 连续纸）。
+
+        针打是**套打**：纸上已经印好框线，机器只负责把字打进去。
+        所以 `offset`（整体偏移）比字号重要 —— 打歪 2mm 就压到预印线上了。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceTemplate' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [invoice-settings]
+      operationId: saveInvoiceTemplate
+      summary: 保存票据模板
+      description: |
+        参数校验不通过**整单拒绝**（422/42213）—— 打歪的模板一旦落库，
+        每一张票都会歪，而且是"现场打出来才发现"。
+
+        校验包含组合约束：左右边距之和不能吃掉内容区（至少留 40mm），上下同理（至少 30mm）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceTemplateInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceTemplate' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /invoice-template/reset:
+    post:
+      tags: [invoice-settings]
+      operationId: resetInvoiceTemplate
+      summary: 恢复出厂模板
+      description: 回到 241×140 三联、宋体 10pt、偏移 0。改坏了用它兜底。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/InvoiceTemplate' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /invoice-template/check:
+    post:
+      tags: [invoice-settings]
+      operationId: checkInvoiceTemplate
+      summary: 校验模板参数（不落库）
+      description: 页面边改边校验用。**返回错误清单而不是抛错** —— 要一次把所有问题列出来，改一处试一次太慢。
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceTemplateInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                      errs:
+                        type: array
+                        items: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+
+  # ================= 临时收费（2026-11-06 · 第 63 批） =================
+  # 摆摊费、场地租用这类「与业务无关联」的收费。
+  # **独立成表**：不写 bills、不生成应收 → 所以不进收缴率，但要计入营业收入。
+  /temp-charges:
+    get:
+      tags: [temp-charges]
+      operationId: queryTempCharges
+      summary: 临时收费台账
+      description: |
+        按建单时间倒序。**这部分钱不进收缴率** —— 收缴率的定义是「应收 vs 实收」，
+        临时收费压根没有"应收"这一步，进了分母只会让收缴率凭空下降、没人能解释。
+
+        但**要计入营业收入**：见 `/temp-charges/income`。
+        每行都带 `countsInCollectionRate: false`，防止后来人顺手把它加进分母。
+      parameters:
+        - name: kw
+          in: query
+          schema: { type: string }
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: partyType
+          in: query
+          schema: { $ref: '#/components/schemas/TempChargeParty' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/TempChargeStatus' }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/Page'
+                      - type: object
+                        properties:
+                          rows:
+                            type: array
+                            items: { $ref: '#/components/schemas/TempCharge' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [temp-charges]
+      operationId: createTempCharge
+      summary: 新建收费单（只登记，不动钱）
+      description: |
+        **建单 ≠ 收款**。建单只落单据，要收钱走 `/temp-charges/{chargeId}/pay`，
+        那时才写缴费流水。如果建单就写流水，「待收款」的单会在日结里凭空多出一笔钱。
+
+        校验：付款方类型必填、外部类型必须有名称、**所属项目必填**（收入要按项目入账）、
+        金额 > 0 且不超过 100 万。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TempChargeInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/TempCharge' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /temp-charges/stats:
+    get:
+      tags: [temp-charges]
+      operationId: tempChargeStats
+      summary: 台账统计（待收 / 本月已收 / 累计已收 / 作废）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      pending: { type: integer }
+                      pendingAmount: { type: number }
+                      paidCount: { type: integer }
+                      paidAmount: { type: number }
+                      monthAmount: { type: number }
+                      voided: { type: integer }
+                      external: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /temp-charges/income:
+    get:
+      tags: [temp-charges]
+      operationId: tempChargeIncome
+      summary: 临时收费收入（只算已收款）
+      description: |
+        「计入收入」的唯一取数口：公司收入结构与营业报表都从这里拿，
+        **不收第二遍** —— 两处各算一次，迟早会差几分钱，然后没人说得清谁对。
+
+        返回里固定带 `countsInCollectionRate: false`：有实收、没有应收，进制分母是错的。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: string, example: '2026' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      total: { type: number }
+                      byItem:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            itemName: { type: string }
+                            count: { type: integer }
+                            amount: { type: number }
+                      countsInCollectionRate: { type: boolean, enum: [false] }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /temp-charges/reason-options:
+    get:
+      tags: [temp-charges]
+      operationId: tempChargeReasonOptions
+      summary: 收费事由下拉（与开票「费用项目」同源）
+      description: |
+        预设只是省打字，**不是白名单** —— 事由可以自由填写。
+        与开票的费用项目同源：发票上写的项目名就是收费事由，两套字典迟早会打架。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: { type: string }
+                        label: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /temp-charges/{chargeId}:
+    get:
+      tags: [temp-charges]
+      operationId: getTempCharge
+      summary: 收费单详情（带关联流水）
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/TempCharge'
+                      - type: object
+                        properties:
+                          payment: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [temp-charges]
+      operationId: updateTempCharge
+      summary: 修改收费单（仅「待收款」）
+      description: |
+        **只有「待收款」能改**：收了钱再改金额，等于让流水与单据对不上，
+        而流水已经进了日结。要改只能作废重开（409/40927）。
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TempChargeInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/TempCharge' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /temp-charges/{chargeId}/pay:
+    post:
+      tags: [temp-charges]
+      operationId: payTempCharge
+      summary: 收款（写一条缴费流水）
+      description: |
+        收款写一条 `payments`：`billId` 为空、`tempChargeId` 指回单据、`channel='临时收费'`。
+        日结按方式汇总时能看到这笔钱，开票池也能拿它开票。
+
+        **预存抵扣用不了**（409/40928）：预存账户挂在房屋上，而临时收费的对象可以是
+        外来摊贩 —— 没有房屋。不给选比"选了之后金额填不进去"好。
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [splits]
+              properties:
+                splits:
+                  type: array
+                  description: 组合支付明细，1–3 项，合计须等于单据金额
+                  items:
+                    type: object
+                    properties:
+                      method: { $ref: '#/components/schemas/PayMethod' }
+                      amount: { type: number }
+                remark: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      charge: { $ref: '#/components/schemas/TempCharge' }
+                      payment: { $ref: '#/components/schemas/Payment' }
+                      methodText: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /temp-charges/{chargeId}/void:
+    post:
+      tags: [temp-charges]
+      operationId: voidTempCharge
+      summary: 作废（仅「待收款」，必须写原因）
+      description: |
+        **只有「待收款」能作废**：已收款的要走退款（本期不做），直接作废会让日结里
+        那笔钱凭空消失，而且找不到凭据。
+
+        作废**必须写原因** —— 台账事后要能解释这张单为什么没收钱。
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data: { $ref: '#/components/schemas/TempCharge' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ================= 通讯录（2026-11-06 · 第 66 批） =================
+  # 与员工档案是两件事：档案有薪资/证件/紧急联系人（HR 用），
+  # 通讯录只回答"这个人在哪个部门、怎么联系"（所有人用）。
+  /contacts:
+    get:
+      tags: [contacts]
+      operationId: queryContacts
+      summary: 通讯录（在职，手机号不脱敏）
+      description: |
+        三条硬口径：
+
+        1. **只取在职**（含试用，排除离职）—— 给离职的人打电话是这类工具最常见的错误；
+        2. **手机号不脱敏**：同事之间看全号。与员工档案的「脱敏 + 揭示留痕」刻意相反 ——
+           在档案里看手机是"查个人信息"，在通讯录里看手机就是它的用途本身；
+        3. **字段白名单在服务端**：只回 6 个字段，薪资、证件、银行卡、紧急联系人
+           **根本不在返回里**（不是页面不显示）。
+
+        返回同时带 `groups`（按部门分组），页面直接渲染卡片墙，不用自己再分一次。
+      parameters:
+        - name: orgId
+          in: query
+          schema: { type: string }
+        - name: kw
+          in: query
+          description: 姓名 / 岗位 / 部门 / 手机号；**长度 ≥4 时按号码后 4 位匹配**
+          schema: { type: string }
+        - name: includeSub
+          in: query
+          description: 是否含下级部门，默认 true
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items: { $ref: '#/components/schemas/Contact' }
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            orgId: { type: string }
+                            orgName: { type: string }
+                            rows:
+                              type: array
+                              items: { $ref: '#/components/schemas/Contact' }
+                      total: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contacts/tree:
+    get:
+      tags: [contacts]
+      operationId: contactTree
+      summary: 部门树（只列有人的节点）
+      description: |
+        `totalCount` 含下级。**0 人节点不返回** —— 组织树是按管理口径建的，
+        班组层面不一定有直属员工，把二十多个空节点铺出来，找一个部门要点开三层还全是空的。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContactOrgNode' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contacts/stats:
+    get:
+      tags: [contacts]
+      operationId: contactStats
+      summary: 通讯录统计（在职人数 / 有人部门数 / 有手机号人数）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      orgCount: { type: integer, description: '有直属员工的组织数（班组不单独计）' }
+                      withPhone: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -7239,6 +8433,349 @@ components:
           example: { code: 42201, message: '退款金额不能超过可退金额 120' }
 
   schemas:
+    # ============ 票据（2026-11-06 · 第 64 批） ============
+    Ticket:
+      type: object
+      description: |
+        一张收据或发票。`isReceipt` 决定它落在哪个状态上
+        （`receiptStatus` 或 `invoiceStatus`），两者互不影响。
+      properties:
+        ticketId: { type: string, example: TK000001 }
+        ticketNo:
+          type: string
+          description: 收据 `SJ` 开头；发票 `0264` 开头
+          example: SJ10000001
+        type: { type: string, enum: [收据, 电子发票, 增值税普通发票] }
+        isReceipt: { type: boolean }
+        payId: { type: string }
+        tempChargeId: { type: string, description: 临时收费开出的票据会指回单据 }
+        amount: { type: number }
+        taxAmount: { type: number, description: 收据恒 0（不是扣税凭证） }
+        buyerTitle: { type: string, description: '手填 > 档案 > 房主' }
+        buyerTaxNo: { type: string }
+        itemName: { type: string, description: 取这一笔的实际科目 }
+        communityId: { type: string }
+        issueTime: { type: string }
+        issuer: { type: string }
+        status: { type: string, enum: [已开具, 已红冲, 开具失败] }
+
+    # ============ 临时收费（2026-11-06 · 第 63 批） ============
+    TempChargeParty:
+      type: string
+      enum: [业主, 租户, 外部]
+      description: |
+        付款方类型。`外部` = 单位或个人，**不要求有业主/租户档案** ——
+        外面摆摊的摊贩没有档案，硬要建档会把业主表撑成"业主 + 摊贩 + 一次性的赔偿对象"。
+
+    TempChargeStatus:
+      type: string
+      enum: [待收款, 已收款, 已作废]
+
+    TempCharge:
+      type: object
+      description: |
+        一张临时收费单。**与账单的关系是零**：没有 `billId`、不改 `bills`、不生成应收。
+
+        因此它**不进收缴率**（收缴率 = 应收 vs 实收，它没有应收这一步），
+        但**计入营业收入**（见 `/temp-charges/income`）。
+      properties:
+        chargeId: { type: string, example: TC00001 }
+        chargeNo:
+          type: string
+          description: 单号 `LSF{日期}-{当日序号}`。不是主键，`chargeId` 才是
+          example: LSF20260912-001
+        partyType: { $ref: '#/components/schemas/TempChargeParty' }
+        partyName: { type: string, maxLength: 40, example: 陈记糖油果子 }
+        partyPhone: { type: string, description: 选填 }
+        ownerId: { type: string, description: partyType=业主 时有值 }
+        tenantId: { type: string, description: partyType=租户 时有值 }
+        houseId: { type: string, description: 业主/租户单能带出房屋；外部单为空 }
+        communityId: { type: string, description: '**必填**：收入要按项目入账' }
+        communityName: { type: string }
+        houseName: { type: string }
+        reason: { type: string, maxLength: 40, example: 摆摊费 }
+        itemName: { type: string, description: 收入科目。默认等于事由（发票上的项目名就是它） }
+        amount: { type: number }
+        status: { $ref: '#/components/schemas/TempChargeStatus' }
+        method: { type: string, description: 已收款时有值，存金额最大的一笔 }
+        splits:
+          type: array
+          items:
+            type: object
+            properties:
+              method: { $ref: '#/components/schemas/PayMethod' }
+              amount: { type: number }
+        payTime: { type: string }
+        payId: { type: string, description: 收款后写的流水号 }
+        batchNo: { type: string }
+        operator: { type: string }
+        remark: { type: string }
+        createdAt: { type: string }
+        createdBy: { type: string }
+        voidReason: { type: string, description: 作废必填 —— 台账要能解释这张单为什么没收钱 }
+        voidAt: { type: string }
+        voidBy: { type: string }
+        countsInCollectionRate:
+          type: boolean
+          enum: [false]
+          description: 恒为 false。显式声明，防止后来人顺手把它加进收缴率的分母
+        countsInIncome:
+          type: boolean
+          description: 派生：status=已收款 时为 true
+
+    TempChargeInput:
+      type: object
+      required: [partyType, partyName, communityId, reason, amount]
+      properties:
+        partyType: { $ref: '#/components/schemas/TempChargeParty' }
+        partyName: { type: string, maxLength: 40 }
+        partyPhone: { type: string }
+        ownerId: { type: string }
+        tenantId: { type: string }
+        houseId: { type: string }
+        communityId: { type: string, description: '**必填**：没有项目的收入只能进「集团」，事后查不出来源' }
+        reason: { type: string, maxLength: 40 }
+        itemName: { type: string, maxLength: 20, description: 不传则等于 reason }
+        amount: { type: number, description: 大于 0、不超过 100 万 }
+        remark: { type: string, maxLength: 120 }
+
+    # ============ 通讯录（2026-11-06 · 第 66 批） ============
+    Contact:
+      type: object
+      description: |
+        通讯录的一行。**只有这 6 个字段**（+ `orgName` 派生）——
+        薪资、身份证、银行卡、紧急联系人**根本不在返回里**，不是"页面不显示"。
+
+        `phone` 是**明文**：同事之间看全号。这与员工档案的「脱敏 + 揭示留痕」刻意相反 ——
+        在档案里看手机是"查个人信息"，在通讯录里看手机就是它的用途本身。
+      properties:
+        empId: { type: string, example: EM0001 }
+        name: { type: string, example: 雷志强 }
+        position: { type: string, example: 总经理 }
+        orgId: { type: string }
+        orgName: { type: string, description: 派生：部门名 }
+        phone: { type: string, description: '**明文 11 位**，不脱敏' }
+        gender: { type: string, enum: [男, 女] }
+
+    ContactOrgNode:
+      type: object
+      description: |
+        部门树节点。`totalCount` 含下级。**0 人节点不返回**（服务端已 prune）。
+      properties:
+        orgId: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [集团, 部门, 项目, 班组] }
+        directCount: { type: integer, description: 本部门直属人数 }
+        totalCount: { type: integer, description: 含下级的人数；恒 > 0 }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/ContactOrgNode' }
+
+    # ============ 开票设置（2026-11-06） ============
+    InvoiceTitleType:
+      type: string
+      enum: [个人, 企业]
+
+    InvoiceSource:
+      type: string
+      enum: [手动, 业主, 租户]
+      description: 档案的来源。手动 = 业主表里没有的单位（摆摊、场地租用），带入 = 从业主/租户档案取一次
+
+    InvoiceItem:
+      type: object
+      description: |
+        费用项目。**票据上的项目名称不受它限制** —— 可以手打任意文字，
+        字典解决的是"常用的少打几遍"。
+      properties:
+        itemId: { type: string, example: II01 }
+        name: { type: string, maxLength: 20, example: 摆摊费 }
+        taxRate:
+          type: number
+          description: 默认税率（%）。**只能取 0 / 3 / 5 / 6 / 9 / 13**。开票时可按这一笔单独覆盖
+          enum: [0, 3, 5, 6, 9, 13]
+        taxClass: { type: string, example: 现代服务 · 其他现代服务 }
+        builtin: { type: boolean, description: 内置项可改名、已用过的不能停用 }
+        enabled: { type: boolean }
+        sort: { type: integer }
+        remark: { type: string }
+        usageCount: { type: integer, description: 派生：被多少张票据用过（按 itemName 统计） }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    InvoiceItemInput:
+      type: object
+      required: [name, taxRate]
+      properties:
+        name: { type: string, maxLength: 20 }
+        taxRate: { type: number, enum: [0, 3, 5, 6, 9, 13] }
+        taxClass: { type: string, maxLength: 30 }
+        remark: { type: string, maxLength: 60 }
+        enabled: { type: boolean, default: true }
+
+    InvoiceProfile:
+      type: object
+      description: |
+        开票信息（抬头档案）。存的是**抬头快照**：业主改名不回写 ——
+        票据一旦开出，抬头就不能变（税务要求）；改了档案会让"当时开的什么"说不清。
+
+        企业抬头必须带 `taxNo`；个人抬头可不填（个人开票凭姓名即可，身份证号不当税号用）。
+      properties:
+        profileId: { type: string, example: IP0001 }
+        titleType: { $ref: '#/components/schemas/InvoiceTitleType' }
+        title: { type: string, maxLength: 60, description: 发票抬头，与证件 / 营业执照完全一致 }
+        taxNo:
+          type: string
+          description: 纳税人识别号，15–20 位数字或大写字母。企业必填，个人可空
+        bankName: { type: string }
+        bankAccount: { type: string }
+        regAddress: { type: string }
+        regPhone: { type: string }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string, description: 电子发票发送地址 }
+        sourceType: { $ref: '#/components/schemas/InvoiceSource' }
+        sourceId: { type: string, description: 来源主体 id（业主 / 租户），手动为空 }
+        sourceName: { type: string, description: 来源主体名称快照 }
+        houseId: { type: string }
+        isDefault: { type: boolean, description: 全库唯一 }
+        enabled: { type: boolean }
+        remark: { type: string }
+        usageCount: { type: integer, description: 派生：被多少张票据用过 }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        createdBy: { type: string }
+
+    InvoiceProfileInput:
+      type: object
+      required: [title]
+      properties:
+        titleType: { $ref: '#/components/schemas/InvoiceTitleType' }
+        title: { type: string, maxLength: 60 }
+        taxNo: { type: string, description: titleType=企业 时必填 }
+        bankName: { type: string }
+        bankAccount: { type: string }
+        regAddress: { type: string }
+        regPhone: { type: string }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
+        sourceType: { $ref: '#/components/schemas/InvoiceSource' }
+        sourceId: { type: string }
+        sourceName: { type: string }
+        houseId: { type: string }
+        isDefault: { type: boolean }
+        enabled: { type: boolean, default: true }
+        remark: { type: string }
+
+    InvoiceProfileDraft:
+      type: object
+      description: |
+        带入返回的**草稿**，结构与 InvoiceProfile 一致的子集，但 `profileId` 为空字符串 ——
+        意思是"还没建档"。前端拿它预填表单，人确认无误后再 `POST /invoice-profiles`。
+      properties:
+        profileId: { type: string, enum: [''], description: 恒为空：草稿尚未建档 }
+        titleType: { $ref: '#/components/schemas/InvoiceTitleType' }
+        title: { type: string }
+        taxNo: { type: string }
+        bankName: { type: string }
+        bankAccount: { type: string }
+        regAddress: { type: string }
+        regPhone: { type: string }
+        contactName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
+        sourceType: { $ref: '#/components/schemas/InvoiceSource' }
+        sourceId: { type: string }
+        sourceName: { type: string }
+        houseId: { type: string }
+        remark: { type: string }
+
+    InvoiceTemplate:
+      type: object
+      description: |
+        票据模板（单例）。尺寸单位一律 **mm**，字号是 **pt** —— 针打按物理尺寸走纸，
+        用 px 描述会随显示器缩放跑偏。
+      properties:
+        tplId: { type: string, example: IT01 }
+        name: { type: string }
+        title: { type: string, description: 票据标题，如「收 款 收 据」 }
+        paper:
+          type: object
+          required: [width, height]
+          properties:
+            width: { type: number, description: 100–420mm；241 是针打连续纸标准宽 }
+            height: { type: number, description: 60–297mm }
+        margin:
+          type: object
+          description: 四边距（mm），0–60；左右之和须给内容区留够 40mm
+          properties:
+            top: { type: number }
+            right: { type: number }
+            bottom: { type: number }
+            left: { type: number }
+        offset:
+          type: object
+          description: 套打对位微调（mm），正数向右 / 向下。**比字号重要**
+          properties:
+            x: { type: number }
+            y: { type: number }
+        font:
+          type: object
+          properties:
+            family: { type: string, enum: [宋体, 仿宋, 黑体, 楷体], description: 针打自带字库就这几套 }
+            size: { type: number, description: 6–16pt }
+            lineHeight: { type: number, description: 1.0–3.0 倍 }
+        copies: { type: integer, description: 1–4 联 }
+        copyTitles:
+          type: array
+          items: { type: string }
+          description: 联次名称，如 存根联 / 客户联 / 财务联
+        showStub: { type: boolean, description: 是否打印存根联 }
+        showQr: { type: boolean, description: 右下角二维码（接税控后启用） }
+        footerLeft: { type: string }
+        footerRight: { type: string }
+        note: { type: string }
+        updatedAt: { type: string }
+        updatedBy: { type: string }
+
+    InvoiceTemplateInput:
+      type: object
+      description: 整单提交（不传的字段沿用当前值，paper/margin/offset/font 是逐层合并而非整体替换）
+      properties:
+        title: { type: string }
+        paper:
+          type: object
+          properties:
+            width: { type: number }
+            height: { type: number }
+        margin:
+          type: object
+          properties:
+            top: { type: number }
+            right: { type: number }
+            bottom: { type: number }
+            left: { type: number }
+        offset:
+          type: object
+          properties:
+            x: { type: number }
+            y: { type: number }
+        font:
+          type: object
+          properties:
+            family: { type: string, enum: [宋体, 仿宋, 黑体, 楷体] }
+            size: { type: number }
+            lineHeight: { type: number }
+        copies: { type: integer }
+        copyTitles:
+          type: array
+          items: { type: string }
+        showStub: { type: boolean }
+        showQr: { type: boolean }
+        footerLeft: { type: string }
+        footerRight: { type: string }
+        note: { type: string }
+
     # ---------------- 通用 ----------------
     ErrorResponse:
       type: object
@@ -7292,6 +8829,28 @@ components:
     BillStatus:
       type: string
       enum: [未缴, 部分缴, 已缴, 逾期, 已减免, 已作废]
+    PaymentBatchInput:
+      type: object
+      required: [billIds, splits]
+      properties:
+        billIds:
+          type: array
+          items: { type: string }
+          description: 要收款的账单，必须属于同一位业主、且当前是欠费状态
+        splits:
+          type: array
+          description: 组合支付明细，1–3 项，合计须等于「应缴 − 减免」
+          items:
+            type: object
+            required: [method, amount]
+            properties:
+              method: { $ref: '#/components/schemas/PayMethod' }
+              amount: { type: number, description: 大于 0，最多两位小数 }
+        discount:
+          type: number
+          description: 本单减免，按各账单应缴比例分摊；不得超过应缴合计
+        remark: { type: string }
+
     PayMethod:
       type: string
       enum: [现金, 微信支付, 支付宝, POS刷卡, 银行代扣, 预存抵扣]
@@ -7628,11 +9187,44 @@ components:
     # ---------------- 缴费 ----------------
     Payment:
       type: object
+      description: |
+        **一条流水对一张账单**。收银台一次收款覆盖多张账单时会写成多条（共用 `batchNo`）——
+        开票、催缴、账单详情都按「账单 → 流水」查，合成一条会让这些地方全都查不到。
+
+        组合支付用 `splits` 记录每一项方式；`method` 保留为**金额最大的一笔**，
+        只为兼容还在读它的老报表与导出，**不要用它统计方法金额**。
       required: [payId, billId, amount, method, payTime]
       properties:
         payId: { type: string }
         billId: { type: string }
         houseId: { type: string }
+        splits:
+          type: array
+          description: |
+            组合支付明细。老数据没有这个字段，按 `method` + `amount` 当成单元素处理
+            （**这是唯一的分支点**，别在页面里再判断一次）。
+            日结按它拆开汇总，不是按 `method` —— 否则「现金 200 + 微信 122」里的现金会漏掉。
+          items:
+            type: object
+            properties:
+              method: { $ref: '#/components/schemas/PayMethod' }
+              amount: { type: number }
+        splitCount: { type: integer, description: 派生：有几种方式 }
+        batchNo: { type: string, description: 收款批次号，一次收款的多条流水共用 }
+        receiptStatus:
+          type: string
+          enum: [未开具, 已开具, 已作废]
+          description: |
+            **收据状态，与发票状态并列而不是合一**（第 64 批）。
+
+            只开收据的笔数不少（个人业主现场缴费大多只要一张收据），
+            合成一个「已开票」之后，待开票池就查不出"哪些还差一张发票" ——
+            而补开发票正是财务月结前要做的事。
+
+            所以待开票池的口径是 `invoiceStatus !== '已开票'`：
+            **只开了收据的流水仍然留在池子里**。
+        receiptNo: { type: string, description: 收据号，`SJ` 开头 }
+        tempChargeId: { type: string, description: 临时收费产生的流水会指回单据（此时 `billId` 为空） }
         houseName: { type: string }
         ownerId: { type: string }
         ownerName: { type: string }

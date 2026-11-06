@@ -59,7 +59,20 @@ export const refundPayment = (payId, opt) =>
     ? mock.refundPayment(payId, opt)
     : post(`/payments/${payId}/refund`, opt)
 
+/**
+ * 收银台收款（含组合支付）。
+ *
+ * **一个事务四件事**：写流水（每条账单一条，带 splits）→ 账单销账 →
+ * 预存账户扣减 → 记预存流水。后端别拆开做 —— 拆开就会出现
+ * "扣了余额但没销账"或"销了账但日结查不到这笔钱"。
+ */
+export const payBills = payload =>
+  IS_MOCK ? mock.payBills(payload) : post('/payments/batch', payload)
+
 /* ---------- 字典（缴费域专用） ---------- */
 export {
   invoiceStatusOpts, payChannelOpts, payMethodOpts, payVirtualNodes
 } from '@/utils/api'
+
+/* 组合支付的口径常量与校验：页面提示、数据层拦截、契约校验三处共用同一份 */
+export { PAY_METHODS, PAY_SPLIT_MAX, paySplitCheck, payMethodText, prepayBalanceOf } from '@/utils/api'

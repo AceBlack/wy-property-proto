@@ -3950,6 +3950,593 @@ test('资产：设备图片作为附件存在资产上（上限 / 类型 / 留�
   eq('photos' in pub.data.asset, false, '公开视图里也没有 photos')
 })
 
+test('收银台收款：组合支付按方式拆流水，账单同步销账', async () => {
+  token = await login('gm')
+  /* 找一位有多张欠费账单的业主：一次收款跨多张账单，才能验证"按账单拆流水" */
+  const all = (await call('GET', '/bills', { query: { size: 100 } })).data.rows || []
+  const mine = all.filter(b => b.unpaid > 0 && ['未缴', '部分缴', '逾期'].includes(b.status))
+  const byOwner = {}
+  for (const b of mine) (byOwner[b.ownerId] = byOwner[b.ownerId] || []).push(b)
+  const ownerId = Object.keys(byOwner).find(k => byOwner[k].length >= 2)
+  assert(!!ownerId, '数据集里有同业主多张欠费账单')
+  const bills2 = byOwner[ownerId].slice(0, 2)
+  const sum = Math.round(bills2.reduce((a, b) => a + b.unpaid, 0) * 100) / 100
+  const cash = 50
+  const online = Math.round((sum - cash) * 100) / 100
+
+  const r = await call('POST', '/payments/batch', {
+    body: {
+      billIds: bills2.map(b => b.billId),
+      splits: [{ method: '微信支付', amount: online }, { method: '现金', amount: cash }],
+      remark: '契约测试：组合支付'
+    }
+  })
+  eq(r.status, 200, `组合支付 HTTP 状态（${r.message || ''}）`)
+  eq(r.data.count, 2, '两张账单各写一条流水')
+  eq(r.data.payable, sum, '应缴合计')
+  eq(r.data.received, sum, '实收合计')
+  eq(r.data.splits.length, 2, '返回两种方式')
+
+  const p1 = r.data.payments[0]
+  assert(!!p1.batchNo, '流水带批次号')
+  eq(r.data.payments[0].batchNo, r.data.payments[1].batchNo, '同一次收款的多条流水共用一个批次号')
+  assert(p1.splits.length === 2, `每条流水都带组合明细（实际 ${p1.splits.length} 项）`)
+  const splitSum = Math.round(p1.splits.reduce((a, x) => a + x.amount, 0) * 100) / 100
+  eq(splitSum, p1.amount, '单条流水的 splits 合计 = 该条金额（分摊不能凭空多出或少掉钱）')
+  const allCash = Math.round(r.data.payments.flatMap(p => p.splits.filter(x => x.method === '现金'))
+    .reduce((a, x) => a + x.amount, 0) * 100) / 100
+  eq(allCash, cash, '现金按各账单比例分摊后合计仍是 50 元')
+
+  /* 账单必须真的销账，不然账单页还显示欠费 */
+  for (const b of bills2) {
+    const one = (await call('GET', `/bills/${b.billId}`)).data
+    eq(one.status, '已缴', `账单 ${b.billId} 已销账`)
+    eq(one.unpaid, 0, '未收归零')
+  }
+})
+
+test('收银台收款：金额不闭合 / 方式超限 / 重复 / 跨业主都拦', async () => {
+  token = await login('gm')
+  const all = (await call('GET', '/bills', { query: { size: 100 } })).data.rows || []
+  const mine = all.filter(b => b.unpaid > 0 && ['未缴', '部分缴', '逾期'].includes(b.status))
+  const one = mine[0]
+  const two = mine.find(b => b.ownerId !== one.ownerId)
+
+  const less = await call('POST', '/payments/batch', {
+    body: { billIds: [one.billId], splits: [{ method: '现金', amount: Math.max(1, one.unpaid - 10) }] }
+  })
+  eq(less.status, 422, `合计不足被拦（实际 ${less.status}）`)
+  assert(String(less.message).includes('还差'), `说明还差多少：${less.message}`)
+
+  const over = await call('POST', '/payments/batch', {
+    body: { billIds: [one.billId], splits: [{ method: '现金', amount: one.unpaid + 10 }] }
+  })
+  eq(over.status, 422, '合计超出被拦')
+  assert(String(over.message).includes('超出'), `说明超出多少：${over.message}`)
+
+  const four = await call('POST', '/payments/batch', {
+    body: {
+      billIds: [one.billId],
+      splits: [
+        { method: '现金', amount: 1 }, { method: '微信支付', amount: 1 },
+        { method: '支付宝', amount: 1 }, { method: 'POS刷卡', amount: 1 }
+      ]
+    }
+  })
+  eq(four.status, 422, '超过三种方式被拦')
+  assert(String(four.message).includes('最多 3 种'), `说明上限：${four.message}`)
+
+  const dup = await call('POST', '/payments/batch', {
+    body: { billIds: [one.billId], splits: [{ method: '现金', amount: 10 }, { method: '现金', amount: 10 }] }
+  })
+  eq(dup.status, 422, '同一种方式出现两次被拦')
+  assert(String(dup.message).includes('两次'), `说明原因：${dup.message}`)
+
+  const cross = await call('POST', '/payments/batch', {
+    body: {
+      billIds: [one.billId, two.billId],
+      splits: [{ method: '现金', amount: Math.round((one.unpaid + two.unpaid) * 100) / 100 }]
+    }
+  })
+  eq(cross.status, 422, '跨业主一次收款被拦')
+  assert(String(cross.message).includes('同一位业主'), `说明原因：${cross.message}`)
+
+  const empty = await call('POST', '/payments/batch', { body: { billIds: [], splits: [] } })
+  eq(empty.status, 422, '没选账单被拦')
+})
+
+test('收银台收款：减免按比例分摊到各账单，记在 discount 上', async () => {
+  token = await login('gm')
+  const all = (await call('GET', '/bills', { query: { size: 100 } })).data.rows || []
+  const mine = all.filter(b => b.unpaid > 0 && ['未缴', '部分缴', '逾期'].includes(b.status))
+  const byOwner = {}
+  for (const b of mine) (byOwner[b.ownerId] = byOwner[b.ownerId] || []).push(b)
+  const ownerId = Object.keys(byOwner).find(k => byOwner[k].length >= 2)
+  const bills2 = byOwner[ownerId].slice(0, 2)
+  const unpaidSum = Math.round(bills2.reduce((a, b) => a + b.unpaid, 0) * 100) / 100
+  const disc = 100
+  const received = Math.round((unpaidSum - disc) * 100) / 100
+
+  const r = await call('POST', '/payments/batch', {
+    body: {
+      billIds: bills2.map(b => b.billId),
+      splits: [{ method: '现金', amount: received }],
+      discount: disc
+    }
+  })
+  eq(r.status, 200, `带减免的收款成功（${r.message || ''}）`)
+  eq(r.data.discount, disc, '返回减免金额')
+  eq(r.data.received, received, '实收 = 应缴 − 减免')
+
+  let discSum = 0
+  for (const b of bills2) {
+    const one = (await call('GET', `/bills/${b.billId}`)).data
+    discSum += Number(one.discount || 0)
+    /* 减免不能并进 paidAmount —— 并进去就查不出"免了多少" */
+    eq(Math.round((one.paidAmount + one.discount) * 100) / 100 >= Math.round(b.unpaid * 100) / 100 - 0.01, true,
+      `账单 ${b.billId} 的实收 + 减免 = 原应收`)
+  }
+  eq(Math.round(discSum * 100) / 100, disc, '两张账单的减免加起来等于 100')
+
+  /* 用一张**还没被这次收掉**的账单：否则先撞"已不是欠费状态"的 409，测不到减免校验 */
+  const left = all.find(b => b.unpaid > 0 && !bills2.some(x => x.billId === b.billId))
+  const tooMuch = await call('POST', '/payments/batch', {
+    body: { billIds: [left.billId], splits: [{ method: '现金', amount: 1 }], discount: 999999 }
+  })
+  eq(tooMuch.status, 422, '减免超过应缴被拦')
+  assert(String(tooMuch.message).includes('减免'), `说明原因：${tooMuch.message}`)
+})
+
+test('临时收费：独立成表，不进收缴率但计入收入', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/temp-charges')
+  eq(r.status, 200, '列表 HTTP 状态')
+  eq(r.data.total, 11, '种子 11 条')
+  eq(r.data.rows.length, 11, '一页返回全部')
+
+  const byStatus = s => r.data.rows.filter(x => x.status === s).length
+  eq(byStatus('已收款'), 5, '已收款 5 条')
+  eq(byStatus('待收款'), 5, '待收款 5 条')
+  eq(byStatus('已作废'), 1, '已作废 1 条')
+  eq(r.data.rows.every(x => x.countsInCollectionRate === false), true,
+    '每一条都显式声明 countsInCollectionRate=false（不进收缴率）')
+
+  const st = (await call('GET', '/temp-charges/stats')).data
+  eq(st.pending, 5, '统计：待收 5 笔')
+  eq(st.paidCount, 5, '统计：已收 5 笔')
+  eq(st.paidAmount, 4060, '统计：已收合计 4,060')
+  eq(st.voided, 1, '统计：作废 1 笔')
+  eq(st.external, 8, '统计：外部 8 笔')
+
+  /* 收入只算已收款，且明确不进收缴率 */
+  const inc = (await call('GET', '/temp-charges/income')).data
+  eq(inc.total, 4060, '收入 = 已收款合计')
+  eq(inc.count, 5, '收入笔数 = 已收款笔数（待收与作废不算）')
+  eq(inc.countsInCollectionRate, false, '收入接口声明不进收缴率')
+  eq(inc.byItem.length >= 2, true, '按科目分组')
+  const itemSum = Math.round(inc.byItem.reduce((a, x) => a + x.amount, 0) * 100) / 100
+  eq(itemSum, inc.total, '分项合计 = 总额')
+
+  /* 筛选 */
+  const ext = (await call('GET', '/temp-charges', { query: { partyType: '外部' } })).data
+  eq(ext.rows.every(x => x.partyType === '外部'), true, '按付款方筛选生效')
+  const pend = (await call('GET', '/temp-charges', { query: { status: '待收款' } })).data
+  eq(pend.total, 5, '按状态筛选生效')
+})
+
+test('临时收费：项目必填、外部名称必填、金额必须大于 0', async () => {
+  token = await login('gm')
+  /* 没有 /communities 接口，项目 id 从已有单据上取（真实实现里由前端下拉给） */
+  const communityId = (await call('GET', '/temp-charges')).data.rows[0].communityId
+
+  const noCm = await call('POST', '/temp-charges', {
+    body: { partyType: '外部', partyName: '测试摊位', reason: '摆摊费', amount: 100 }
+  })
+  eq(noCm.status, 422, `不选项目被拒（实际 ${noCm.status}）`)
+  assert(String(noCm.message).includes('所属项目'), `说明缺项目：${noCm.message}`)
+
+  const noName = await call('POST', '/temp-charges', {
+    body: { partyType: '外部', communityId, reason: '摆摊费', amount: 100 }
+  })
+  eq(noName.status, 422, '外部类型不填名称被拒')
+  assert(String(noName.message).includes('单位或个人'), `说明填什么：${noName.message}`)
+
+  const zero = await call('POST', '/temp-charges', {
+    body: { partyType: '外部', partyName: '测试摊位', communityId, reason: '摆摊费', amount: 0 }
+  })
+  eq(zero.status, 422, '金额 0 被拒')
+
+  const ok = await call('POST', '/temp-charges', {
+    body: { partyType: '外部', partyName: '契约测试摊主', partyPhone: '13800009999', communityId, reason: '摆摊费', amount: 188 }
+  })
+  eq(ok.status, 200, `合法建单成功（${ok.message || ''}）`)
+  eq(ok.data.status, '待收款', '新建就是待收款（建单不动钱）')
+  eq(ok.data.itemName, '摆摊费', '收入科目默认等于事由')
+  assert(/^LSF\d{8}-\d{3}$/.test(ok.data.chargeNo), `编号格式 LSF+日期+序号：${ok.data.chargeNo}`)
+})
+
+test('临时收费：收款写一条流水（渠道=临时收费、无账单）', async () => {
+  token = await login('gm')
+  const list = (await call('GET', '/temp-charges', { query: { status: '待收款' } })).data.rows
+  const one = list[0]
+  const before = (await call('GET', '/payments', { query: { size: 1 } })).data.total
+
+  const pay = await call('POST', `/temp-charges/${one.chargeId}/pay`, {
+    body: { splits: [{ method: '微信支付', amount: one.amount }] }
+  })
+  eq(pay.status, 200, `收款 HTTP 状态（${pay.message || ''}）`)
+  eq(pay.data.charge.status, '已收款', '单据变已收款')
+  eq(pay.data.payment.channel, '临时收费', '流水渠道是「临时收费」')
+  eq(pay.data.payment.billId, '', '流水没有账单（不挂 bills）')
+  eq(pay.data.payment.tempChargeId, one.chargeId, '流水指回单据')
+  eq(pay.data.payment.receiptStatus, '未开具', '收据状态独立，初始未开具')
+
+  const after = (await call('GET', '/payments', { query: { size: 1 } })).data.total
+  eq(after, before + 1, '流水总数 +1')
+
+  /* 已经收过的不能再收 */
+  const again = await call('POST', `/temp-charges/${one.chargeId}/pay`, {
+    body: { splits: [{ method: '现金', amount: one.amount }] }
+  })
+  eq(again.status, 409, '重复收款被拒')
+
+  /* 已收款的不能改、不能作废 */
+  const edit = await call('PATCH', `/temp-charges/${one.chargeId}`, { body: { amount: 1 } })
+  eq(edit.status, 409, '已收款的单据不能改')
+  assert(String(edit.message).includes('作废重开'), `说明怎么办：${edit.message}`)
+  const voidIt = await call('POST', `/temp-charges/${one.chargeId}/void`, { body: { reason: '测试' } })
+  eq(voidIt.status, 409, '已收款的单据不能作废')
+})
+
+test('临时收费：预存抵扣用不了（不挂房屋），作废必须写原因', async () => {
+  token = await login('gm')
+  const pend = (await call('GET', '/temp-charges', { query: { status: '待收款' } })).data.rows
+  const one = pend[0]
+
+  const prepay = await call('POST', `/temp-charges/${one.chargeId}/pay`, {
+    body: { splits: [{ method: '预存抵扣', amount: one.amount }] }
+  })
+  eq(prepay.status, 409, `预存抵扣被拒（实际 ${prepay.status}）`)
+  assert(String(prepay.message).includes('不挂房屋'), `说明原因：${prepay.message}`)
+
+  const noReason = await call('POST', `/temp-charges/${one.chargeId}/void`, { body: {} })
+  eq(noReason.status, 422, '不写原因不能作废')
+  assert(String(noReason.message).includes('原因'), `说明要写原因：${noReason.message}`)
+
+  const ok = await call('POST', `/temp-charges/${one.chargeId}/void`, { body: { reason: '契约测试：缴费人改期' } })
+  eq(ok.status, 200, '写原因后可以作废')
+  eq(ok.data.status, '已作废', '状态变已作废')
+  eq(ok.data.voidReason, '契约测试：缴费人改期', '作废原因落库')
+
+  const again = await call('POST', `/temp-charges/${one.chargeId}/void`, { body: { reason: '再作废一次' } })
+  eq(again.status, 409, '重复作废被拒')
+})
+
+test('通讯录：只回白名单字段、只取在职、手机号不脱敏', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/contacts')
+  eq(r.status, 200, '通讯录 HTTP 状态')
+  assert(r.data.total > 0, '有人')
+
+  const keys = Object.keys(r.data.rows[0]).sort()
+  eq(keys.join(','), 'empId,gender,name,orgId,orgName,phone,position', '只回 6 个白名单字段（+ orgName 派生）')
+  /* 这是"数据层不给"，不是"页面不显示" —— 契约测试要盯住返回体本身 */
+  for (const bad of ['baseSalary', 'monthlySalary', 'idCard', 'bankCard', 'emergencyPhone']) {
+    eq(bad in r.data.rows[0], false, `返回里没有 ${bad}`)
+  }
+
+  /* 手机号明文：11 位数字，不是 138****1234 */
+  const withPhone = r.data.rows.find(x => x.phone)
+  assert(!!withPhone, '有人登记了手机号')
+  assert(/^\d{11}$/.test(withPhone.phone), `手机号是明文 11 位：${withPhone.phone}`)
+
+  /* 只取在职：离职的人不在里面 */
+  /* size 上限 100（契约统一约束），120 人要翻两页 */
+  const p1 = (await call('GET', '/employees', { query: { size: 100, pageNo: 1 } })).data.rows
+  const p2 = (await call('GET', '/employees', { query: { size: 100, pageNo: 2 } })).data.rows
+  const all = [...p1, ...p2]
+  const left = all.filter(e => e.status === '离职')
+  assert(left.length > 0, '数据集里有离职员工')
+  const names = new Set(r.data.rows.map(x => x.name))
+  eq(left.every(e => !names.has(e.name)), true, `离职员工不出现在通讯录（${left.map(e => e.name).join('/')}）`)
+
+  /* 分组：每组人数合计 = total */
+  const gsum = r.data.groups.reduce((a, g) => a + g.rows.length, 0)
+  eq(gsum, r.data.total, '部门分组的人数合计 = 总数')
+})
+
+test('通讯录：搜手机后 4 位、部门树无 0 人节点', async () => {
+  token = await login('gm')
+  const all = (await call('GET', '/contacts')).data.rows
+  const one = all.find(x => x.phone)
+  const tail = one.phone.slice(-4)
+
+  const byTail = (await call('GET', '/contacts', { query: { kw: tail } })).data
+  assert(byTail.total >= 1, `按后 4 位「${tail}」能搜到`)
+  eq(byTail.rows.some(x => x.phone.endsWith(tail)), true, '结果里号码含这个尾号')
+
+  const byName = (await call('GET', '/contacts', { query: { kw: one.name } })).data
+  assert(byName.total >= 1, `按姓名「${one.name}」能搜到`)
+
+  const tree = (await call('GET', '/contacts/tree')).data
+  const flat = []
+  const walk = list => list.forEach(n => { flat.push(n); walk(n.children || []) })
+  walk(tree)
+  assert(flat.length > 0, '部门树有节点')
+  eq(flat.every(n => n.totalCount > 0), true, '树里没有 0 人节点（已 prune）')
+  const root = tree[0]
+  eq(root.totalCount, all.length, '根节点人数 = 通讯录总数')
+
+  const st = (await call('GET', '/contacts/stats')).data
+  eq(st.total, all.length, '统计 total 与列表一致')
+})
+
+test('通讯录：所有角色都能看（不是按岗位开的）', async () => {
+  for (const r of ['gm', 'pm', 'steward', 'staff']) {
+    token = await login(r)
+    const res = await call('GET', '/contacts')
+    eq(res.status, 200, `${r} 能看通讯录`)
+    assert(res.data.total > 0, `${r} 拿到数据`)
+  }
+})
+
+test('开票：收据与发票是两个独立状态', async () => {
+  token = await login('gm')
+  const list = (await call('GET', '/payments', { query: { size: 5 } })).data.rows
+  const p = list.find(x => x.invoiceStatus !== '已开票' && x.billId)
+
+  /* 只开收据 */
+  const r1 = await call('POST', `/payments/${p.payId}/tickets`, { body: { types: ['收据'] } })
+  eq(r1.status, 200, `开收据 HTTP 状态（${r1.message || ''}）`)
+  eq(r1.data.created[0].isReceipt, true, '返回标记是收据')
+  assert(/^SJ\d+/.test(r1.data.created[0].ticketNo), `收据号 SJ 开头：${r1.data.created[0].ticketNo}`)
+  eq(r1.data.created[0].taxAmount, 0, '收据税额恒 0（不是扣税凭证）')
+
+  const after1 = (await call('GET', '/payments', { query: { kw: p.payId } })).data.rows
+    .find(x => x.payId === p.payId)
+  eq(after1.receiptStatus, '已开具', '收据状态已开具')
+  eq(after1.invoiceStatus !== '已开票', true, '发票状态仍是未开（两个状态互不影响）')
+
+  /* 再开发票：同一笔可以补开，不冲突 */
+  const r2 = await call('POST', `/payments/${p.payId}/tickets`, { body: { types: ['电子发票'] } })
+  eq(r2.status, 200, '补开发票成功')
+  assert(/^0264\d+/.test(r2.data.created[0].ticketNo), `发票号 0264 开头：${r2.data.created[0].ticketNo}`)
+  assert(r2.data.created[0].taxAmount > 0, '发票有税额')
+
+  const after2 = (await call('GET', '/payments', { query: { kw: p.payId } })).data.rows
+    .find(x => x.payId === p.payId)
+  eq(after2.receiptStatus, '已开具', '收据状态保持')
+  eq(after2.invoiceStatus, '已开票', '发票状态已开')
+
+  /* 重复开同一种：跳过 / 409 */
+  const r3 = await call('POST', `/payments/${p.payId}/tickets`, { body: { types: ['收据'] } })
+  eq(r3.status, 409, '重复开同一类票据被拒')
+
+  /* 一次开两种：都还没开过的流水才能两只都出 */
+  const p2 = (await call('GET', '/payments', { query: { size: 40 } })).data.rows
+    .find(x => x.invoiceStatus !== '已开票' && x.receiptStatus === '未开具' && x.billId)
+  const both = await call('POST', `/payments/${p2.payId}/tickets`, { body: { types: ['收据', '电子发票'] } })
+  eq(both.status, 200, '一次开收据 + 发票')
+  eq(both.data.count, 2, '出了两张')
+  eq(both.data.created.filter(x => x.isReceipt).length, 1, '一张收据')
+  eq(both.data.created.filter(x => !x.isReceipt).length, 1, '一张发票')
+})
+
+test('开票：项目名取实际科目，购买方可手填', async () => {
+  token = await login('gm')
+
+  /* 临时收费的流水：没有账单，项目名要从流水上的科目取，不能写死「物业服务费」 */
+  const tc = (await call('GET', '/temp-charges', { query: { status: '待收款' } })).data.rows[0]
+  await call('POST', `/temp-charges/${tc.chargeId}/pay`, {
+    body: { splits: [{ method: '现金', amount: tc.amount }] }
+  })
+  const paid = (await call('GET', `/temp-charges/${tc.chargeId}`)).data
+  const payId = paid.payId
+  assert(!!payId, '临时收费单据上有流水号')
+
+  const r = await call('POST', `/payments/${payId}/tickets`, {
+    body: { types: ['收据'], buyerTitle: '契约测试摊主（手填抬头）' }
+  })
+  eq(r.status, 200, `临时收费可以开收据（${r.message || ''}）`)
+  eq(r.data.created[0].itemName, tc.itemName, `项目名取流水上的科目（${tc.itemName}）`)
+  eq(r.data.created[0].itemName === '物业服务费', false, '不是写死的「物业服务费」')
+  eq(r.data.created[0].buyerTitle, '契约测试摊主（手填抬头）', '购买方用手填的抬头')
+})
+
+test('开票设置：费用项目五项，押金与赔偿款税率为 0', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/invoice-items')
+  eq(r.status, 200, '费用项目 HTTP 状态')
+  eq(r.data.length, 5, '内置五项')
+
+  const byName = Object.fromEntries(r.data.map(i => [i.name, i]))
+  eq(byName['摆摊费'].taxRate, 6, '摆摊费 6%（现代服务）')
+  eq(byName['场地租用'].taxRate, 9, '场地租用 9%（不动产经营租赁）')
+  eq(byName['赔偿款'].taxRate, 0, '赔偿款 0%（不征增值税）')
+  eq(byName['押金'].taxRate, 0, '押金 0%（代收，不确认收入）')
+  eq(byName['其他'].taxRate, 6, '其他 6%')
+  eq(r.data.filter(i => i.builtin).length, 5, '五项都是内置')
+  eq(r.data.every(i => i.enabled), true, '默认全部启用')
+})
+
+test('开票设置：费用项目税率只接受六档，名称不可重复', async () => {
+  token = await login('gm')
+
+  const bad = await call('POST', '/invoice-items', { body: { name: '测试项目', taxRate: 7 } })
+  eq(bad.status, 422, `7% 不是合法档位（实际 ${bad.status}）`)
+  assert(String(bad.message).includes('0 / 3 / 5 / 6 / 9 / 13'), `列出合法档位：${bad.message}`)
+
+  const dup = await call('POST', '/invoice-items', { body: { name: '摆摊费', taxRate: 6 } })
+  eq(dup.status, 409, `同名项目被拒（实际 ${dup.status}）`)
+  assert(String(dup.message).includes('已经存在'), `说明重名：${dup.message}`)
+
+  const ok = await call('POST', '/invoice-items', { body: { name: '垃圾清运费', taxRate: 6, taxClass: '生活服务' } })
+  eq(ok.status, 200, `合法项目可以新增（${ok.message || ''}）`)
+  eq(ok.data.builtin, false, '自定义项目 builtin=false')
+
+  /* 停用不删除：历史票据靠名称追溯 */
+  const off = await call('POST', `/invoice-items/${ok.data.itemId}/toggle`, { body: { enabled: false } })
+  eq(off.status, 200, '停用成功')
+  eq(off.data.enabled, false, '已停用')
+  const still = await call('GET', '/invoice-items')
+  assert(still.data.some(i => i.itemId === ok.data.itemId), '停用后仍留在字典里（不删除）')
+  const opts = await call('GET', '/invoice-items/options')
+  eq(opts.data.some(i => i.value === '垃圾清运费'), false, '下拉里不再出现停用项')
+})
+
+test('开票设置：开票信息十条，带入只给草稿不落库', async () => {
+  token = await login('gm')
+  const list = (await call('GET', '/invoice-profiles')).data
+  eq(list.length, 10, '种子十条档案')
+  eq(list.filter(p => p.titleType === '企业').length, 6, '企业 6 条')
+  eq(list.filter(p => p.sourceType === '手动').length, 3, '手工 3 条')
+  eq(list.filter(p => p.isDefault).length, 1, '默认抬头只有一条')
+  eq(list[0].isDefault, true, '默认抬头排在第一位')
+
+  const stat = (await call('GET', '/invoice-profiles/stats')).data
+  eq(stat.total, 10, '统计 total')
+  eq(stat.fromOwner, 3, '从业主带入 3 条')
+
+  /* 个人业主：只带姓名与手机，税号留空 */
+  /* 不按姓名筛：契约数据集只有 60 个业主，姓氏不一定命中，空数组会让 .value 直接炸 */
+  const ownerOpts = (await call('GET', '/invoice-profiles/owner-options')).data
+  assert(ownerOpts.length > 0, '业主选项非空')
+  const owner = ownerOpts[0]
+  const draft = (await call('GET', `/invoice-profiles/from-owner/${owner.value}`)).data
+  eq(draft.profileId, '', '草稿没有 profileId（尚未建档）')
+  eq(draft.titleType, '个人', '个人抬头')
+  eq(draft.taxNo, '', '个人不带税号')
+  assert(!!draft.contactPhone, '带出手机号')
+
+  /* 企业租户：名称 / 税号 / 注册地址一起带出来 */
+  /* 只回前 50 条在住租户，靠前的都是个人；企业要带关键字搜（下拉本来就是 remote 搜索） */
+  const tenantsOpt = (await call('GET', '/invoice-profiles/tenant-options', { query: { kw: '有限公司' } })).data
+  const company = tenantsOpt.find(t => t.tenantType === '公司')
+  assert(!!company, `按「有限公司」能搜到企业租户（${tenantsOpt.length} 条）`)
+  const cDraft = (await call('GET', `/invoice-profiles/from-tenant/${company.value}`)).data
+  eq(cDraft.titleType, '企业', '企业租户 → 企业抬头')
+  eq(cDraft.taxNo, company.creditCode, '税号取统一社会信用代码')
+  assert((cDraft.regAddress || '').length > 2, '注册地址带出来了')
+
+  /* 带入不落库 */
+  const after = (await call('GET', '/invoice-profiles')).data
+  eq(after.length, 10, '带入之后档案数没变（只是草稿）')
+})
+
+test('开票设置：企业抬头必须带税号，同抬头+税号不可重复', async () => {
+  token = await login('gm')
+
+  const noTax = await call('POST', '/invoice-profiles', { body: { titleType: '企业', title: '某某公司' } })
+  eq(noTax.status, 422, `企业抬头缺税号被拒（实际 ${noTax.status}）`)
+  assert(String(noTax.message).includes('纳税人识别号'), `说明缺什么：${noTax.message}`)
+
+  const badTax = await call('POST', '/invoice-profiles', {
+    body: { titleType: '企业', title: '某某公司', taxNo: 'ABC' }
+  })
+  eq(badTax.status, 422, '税号长度不足被拒')
+
+  const ok = await call('POST', '/invoice-profiles', {
+    body: {
+      titleType: '企业', title: '成都示例科技有限公司', taxNo: '91510100MA6TESTX1',
+      contactName: '李四', contactPhone: '13800001111', sourceType: '手动'
+    }
+  })
+  eq(ok.status, 200, `合法企业抬头可以建（${ok.message || ''}）`)
+  eq(ok.data.profileId.startsWith('IP'), true, '生成 profileId')
+
+  const dup = await call('POST', '/invoice-profiles', {
+    body: { titleType: '企业', title: '成都示例科技有限公司', taxNo: '91510100MA6TESTX1' }
+  })
+  eq(dup.status, 409, '同抬头+同税号重复被拒')
+
+  /* 个人抬头可以无税号，且同名不同税号算两条 */
+  const p1 = await call('POST', '/invoice-profiles', { body: { titleType: '个人', title: '李四' } })
+  eq(p1.status, 200, '个人抬头不填税号也能建')
+})
+
+test('开票设置：默认抬头全库唯一，停用会清掉默认位', async () => {
+  token = await login('gm')
+  const list = (await call('GET', '/invoice-profiles')).data
+  const other = list.find(p => !p.isDefault && p.enabled)
+
+  const r = await call('POST', `/invoice-profiles/${other.profileId}/default`)
+  eq(r.status, 200, '设默认成功')
+  eq(r.data.isDefault, true, '新默认生效')
+
+  const again = (await call('GET', '/invoice-profiles')).data
+  eq(again.filter(p => p.isDefault).length, 1, '默认始终只有一条')
+  eq(again.find(p => p.profileId === other.profileId).isDefault, true, '默认已切换')
+
+  /* 停用默认抬头 → 默认位清空，而不是留着一条停用的默认 */
+  const off = await call('POST', `/invoice-profiles/${other.profileId}/toggle`, { body: { enabled: false } })
+  eq(off.status, 200, '停用成功')
+  eq(off.data.isDefault, false, '停用后默认位清空')
+  const back = await call('POST', `/invoice-profiles/${other.profileId}/default`)
+  eq(back.status, 409, '停用的抬头不能再设默认')
+
+  await call('POST', `/invoice-profiles/${other.profileId}/toggle`, { body: { enabled: true } })
+
+  /* 手工档案没有来源，重新带入应当被拒 */
+  const manual = (await call('GET', '/invoice-profiles')).data.find(p => p.sourceType === '手动')
+  const ref = await call('POST', `/invoice-profiles/${manual.profileId}/refresh`)
+  eq(ref.status, 409, '手工档案没有来源可带入')
+})
+
+test('开票设置：房屋可选抬头按「房主优先、租户次之」排序', async () => {
+  token = await login('gm')
+  const list = (await call('GET', '/invoice-profiles')).data
+  const ownerProfile = list.find(p => p.sourceType === '业主')
+  const houseId = ownerProfile.houseId
+  assert(!!houseId, '种子里的业主档案带 houseId')
+
+  const rows = (await call('GET', `/invoice-profiles/of-house/${houseId}`)).data
+  assert(rows.length >= 1, '至少有一条')
+  eq(rows[0].roleLabel, '房主', '第一条是房主（默认开给房主）')
+  assert(rows.every(r => r.enabled !== false), '只回启用中的')
+})
+
+test('开票设置：票据模板单例，参数校验含组合约束', async () => {
+  token = await login('gm')
+  const t = (await call('GET', '/invoice-template')).data
+  eq(t.paper.width, 241, '默认纸宽 241mm（针打连续纸）')
+  eq(t.paper.height, 140, '默认纸高 140mm')
+  eq(t.copies, 3, '默认三联')
+  eq(t.font.family, '宋体', '默认宋体')
+  eq(t.offset.x, 0, '默认偏移 0')
+
+  /* 单值越界 */
+  const badSize = await call('PUT', '/invoice-template', { body: { font: { size: 30 } } })
+  eq(badSize.status, 422, `字号越界被拒（实际 ${badSize.status}）`)
+  assert(String(badSize.message).includes('6–16pt'), `说明区间：${badSize.message}`)
+
+  /* 组合约束：单值都合法，但左右边距把内容区吃光 */
+  const badMargin = await call('PUT', '/invoice-template', {
+    body: { paper: { width: 100, height: 140 }, margin: { left: 30, right: 30 } }
+  })
+  eq(badMargin.status, 422, '边距吃掉内容区被拒')
+  assert(String(badMargin.message).includes('内容区宽度不足'), `说明原因：${badMargin.message}`)
+
+  /* 校验接口不落库 */
+  const chk = await call('POST', '/invoice-template/check', { body: { paper: { width: 100 } } })
+  eq(chk.status, 200, 'check 接口不抛错')
+  eq(chk.data.ok, false, '返回不合法')
+  assert(chk.data.errs.length > 0, '给出错误清单')
+
+  /* 合法修改：偏移 1.5mm，其余不变 */
+  const okSave = await call('PUT', '/invoice-template', {
+    body: { offset: { x: 1.5, y: -0.5 }, font: { size: 11 } }
+  })
+  eq(okSave.status, 200, `合法参数可以保存（${okSave.message || ''}）`)
+  eq(okSave.data.offset.x, 1.5, '偏移已保存')
+  eq(okSave.data.font.size, 11, '字号已保存')
+  eq(okSave.data.paper.width, 241, '没传的字段沿用原值（paper 没被清掉）')
+
+  const reset = await call('POST', '/invoice-template/reset')
+  eq(reset.status, 200, '恢复默认成功')
+  eq(reset.data.offset.x, 0, '偏移回到 0')
+  eq(reset.data.font.size, 10, '字号回到 10pt')
+})
+
 test('扫码公开接口：免登录，只回白名单字段', async () => {
   /* 故意用一个「没有任何资产权限」的账号取 token：公开接口不该受它影响 */
   token = await login('gm')

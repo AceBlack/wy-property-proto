@@ -34,20 +34,15 @@
       <span class="multi-band__go">查看明细 →</span>
     </div>
 
-    <!-- 多种经营收入摘要带：驾驶舱以"收缴"为主，这里只回答"钱还从哪来"，
-         完整分析在 /b/multi-revenue（分项粒度差一个数量级，展开会把这个页面撑散） -->
-    <div class="multi-band" @click="$router.push('/b/multi-revenue')">
-      <span class="multi-band__k">多种经营收入（{{ revYear }} 年度）</span>
-      <b class="multi-band__v">¥ {{ wan(multiRev.total) }}</b>
-      <span class="multi-band__i">
-        <i class="dot is-service" />商业服务 ¥{{ wan(multiRev.service.income) }}
-      </span>
-      <span class="multi-band__i">
-        <i class="dot is-coop" />商业合作 ¥{{ wan(multiRev.cooperation.income) }}
-      </span>
-      <span class="multi-band__i is-share">占公司收入 {{ companyRev.multiRatio }}%</span>
+    <!-- 临时收费（第 63 批）：金额小，但"钱还从哪来"要答完。
+         用元不用万元 —— 摆摊费一个月几千块，换成万元全是 0.3，看不出量级 -->
+    <div class="multi-band is-temp" @click="$router.push('/b/temp-charges')">
+      <span class="multi-band__k">临时收费（摆摊费 / 场地租用等）</span>
+      <b class="multi-band__v">¥ {{ money(companyRev.temp) }}</b>
+      <span class="multi-band__i is-share is-temp-tag">占公司收入 {{ companyRev.tempRatio }}%</span>
+      <span class="multi-band__i is-temp-note">有实收无应收 · 不计入收缴率</span>
       <span class="spacer" />
-      <span class="multi-band__go">查看明细 →</span>
+      <span class="multi-band__go">查看台账 →</span>
     </div>
 
     <div class="grid" style="margin-top:16px;grid-template-columns:2fr 1fr;">
@@ -262,26 +257,15 @@ function goOwner(row) {
 .multi-band .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
 .multi-band .dot.is-service { background: var(--biz-primary, #5b6cff); }
 .multi-band .dot.is-coop { background: #12b98a; }
+/* 临时收费：橙色系，与"经营收入"区分开 —— 它不是合同收入，是一次性的 */
+.multi-band.is-temp {
+  background: linear-gradient(90deg, rgba(217, 138, 31, .07), rgba(18, 185, 138, .04));
+  border-color: rgba(217, 138, 31, .18);
+}
+.multi-band.is-temp:hover { border-color: rgba(217, 138, 31, .34); }
+.multi-band.is-temp .multi-band__v { color: #d98a1f; }
+.multi-band__i.is-temp-tag { background: rgba(217, 138, 31, .12); color: #b8761a; }
+.multi-band__i.is-temp-note { font-size: 11.5px; color: var(--biz-text-3); }
 .multi-band__go { font-size: 12px; color: var(--biz-primary, #5b6cff); }
 
-/* 多种经营摘要带：一条带子，四个数，一个入口 —— 不加卡不加图，驾驶舱仍是"收缴为主、经营可见" */
-.multi-band {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  margin-top: 16px; padding: 11px 16px; border-radius: 10px; cursor: pointer;
-  background: linear-gradient(90deg, rgba(91, 108, 255, .07), rgba(18, 185, 138, .05));
-  border: 1px solid rgba(91, 108, 255, .14);
-  transition: border-color .2s, box-shadow .2s;
-}
-.multi-band:hover { border-color: rgba(91, 108, 255, .32); box-shadow: 0 2px 10px rgba(91, 108, 255, .08); }
-.multi-band__k { font-size: 12.5px; color: var(--biz-text-3); }
-.multi-band__v { font-family: var(--biz-font-num); font-size: 20px; color: var(--biz-primary, #5b6cff); }
-.multi-band__i { font-size: 12px; color: var(--biz-text-2); }
-.multi-band__i.is-share {
-  padding: 1px 8px; border-radius: 10px; font-size: 11.5px;
-  background: rgba(18, 185, 138, .1); color: #12b98a;
-}
-.multi-band .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
-.multi-band .dot.is-service { background: var(--biz-primary, #5b6cff); }
-.multi-band .dot.is-coop { background: #12b98a; }
-.multi-band__go { font-size: 12px; color: var(--biz-primary, #5b6cff); }
 </style>
