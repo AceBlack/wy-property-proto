@@ -20,7 +20,7 @@
         </view>
       </view>
 
-      <Empty v-if="!groups.length" text="该楼栋暂无房号" />
+      <Empty v-if="loaded && !groups.length" text="该楼栋暂无房号" />
     </view>
 
     <Bar :okText="flow.houseId ? '下一步' : '请选择房间'" :disabled="!flow.houseId" btn-id="room-next" @submit="next" />
@@ -37,13 +37,15 @@ import { roomList } from '@/api/mp'
 import { flow } from '@/store/auth-flow'
 
 const groups = ref([])
+const loaded = ref(false)
 
-onLoad(() => {
+onLoad(async () => {
   if (!flow.buildingId) {
     uni.redirectTo({ url: '/pages/auth/community' })
     return
   }
-  groups.value = roomList(flow.buildingId)
+  groups.value = await roomList(flow.buildingId)
+  loaded.value = true
 })
 
 function pick(r) {

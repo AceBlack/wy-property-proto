@@ -125,6 +125,31 @@ export async function refreshMyListings() {
   }
 }
 
+/* ---------------- 选房三级（第 78 批） ----------------
+ * 与前几批不同：这三层**不做水合**。小区 3 条、楼栋 17 条、房号按栋几十条，
+ * 但没人会一次看完三个小区 —— 提前拉等于把 756 条房号塞进首屏。
+ * 所以按层懒拉 + 内存缓存（5 分钟），从选房页退回来再进去不重复请求。
+ *
+ * 缓存**不进 localStorage**：房产档案会变（加楼栋、补房号），
+ * 存下来就会出现"昨天 8 栋、今天还是 8 栋"这种最难查的错。
+ */
+const CATALOG_TTL = 5 * 60 * 1000
+const catalogCache = new Map()
+
+async function cached(key, url) {
+  const hit = catalogCache.get(key)
+  if (hit && Date.now() - hit.at < CATALOG_TTL) return hit.value
+  const value = await get(url)
+  catalogCache.set(key, { at: Date.now(), value })
+  return value
+}
+
+export const fetchCommunities = () => cached('catalog:communities', '/mp/communities').then(r => r.rows || [])
+export const fetchBuildings = communityId =>
+  cached(`catalog:b:${communityId}`, `/mp/communities/${communityId}/buildings`).then(r => r.rows || [])
+export const fetchRoomGroups = buildingId =>
+  cached(`catalog:r:${buildingId}`, `/mp/buildings/${buildingId}/rooms`).then(r => r.groups || [])
+
 export const remoteOrders = () => app.remote?.orders?.rows || null
 export const remoteOrderOf = woId => (app.remote?.orders?.rows || []).find(w => w.woId === woId) || null
 export const remotePayOf = payId => (app.remote?.payOrders || []).find(p => p.payId === payId) || null

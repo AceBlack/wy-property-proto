@@ -40,6 +40,8 @@ const inspectTasks = readJson('fixtures/inspect-tasks.json')
 const rectifyOrders = readJson('fixtures/rectify-orders.json')
 const qualityChecks = readJson('fixtures/quality-checks.json')
 const communities = readJson('fixtures/communities.json')
+const buildings = readJson('fixtures/buildings.json')
+const units = readJson('fixtures/units.json')
 const contracts = readJson('fixtures/contracts.json')
 const notices = readJson('fixtures/notices.json')
 const orgs = readJson('fixtures/orgs.json')
@@ -8816,6 +8818,85 @@ function mpResidentsOf(h) {
     tenants: ts
   }
 }
+
+/* ---------------- 选房三级（小区 / 楼栋 / 房间） ---------------- */
+/**
+ * 认证流程的第 1–3 步。三条都是只读，但仍然要求登录：房产档案不该被匿名枚举 ——
+ * 756 间房的门牌加起来，等于把整个小区的户型图挂在公网上。
+ *
+ * **不要求 L2**：选房时人还没实名（实名在下一步），这里要的只是"你是本系统的一个用户"。
+ *
+ * 户数、单元数一律按房号表实算，不取 project/building 表里那个手写数字：
+ * 那是"合同上写着多少户"，选房页要的是"系统里到底建了多少间"。
+ */
+const countBy = (list, key, id) => list.reduce((n, x) => n + (x[key] === id ? 1 : 0), 0)
+
+on('GET', '/mp/communities', (ctx) => {
+  mpOf(ctx)
+  const rows = communities
+    /* 已退管的小区点进去也绑不了房，列出来只是让人白点一次 */
+    .filter(c => c.status === '在管')
+    .map(c => ({
+      communityId: c.communityId,
+      name: c.name,
+      bizType: c.bizType,
+      address: c.address || '',
+      houseCount: countBy(houses, 'communityId', c.communityId)
+    }))
+  return { rows }
+})
+
+on('GET', '/mp/communities/{communityId}/buildings', (ctx) => {
+  mpOf(ctx)
+  const c = communities.find(x => x.communityId === ctx.params.communityId)
+  if (!c) throw notFound('没有这个小区')
+  const rows = buildings
+    .filter(b => b.communityId === c.communityId)
+    .map(b => ({
+      buildingId: b.buildingId,
+      name: b.name,
+      buildingNo: b.buildingNo || '',
+      usage: b.usage || '住宅',
+      unitCount: countBy(units, 'buildingId', b.buildingId),
+      floorCount: b.floorCount,
+      houseCount: countBy(houses, 'buildingId', b.buildingId),
+      hasElevator: !!b.hasElevator
+    }))
+    /* 按楼号排，不按 buildingId 字符串排 —— B0110 会排到 B0102 前面 */
+    .sort((x, y) => Number(x.buildingNo) - Number(y.buildingNo) || x.name.localeCompare(y.name))
+  return { communityId: c.communityId, rows }
+})
+
+on('GET', '/mp/buildings/{buildingId}/rooms', (ctx) => {
+  mpOf(ctx)
+  const b = buildings.find(x => x.buildingId === ctx.params.buildingId)
+  if (!b) throw notFound('没有这栋楼')
+
+  const inBuilding = houses.filter(h => h.buildingId === b.buildingId)
+  const groups = units
+    .filter(u => u.buildingId === b.buildingId)
+    .sort((x, y) => Number(x.unitNo || 0) - Number(y.unitNo || 0))
+    .map(u => ({
+      unitId: u.unitId,
+      unitName: u.name,
+      rooms: inBuilding
+        .filter(h => h.unitId === u.unitId)
+        /* 楼层 → 房号：与业主站在楼下抬头看门牌的顺序一致 */
+        .sort((x, y) => Number(x.floor) - Number(y.floor) || String(x.room).localeCompare(String(y.room)))
+        /* 只回答"这是哪一间"。业主、家属、租客、门牌人一概不下发 */
+        .map(h => ({
+          houseId: h.houseId,
+          room: h.room,
+          floor: Number(h.floor) || 0,
+          fullName: h.fullName,
+          area: Number(h.area) || 0,
+          houseType: h.houseType || ''
+        }))
+    }))
+    .filter(g => g.rooms.length)
+
+  return { buildingId: b.buildingId, buildingName: b.name, groups }
+})
 
 on('GET', '/mp/houses/{houseId}', (ctx) => {
   const me = mpOf(ctx)

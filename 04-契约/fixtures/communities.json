@@ -1,23 +1,26 @@
 [
- {
-  "communityId": "P01",
-  "name": "翡翠城",
-  "bizType": "住宅",
-  "houseCount": 352,
-  "status": "在管"
- },
- {
-  "communityId": "P02",
-  "name": "锦绣家园",
-  "bizType": "住宅",
-  "houseCount": 264,
-  "status": "在管"
- },
- {
-  "communityId": "P03",
-  "name": "星光天地",
-  "bizType": "商业",
-  "houseCount": 120,
-  "status": "在管"
- }
+  {
+    "communityId": "P01",
+    "name": "翡翠城",
+    "bizType": "住宅",
+    "houseCount": 352,
+    "status": "在管",
+    "address": "成都市高新区天府大道南段 1288 号"
+  },
+  {
+    "communityId": "P02",
+    "name": "锦绣家园",
+    "bizType": "住宅",
+    "houseCount": 284,
+    "status": "在管",
+    "address": "成都市武侯区武侯大道 566 号"
+  },
+  {
+    "communityId": "P03",
+    "name": "星光天地",
+    "bizType": "商业",
+    "houseCount": 120,
+    "status": "在管",
+    "address": "成都市锦江区红星路三段 88 号"
+  }
 ]

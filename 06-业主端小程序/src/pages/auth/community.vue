@@ -30,7 +30,7 @@
 
       <view class="ac__tip">
         <text class="demo-tip">演示</text>
-        <text class="ac__tip-t">数据集里只有 3 个在管项目，真实环境按定位与城市列表检索。</text>
+        <text class="ac__tip-t">在管项目共 3 个；正式环境按定位与城市检索。</text>
       </view>
     </view>
   </view>
@@ -46,12 +46,15 @@ import { gateLogin } from '@/utils/guard'
 import { toast } from '@/utils/ui'
 
 const kw = ref('')
-const all = communityList()
-const list = computed(() => (kw.value ? all.filter(c => c.name.includes(kw.value)) : all))
+const all = ref([])
+const list = computed(() => (kw.value ? all.value.filter(c => c.name.includes(kw.value)) : all.value))
 
-onLoad(() => {
+onLoad(async () => {
   if (!gateLogin()) return
   resetFlow()
+  /* 只有 3 条，但它是网络请求 —— 搜索框在这期间是可用的（筛空数组），
+     等数据回来 computed 会自己重算，不需要 loading 遮挡 */
+  all.value = await communityList()
 })
 
 function pick(c) {

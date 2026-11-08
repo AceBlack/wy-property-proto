@@ -1,0 +1,189 @@
+[
+  {
+    "buildingId": "B0101",
+    "communityId": "P01",
+    "buildingNo": "01",
+    "name": "1栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0201",
+    "communityId": "P01",
+    "buildingNo": "02",
+    "name": "2栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": false
+  },
+  {
+    "buildingId": "B0301",
+    "communityId": "P01",
+    "buildingNo": "03",
+    "name": "3栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0401",
+    "communityId": "P01",
+    "buildingNo": "04",
+    "name": "4栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": false
+  },
+  {
+    "buildingId": "B0501",
+    "communityId": "P01",
+    "buildingNo": "05",
+    "name": "5栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0601",
+    "communityId": "P01",
+    "buildingNo": "06",
+    "name": "6栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": false
+  },
+  {
+    "buildingId": "B0701",
+    "communityId": "P01",
+    "buildingNo": "07",
+    "name": "7栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0801",
+    "communityId": "P01",
+    "buildingNo": "08",
+    "name": "8栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": false
+  },
+  {
+    "buildingId": "B0102",
+    "communityId": "P02",
+    "buildingNo": "01",
+    "name": "1栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0202",
+    "communityId": "P02",
+    "buildingNo": "02",
+    "name": "2栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0302",
+    "communityId": "P02",
+    "buildingNo": "03",
+    "name": "3栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0402",
+    "communityId": "P02",
+    "buildingNo": "04",
+    "name": "4栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0502",
+    "communityId": "P02",
+    "buildingNo": "05",
+    "name": "5栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0602",
+    "communityId": "P02",
+    "buildingNo": "06",
+    "name": "6栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 11,
+    "houseCount": 44,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0103",
+    "communityId": "P03",
+    "buildingNo": "01",
+    "name": "1栋",
+    "usage": "商业",
+    "unitCount": 1,
+    "floorCount": 4,
+    "houseCount": 60,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0203",
+    "communityId": "P03",
+    "buildingNo": "02",
+    "name": "2栋",
+    "usage": "商业",
+    "unitCount": 1,
+    "floorCount": 4,
+    "houseCount": 60,
+    "hasElevator": true
+  },
+  {
+    "buildingId": "B0702",
+    "communityId": "P02",
+    "buildingNo": "07",
+    "name": "7栋",
+    "usage": "住宅",
+    "unitCount": 2,
+    "floorCount": 10,
+    "houseCount": 20,
+    "hasElevator": true
+  }
+]

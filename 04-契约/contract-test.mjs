@@ -5758,6 +5758,67 @@ async function withMp(tok, fn) {
   try { return await fn() } finally { token = save }
 }
 
+test('选房三级：小区 / 楼栋 / 房间都只回答"这是哪一间"', async () => {
+  /* 选房发生在实名**之前**，所以这条用例只用 L1 的 token、不去实名。
+     哪天有人给这三条加上 L2，这里会立刻红 —— 而真实后果是
+     "刚登录的业主点不进选房页"，比一条用例红难查得多。 */
+  const lg = await mpLoginAs('13800138001')
+  const tok = lg.data.token
+
+  const anon = await call('GET', '/mp/communities', { auth: false })
+  eq(anon.status, 401, '未登录不能枚举房产档案')
+
+  const cs = await withMp(tok, () => call('GET', '/mp/communities'))
+  eq(cs.status, 200, '小区列表')
+  assertSchema(cs, 'MpCommunityListEnvelope', 'GET /mp/communities')
+  eq(cs.data.rows.length, 3, '三个在管项目')
+  assert(cs.data.rows.every(r => r.houseCount > 0 && r.address), '每个小区都要有地址与户数')
+  const p01 = cs.data.rows.find(r => r.communityId === 'P01')
+  /* 户数按房号实算：项目表写的是"合同上多少户"，房号表才是"系统里多少间"。
+     这条断言同时盯着本轮把裁剪的 220 户补成 756 那次改数据 —— 补少了它就红 */
+  eq(p01.houseCount, 352, 'P01 户数按房号实算')
+
+  const bs = await withMp(tok, () => call('GET', '/mp/communities/P01/buildings'))
+  eq(bs.status, 200, '楼栋列表')
+  assertSchema(bs, 'MpBuildingListEnvelope', 'GET /mp/communities/{communityId}/buildings')
+  eq(bs.data.rows.length, 8, 'P01 有 8 栋')
+  eq(bs.data.rows[0].buildingId, 'B0101', '按楼号排序，1 栋在最前')
+  eq(bs.data.rows[0].houseCount, 44, '1 栋 44 户')
+  eq(bs.data.rows[0].unitCount, 2, '1 栋 2 个单元')
+
+  const noComm = await withMp(tok, () => call('GET', '/mp/communities/P99/buildings'))
+  eq(noComm.status, 404, '不存在的小区 404')
+
+  const rs = await withMp(tok, () => call('GET', '/mp/buildings/B0101/rooms'))
+  eq(rs.status, 200, '房号列表')
+  assertSchema(rs, 'MpRoomGroupListEnvelope', 'GET /mp/buildings/{buildingId}/rooms')
+  eq(rs.data.groups.length, 2, '1 栋两个单元')
+  const total = rs.data.groups.reduce((n, g) => n + g.rooms.length, 0)
+  eq(total, 44, '两组合起来 44 间，与楼栋户数一致')
+
+  const g0 = rs.data.groups[0]
+  eq(g0.unitName, '1单元', '单元名')
+  const floors = g0.rooms.map(r => r.floor)
+  eq(floors.every((f, i) => i === 0 || f >= floors[i - 1]), true, '组内按楼层升序')
+  eq(g0.rooms[0].room, '0101', '1 层从 0101 起')
+
+  /* 这一层只回答"这是哪一间"：多给一个字段，就是给陌生人多一次业主信息试探的机会 */
+  const one = g0.rooms[0]
+  assertSchema(one, 'MpRoom', '房号')
+  for (const k of ['ownerId', 'tenantId', 'stewardEmpId', 'phone', 'propertyStatus', 'certNo']) {
+    eq(k in one, false, `选房不该下发 ${k}`)
+  }
+
+  const noBld = await withMp(tok, () => call('GET', '/mp/buildings/B9999/rooms'))
+  eq(noBld.status, 404, '不存在的楼栋 404')
+
+  /* 选房页能点到的房号，后台档案里必须也有 —— 否则就是
+     "页面上点得到、绑定那一步 403"，比不切接口更糟 */
+  const back = await call('GET', '/houses/H010110501')
+  eq(back.status, 200, '选房页给出的房号，后台档案里存在')
+  eq(back.data.communityId, 'P01', '落在同一个项目')
+})
+
 test('业主认证：登录不发姓名，未实名不能查候选', async () => {
   const lg = await mpLoginAs('13800138001')
   eq(lg.status, 200, '业主登录')
@@ -6820,7 +6881,9 @@ test('契约与实现：每条契约接口都要在假服务里注册', async ()
    * 每加一条都要写清原因；不写原因的白名单三个月后没人敢删。
    */
   const KNOWN_GAP = new Set([
-    /* 员工端 APP（05）直读 fixture，没走假服务 —— 与业主端上一版的做法一样 */
+    /* 员工端 APP（05）仍直读 03 的 mock，没走假服务 —— `/mobile/*` 这两条与
+       那 19 条 move-post 是同一个原因：手机上做的事，假服务还没接。
+       **业主端（`/mp/*`）第 78 批已全部落地，所以这份白名单里不再有 mp。** */
     'GET /mobile/tasks/{}/exec', 'POST /mobile/tasks/{}/checkin',
     'POST /inspect-tasks/{}/work-orders',
     'POST /work-orders/{}/accept', 'POST /work-orders/{}/transfer', 'POST /work-orders/{}/finish',
@@ -6831,14 +6894,7 @@ test('契约与实现：每条契约接口都要在假服务里注册', async ()
     'POST /attendance/{}/confirm', 'POST /attendance/{}/appeal',
     'POST /mobile/collections', 'POST /mobile/collections/batch',
     'GET /mobile/commission', 'GET /mobile/pricing',
-    'GET /mobile/houses/{}/residents',
-    /* 业主端小程序（06）直读 fixture；本批只接了登录与挂牌，其余仍是设计态 */
-    'POST /mp/auth/realname', 'GET /mp/auth/bindings/candidates', 'POST /mp/auth/bindings',
-    'GET /mp/me', 'GET /mp/houses/{}', 'GET /mp/houses/{}/residents', 'POST /mp/houses/{}/tenants',
-    'GET /mp/bills', 'GET /mp/pricing',
-    'POST /mp/orders', 'GET /mp/orders/{}', 'POST /mp/orders/{}/addons/confirm',
-    'POST /mp/orders/{}/evaluate',
-    'POST /mp/payments', 'POST /mp/payments/{}/simulate'
+    'GET /mobile/houses/{}/residents'
   ])
 
   const missing = []

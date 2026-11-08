@@ -11,12 +11,12 @@
       <view v-for="b in list" :key="b.buildingId" class="opt" @tap="pick(b)">
         <view class="opt__body">
           <text class="opt__t">{{ b.name }}</text>
-          <text class="opt__d">{{ b.unitList.length }} 个单元 · {{ b.floorCount }} 层 · {{ b.houseCount }} 户</text>
+          <text class="opt__d">{{ b.unitCount }} 个单元 · {{ b.floorCount }} 层 · {{ b.houseCount }} 户</text>
         </view>
         <view class="opt__check" />
       </view>
 
-      <Empty v-if="!list.length" text="该小区暂无可选楼栋" />
+      <Empty v-if="loaded && !list.length" text="该小区暂无可选楼栋" />
     </view>
   </view>
 </template>
@@ -30,13 +30,17 @@ import { buildingList } from '@/api/mp'
 import { flow } from '@/store/auth-flow'
 
 const list = ref([])
+/* 接口模式下"空数组"有两种含义：还没回来 / 真的没有楼栋。
+   不分开就会先闪一句"暂无可选楼栋"，再被数据填上 —— 用户看到的第一眼是假的 */
+const loaded = ref(false)
 
-onLoad(() => {
+onLoad(async () => {
   if (!flow.communityId) {
     uni.redirectTo({ url: '/pages/auth/community' })
     return
   }
-  list.value = buildingList(flow.communityId)
+  list.value = await buildingList(flow.communityId)
+  loaded.value = true
 })
 
 function pick(b) {

@@ -15,6 +15,7 @@ import { addonFee, orderFee, priceOfCode, round2 } from '@/api/pricing'
 import { matchIdentity, ROLE } from './identity-rule.mjs'
 import { IS_API, get, post, setToken } from './client'
 import {
+  fetchBuildings, fetchCommunities, fetchRoomGroups,
   remoteBillRows, remoteHouseOf, remoteOrderOf, remoteOrders, remotePayOf,
   remoteReady, remoteResidentsOf, replaceBills, upsertOrder, upsertPay
 } from './remote'
@@ -26,22 +27,63 @@ const EMP_OF = new Map(employees.map(e => [e.empId, e]))
 const HOUSE_OF = new Map(houses.map(h => [h.houseId, h]))
 const OWNER_OF = new Map(owners.map(o => [o.ownerId, o]))
 
-/* ============================ 一、选社区 / 楼栋 / 房间 ============================ */
+/* ============================ 一、选社区 / 楼栋 / 房间 ============================
+ *
+ * 第 78 批：这一组切到服务端，是业主端**最后一处读本地房产档案**的地方。
+ *
+ * 与前几批不同，这三个函数从同步改成了 async —— 前面靠"缓存水合"让页面零改动，
+ * 但选房是**逐层懒加载**：没人会一次看完 3 个小区、17 栋楼、756 间房，
+ * 提前拉一份整包只是把首屏撑大。没有可预拉的整包，就只能让页面 await。
+ *
+ * 接口失败时回落本地档案：演示现场假服务没起，选房页还能走完流程。
+ * 这条兜底之所以成立，是因为本轮把 fixtures 的裁剪补齐了（220 → 756 户），
+ * 本地档案与服务端是**同一批房号** —— 否则"页面点得到、绑定 403"会比不切更糟。
+ * 正式版应当直接报错：真实系统里静默回落到打包数据是不可接受的。
+ */
 
-export const communityList = () =>
-  communities.map(c => ({ ...c, houseCount: houses.filter(h => h.communityId === c.communityId).length }))
+export async function communityList() {
+  if (IS_API) {
+    try {
+      return await fetchCommunities()
+    } catch (e) {
+      console.warn('[mp] 小区列表拉取失败，回落本地档案：', e?.message || e)
+    }
+  }
+  return communities.map(c => ({ ...c, houseCount: houses.filter(h => h.communityId === c.communityId).length }))
+}
 
-export const buildingList = communityId =>
-  buildings
+export async function buildingList(communityId) {
+  if (IS_API) {
+    try {
+      return await fetchBuildings(communityId)
+    } catch (e) {
+      console.warn('[mp] 楼栋列表拉取失败，回落本地档案：', e?.message || e)
+    }
+  }
+  return buildings
     .filter(b => b.communityId === communityId)
-    .map(b => ({
-      ...b,
-      unitList: units.filter(u => u.buildingId === b.buildingId),
-      houseCount: houses.filter(h => h.buildingId === b.buildingId).length
-    }))
+    .map(b => {
+      const unitList = units.filter(u => u.buildingId === b.buildingId)
+      return {
+        ...b,
+        unitList,
+        /* 接口模式只给 unitCount（不把单元表整个塞给客户端），本地模式补一个同名数，
+           页面两种模式用同一个字段，不用写 `b.unitCount || b.unitList.length` */
+        unitCount: unitList.length,
+        houseCount: houses.filter(h => h.buildingId === b.buildingId).length
+      }
+    })
+}
 
 /** 楼栋下的房号，按单元分组（业主选房时按"1单元 101/102"这样看） */
-export function roomList(buildingId) {
+export async function roomList(buildingId) {
+  if (IS_API) {
+    try {
+      return await fetchRoomGroups(buildingId)
+    } catch (e) {
+      console.warn('[mp] 房号列表拉取失败，回落本地档案：', e?.message || e)
+    }
+  }
   const list = houses.filter(h => h.buildingId === buildingId)
   const map = new Map()
   for (const h of list) {
