@@ -113,10 +113,10 @@ onLoad(o => {
   id.value = o?.id ? decodeURIComponent(o.id) : ''
 })
 
-function submit() {
+async function submit() {
   err.value = ''
   try {
-    submitViewing({
+    await submitViewing({
       listingId: id.value,
       name: form.name,
       phone: form.phone,

@@ -9399,11 +9399,19 @@ const mpNvGet = (map, key, init) => {
 const mpNvCommunities = (sess) => new Set(
   (sess.boundHouseIds || []).map(id => (HOUSE.get(id) || {}).communityId).filter(Boolean)
 )
-/** 我能看到的公告：已发布 + 本社区（communityId 为空的算全公司公告） */
-const mpNvNotices = (sess) => {
+/**
+ * 我的可见范围：**有绑定按绑定项目，游客（未绑房）放行**。
+ * 放行不是设计，是让步：业主端上一版对游客就是"浏览全部"，这一批只负责把
+ * "已绑 P01 的业主还能看到 P02 的投票"这个真问题修掉。正式版应按项目收敛，
+ * 记在交接单 §14.5 第 4 条。
+ */
+const mpNvInScope = (sess, communityId) => {
   const mine = mpNvCommunities(sess)
-  return notices.filter(n => n.status === '已发布' && (!n.communityId || mine.has(n.communityId)))
+  if (!mine.size) return true
+  return !communityId || mine.has(communityId)
 }
+/** 我能看到的公告：已发布 + 可见范围（communityId 为空的算全公司公告） */
+const mpNvNotices = (sess) => notices.filter(n => n.status === '已发布' && mpNvInScope(sess, n.communityId))
 /**
  * 哪些公告要签收：**影响日常生活的两类**（停水停电 / 安全提示）。
  * 样例里没有 `needSign` 字段，也没必要为它改数据 —— 这个口径是业务规则，不是数据。
@@ -9445,6 +9453,169 @@ function mpNvMyEnrolls(sess) {
 const mpNvMyItems = (sess) => neighborItems
   .filter(i => i.ownerId === sess.ownerId)
   .sort((a, b) => String(b.publishAt).localeCompare(String(a.publishAt)))
+
+/* ================== 公共列表与详情（业主视角的读接口） ================== */
+/*
+ * 与 `/neighbor/*`（运营侧）的区别不是"少几个字段"，而是**边界不同**：
+ *   - 运营侧按数据范围（我管哪些项目）；
+ *   - 业主侧按"我住哪个小区"（已绑房产所在项目）。
+ * 混用的结果是客服能看到的内容，业主也能看到。
+ *
+ * 三条写死的口径：
+ *   1. 已绑房 → 只看自己项目；**未绑房（游客）→ 不过滤**（与业主端原行为一致，
+ *      正式版应改成按项目收敛，这条记在交接单 §14.5 第 4 条）。
+ *   2. 投票未到 `canSeeResult` 时 `options[].votes` 一律置 0 —— 返回真值再靠前端
+ *      不显示，等于把结果发给了每个人。
+ *   3. 闲置只给到**楼栋**，`sellerHouse` / `sellerPhone` / `wechat` 不出现在响应里。
+ */
+
+/** 我的可见范围见 `mpNvInScope`（在公告那一段，与 `/mine` 共用） */
+
+const MP_NV_ITEM_ON = '已上架'
+
+function mpNvNoticeView(me, n) {
+  const reads = mpNvGet(mpNv.reads, me.ownerId, () => new Map())
+  const signs = mpNvGet(mpNv.signs, me.ownerId, () => new Map())
+  const read = reads.has(n.noticeId)
+  return {
+    noticeId: n.noticeId,
+    title: n.title,
+    type: n.type,
+    communityId: n.communityId || '',
+    communityName: n.communityId ? communityNameOf(n.communityId) : '全公司',
+    publisher: n.publisher,
+    publishTime: n.publishTime,
+    top: !!n.top,
+    /* 自己看过的那一次也算一次阅读：否则点进去数字不动，像没生效 */
+    readCount: (Number(n.readCount) || 0) + (read ? 1 : 0),
+    targetHouses: Number(n.targetHouses) || 0,
+    attachments: Number(n.attachments) || 0,
+    content: n.content || '',
+    /* 只有两类要签收，客户端据此决定显不显示「我已阅读并签收」 */
+    signRequired: mpNvNeedSign(n),
+    read,
+    signed: signs.has(n.noticeId),
+    signedAt: signs.get(n.noticeId) || ''
+  }
+}
+
+function mpNvVoteView(me, v) {
+  const ballot = mpNvGet(mpNv.votes, me.ownerId, () => new Map()).get(v.surveyId) || []
+  const voted = ballot.length > 0
+  const canSeeResult = voted || v.status === '已结束' || v.resultVisibility === '公开'
+  const options = (v.options || []).map(o => ({
+    key: o.key,
+    label: o.label,
+    /* 我那一票要算进去 —— 投完数字不动，会被当成没生效 */
+    votes: (Number(o.votes) || 0) + (ballot.includes(o.key) ? 1 : 0)
+  }))
+  const total = options.reduce((s, o) => s + o.votes, 0)
+  const owners = new Set(
+    houses.filter(h => h.communityId === v.communityId && h.ownerId).map(h => h.ownerId)
+  )
+  /* 分母兜底：fixtures 的 houses 是裁剪版，种子票数会出现「282 票 / 16 户」。
+     取 max 保证参与率不超 100%；真实环境两边同源，这个偏差不存在。 */
+  return {
+    voteId: v.surveyId,
+    title: v.title,
+    type: v.type,
+    desc: v.desc || '',
+    communityId: v.communityId,
+    communityName: communityNameOf(v.communityId),
+    status: v.status,
+    startAt: v.startAt,
+    endAt: v.endAt,
+    multi: !!v.multi,
+    maxPick: Number(v.maxPick) || (v.multi ? 2 : 1),
+    anonymous: v.anonymous !== false,
+    resultVisibility: v.resultVisibility || '投票后可见',
+    options: canSeeResult ? options : options.map(o => ({ ...o, votes: 0 })),
+    target: Math.max(owners.size, total),
+    totalVotes: canSeeResult ? total : 0,
+    canSeeResult,
+    voted,
+    /* 自己的选择对自己不是秘密；别人投了谁都不给 */
+    myVote: ballot
+  }
+}
+
+/**
+ * 活动：**只给数据，不给阶段**。
+ * 阶段依赖"今天"，而演示时钟在客户端（06/05 都是 2026-10-20，服务端数据日是 10-21）。
+ * 服务端算一份、客户端再算一份，两边必然在临界那天打架（AC0015 就卡在 10-20）。
+ * 客户端用 `activity-rule.mjs` 现算，`enrolled` 则由服务端给（它才是真数）。
+ */
+function mpNvActView(me, a) {
+  const enrolled = nvEnrolledOf(a.activityId)
+  const mine = neighborEnrolls
+    .filter(e => e.ownerId === me.ownerId
+      && e.activityId === a.activityId
+      && MP_NV_ENROLL_ALIVE.includes(e.status))
+    .sort((x, y) => String(y.at).localeCompare(String(x.at)))[0] || null
+  return {
+    activityId: a.activityId,
+    title: a.title,
+    category: a.category,
+    cover: a.cover,
+    desc: a.desc || '',
+    communityId: a.communityId,
+    communityName: communityNameOf(a.communityId),
+    startAt: a.startAt,
+    endAt: a.endAt,
+    place: a.place,
+    enrollDeadline: a.enrollDeadline,
+    capacity: Number(a.capacity) || 0,
+    minCapacity: Number(a.minCapacity) || 0,
+    fee: Number(a.fee) || 0,
+    needInsurance: !!a.needInsurance,
+    attendeeLimit: Number(a.attendeeLimit) || 1,
+    feeInclude: a.feeInclude || '',
+    feeExclude: a.feeExclude || '',
+    refundPolicy: a.refundPolicy || [],
+    organizer: a.organizer || '物业服务中心',
+    status: a.status,
+    flowedAt: a.flowedAt || '',
+    enrolled,
+    mine: !!mine,
+    /* 没报名就**不给这个键**，不要回 null —— 契约里它是 object，
+       给 null 客户端要多判一次；`v-if="a.myEnroll"` 用真值就够（与 payOrder 同口径） */
+    ...(mine ? { myEnroll: mine } : {})
+  }
+}
+
+function mpNvItemView(me, i) {
+  const wants = mpNvGet(mpNv.wants, me.ownerId, () => new Set())
+  return {
+    itemId: i.itemId,
+    communityId: i.communityId,
+    communityName: i.communityName || communityNameOf(i.communityId),
+    title: i.title,
+    category: i.category,
+    price: Number(i.price) || 0,
+    originPrice: Number(i.originPrice) || 0,
+    condition: i.condition,
+    cover: i.cover,
+    images: Number(i.images) || 0,
+    desc: i.desc || '',
+    sellerName: i.sellerName,
+    /* 只到楼栋。**sellerHouse / sellerPhone / wechat 不进响应** —— 门牌和手机号
+       一旦下发，前端一句 console.log 就全泄了。
+       `buildingName` 由生成器写在样例里（fixtures 的 houses 是裁剪版，join 不到一半）；
+       业主新发布的没有这个字段，用 buildingId 现算。 */
+    buildingName: i.buildingName
+      || (() => {
+        const h = houses.find(x => x.shortName === i.sellerHouse)
+        return h ? buildingNameOf(h.buildingId) : ''
+      })(),
+    publishAt: i.publishAt,
+    status: i.status,
+    views: Number(i.views) || 0,
+    wants: Number(i.wants) || 0,
+    contactMode: i.contactMode || '站内私信',
+    wanted: wants.has(i.itemId),
+    wantCount: Number(i.wants) || 0
+  }
+}
 
 /* ---------------- 我的内容（一次拉齐，客户端不用打五个请求） ---------------- */
 
@@ -9741,6 +9912,115 @@ on('POST', '/mp/neighbor/items/{itemId}/renew', (ctx) => {
   it.renewAt = MP_NOW
   it.rejectReason = ''
   return it
+})
+
+/* ---------------- 公共列表：公告 / 投票 / 活动 / 闲置 ---------------- */
+/*
+ * 一次返回**全部可见**，频道切换在客户端做（tab / 分类 / 排序）。
+ * 每点一次 tab 打一个请求，等于把"切频道"变成网络操作 ——
+ * 业主端这四个列表加起来不到 150 条，没必要。
+ */
+
+on('GET', '/mp/neighbor/notices', (ctx) => {
+  const me = mpOf(ctx)
+  const q = ctx.query || {}
+  const type = q.type ? String(q.type) : '全部'
+  const communityId = q.communityId ? String(q.communityId) : ''
+  const reads = mpNvGet(mpNv.reads, me.ownerId, () => new Map())
+  const rows = mpNvNotices(me)
+    .filter(n => !communityId || n.communityId === communityId)
+    .filter(n => type === '全部' || n.type === type)
+    .map(n => mpNvNoticeView(me, n))
+    .sort((a, b) => (a.top === b.top
+      ? String(b.publishTime).localeCompare(String(a.publishTime))
+      : (a.top ? -1 : 1)))
+  return {
+    rows,
+    total: rows.length,
+    /* 未读数按**全部可见公告**算，不跟筛选走 —— 否则切到「停水停电」未读就变 0 */
+    unread: mpNvNotices(me).filter(n => !reads.has(n.noticeId)).length
+  }
+})
+
+on('GET', '/mp/neighbor/notices/{noticeId}', (ctx) => {
+  const me = mpOf(ctx)
+  const n = notices.find(x => x.noticeId === String(ctx.params.noticeId) && x.status === '已发布')
+  /* 草稿 / 待审核 / 已撤回一律 404：不是"权限不够"，是这条对业主不存在 */
+  if (!n) throw notFound('公告不存在或已撤回')
+  if (!mpNvInScope(me, n.communityId)) throw forbidden('该公告不在您所在项目')
+  return mpNvNoticeView(me, n)
+})
+
+on('GET', '/mp/neighbor/votes', (ctx) => {
+  const me = mpOf(ctx)
+  const q = ctx.query || {}
+  const status = q.status ? String(q.status) : ''
+  const rows = neighborVotes
+    .filter(v => v.status !== '草稿')
+    .filter(v => mpNvInScope(me, v.communityId))
+    .filter(v => !status || v.status === status)
+    .map(v => mpNvVoteView(me, v))
+    /* 进行中在前，同状态按开始日倒序 —— 业主进来是看"现在能投什么" */
+    .sort((a, b) => (a.status === b.status
+      ? String(b.startAt).localeCompare(String(a.startAt))
+      : (a.status === '进行中' ? -1 : 1)))
+  return { rows, total: rows.length }
+})
+
+on('GET', '/mp/neighbor/votes/{voteId}', (ctx) => {
+  const me = mpOf(ctx)
+  const v = neighborVotes.find(x => x.surveyId === String(ctx.params.voteId))
+  if (!v || v.status === '草稿') throw notFound('投票不存在')
+  if (!mpNvInScope(me, v.communityId)) throw forbidden('该投票不在您所在项目')
+  return mpNvVoteView(me, v)
+})
+
+on('GET', '/mp/neighbor/activities', (ctx) => {
+  const me = mpOf(ctx)
+  const rows = neighborActivities
+    .filter(a => a.status !== '草稿')
+    .filter(a => mpNvInScope(me, a.communityId))
+    .map(a => mpNvActView(me, a))
+    .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)))
+  return { rows, total: rows.length }
+})
+
+on('GET', '/mp/neighbor/activities/{activityId}', (ctx) => {
+  const me = mpOf(ctx)
+  const a = neighborActivities.find(x => x.activityId === String(ctx.params.activityId))
+  if (!a || a.status === '草稿') throw notFound('活动不存在')
+  if (!mpNvInScope(me, a.communityId)) throw forbidden('该活动不在您所在项目')
+  return mpNvActView(me, a)
+})
+
+on('GET', '/mp/neighbor/items', (ctx) => {
+  const me = mpOf(ctx)
+  const q = ctx.query || {}
+  const cat = q.cat ? String(q.cat) : ''
+  const rows = neighborItems
+    /* 待审核 / 已驳回 / 已下架 / 已过期 都不该被邻居看到 */
+    .filter(i => i.status === MP_NV_ITEM_ON)
+    .filter(i => mpNvInScope(me, i.communityId))
+    .filter(i => !cat || cat === '全部' || i.category === cat)
+    .map(i => mpNvItemView(me, i))
+    .sort((a, b) => String(b.publishAt).localeCompare(String(a.publishAt)))
+  return {
+    rows,
+    total: rows.length,
+    /* 分类从**已有内容**扫出来，只适合筛选；发布表单的分类写死在前端 */
+    categories: [...new Set(rows.map(r => r.category))]
+  }
+})
+
+on('GET', '/mp/neighbor/items/{itemId}', (ctx) => {
+  const me = mpOf(ctx)
+  const it = neighborItems.find(x => x.itemId === String(ctx.params.itemId))
+  if (!it) throw notFound('闲置不存在')
+  const mine = !!it.ownerId && it.ownerId === me.ownerId
+  /* 自己的待审 / 已驳回自己能看（要知道为什么没过）；别人的非上架内容当不存在 */
+  if (it.status !== MP_NV_ITEM_ON && !mine) throw notFound('闲置不存在或已下架')
+  if (!mine && !mpNvInScope(me, it.communityId)) throw forbidden('该内容不在您所在项目')
+  return mpNvItemView(me, it)
 })
 
 /* ---------------- 业主视角的挂牌投影 ---------------- */

@@ -88,6 +88,7 @@ import Cover from '@/components/Cover.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import { LISTING_SORTS, PRICE_BANDS, listingList } from '@/api/listing'
+import { hydratePublic } from '@/api/remote'
 import { go } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
 
@@ -114,6 +115,9 @@ const list = computed(() => {
 
 onShow(() => {
   ver.value++
+  /* 公开房源免登录，游客也要能刷到"别人新挂的房"。
+     60 秒 TTL，来回切 tab 不会重复请求 */
+  hydratePublic().then(() => { ver.value++ })
 })
 
 const goDetail = id => go('/pages/house-sale/detail', { id })

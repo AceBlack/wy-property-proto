@@ -71,7 +71,7 @@ export const app = reactive({
    * 本地模式恒为空 → 选择器自动回落本地档案。
    * 单独放一个字段而不是散进 bills / houses：**退出登录时能一把清干净**。
    */
-  remote: cache.remote || { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
+  remote: cache.remote || { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null, myListings: [], publicListings: null, publicListingsAt: 0 }
 })
 
 /* ---------------- 派生：身份 ---------------- */
@@ -318,7 +318,7 @@ export function logout() {
   app.bindings = []
   app.activeHouseId = ''
   /* 快照要一起清：不清的话换个人登录，页面会先渲染上一个人的账单与房屋 */
-  app.remote = { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
+  app.remote = { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null, myListings: [], publicListings: null, publicListingsAt: 0 }
   persist()
 }
 
@@ -348,7 +348,7 @@ export function resetAll() {
     repairs: {},
     membersAdded: [],
     membersRemoved: [],
-    remote: { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
+    remote: { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null, myListings: [], publicListings: null, publicListingsAt: 0 }
   })
   try {
     uni.removeStorageSync(KEY)

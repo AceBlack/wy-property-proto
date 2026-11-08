@@ -29,17 +29,98 @@ export const remoteHouseOf = houseId => app.remote?.houses?.find(h => h.houseId 
 /** 批 C：我的报修（一次拉全，页面按 scope 自己筛） */
 /** 批 D：我的邻里内容（已读 / 签收 / 投票 / 报名 / 闲置 / 想要） */
 export const remoteNeighbor = () => app.remote?.neighbor || null
+/** 第 76 批：四类公共内容（公告 / 投票 / 活动 / 闲置），频道切换在客户端做 */
+export const remoteNeighborLists = () => app.remote?.neighbor?.lists || null
 
-/** 写操作之后重拉一次"我的"。比在本地猜差量可靠 —— 写操作不频繁，多一个请求换"不会算错"值得 */
-export async function refreshNeighbor() {
+/**
+ * 拉一次邻里整包：我的状态 + 四类公共列表。
+ *
+ * 为什么打包：写操作之后两边都要更新 —— 报名会改活动的 `enrolled`，
+ * 发布闲置会同时改"我发布的"和公共列表。只刷 `/mine` 的话，
+ * 列表上的名额还停在旧数字，用户会以为没报上。
+ *
+ * 五个请求并发，写操作不频繁（一次报名换五个请求），比"猜差量"可靠。
+ */
+const NV_GET = {
+  mine: '/mp/neighbor/mine',
+  notices: '/mp/neighbor/notices',
+  votes: '/mp/neighbor/votes',
+  activities: '/mp/neighbor/activities',
+  items: '/mp/neighbor/items'
+}
+const NV_ALL = Object.keys(NV_GET)
+
+async function fetchNeighborBundle() {
+  const parts = await Promise.all(NV_ALL.map(k => get(NV_GET[k])))
+  const out = { ...parts[0], lists: {} }
+  NV_ALL.slice(1).forEach((k, i) => { out.lists[k] = parts[i + 1].rows || [] })
+  return out
+}
+
+/**
+ * 写操作之后重拉邻里内容。比在本地猜差量可靠。
+ *
+ * `keys` 默认全刷；能确定只动了哪一块就只传那一块 —— 打开一条公告就重拉
+ * 五个列表（+ mine）是六个请求，而它只会改"已读"和"未读数"。
+ */
+export async function refreshNeighbor(keys = NV_ALL) {
   if (!IS_API || !app.session?.token) return null
   try {
-    const nb = await get('/mp/neighbor/mine')
-    app.remote.neighbor = nb
+    const parts = await Promise.all(keys.map(k => get(NV_GET[k])))
+    const next = { ...(app.remote.neighbor || {}), lists: { ...(app.remote.neighbor?.lists || {}) } }
+    keys.forEach((k, i) => {
+      if (k === 'mine') Object.assign(next, parts[i], { lists: next.lists })
+      else next.lists[k] = parts[i].rows || []
+    })
+    app.remote.neighbor = next
     persist()
-    return nb
+    return next
   } catch (e) {
     console.warn('[remote] 邻里内容刷新失败：', e?.message || e)
+    return null
+  }
+}
+
+/* ---------------- 租售（第 77 批） ----------------
+ * 公开列表**免登录**：想租房的人多半不是本小区业主，把它挂在 `fetched`（= 有 token）
+ * 后面，游客就永远只能看本地那 14 条。所以单独一条 `hydratePublic()`。
+ */
+/*
+ * **必须带 `IS_API` 判断**：`myListings` 的默认值是空数组，而 `[] || null` 得到的是 `[]`
+ * —— 真值。少这一个判断，本地模式也会走进"接口分支"，然后拿空数组渲染，
+ * 表现就是「我的挂牌」永远空白（第 77 批踩到，dist 和 dev 一起红）。
+ */
+export const remotePublicListings = () => (IS_API ? app.remote?.publicListings || null : null)
+export const remoteMyListings = () => (IS_API ? app.remote?.myListings || null : null)
+
+/** 公开房源：不需要 token，谁都能拉；60 秒 TTL */
+export async function hydratePublic({ force = false } = {}) {
+  if (!IS_API) return null
+  if (!force && app.remote?.publicListingsAt && Date.now() - app.remote.publicListingsAt < TTL) {
+    return app.remote.publicListings
+  }
+  try {
+    const r = await get('/public/listings', { size: 100 })
+    app.remote.publicListings = r.rows || []
+    app.remote.publicListingsAt = Date.now()
+    persist()
+    return app.remote.publicListings
+  } catch (e) {
+    console.warn('[remote] 公开房源拉取失败，继续用本地数据：', e?.message || e)
+    return null
+  }
+}
+
+/** 我的挂牌：要 L2（已实名）—— 没实名时服务端不给，回落本地 */
+export async function refreshMyListings() {
+  if (!IS_API || !app.session?.token) return null
+  try {
+    const r = await get('/mp/listings')
+    app.remote.myListings = r.rows || []
+    persist()
+    return app.remote.myListings
+  } catch (e) {
+    console.warn('[remote] 我的挂牌刷新失败：', e?.message || e)
     return null
   }
 }
@@ -74,11 +155,15 @@ export function hydrate({ force = false } = {}) {
       )
       const cid = houses[0]?.communityId || ''
       /* 账单 / 价目 / 工单三件事互不依赖，并发发出去；价目缺 communityId 时不请求（服务端也认） */
-      const [bills, pricing, orders, neighbor] = await Promise.all([
+      const [bills, pricing, orders, neighbor, myList, pubList] = await Promise.all([
         get('/mp/bills'),
         cid ? get('/mp/pricing', { communityId: cid }) : Promise.resolve(null),
         get('/mp/orders'),
-        get('/mp/neighbor/mine')
+        fetchNeighborBundle(),
+        /* 我的挂牌可能 403（没实名），失败就当空 —— 不要让它拖垮整个快照 */
+        get('/mp/listings').catch(() => ({ rows: [] })),
+        /* 公开房源免登录，顺手带一份 */
+        get('/public/listings', { size: 100 }).catch(() => ({ rows: [] }))
       ])
       app.remote = {
         fetched: true,
@@ -90,6 +175,9 @@ export function hydrate({ force = false } = {}) {
         pricing,
         orders,
         neighbor,
+        myListings: myList.rows || [],
+        publicListings: pubList.rows || [],
+        publicListingsAt: Date.now(),
         /* 待付款单不进快照：服务端只记内存（重启即空），且它天然短命。
            写操作时由接口返回单条，见 upsertPay */
         payOrders: app.remote?.payOrders || []
@@ -151,5 +239,5 @@ export function replaceBills(rows) {
 
 /** 登出 / 重置时清掉：不清的话换个身份登录会先看到上一个人的账单 */
 export function clearRemote() {
-  app.remote = { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
+  app.remote = { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null, myListings: [], publicListings: null, publicListingsAt: 0 }
 }

@@ -20,8 +20,11 @@
  *   neighbor-activities.json 17 场（含 5 场收费，状态覆盖 报名中/待成行/已成行）
  *   neighbor-items.json      34 条（已上架 20 / 待审核 8 / 已驳回 3 / 已下架 2 / 已过期 1）
  *   neighbor-enrolls.json   268 条报名（用来算"已报名人数"与成团进度）
- * 投票没有 fixture：后台是从 `surveys.json` 派生的（+2 条草稿只在后台内存里），
- * 业主端读同一份 `surveys.json`。
+ *   neighbor-votes.json       6 条投票（第 70 批从 surveys 投影出来，含 multi / maxPick）
+ *
+ * 第 76 批起，接口模式下这四类**公共列表**（公告 / 投票 / 活动 / 闲置）走
+ * `/mp/neighbor/{notices,votes,activities,items}`，读不到时才回落到上面这些本地数据。
+ * 写操作（已读 / 签收 / 投票 / 报名 / 发布 / 想要 / 私信）在批 D 就已经切走了。
  */
 import { buildings, communities, houses, notices, surveys } from '@pc/mock'
 import rawActivities from '@contract/neighbor-activities.json'
@@ -32,7 +35,7 @@ import { DEMO, stamp } from '@/config/demo'
 import { canEnroll, phaseOf as phaseRule } from './activity-rule.mjs'
 import { refundAmountOf, refundRatioOf } from './refund-rule.mjs'
 import { IS_API, post } from './client'
-import { refreshNeighbor, remoteNeighbor, remoteReady } from './remote'
+import { refreshNeighbor, remoteNeighbor, remoteNeighborLists, remoteReady } from './remote'
 
 /**
  * 批 D：把"我的状态"从本地换成服务端快照。
@@ -52,6 +55,8 @@ const wantList = () => NB()?.wants || app.wants
 const myItemRows = () => (NB() ? NB().items || [] : app.itemPosts)
 /** 我的报名：同上 */
 const myEnrollRows = () => (NB() ? NB().enrolls || [] : app.enrollments)
+/** 四类公共内容（第 76 批）：接口模式下由快照提供，读不到回落本地 */
+const NVL = () => (remoteReady() ? remoteNeighborLists() : null)
 
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100
 
@@ -66,6 +71,15 @@ function myCommunityIds() {
 }
 
 export function noticeList({ type = '全部', communityId = '' } = {}) {
+  const rows = NVL()?.notices
+  if (rows) {
+    /* 服务端已经按「已发布 + 可见范围」筛好并排好序（置顶在前），
+       这里只做频道筛选，**不重排** —— 两边各排一次，顺序迟早不一样 */
+    return rows
+      .filter(n => !communityId || n.communityId === communityId)
+      .filter(n => type === '全部' || n.type === type)
+      .map(noticeRemoteView)
+  }
   const mine = communityId ? [communityId] : myCommunityIds()
   return notices
     /* 只同步「已发布」：草稿 / 待审核 / 已撤回不该出现在业主端（§12.3 第 1 条） */
@@ -87,6 +101,11 @@ export function noticeList({ type = '全部', communityId = '' } = {}) {
 }
 
 export function noticeOf(noticeId) {
+  const rows = NVL()?.notices
+  if (rows) {
+    const hit = rows.find(x => x.noticeId === noticeId)
+    return hit ? noticeRemoteView(hit) : null
+  }
   const n = notices.find(x => x.noticeId === noticeId && x.status === '已发布')
   if (!n) return null
   return {
@@ -106,7 +125,8 @@ export async function markNoticeRead(noticeId) {
   if (IS_API) {
     /* 服务端是幂等的（重复已读不刷时间），所以这里不用先判"读过没有" */
     await post(`/mp/neighbor/notices/${noticeId}/read`)
-    await refreshNeighbor()
+    /* 只会改"已读 / 未读"：不必把四个列表一起重拉 */
+    await refreshNeighbor(['mine', 'notices'])
     return
   }
   if (app.noticeReads[noticeId]) return
@@ -118,7 +138,7 @@ export async function signNotice(noticeId) {
   if (!noticeId) return false
   if (IS_API) {
     await post(`/mp/neighbor/notices/${noticeId}/sign`)
-    await refreshNeighbor()
+    await refreshNeighbor(['mine', 'notices'])
     return true
   }
   app.noticeSigns[noticeId] = stamp()
@@ -181,6 +201,13 @@ function voteBase(s) {
 }
 
 export function voteList({ tab = 'doing' } = {}) {
+  const rows = NVL()?.votes
+  if (rows) {
+    const list = rows.map(voteRemoteView)
+    if (tab === 'done') return list.filter(s => s.status === '已结束')
+    if (tab === 'mine') return list.filter(s => s.voted)
+    return list.filter(s => s.status !== '已结束')
+  }
   const list = surveys.map(voteBase)
   if (tab === 'done') return list.filter(s => s.status === '已结束')
   if (tab === 'mine') return list.filter(s => s.voted)
@@ -188,6 +215,11 @@ export function voteList({ tab = 'doing' } = {}) {
 }
 
 export const voteOf = id => {
+  const rows = NVL()?.votes
+  if (rows) {
+    const hit = rows.find(x => x.voteId === id)
+    return hit ? voteRemoteView(hit) : null
+  }
   const s = surveys.find(x => x.surveyId === id)
   return s ? voteBase(s) : null
 }
@@ -207,7 +239,8 @@ export async function castVote(surveyId, keys = []) {
   if (IS_API) {
     /* 选项合法性、单选上限、改票差额都交给服务端 —— 客户端再判一遍是两套规则 */
     const r = await post(`/mp/neighbor/votes/${surveyId}/submit`, { keys })
-    await refreshNeighbor()
+    /* 票数变了，我的投票状态也变了；活动与闲置不受影响 */
+    await refreshNeighbor(['mine', 'votes'])
     return voteOf(surveyId) || r
   }
   const s = voteOf(surveyId)
@@ -287,12 +320,18 @@ function activityView(a) {
 
 export function activityList(tab = 'open') {
   const map = { open: '报名中', wait: '待成行', ready: '已成行' }
-  const list = rawActivities.map(activityView)
+  const rows = NVL()?.activities
+  const list = rows ? rows.map(activityRemoteView) : rawActivities.map(activityView)
   if (tab === 'past') return list.filter(a => ['已结束', '已流团'].includes(a.phase))
   return list.filter(a => a.phase === map[tab])
 }
 
 export function activityOf(id) {
+  const rows = NVL()?.activities
+  if (rows) {
+    const hit = rows.find(x => x.activityId === id)
+    return hit ? activityRemoteView(hit) : null
+  }
   const a = rawActivities.find(x => x.activityId === id)
   return a ? activityView(a) : null
 }
@@ -300,8 +339,9 @@ export function activityOf(id) {
 /** 全部（首页横滑用）：报名中优先，其次待成行/已成行 */
 export function activityFeed(limit = 4) {
   const order = { 报名中: 0, 待成行: 1, 已成行: 2 }
-  return rawActivities
-    .map(activityView)
+  const rows = NVL()?.activities
+  return (rows || rawActivities)
+    .map(rows ? activityRemoteView : activityView)
     .filter(a => order[a.phase] !== undefined)
     .sort((a, b) => (order[a.phase] - order[b.phase]) || String(a.startAt).localeCompare(String(b.startAt)))
     .slice(0, limit)
@@ -324,7 +364,8 @@ export function myRefundOf(activity) {
 export async function enrollActivity(activityId, { attendees = [], agreeTerms = false, agreeInsurance = false } = {}) {
   if (IS_API) {
     const row = await post(`/mp/neighbor/activities/${activityId}/enroll`, { attendees, agreeTerms, agreeInsurance })
-    await refreshNeighbor()
+    /* 名额与成团进度都在活动列表里，必须刷它 */
+    await refreshNeighbor(['mine', 'activities'])
     return row
   }
   const a = activityOf(activityId)
@@ -392,7 +433,7 @@ export async function cancelActivityEnroll(activityId) {
     const e = mineEnrollOf(activityId)
     if (!e) throw new Error('没有可取消的报名')
     const r = await post(`/mp/neighbor/enrolls/${e.enrollId}/cancel`)
-    await refreshNeighbor()
+    await refreshNeighbor(['mine', 'activities'])
     return { ratio: r.ratio, amount: r.refundAmount, full: Number(e.amount) || 0, refunded: r.refunded }
   }
   const a = activityOf(activityId)
@@ -455,6 +496,18 @@ const itemView = i => ({
 
 /** 公开列表：只给「已上架」。待审核 / 已驳回 / 已下架 / 已过期 都不该被邻居看到 */
 export function itemList({ cat = '全部', sort = 'new' } = {}) {
+  const rows = NVL()?.items
+  if (rows) {
+    /* 服务端只回「已上架 + 可见范围」，排序与分类在客户端做（一次拉全，切分类不打请求） */
+    return rows
+      .map(itemRemoteView)
+      .filter(i => cat === '全部' || i.category === cat)
+      .sort((a, b) => {
+        if (sort === 'cheap') return a.price - b.price
+        if (sort === 'want') return b.wantCount - a.wantCount
+        return String(b.publishAt).localeCompare(String(a.publishAt))
+      })
+  }
   const mine = myCommunityIds()
   return rawItems
     .filter(i => i.status === '已上架')
@@ -469,6 +522,13 @@ export function itemList({ cat = '全部', sort = 'new' } = {}) {
 }
 
 export function itemOf(id) {
+  const rows = NVL()?.items
+  if (rows) {
+    /* 自己的待审 / 已驳回 在 `myItems()` 里（服务端只把已上架的放进公共列表）；
+       所以先查公共列表，再查"我发布的" */
+    const hit = rows.find(x => x.itemId === id) || myItemRows().find(x => x.itemId === id)
+    return hit ? itemRemoteView(hit) : null
+  }
   const i = rawItems.find(x => x.itemId === id) || myItemRows().find(x => x.itemId === id)
   if (!i) return null
   /* 自己的待审内容自己能看；别人的待审内容一律当不存在（避免"换个 id 看未审"） */
@@ -512,7 +572,8 @@ export async function publishItem(p = {}) {
       desc: String(p.desc || '').trim(),
       contactMode: p.contactMode === '公开' ? '公开' : '站内私信'
     })
-    await refreshNeighbor()
+    /* 新发的是「待审核」，进不了公共列表 —— 只有"我发布的"会变 */
+    await refreshNeighbor(['mine'])
     return { ...row, mine: true }
   }
   const title = String(p.title || '').trim()
@@ -583,7 +644,7 @@ export const myItems = () =>
 export async function offlineMyItem(itemId) {
   if (IS_API) {
     await post(`/mp/neighbor/items/${itemId}/offline`)
-    await refreshNeighbor()
+    await refreshNeighbor(['mine', 'items'])
     return
   }
   app.itemPosts = app.itemPosts.map(i => (i.itemId === itemId ? { ...i, status: '已下架', offlineAt: stamp() } : i))
@@ -594,7 +655,7 @@ export async function offlineMyItem(itemId) {
 export async function renewMyItem(itemId) {
   if (IS_API) {
     await post(`/mp/neighbor/items/${itemId}/renew`)
-    await refreshNeighbor()
+    await refreshNeighbor(['mine', 'items'])
     return
   }
   app.itemPosts = app.itemPosts.map(i =>
@@ -629,7 +690,7 @@ export function demoAuditItem(itemId, pass, reason = '') {
 export async function toggleWant(itemId) {
   if (IS_API) {
     const r = await post(`/mp/neighbor/items/${itemId}/want`)
-    await refreshNeighbor()
+    await refreshNeighbor(['mine', 'items'])
     return r.want
   }
   const i = app.wants.indexOf(itemId)
@@ -656,6 +717,97 @@ export async function sendMessage(itemId, text, quick = '') {
   return row
 }
 
+/* ============================ 四·五、服务端投影 ============================ */
+/*
+ * 接口模式下四个列表/详情都走这里整形，**页面不用改**。
+ * 分工是刻意的：
+ *   - 服务端负责「能不能看见」（社区范围、未投不给票数、闲置只到楼栋）；
+ *   - 客户端负责「怎么显示」（占比、倒计时、阶段、色调）。
+ * 两边都做一遍的后果是，规则迟早会在某一处改漏。
+ */
+
+function noticeRemoteView(n) {
+  return {
+    ...n,
+    /* 服务端返回的 readCount **已含自己这一次**，这里再加 1 就多了一条 */
+    attachmentCount: Number(n.attachments) || 0,
+    expireText: n.publishTime
+  }
+}
+
+function voteRemoteView(r) {
+  const options = (r.options || []).map(o => ({ ...o }))
+  const total = options.reduce((n, o) => n + (Number(o.votes) || 0), 0)
+  /* 分母兜底与服务端一致：参与率不可能超过 100% */
+  const target = Math.max(Number(r.target) || 0, total)
+  const base = Math.max(target, total, 1)
+  options.forEach(o => (o.pct = total ? r2((o.votes / total) * 100) : 0))
+  const gap = Math.round((new Date(`${r.endAt}T00:00:00`) - new Date(`${DEMO.today}T00:00:00`)) / 86400000)
+  const rate = r2((total / base) * 100)
+  return {
+    ...r,
+    /* 接口层主键叫 voteId，页面到处是 surveyId —— 映射一次，别去改页面 */
+    surveyId: r.voteId,
+    multi: !!r.multi,
+    maxPick: Number(r.maxPick) || (r.multi ? 2 : 1),
+    anonymous: r.anonymous !== false,
+    options,
+    target,
+    totalVotes: total,
+    partRate: rate,
+    partRateText: r.multi ? `共 ${total} 票（多选，按人次）` : `参与率 ${rate}% · ${total}/${target} 户`,
+    voted: !!r.voted,
+    myVote: r.myVote || [],
+    daysLeft: gap,
+    deadlineText: gap > 0 ? `剩 ${gap} 天` : gap === 0 ? '今天截止' : '已截止',
+    canSeeResult: !!r.canSeeResult
+  }
+}
+
+function activityRemoteView(r) {
+  const enrolled = Number(r.enrolled) || 0
+  const capacity = Number(r.capacity) || 0
+  const min = Number(r.minCapacity) || 0
+  /* 阶段在客户端算：服务端数据日是 10-21、演示时钟是 10-20，
+     两边各算一份会在临界那天打架（样例 AC0015 的截止日正好是 10-20） */
+  const phase = phaseRule(r, enrolled, DEMO.today)
+  return {
+    ...r,
+    fee: Number(r.fee) || 0,
+    feeType: Number(r.fee) > 0 ? '收费' : '免费',
+    feeText: Number(r.fee) > 0 ? `¥${r2(r.fee)}/人` : '免费',
+    enrolled,
+    left: Math.max(0, capacity - enrolled),
+    fillRate: capacity ? Math.min(100, r2((enrolled / capacity) * 100)) : 0,
+    gap: min ? Math.max(0, min - enrolled) : 0,
+    phase,
+    phaseTone: phaseTone(phase),
+    canEnroll: canEnroll(phase, enrolled, capacity),
+    mine: !!r.mine,
+    myEnroll: r.myEnroll || null
+  }
+}
+
+function itemRemoteView(r) {
+  return {
+    ...r,
+    /* 只到楼栋。服务端没解析出来时回「同小区」—— 宁可模糊，也不能把门牌漏出去 */
+    buildingText: r.buildingName || '同小区',
+    /* wantCount 服务端已含自己那一次，不要再加 */
+    wanted: !!r.wanted
+  }
+}
+
+/** 邻里角标（待审发布 / 待支付报名 / 已投票 / 在架闲置）：接口模式读服务端 counts */
+export const myNeighborCounts = () => (NB()
+  ? NB().counts
+  : {
+      enroll: app.enrollments.filter(e => !['已取消', '已退款'].includes(e.status)).length,
+      vote: Object.keys(app.votes).length,
+      item: app.itemPosts.length,
+      want: app.wants.length
+    })
+
 /* ============================ 五、聚合 ============================ */
 
 /** 邻里首页聚合：一次拿齐四个频道的前几条（列表首屏别闪四次） */
@@ -666,13 +818,7 @@ export function neighborSummary() {
     activities: activityFeed(3),
     items: itemList({ sort: 'new' }).slice(0, 6),
     /* 角标取服务端的 counts：本地那份在接口模式下是空的（写操作都落在服务端） */
-    myCounts: NB()
-      ? NB().counts
-      : {
-          enroll: app.enrollments.filter(e => !['已取消', '已退款'].includes(e.status)).length,
-          vote: Object.keys(app.votes).length,
-          item: app.itemPosts.length
-        },
+    myCounts: myNeighborCounts(),
     unreadNotice: unreadNoticeCount(),
     at: stamp()
   }

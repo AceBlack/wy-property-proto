@@ -8381,6 +8381,206 @@ paths:
   # 为什么另开一套而不是复用 `/neighbor/*`：那是**运营侧**（`n.*` 权限码 + 数据范围），
   # 业主侧只做"我自己的动作"（我读过、我投了、我报名、我发布）。
   # 两者混用会导致"客服能看的内容，业主用同一个接口也能看"。
+  # --------------------------------------------------------------- 业主侧公共列表（读）
+  # 与 `/neighbor/*`（运营侧）的区别不是"少几个字段"，而是**边界不同**：
+  # 运营侧按数据范围（我管哪些项目），业主侧按"我住哪个小区"（已绑房产所在项目）。
+  # 混用的结果就是"客服能看的内容，业主也能看到"。
+  /mp/neighbor/notices:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborNotices
+      summary: 公告列表（业主视角）
+      description: |
+        只回「已发布」。草稿 / 待审核 / 已撤回对业主不存在 —— 不是"权限不够"，
+        是这条内容还没打算让人看见。
+
+        **一次返回全部可见，频道切换在客户端做**（分类 / 项目）。四个列表加起来
+        不到 150 条，每点一次分类打一个请求，等于把"切频道"变成网络操作。
+
+        可见范围：已绑房产所在项目 + 全公司公告（`communityId` 为空）。
+        **未绑房（游客）不过滤** —— 这是对业主端原行为的让步，只修
+        "已绑 P01 的业主还能看到 P02 公告"这个真问题。正式版应按项目收敛。
+
+        `unread` 按**全部可见公告**算，不跟 `type` 筛选走：否则切到「停水停电」
+        未读数就变 0，用户会以为读完了。
+      parameters:
+        - name: type
+          in: query
+          description: 公告类型；`全部` 或不传 = 不过滤
+          schema: { type: string, example: 停水停电 }
+        - name: communityId
+          in: query
+          description: 只看某个项目（业主端目前不传，默认按会话范围）
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborNoticeListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/notices/{noticeId}:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborNotice
+      summary: 公告详情
+      description: |
+        `signRequired` 决定客户端显不显示「我已阅读并签收」：只有停水停电与安全提示
+        这两类要签收。全都能签，就等于全都不用认真读。
+
+        `readCount` **已含自己这一次**，客户端不要再加 1 —— 两处各加一次，
+        数字会比实际多一条。
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: string, example: NT0090 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborNoticeEnvelope' }
+        '403':
+          description: 公告不在你的项目范围内
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/votes:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborVotes
+      summary: 投票列表（意见征询）
+      description: |
+        不含草稿。进行中在前，同状态按开始日倒序 —— 业主进来是看"现在能投什么"。
+
+        **未到 `canSeeResult` 时 `options[].votes` 一律置 0**，`totalVotes` 也置 0。
+        返回真值再靠前端不显示，等于把结果发给了每个人。
+
+        `target`（应投户数）取 `max(项目内业主数, 票数)`：样例的 `houses` 是裁剪版，
+        种子票数会出现「282 票 / 16 户」。取 max 保证参与率不超 100%；
+        真实环境两边同源，这个兜底不会生效。
+      parameters:
+        - name: status
+          in: query
+          description: 进行中 / 已结束
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborVoteListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/votes/{voteId}:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborVote
+      summary: 投票详情
+      description: |
+        口径同列表。`myVote` 是**自己的**选择（对自己不是秘密），别人投了谁都不给；
+        `anonymous` 为 true 时连"谁投过"都不出现。
+      parameters:
+        - name: voteId
+          in: path
+          required: true
+          schema: { type: string, example: SV0003 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborVoteEnvelope' }
+        '403':
+          description: 投票不在你的项目范围内
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/activities:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborActivities
+      summary: 活动列表
+      description: |
+        不含草稿，按开始日正序。
+
+        **只给数据，不给阶段（phase）**。阶段依赖"今天"，而演示时钟在客户端
+        （06/05 都是 2026-10-20，服务端数据日是 10-21）。服务端算一份、客户端再算一份，
+        必然在临界那天打架 —— 样例里 AC0015 的报名截止日正好是 10-20。
+        客户端用 `activity-rule.mjs` 现算；`enrolled` 由服务端给，那才是真数。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborActivityListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/activities/{activityId}:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborActivity
+      summary: 活动详情
+      description: |
+        `myEnroll` 是本人的报名记录（含出行人姓名手机号 —— 那是自己的数据）。
+        别人的报名信息一条都不给：活动名单属运营侧（`n.activities.view`）。
+      parameters:
+        - name: activityId
+          in: path
+          required: true
+          schema: { type: string, example: AC0009 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborActivityEnvelope' }
+        '403':
+          description: 活动不在你的项目范围内
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/items/{itemId}:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItem
+      summary: 闲置详情
+      description: |
+        **自己的待审 / 已驳回 / 已下架内容自己能看**（要知道为什么没过）；
+        别人的非上架内容一律 404 —— 403 等于告诉探测者"这条存在"。
+
+        响应里**永远没有** `sellerHouse` / `sellerPhone` / `wechat`：
+        门牌与手机号一旦下发，前端一句 console.log 就全泄了。展示只到楼栋。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, example: SH0019 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborItemEnvelope' }
+        '403':
+          description: 内容不在你的项目范围内
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /mp/neighbor/mine:
     get:
       tags: [mp, neighbor]
@@ -8390,8 +8590,10 @@ paths:
         一次拉齐六块"我的"数据，客户端一个请求就够了 —— 拆成六个接口的话，
         邻里首页要打六次（正是这份设计最初想避免的"闪六下"）。
 
-        公共列表（公告列表 / 投票列表 / 闲置列表）仍由客户端本地渲染，
-        这里只回"我的状态"。新发布的闲置、新报名、已投票都从这里读。
+        这里只回"我的状态"。公共列表另有四个读接口
+        （`/mp/neighbor/{notices,votes,activities,items}`），
+        两边分开是因为它们的刷新时机不同：列表跟着"物业发了新内容"变，
+        状态跟着"我刚做了什么"变。合成一个接口，每次投票都要重拉整列表。
       responses:
         '200':
           description: 成功
@@ -8640,6 +8842,29 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /mp/neighbor/items:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItems
+      summary: 闲置列表（只给「已上架」）
+      description: |
+        待审核 / 已驳回 / 已下架 / 已过期都不该被邻居看到 —— 先审后发是这条业务的前提。
+
+        每条只给到**楼栋**（`buildingName`，如「7栋」）。`sellerHouse` 是完整房号串，
+        `sellerPhone` / `wechat` 是联系方式，**这三样都不在响应里**：下发了就等于公开。
+
+        `wantCount` 已含自己那一次（服务端在 `want` 时增减），客户端不要再加 1。
+      parameters:
+        - name: cat
+          in: query
+          description: 分类；`全部` 或不传 = 不过滤
+          schema: { type: string, example: 家具 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborItemListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [mp, neighbor]
       operationId: mpNeighborPublishItem
@@ -14739,6 +14964,252 @@ components:
               itemName: { type: string }
               period: { type: string }
               amount: { type: number }
+
+    # ---------------- 邻里公共内容（业主视角 · 第 76 批） ----------------
+    # 四个投影与运营侧同名 schema（NeighborItem / NeighborActivity / NeighborVote）
+    # **分开写**，不是"少几个字段"：运营侧的 `auditBy` `reportCount` `createdBy`
+    # `paidAmount` 都是内部数据，业主侧一个都不能有。
+    MpNeighborNotice:
+      type: object
+      description: 公告（业主视角）。与 PC 后台同一张表，只同步「已发布」
+      required: [noticeId, title, type, publishTime, readCount]
+      properties:
+        noticeId: { type: string, example: NT0090 }
+        title: { type: string }
+        type:
+          type: string
+          description: 停水停电 / 收费通知 / 安全提示 / 维修施工 / 政策公告 / 社区活动
+        communityId: { type: string, description: 空 = 全公司公告 }
+        communityName: { type: string, example: 全公司 }
+        publisher: { type: string, description: 发布人姓名（对外可见，物业署名） }
+        publishTime: { type: string, example: '2026-09-12 19:13' }
+        top: { type: boolean, description: 置顶的排最前 }
+        readCount:
+          type: integer
+          description: 阅读数，**已含自己这一次**。客户端不要再加 1
+        targetHouses: { type: integer, description: 应读户数（公告自带，不另算） }
+        attachments: { type: integer, description: 附件**数量**。没有文件名，所以客户端只说"不提供下载" }
+        content: { type: string }
+        signRequired:
+          type: boolean
+          description: 是否需要签收。只有停水停电与安全提示为 true
+        read: { type: boolean }
+        signed: { type: boolean }
+        signedAt: { type: string, description: 未签收为空串 }
+
+    MpNeighborVote:
+      type: object
+      description: 投票（意见征询）。**不产生《民法典》278 条的效力，结果里不给"是否通过"**
+      required: [voteId, title, status, options, canSeeResult]
+      properties:
+        voteId: { type: string, example: SV0003, description: 主键在接口层叫 voteId（值仍是 SV0004 这种） }
+        title: { type: string }
+        type: { type: string, description: 意见征询 / 满意度调查 }
+        desc: { type: string }
+        communityId: { type: string }
+        communityName: { type: string }
+        status: { type: string, enum: [进行中, 已结束] }
+        startAt: { type: string }
+        endAt: { type: string }
+        multi: { type: boolean }
+        maxPick: { type: integer, description: 单选恒 1 }
+        anonymous: { type: boolean }
+        resultVisibility: { type: string, enum: [投票后可见, 公开] }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/MpNeighborVoteOption' }
+        target:
+          type: integer
+          description: |
+            应投户数，取 `max(项目内业主数, 票数)`。
+            样例的 houses 是裁剪版，不兜底会出现「282 票 / 16 户」；
+            真实环境两边同源，兜底不会生效。
+        totalVotes: { type: integer, description: 不可见结果时为 0 }
+        canSeeResult:
+          type: boolean
+          description: 已投 / 已结束 / 结果公开。false 时 `options[].votes` 全为 0
+        voted: { type: boolean }
+        myVote:
+          type: array
+          description: 自己的选择（对自己不是秘密）。别人的选择在任何字段里都不出现
+          items: { type: string }
+
+    MpNeighborVoteOption:
+      type: object
+      required: [key, label, votes]
+      properties:
+        key: { type: string, example: A1 }
+        label: { type: string, example: 支持人脸识别 }
+        votes: { type: integer, description: 已含自己那一票；不可见结果时恒 0 }
+
+    MpNeighborActivity:
+      type: object
+      description: |
+        活动（业主视角）。**不给阶段 phase** —— 阶段依赖"今天"，演示时钟在客户端
+        （06/05 是 2026-10-20，服务端数据日是 10-21），两边各算一份必然在临界那天打架。
+        客户端用 `activity-rule.mjs` 现算，`enrolled` 用服务端这个真数。
+      required: [activityId, title, category, startAt, fee, capacity, enrolled]
+      properties:
+        activityId: { type: string, example: AC0009 }
+        title: { type: string }
+        category: { type: string, enum: [敬老, 亲子, 文体, 出游, 公益] }
+        cover: { type: integer }
+        desc: { type: string }
+        communityId: { type: string }
+        communityName: { type: string }
+        startAt: { type: string }
+        endAt: { type: string }
+        place: { type: string }
+        enrollDeadline: { type: string, description: 报名截止日。阶段判定的分界线 }
+        capacity: { type: integer }
+        minCapacity: { type: integer, description: 成团下限；0 = 无下限（公益场次） }
+        fee: { type: number, description: 0 = 免费；> 0 = 收费（成本分摊） }
+        needInsurance: { type: boolean, description: true 才收证件号 }
+        attendeeLimit: { type: integer, description: 每户最多报几人（含本人） }
+        feeInclude: { type: string }
+        feeExclude: { type: string }
+        refundPolicy:
+          type: array
+          description: 退款分档，比例随提前天数递减
+          items:
+            type: object
+            properties:
+              days: { type: integer }
+              ratio: { type: integer }
+        organizer: { type: string }
+        status: { type: string, description: 已发布 / 已结束（草稿不会出现在列表里） }
+        flowedAt: { type: string, description: 非空 = 已流团。阶段判定**先看它再看 status** }
+        enrolled: { type: integer, description: 已报名人数（含同行人，不含已取消 / 已退款） }
+        mine: { type: boolean }
+        myEnroll:
+          type: object
+          description: |
+            本人报名记录（含出行人姓名手机号 —— 那是自己的数据）。
+            **未报名时这个键不出现**，不要回 null：客户端 `v-if` 用真值就够。
+          properties:
+            enrollId: { type: string }
+            people: { type: integer }
+            amount: { type: number }
+            payStatus: { type: string }
+            status: { type: string }
+            at: { type: string }
+            source: { type: string }
+
+    MpNeighborItem:
+      type: object
+      description: |
+        闲置（业主视角）。**只到楼栋**：`sellerHouse` 是完整房号串，
+        `sellerPhone` / `wechat` 是联系方式，这三样永远不出现在响应里。
+      required: [itemId, title, category, price, status]
+      properties:
+        itemId: { type: string, example: SH0019 }
+        communityId: { type: string }
+        communityName: { type: string }
+        title: { type: string }
+        category: { type: string, example: 家具 }
+        price: { type: number, description: 0 = 免费送 }
+        originPrice: { type: number }
+        condition: { type: string, description: 全新 / 九成新 / 八成新 … }
+        cover: { type: integer }
+        images: { type: integer }
+        desc: { type: string }
+        sellerName: { type: string, description: 已脱敏（「林**」） }
+        buildingName:
+          type: string
+          example: 7栋
+          description: 只到楼栋。解析不出时为空串，客户端回退成「同小区」
+        publishAt: { type: string }
+        status: { type: string, enum: [已上架, 待审核, 已驳回, 已下架, 已过期] }
+        views: { type: integer }
+        wants: { type: integer }
+        contactMode: { type: string, enum: [站内私信, 公开] }
+        wanted: { type: boolean, description: 我有没有点过"想要" }
+        wantCount: { type: integer, description: 已含自己那一次，客户端不要再加 1 }
+
+    MpNeighborNoticeListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpNeighborNotice' }
+            total: { type: integer }
+            unread: { type: integer, description: 按**全部可见公告**算，不跟 type 筛选走 }
+
+    MpNeighborNoticeEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpNeighborNotice' }
+
+    MpNeighborVoteListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpNeighborVote' }
+            total: { type: integer }
+
+    MpNeighborVoteEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpNeighborVote' }
+
+    MpNeighborActivityListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpNeighborActivity' }
+            total: { type: integer }
+
+    MpNeighborActivityEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpNeighborActivity' }
+
+    MpNeighborItemListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpNeighborItem' }
+            total: { type: integer }
+            categories:
+              type: array
+              description: 从已有内容扫出来的分类，只适合筛选；发布表单的分类写死在前端
+              items: { type: string }
+
+    MpNeighborItemEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpNeighborItem' }
 
     MpNeighborMineEnvelope:
       type: object

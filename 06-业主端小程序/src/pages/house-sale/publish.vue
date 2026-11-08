@@ -225,10 +225,10 @@ function toggleFac(f) {
   else if (form.facilities.length < 6) form.facilities.push(f)
 }
 
-function submit() {
+async function submit() {
   err.value = ''
   try {
-    publishListing({
+    await publishListing({
       houseId: houseId.value,
       price: form.price,
       deposit: Number(form.price),

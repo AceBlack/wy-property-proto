@@ -74,6 +74,7 @@ import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Empty from '@/components/Empty.vue'
 import { markDeal, myListings, offlineListing, renewListing } from '@/api/listing'
+import { refreshMyListings } from '@/api/remote'
 import { go, toast, toastOk, toastErr } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
 
@@ -86,6 +87,8 @@ const list = computed(() => {
 onShow(() => {
   if (!gateOwner('我的挂牌')) return
   ver.value++
+  /* 审核是员工端做的，业主回来时状态可能已经变了 —— 每次进页面刷一次 */
+  refreshMyListings().then(() => { ver.value++ })
 })
 
 const goPublish = () => go('/pages/house-sale/publish')
@@ -96,10 +99,10 @@ function offline(l) {
     content: l.status === '待审核'
       ? '撤回后这条不再等审核，改完可以重新提交。'
       : '下架后看房的人看不到这套房；随时可以重新上架（内容没改免审）。',
-    success: res => {
+    success: async res => {
       if (!res.confirm) return
       try {
-        offlineListing(l.listingId)
+        await offlineListing(l.listingId)
         ver.value++
         toast('已下架')
       } catch (e) {
@@ -109,9 +112,9 @@ function offline(l) {
   })
 }
 
-function renew(l) {
+async function renew(l) {
   try {
-    const r = renewListing(l.listingId)
+    const r = await renewListing(l.listingId)
     ver.value++
     toastOk(r.reAudit ? '已重新提交审核（内容有改动）' : '已重新上架（内容未改，免审）')
   } catch (e) {
@@ -123,10 +126,10 @@ function deal(l) {
   uni.showModal({
     title: '标记已成交',
     content: '标记后房源从频道下架。成交价与租约不在小程序里记录（平台不参与成交）。',
-    success: res => {
+    success: async res => {
       if (!res.confirm) return
       try {
-        markDeal(l.listingId)
+        await markDeal(l.listingId)
         ver.value++
         toast('已标记成交')
       } catch (e) {

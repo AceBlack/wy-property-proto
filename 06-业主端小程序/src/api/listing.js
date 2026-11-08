@@ -23,6 +23,8 @@ import { buildings, communities, houses, units } from '@pc/mock'
 import { houseDerived, publicProjection } from './listing-view.mjs'
 import { app, identity, persist } from '@/store/app'
 import { DEMO, stamp } from '@/config/demo'
+import { IS_API, post, request } from './client'
+import { hydratePublic, refreshMyListings, remoteMyListings, remotePublicListings } from './remote'
 
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100
 const HOUSE_OF = new Map(houses.map(h => [h.houseId, h]))
@@ -78,9 +80,45 @@ const CTX = {
 /** 对外投影：字段白名单在 listing-view.mjs（自检会直接调它验形状） */
 const publicView = l => publicProjection(l, CTX)
 
+/**
+ * 服务端返回的对外字段是**扁平的**（stewardName / stewardWechat / stewardQrUrl），
+ * 页面用的是嵌套 `steward` 与 `canWechat`。在这里对齐一次，别让 5 个页面各写一套兼容。
+ * 注意服务端**本来就没有** room / unitName / 楼管手机号 —— 这一层不是"藏起来"，是没有。
+ */
+const publicRemoteView = r => ({
+  ...r,
+  steward: {
+    name: r.stewardName || '',
+    position: '',
+    wechatId: r.stewardWechat || '',
+    qrUrl: r.stewardQrUrl || ''
+  },
+  canWechat: !!(r.stewardWechat || r.stewardQrUrl)
+})
+
+/** 状态 → 颜色。两边都用同一份，别一边紫一边灰 */
+const statusTone = st => (st === '已发布' ? 'var(--biz-accent-dark)'
+  : st === '待审核' ? 'var(--biz-warning)'
+    : st === '已驳回' ? 'var(--biz-danger)' : 'var(--biz-text-3)')
+
 /** 公开列表：只有「已发布」。待审核 / 已驳回 / 已下架 / 已过期 / 已成交 都不在列表里 */
 export function listingList({ communityId = '', houseType = '', priceBand = 'all', sort = 'new' } = {}) {
   const band = PRICE_BANDS.find(b => b.key === priceBand) || PRICE_BANDS[0]
+  const remote = remotePublicListings()
+  if (remote) {
+    /* 服务端只回「已发布」，且只到楼栋。筛选与排序在客户端做：
+       一次拉全（样例 14 条），切价格档不打请求 */
+    return remote
+      .map(publicRemoteView)
+      .filter(l => !communityId || l.communityId === communityId)
+      .filter(l => !houseType || l.houseType === houseType)
+      .filter(l => l.price >= band.min && l.price < band.max)
+      .sort((a, b) => {
+        if (sort === 'priceAsc') return a.price - b.price
+        if (sort === 'priceDesc') return b.price - a.price
+        return String(b.availableFrom).localeCompare(String(a.availableFrom))
+      })
+  }
   return allRaw()
     .filter(l => l.status === '已发布')
     .map(publicView)
@@ -99,6 +137,12 @@ export function listingList({ communityId = '', houseType = '', priceBand = 'all
 export const VISIBILITY = '公开'
 
 export function listingDetail(listingId) {
+  const remote = remotePublicListings()
+  if (remote) {
+    const hit = remote.find(x => x.listingId === listingId)
+    /* 下架 / 待审 不在公开列表里 —— 与服务端同一个结论：当它不存在 */
+    return hit ? publicRemoteView(hit) : null
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l) return null
   /* 下架 / 待审一律 404：不是"提示无权限"，是当它不存在 */
@@ -115,7 +159,19 @@ export const PREFERRED_TIMES = ['工作日白天', '工作日晚上', '周末', 
  * 校验：手机号格式 + **同一手机号同一房源 24h 内只能提交一次**（§13.5）。
  * 不校验短信、不留 userId、不进客户池 —— 这不是注册，只是"这一次联系"的凭据。
  */
-export function submitViewing({ listingId, name, phone, preferredTime, note = '' }) {
+export async function submitViewing({ listingId, name, phone, preferredTime, note = '' }) {
+  if (IS_API) {
+    /* 24 小时去重、手机号格式都在服务端判 —— 客户端再判一遍是两套规则。
+       这里只做"提交前先拦明显空的"，省一次往返 */
+    if (!String(name || '').trim()) throw new Error('请填写称呼')
+    if (!/^1\d{10}$/.test(String(phone || '').trim())) throw new Error('手机号格式不正确')
+    return post(`/public/listings/${listingId}/viewing`, {
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      preferredTime: preferredTime || '都可以',
+      note: String(note || '').trim()
+    })
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l || l.status !== '已发布') throw new Error('房源不存在或已下架')
   const nm = String(name || '').trim()
@@ -166,6 +222,35 @@ export function publishableHouses() {
 
 /** 我的挂牌：fixture 里属于我的 + 本地发布的 */
 export function myListings() {
+  const remote = remoteMyListings()
+  if (remote) {
+    /* 房号在"我的视图"里是给的（自己的房）；能力位（canOffline / canRenew / canDeal）
+       由服务端算，前端不再按状态自己推 —— 推出来的按钮灰了却说不清为什么 */
+    return remote
+      .map(l => ({
+        listingId: l.listingId,
+        houseId: l.houseId,
+        houseName: [l.communityName, `${l.buildingName || ''}${l.unitName || ''}${l.room || ''}`]
+          .filter(Boolean).join(' '),
+        price: Number(l.price) || 0,
+        deposit: Number(l.deposit) || 0,
+        payTerm: l.payTerm || '',
+        status: l.status,
+        statusTone: statusTone(l.status),
+        rejectReason: l.rejectReason || '',
+        offlineReason: l.offlineReason || '',
+        expireAt: l.expireAt || '',
+        availableFrom: l.availableFrom || '',
+        viewCount: Number(l.viewCount) || 0,
+        leadCount: Number(l.leadCount) || 0,
+        contentVersion: l.contentVersion || 1,
+        auditedVersion: l.auditedVersion || 0,
+        canOffline: !!l.canOffline,
+        canRenew: !!l.canRenew,
+        canDeal: !!l.canDeal
+      }))
+      .sort((a, b) => String(b.listingId).localeCompare(String(a.listingId)))
+  }
   const mine = myOwnerIds()
   return allRaw()
     .filter(l => mine.includes(l.ownerId))
@@ -179,10 +264,7 @@ export function myListings() {
         deposit: Number(l.deposit) || 0,
         payTerm: l.payTerm || '',
         status: l.status,
-        statusTone:
-          l.status === '已发布' ? 'var(--biz-accent-dark)'
-            : l.status === '待审核' ? 'var(--biz-warning)'
-              : l.status === '已驳回' ? 'var(--biz-danger)' : 'var(--biz-text-3)',
+        statusTone: statusTone(l.status),
         rejectReason: l.rejectReason || '',
         offlineReason: l.offlineReason || '',
         expireAt: l.expireAt || '',
@@ -213,7 +295,27 @@ function upsertLocal(row) {
  * 产权校验在**进入页面时**做一次、提交时再做一次 —— 不能等到审核才拦：
  * 审核员看到「张**」判断不了他是房主还是租客（§13.3）。
  */
-export function publishListing(p = {}) {
+export async function publishListing(p = {}) {
+  if (IS_API) {
+    /* 产权、车位不能挂、同房唯一在架 —— 全在服务端判。
+       前端只留一句"只有业主能发"：家属点进来就该看到这句，不用等一次 403 */
+    if (identity.value !== '业主') throw new Error('只有业主可以发布（家属与租客需业主本人操作）')
+    const row = await post('/mp/listings', {
+      houseId: p.houseId,
+      type: '出租',
+      price: Number(p.price),
+      deposit: Number(p.deposit) || Number(p.price),
+      payTerm: p.payTerm || '押一付三',
+      decorate: p.decorate || '简装',
+      facilities: Array.isArray(p.facilities) ? p.facilities.slice(0, 6) : [],
+      availableFrom: p.availableFrom || DEMO.today,
+      desc: String(p.desc || '').trim(),
+      images: Number(p.images) || 0
+    })
+    /* 新发的是「待审核」，进不了公开列表；"我的挂牌"要立刻能看到 */
+    await refreshMyListings()
+    return row
+  }
   if (identity.value !== '业主') throw new Error('只有业主可以发布（家属与租客需业主本人操作）')
   const houseId = p.houseId
   const binding = app.bindings.find(b => b.houseId === houseId && b.identity === '业主')
@@ -268,7 +370,14 @@ export function publishListing(p = {}) {
   return row
 }
 
-export function offlineListing(listingId) {
+export async function offlineListing(listingId) {
+  if (IS_API) {
+    await post(`/mp/listings/${listingId}/offline`)
+    await refreshMyListings()
+    /* 下架要从公开列表消失：不刷的话别人还能点进详情 */
+    await hydratePublic({ force: true })
+    return
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l) throw new Error('挂牌不存在')
   if (!['已发布', '待审核'].includes(l.status)) throw new Error(`「${l.status}」的挂牌不能下架`)
@@ -282,7 +391,15 @@ export function offlineListing(listingId) {
  * 改过内容（价格/描述/图/装修配套）才重新进「待审核」——
  * 否则每 60 天全量重审一遍，楼管会被这种重复劳动逼疯。
  */
-export function renewListing(listingId) {
+export async function renewListing(listingId) {
+  if (IS_API) {
+    const row = await post(`/mp/listings/${listingId}/renew`)
+    await refreshMyListings()
+    await hydratePublic({ force: true })
+    /* 免不免审由**版本**决定，不看状态：内容改过（contentVersion != auditedVersion）
+       才需要重新审。服务端按同一口径改的状态，这里只是把结论翻译成提示语 */
+    return { reAudit: Number(row.contentVersion || 1) !== Number(row.auditedVersion || 0) }
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l) throw new Error('挂牌不存在')
   if (!['已驳回', '已下架', '已过期'].includes(l.status)) throw new Error(`「${l.status}」的挂牌不用续挂`)
@@ -300,7 +417,13 @@ export function renewListing(listingId) {
   return { reAudit: !same }
 }
 
-export function markDeal(listingId) {
+export async function markDeal(listingId) {
+  if (IS_API) {
+    await post(`/mp/listings/${listingId}/deal`)
+    await refreshMyListings()
+    await hydratePublic({ force: true })
+    return
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l) throw new Error('挂牌不存在')
   if (l.status !== '已发布') throw new Error('只有已发布的挂牌能置成交')
@@ -308,7 +431,18 @@ export function markDeal(listingId) {
 }
 
 /** 我的挂牌里编辑（改价/改描述）→ contentVersion +1，需要重新审核 */
-export function updateListing(listingId, patch = {}) {
+export async function updateListing(listingId, patch = {}) {
+  if (IS_API) {
+    /* 改内容 → 版本 +1 → 回「待审核」。服务端按 contentVersion 判，前端不传版本 */
+    const row = await request('PATCH', `/mp/listings/${listingId}`, {
+      data: {
+        price: Number(patch.price) > 0 ? Number(patch.price) : undefined,
+        desc: patch.desc === undefined ? undefined : String(patch.desc).slice(0, 300)
+      }
+    })
+    await refreshMyListings()
+    return row
+  }
   const l = allRaw().find(x => x.listingId === listingId)
   if (!l) throw new Error('挂牌不存在')
   if (!['已发布', '待审核', '已驳回'].includes(l.status)) throw new Error('当前状态不能修改，请先续挂')

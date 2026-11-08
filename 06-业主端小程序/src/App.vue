@@ -1,7 +1,7 @@
 <script setup>
 import { onLaunch } from '@dcloudio/uni-app'
 import { rehydrate } from '@/store/app'
-import { hydrate } from '@/api/remote'
+import { hydrate, hydratePublic } from '@/api/remote'
 
 /**
  * 演示态写回重放：增项 / 支付 / 评价 / 新单 / 评论 / 报名 都落在内存 mock 上，
@@ -13,6 +13,8 @@ import { hydrate } from '@/api/remote'
 onLaunch(() => {
   rehydrate()
   hydrate()
+  /* 公开房源免登录：没登录也该看到真实房源，而不是本地那 14 条 */
+  hydratePublic()
 })
 </script>
 

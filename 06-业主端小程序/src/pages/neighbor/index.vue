@@ -211,6 +211,7 @@ import {
   activityList,
   itemList,
   myCommunityIds,
+  myNeighborCounts,
   noticeList,
   unreadNoticeCount,
   voteList
@@ -257,9 +258,10 @@ const items = computed(() => {
 })
 const myBadge = computed(() => {
   ver.value
-  const n = app.itemPosts.filter(i => i.status === '待审核').length
-  const e = app.enrollments.filter(x => x.payStatus === '待支付').length
-  return n + e || unreadNoticeCount() || ''
+  /* 角标要从**服务端 counts** 取：接口模式下 app.itemPosts / app.enrollments
+     是空的（写操作都落在服务端），直接用它们算出来恒为 0 */
+  const c = myNeighborCounts()
+  return c.item + c.enroll || unreadNoticeCount() || ''
 })
 
 /* tabBar 页不能带 query：首页点「全部公告 / 查看全部」用事件传频道，进来后再切 tab */

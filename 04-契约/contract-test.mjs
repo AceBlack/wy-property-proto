@@ -6649,6 +6649,163 @@ test('闲置：想要来回切、私信只记一条、下架与续挂', async ()
   eq(again.status, 409, '待审核状态不需要续挂')
 })
 
+/* ==================== 邻里公共列表（第 76 批） ==================== */
+
+test('邻里公告：只给已发布、按项目收、readCount 已含自己这一次', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const list = await withMp(tok, () => call('GET', '/mp/neighbor/notices'))
+  eq(list.status, 200, '公告列表')
+  assertSchema(list, 'MpNeighborNoticeListEnvelope', 'GET /mp/neighbor/notices')
+  assert(list.data.rows.length > 0, '已绑 P01 的业主应该有公告可看')
+  for (const n of list.data.rows) {
+    /* 只同步「已发布」，所以 status 这个字段根本不该出现 */
+    eq('status' in n, false, '响应里不该有 status（只有已发布才会出现在这里）')
+    assert(['P01', ''].includes(n.communityId), `不该出现别项目公告：${n.noticeId} = ${n.communityId}`)
+    eq('auditBy' in n || 'publisherEmpId' in n || 'channels' in n, false,
+      '审核人 / 工号 / 推送渠道是内部字段')
+  }
+  /* 置顶排最前 */
+  const firstNonTop = list.data.rows.findIndex(n => !n.top)
+  const lastTop = list.data.rows.map(n => !!n.top).lastIndexOf(true)
+  if (firstNonTop >= 0 && lastTop >= 0) {
+    assert(lastTop < firstNonTop, '置顶公告必须全部排在非置顶之前')
+  }
+
+  /* 读一条没读过的：未读数正好少 1，且 readCount 只加一次 */
+  const target = list.data.rows.find(n => !n.read)
+  assert(target, '应该还有未读公告（没有的话这条用例就没验到东西）')
+  const beforeUnread = list.data.unread
+  const beforeCount = target.readCount
+  await withMp(tok, () => call('POST', `/mp/neighbor/notices/${target.noticeId}/read`))
+  const after = await withMp(tok, () => call('GET', '/mp/neighbor/notices'))
+  const row = after.data.rows.find(n => n.noticeId === target.noticeId)
+  eq(row.read, true, '已读回读')
+  eq(row.readCount, beforeCount + 1, 'readCount 含自己这一次，且只加一次')
+  eq(after.data.unread, beforeUnread - 1, '未读数正好少一条')
+})
+
+test('邻里公告：别项目 403、不存在 404、未发布不给', async () => {
+  const noticesFix = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/notices.json'), 'utf8'))
+  const p02 = noticesFix.find(n => n.status === '已发布' && n.communityId === 'P02')
+  const draft = noticesFix.find(n => n.status !== '已发布')
+  assert(p02 && draft, '样例里应该有 P02 公告与未发布公告')
+
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const other = await withMp(tok, () => call('GET', `/mp/neighbor/notices/${p02.noticeId}`))
+  eq(other.status, 403, '别项目公告 403')
+
+  const hidden = await withMp(tok, () => call('GET', `/mp/neighbor/notices/${draft.noticeId}`))
+  eq(hidden.status, 404, '未发布公告一律 404 —— 草稿还没打算让人看见')
+
+  const missing = await withMp(tok, () => call('GET', '/mp/neighbor/notices/NT9999'))
+  eq(missing.status, 404, '不存在 404')
+})
+
+test('邻里投票：没投之前票数一律 0，投完才给结果，且含自己那一票', async () => {
+  /* 换个人来投：张建国在批 D 的用例里已经投过 SV0003，共用一台假服务时状态是串的 */
+  const { tok } = await mpReady('13521462398', '孔雪', '4580')
+  const list = await withMp(tok, () => call('GET', '/mp/neighbor/votes'))
+  eq(list.status, 200, '投票列表')
+  assertSchema(list, 'MpNeighborVoteListEnvelope', 'GET /mp/neighbor/votes')
+
+  const doing = list.data.rows.find(v => v.status === '进行中')
+  assert(doing, 'P01 应该有进行中的投票')
+  eq(doing.voted, false, '还没投')
+  eq(doing.canSeeResult, false, '没投且没结束 → 看不到结果')
+  /* 这条是这一批的重点：**不能返回真值靠前端不显示** */
+  eq(doing.options.every(o => o.votes === 0), true, '未到 canSeeResult 时票数必须全 0')
+  eq(doing.totalVotes, 0, '总票数也要置 0')
+
+  const key = doing.options[0].key
+  const sub = await withMp(tok, () => call('POST', `/mp/neighbor/votes/${doing.voteId}/submit`, {
+    body: { keys: [key] }
+  }))
+  eq(sub.status, 200, '投票')
+
+  const after = await withMp(tok, () => call('GET', `/mp/neighbor/votes/${doing.voteId}`))
+  eq(after.status, 200, '投票详情')
+  assertSchema(after, 'MpNeighborVoteEnvelope', 'GET /mp/neighbor/votes/{voteId}')
+  const row = after.data
+  eq(row.canSeeResult, true, '投完可见结果')
+  eq(row.voted, true, 'voted')
+  eq(row.myVote.includes(key), true, 'myVote 要有自己选的那项')
+  const sum = row.options.reduce((n, o) => n + o.votes, 0)
+  eq(row.totalVotes, sum, '总票数 = 选项之和')
+  assert(row.options.find(o => o.key === key).votes >= 1, '自己那一票要算进去')
+
+  /* 别项目的投票：列表里不该有，直接点进去 403 */
+  const p02 = await withMp(tok, () => call('GET', '/mp/neighbor/votes/SV0001'))
+  eq(p02.status, 403, '别项目投票 403')
+  eq(list.data.rows.every(v => v.communityId === 'P01'), true, '列表只该有本项目的投票')
+})
+
+test('邻里活动：不含草稿、按项目收、只给数据不给阶段', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const list = await withMp(tok, () => call('GET', '/mp/neighbor/activities'))
+  eq(list.status, 200, '活动列表')
+  assertSchema(list, 'MpNeighborActivityListEnvelope', 'GET /mp/neighbor/activities')
+  assert(list.data.rows.length > 0, 'P01 应该有活动')
+  for (const a of list.data.rows) {
+    /* 阶段依赖"今天"，两端时钟差一天（06 是 10-20、服务端数据日 10-21），
+       服务端算一份、客户端再算一份必然在临界那天打架 —— 所以接口不给 phase */
+    eq('phase' in a, false, '接口不下发 phase，客户端用 activity-rule 现算')
+    eq('createdBy' in a || 'paidAmount' in a || 'flowReason' in a, false,
+      '创建人 / 已收金额 / 流团原因是运营侧字段')
+    eq(a.status === '草稿', false, '草稿不进列表')
+    eq(a.communityId, 'P01', '只该有本项目的活动')
+    assert(typeof a.enrolled === 'number' && a.enrolled >= 0, 'enrolled 要给真数')
+  }
+
+  const detail = await withMp(tok, () => call('GET', '/mp/neighbor/activities/AC0009'))
+  eq(detail.status, 200, '活动详情')
+  assertSchema(detail, 'MpNeighborActivityEnvelope', 'GET /mp/neighbor/activities/{activityId}')
+  eq(detail.data.activityId, 'AC0009', '详情是同一场')
+  /* 别人的报名名单一条都不给（那属运营侧 n.activities.view） */
+  eq('enrolls' in detail.data, false, '业主侧不给报名名单')
+})
+
+test('邻里闲置：只给已上架、只到楼栋、门牌与手机号不下发', async () => {
+  const housesFix = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/houses.json'), 'utf8'))
+  const myHouse = housesFix.find(h => h.houseId === 'H010110501')
+
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const list = await withMp(tok, () => call('GET', '/mp/neighbor/items'))
+  eq(list.status, 200, '闲置列表')
+  assertSchema(list, 'MpNeighborItemListEnvelope', 'GET /mp/neighbor/items')
+  assert(list.data.rows.length > 0, 'P01 应该有在架闲置')
+  for (const i of list.data.rows) {
+    eq(i.status, '已上架', '非上架内容不进列表')
+    eq(i.communityId, 'P01', '只该有本项目的闲置')
+    /* 这三样一旦下发就等于公开：房号串、手机号、微信 */
+    eq('sellerHouse' in i || 'sellerPhone' in i || 'wechat' in i, false,
+      '房号 / 手机号 / 微信不该出现在响应里')
+    eq('ownerId' in i || 'auditBy' in i || 'reportCount' in i, false, '内部字段不该下发')
+    assert(!/单元|室/.test(i.buildingName || ''), `楼栋名不能带单元或门牌：${i.buildingName}`)
+  }
+
+  /* 别人已驳回的内容：一律 404（403 等于告诉探测者"这条存在"） */
+  const rejected = await withMp(tok, () => call('GET', '/mp/neighbor/items/SH0109'))
+  eq(rejected.status, 404, '别人的非上架内容当不存在')
+
+  /* 自己刚发的是「待审核」：列表里看不到，但自己点进去能看到状态 */
+  const pub = await withMp(tok, () => call('POST', '/mp/neighbor/items', {
+    body: {
+      title: '测试：业主自己发的闲置', category: '其他', price: 10,
+      images: 1, buildingId: myHouse.buildingId, desc: '接口自检用'
+    }
+  }))
+  eq(pub.status, 200, '发布闲置')
+  eq(pub.data.status, '待审核', '先审后发')
+
+  const mineDetail = await withMp(tok, () => call('GET', `/mp/neighbor/items/${pub.data.itemId}`))
+  eq(mineDetail.status, 200, '自己的待审内容自己能看')
+  eq(mineDetail.data.status, '待审核', '能看到状态才知道在等审核')
+
+  const listAfter = await withMp(tok, () => call('GET', '/mp/neighbor/items'))
+  eq(listAfter.data.rows.some(i => i.itemId === pub.data.itemId), false,
+    '待审核的不该出现在邻居的列表里')
+})
+
 /* ==================== 契约与实现的一致性守卫 ==================== */
 test('契约与实现：每条契约接口都要在假服务里注册', async () => {
   const { routeKeys } = await import('./mock-server.mjs')

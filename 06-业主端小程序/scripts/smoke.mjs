@@ -248,6 +248,18 @@ async function auth({ community = '翡翠城', building = '1栋', houseId = 'H01
   await tap('#identity-submit', 0, 2000)
 }
 
+/** 等首屏真的画出来（dev 冷启动的现场编译可能很久）；返回 false 表示超时 */
+async function waitFirstPaint(marker = '生活缴费', timeout = 90000) {
+  const t0 = Date.now()
+  while (Date.now() - t0 < timeout) {
+    const t = await bodyText()
+    if (t.includes(marker)) return true
+    await sleep(500)
+  }
+  console.log(`· 首屏 ${timeout / 1000}s 内没等到「${marker}」`)
+  return false
+}
+
 /* ---------------- 主流程 ---------------- */
 async function runSuite(base, tag) {
   BASE = base
@@ -257,6 +269,11 @@ async function runSuite(base, tag) {
 
   await page.goto(`${BASE}/#/pages/home/index`, { waitUntil: 'networkidle2' })
   await sleep(1400)
+  /* "networkidle2" 在 dev 下是不够的：vite 的 index.html 立刻返回，
+     但首屏那一屏的模块是**现场转译**的（@pc/mock 的 api.js 单独就 5.8MB），
+     冷启动要几秒到几十秒。不加这一步，[1] 的三条断言会在白屏上跑，
+     而 dist 一路全绿 —— 这种"会说谎的断言"比没有断言更糟（第 76 批踩到）。 */
+  await waitFirstPaint()
 
   /* ---------- 1. 游客态 ---------- */
   console.log('\n[1] 游客：不认证也能逛')
@@ -457,7 +474,15 @@ async function runSuite(base, tag) {
   /* 收费活动：出行人 + 投保 + 条款 → 待支付 → 模拟支付 */
   await goto('/pages/neighbor/activity?id=AC0016')
   check('收费活动显示费用包含与退款分档', (await has('已包含')) && (await has('退款规则')))
-  await tap('#act-main', 0, 1200)
+  /* dev 下 Bar 组件可能还没挂上，`#act-main` 点空一次就会连锁失败（dist 不会）。
+     点完以「报名页的提交按钮」为准，没到就再点一次 —— 不要用"出行人"当判据：
+     活动详情页的报名须知里也有这两个字，会误判成功（第 76 批踩到）。 */
+  let onEnrollPage = false
+  for (let i = 0; i < 3 && !onEnrollPage; i += 1) {
+    await tap('#act-main', 0, 1200)
+    onEnrollPage = await visible('#enroll-submit')
+  }
+  check('进入报名页', onEnrollPage)
   check('报名页要求出行人', await waitText('出行人'))
   check('投保活动才收证件号', await has('仅用于购买当日意外险'))
   await setInput('.field__input', '510101199003071234', 2)

@@ -31,6 +31,23 @@ const write = (name, rows) => {
 /* ============================ ① 闲置 ============================ */
 const secondhandItems = readSrc('secondhandItems.json')
 
+/**
+ * 楼栋名（只到"1栋"，永远不带门牌）。
+ *
+ * 为什么在生成时算好、而不是接口里 join：契约的 `houses` 是裁剪版（220 套），
+ * 而卖家房号来自全量（756 套），一半以上落不进 fixtures —— 接口时再 join
+ * 就只能回一句"同小区"。挂牌时的楼栋本来就是**卖家房号的一个属性**，
+ * 存下来比每次猜可靠。
+ */
+const SRC_HOUSES = readSrc('houses.json')
+const SRC_BUILDINGS = readSrc('buildings.json')
+const BLD_NAME = new Map(SRC_BUILDINGS.map(b => [b.buildingId, b.name]))
+const HOUSE_BUILDING = new Map(SRC_HOUSES.map(h => [h.shortName, h.buildingId]))
+const buildingNameOf = sellerHouse => {
+  const bid = HOUSE_BUILDING.get(sellerHouse)
+  return (bid && BLD_NAME.get(bid)) || ''
+}
+
 const items = []
 let itemSeq = 0
 
@@ -91,6 +108,10 @@ itemSeed.forEach((s, i) => {
     source: '业主发布'
   })
 })
+
+/* 统一补楼栋名（上面两批都过一遍，别只补一边） */
+items.forEach(i => { i.buildingName = buildingNameOf(i.sellerHouse) })
+const noBuilding = items.filter(i => !i.buildingName).length
 
 /* ============================ ② 举报 ============================ */
 /* 第 4 条故意指向一条**已上架**的内容（SH0008 电钢琴）：
@@ -306,3 +327,4 @@ const voteSumOk = votes.every(v => v.totalVotes === v.options.reduce((n, o) => n
 const multiCount = votes.filter(v => v.multi).length
 console.log(`\n自检：P01 待审 ${p01Pending}（应 3）· 待处理 ${p01Reports}（应 2）· 活动 ${p01Acts} 场 · AC0014 已报 ${a14}（应 8）`)
 console.log(`投票：${votes.length} 条 · 多选 ${multiCount} 条 · 票数合计自洽 ${voteSumOk ? '是' : '否'}`)
+console.log(`楼栋名：${items.length - noBuilding}/${items.length} 条解析到楼栋（其余接口回「同小区」）`)
