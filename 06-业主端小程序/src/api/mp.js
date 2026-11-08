@@ -13,6 +13,11 @@ import { addonsOf, app, applyPatch, markBillPaid, persist, writeAddons } from '@
 import { DEMO, stamp } from '@/config/demo'
 import { addonFee, orderFee, priceOfCode, round2 } from '@/api/pricing'
 import { matchIdentity, ROLE } from './identity-rule.mjs'
+import { IS_API, get, post, setToken } from './client'
+import {
+  remoteBillRows, remoteHouseOf, remoteOrderOf, remoteOrders, remotePayOf,
+  remoteReady, remoteResidentsOf, replaceBills, upsertOrder, upsertPay
+} from './remote'
 
 const COMMUNITY_OF = new Map(communities.map(c => [c.communityId, c]))
 const BUILDING_OF = new Map(buildings.map(b => [b.buildingId, b]))
@@ -75,7 +80,27 @@ export function houseView(house) {
   }
 }
 
-export const houseOf = houseId => houseView(HOUSE_OF.get(houseId))
+/**
+ * 服务端房屋 → 页面认的形状。
+ * `/mp/houses/{id}` 只给基础信息与管家（没有 ownerId / 产权字段），
+ * 页面用到的 `address` / `identity` 在这里补上，免得 38 个页面到处写兼容。
+ */
+const remoteHouseView = (h, b) =>
+  ({ ...h, address: h.fullName, buildingName: '', unitName: '', tenant: null, identity: b?.identity || '', verifyStatus: b?.verifyStatus || '' })
+
+/** 已绑房 → 视图。快照有就用快照的，没有的房仍回落本地档案（部分绑定时两边可能不一致） */
+const boundHouseView = b => {
+  const rh = remoteReady() ? remoteHouseOf(b.houseId) : null
+  if (rh) return remoteHouseView(rh, b)
+  const lh = houseView(HOUSE_OF.get(b.houseId))
+  return lh ? { ...lh, identity: b.identity, verifyStatus: b.verifyStatus } : null
+}
+
+export const houseOf = houseId => {
+  const rh = remoteReady() ? remoteHouseOf(houseId) : null
+  if (rh) return remoteHouseView(rh, app.bindings.find(b => b.houseId === houseId))
+  return houseView(HOUSE_OF.get(houseId))
+}
 
 /** 管家：无命中时告诉业主"找谁核验"（house.stewardEmpId → 员工名册） */
 export function stewardOf(house) {
@@ -85,8 +110,60 @@ export function stewardOf(house) {
 }
 
 /* ============================ 二、身份匹配（自动优先，人工兜底） ============================ */
+/*
+ * 批 A（2026-11-08）：认证链路改为**可切接口**。
+ *   `VITE_USE_API=true` → 判定在服务端（`/mp/auth/*`），前端不再自己比档案；
+ *   否则 → 仍是本地纯函数（`identity-rule.mjs`），与之前完全一样。
+ *
+ * 为什么要分批：认证只是第一步，房屋 / 账单 / 报修 / 支付还都是本地数据。
+ * 一次全切的话出问题分不清是接口还是本地逻辑，所以一批一批切、每批都能回退。
+ */
 
-export function matchFor({ phone, name, idCard4, houseId }) {
+/** 登录：换成业主会话 token。未开接口时是个空操作（保持原有演示流程） */
+export async function apiLogin(phone) {
+  if (!IS_API) return { token: '' }
+  const r = await post('/mp/auth/wechat-login', { mock: true, phone })
+  setToken(r.token)
+  return r
+}
+
+/** 实名：只收姓名 + 证件后四位。服务端只存后四位，完整号留在物业档案里 */
+export async function apiRealname({ name, idCard4 }) {
+  if (!IS_API) return null
+  return post('/mp/auth/realname', { name, idCard4 })
+}
+
+/** 确认绑定：服务端会**重算一遍**候选，不信客户端传的清单 */
+export async function apiBind(houseIds) {
+  if (!IS_API) return null
+  return post('/mp/auth/bindings', { houseIds })
+}
+
+/** 当前业主 + 已绑房产 + 首页三个数（接口模式下首页角标走它） */
+export async function apiMe() {
+  if (!IS_API) return null
+  return get('/mp/me')
+}
+
+export async function matchFor({ phone, name, idCard4, houseId }) {
+  if (IS_API) {
+    const r = await get('/mp/auth/bindings/candidates', { houseId })
+    const first = (r.houses || [])[0]
+    /* 形状与本地实现对齐，页面不用改判断逻辑 */
+    return {
+      ok: r.level !== 'none',
+      role: r.identity || '',
+      ownerId: r.ownerId || '',
+      houseIds: (r.houses || []).map(x => x.houseId),
+      reason: r.reason || '',
+      mismatch: r.mismatch,
+      verifyStatus: r.verifyStatus || '',
+      needReview: r.level === 'none',
+      /* 房屋展示字段仍取本地档案（批 B 才把 /mp/houses 接上） */
+      house: first ? houseView(HOUSE_OF.get(first.houseId)) : null,
+      steward: r.steward || null
+    }
+  }
   const r = matchIdentity({ phone, name, idCard4 }, { owners, members, tenants }, houseId)
   const house = houseView(HOUSE_OF.get(houseId))
   /* 管家：有房按房取；没房但人是真的，就用其名下一套房的管家（业主最想知道"该找谁"） */
@@ -115,17 +192,12 @@ export function authSummary() {
 
 export const boundHouseIds = () => app.bindings.map(b => b.houseId)
 
-export const myHouses = () =>
-  app.bindings.map(b => {
-    const h = houseView(HOUSE_OF.get(b.houseId))
-    return h ? { ...h, identity: b.identity, verifyStatus: b.verifyStatus } : null
-  }).filter(Boolean)
+export const myHouses = () => app.bindings.map(boundHouseView).filter(Boolean)
 
 export function activeHouse() {
   const b = app.bindings.find(x => x.houseId === app.activeHouseId) || app.bindings[0]
   if (!b) return null
-  const h = houseView(HOUSE_OF.get(b.houseId))
-  return h ? { ...h, identity: b.identity, verifyStatus: b.verifyStatus } : null
+  return boundHouseView(b)
 }
 
 /**
@@ -152,6 +224,21 @@ export function unboundHouses() {
 
 /** 这套房的住户（业主 + 家庭成员 + 租客） */
 export function residentsOf(houseId) {
+  if (remoteReady()) {
+    const r = remoteResidentsOf(houseId)
+    if (r) {
+      /* 业主自助登记的成员还在本地（服务端接口是批 D 的事），要合并进来，
+         否则刚加的人一刷新就"消失"了 —— 那是最容易被当成丢数据的一种 */
+      const added = app.membersAdded
+        .filter(m => m.houseId === houseId)
+        .map(m => ({ ...m, certified: false, pending: true }))
+      return {
+        owner: r.owner,
+        members: [...added, ...(r.members || [])].filter(m => !app.membersRemoved.includes(m.memberId)),
+        tenants: r.tenants || []
+      }
+    }
+  }
   const house = HOUSE_OF.get(houseId)
   if (!house) return { owner: null, members: [], tenants: [] }
   const owner = OWNER_OF.get(house.ownerId)
@@ -193,25 +280,40 @@ const myOwnerIds = () => [...new Set(app.bindings.map(b => b.ownerId).filter(Boo
  * 车位费那条不是可选项：`bills` 里有 1,344 张 houseId 为空的账单（车位是独立资产），
  * 只按房过滤会漏钱（李秀兰会少看 ¥362.52），业主会以为只欠这些。
  */
+/* 排序：欠费在前（业主进来是来交钱的），同状态按账期倒序 */
+const billSort = (a, b) => {
+  const d = (isDebt(b) ? 1 : 0) - (isDebt(a) ? 1 : 0)
+  if (d) return d
+  if (a.period !== b.period) return a.period < b.period ? 1 : -1
+  return String(a.itemName).localeCompare(String(b.itemName))
+}
+
+const billView = b => ({
+  ...b,
+  houseName: b.houseName || (b.houseId ? '' : '车位'),
+  isPark: !b.houseId,
+  overdue: isDebt(b) && (b.overdueDays || 0) > 0
+})
+
 export function myBills({ houseId = '', onlyDebt = false } = {}) {
+  /* 接口模式：服务端已经按「已绑房 + 本人名下不挂房的车位费」算好并排好序，
+     这里只做筛选与展示字段补齐，**不重新算金额** —— 两边各算一次迟早对不上 */
+  const remote = remoteReady() ? remoteBillRows() : null
+  if (remote) {
+    return remote
+      .map(billView)
+      .filter(b => !houseId || b.houseId === houseId)
+      .filter(b => !onlyDebt || isDebt(b))
+      .sort(billSort)
+  }
   const set = myHouseIdSet()
   const ownerSet = new Set(myOwnerIds())
   return bills
     .filter(b => (b.houseId ? set.has(b.houseId) : ownerSet.has(b.ownerId)))
     .filter(b => !houseId || b.houseId === houseId)
     .filter(b => !onlyDebt || isDebt(b))
-    .map(b => ({
-      ...b,
-      houseName: b.houseId ? HOUSE_OF.get(b.houseId)?.fullName || '' : '车位',
-      isPark: !b.houseId,
-      overdue: isDebt(b) && (b.overdueDays || 0) > 0
-    }))
-    .sort((a, b) => {
-      const d = (isDebt(b) ? 1 : 0) - (isDebt(a) ? 1 : 0)
-      if (d) return d
-      if (a.period !== b.period) return a.period < b.period ? 1 : -1
-      return String(a.itemName).localeCompare(String(b.itemName))
-    })
+    .map(b => billView({ ...b, houseName: b.houseId ? HOUSE_OF.get(b.houseId)?.fullName || '' : '' }))
+    .sort(billSort)
 }
 
 export const debtOf = list => round2(list.filter(isDebt).reduce((s, b) => s + (b.unpaid || 0), 0))
@@ -283,7 +385,10 @@ export function billsByYear(list) {
   return [...map.values()].sort((a, b) => (a.year < b.year ? 1 : -1))
 }
 
-export const billsOf = (ids = []) => ids.map(id => bills.find(b => b.billId === id)).filter(Boolean)
+export const billsOf = (ids = []) => {
+  const src = (remoteReady() ? remoteBillRows() : null) || bills
+  return ids.map(id => src.find(b => b.billId === id)).filter(Boolean)
+}
 
 /* ============================ 五、报修单 ============================ */
 
@@ -293,8 +398,10 @@ export const isDoing = wo => DOING.includes(wo?.status)
 export function decorate(wo) {
   if (!wo) return null
   const patch = app.patches[wo.woId] || {}
-  const addons = addonsOf(wo.woId)
-  const pay = app.payOrders.find(p => p.type === 'wo' && p.refId === wo.woId && p.status === '待支付') || null
+  /* 增项：数据里带数组就用它（服务端工单一定有；本地新单没有，走 store 的写回表） */
+  const addons = Array.isArray(wo.addons) ? wo.addons : addonsOf(wo.woId)
+  const pay = (wo.payOrder && wo.payOrder.status === '待支付' ? wo.payOrder : null) ||
+    app.payOrders.find(p => p.type === 'wo' && p.refId === wo.woId && p.status === '待支付') || null
   const base = { ...wo, ...patch, addons }
   const pending = addons.filter(a => !a.confirmed)
   const origin = round2((base.materialFee || 0) + (base.laborFee || 0))
@@ -321,10 +428,24 @@ export function decorate(wo) {
   }
 }
 
-export const orderOf = woId => decorate(workOrders.find(w => w.woId === woId) || null)
+export const orderOf = woId => {
+  const r = remoteReady() ? remoteOrderOf(woId) : null
+  if (r) return decorate(r)
+  return decorate(workOrders.find(w => w.woId === woId) || null)
+}
 
 /** 我的报修：个人单按已绑房产取；公共单按项目取（跟产权无关，登录即可见） */
 export function myOrders({ houseId = '', onlyDoing = false, scope = 'personal', communityId = '' } = {}) {
+  const rows = remoteReady() ? remoteOrders() : null
+  if (rows) {
+    /* 服务端已经按「在做的在前、时间倒序」排好并做过权限过滤，
+       这里只按页面条件筛，**不重排** —— 两处各排一次，顺序迟早不一样 */
+    return rows
+      .filter(w => (scope === 'public' ? !!w.isPublic && (!communityId || w.communityId === communityId) : !w.isPublic))
+      .filter(w => !houseId || w.houseId === houseId)
+      .filter(w => !onlyDoing || isDoing(w))
+      .map(decorate)
+  }
   const set = myHouseIdSet()
   const cmIds = new Set(app.bindings.map(b => HOUSE_OF.get(b.houseId)?.communityId).filter(Boolean))
   return workOrders
@@ -344,10 +465,29 @@ export const toEvaluateOrders = () => myOrders().filter(w => w.status === '已�
 
 /* ============================ 六、下单 ============================ */
 
-export function createOrder(p = {}) {
+export async function createOrder(p = {}) {
+  const isPublic = p.scope === 'public'
+  if (IS_API) {
+    /* 金额不传：服务端按 `priceCode × qty` 算，前端只负责展示 —— 页面自己算钱是
+       "三处金额不一致"的根源。传了也会被忽略。 */
+    const r = await post('/mp/orders', {
+      scope: isPublic ? 'public' : 'personal',
+      houseId: isPublic ? undefined : p.houseId,
+      place: isPublic ? p.place : undefined,
+      priceCode: p.code,
+      qty: Math.max(1, Number(p.qty) || 1),
+      appointDate: p.appointDate,
+      appointSlot: p.appointSlot,
+      description: p.description,
+      photos: p.photos || []
+    })
+    upsertOrder(r.order)
+    if (r.payOrder) upsertPay(r.payOrder)
+    return decorate(r.order)
+  }
+  /* 本地模式：isPublic 在上面已经算过了（接口分支也用同一个值），这里不再声明 */
   const item = priceOfCode(p.code)
   if (!item) throw new Error('维修项目不存在：' + p.code)
-  const isPublic = p.scope === 'public'
   if (!isPublic && !boundHouseIds().includes(p.houseId)) throw new Error('房屋未绑定，不能下单')
 
   const house = isPublic ? null : HOUSE_OF.get(p.houseId)
@@ -419,7 +559,14 @@ function payExpireAt() {
   return `${d} ${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
-export function createOrderPay(woId) {
+export async function createOrderPay(woId) {
+  if (IS_API) {
+    const r = await post('/mp/payments', { type: 'wo', woId })
+    upsertPay(r)
+    const w = remoteOrderOf(woId)
+    if (w) upsertOrder({ ...w, payOrder: r })
+    return r
+  }
   const wo = orderOf(woId)
   if (!wo) throw new Error('工单不存在')
   if (wo.dueFee <= 0) throw new Error(wo.paidAmount > 0 ? '该单已结清' : '该单无需支付')
@@ -454,7 +601,12 @@ export function createOrderPay(woId) {
  * 金额 = 所选账单 unpaid 之和；lines 逐条带 houseId —— 合并的是"付款动作"，不是账单本身，
  * 后台入账仍是一张账单一条 payment，否则按房对账 / 催缴 / 退费全部崩掉。
  */
-export function createBillPay(billIds = []) {
+export async function createBillPay(billIds = []) {
+  if (IS_API) {
+    const r = await post('/mp/payments', { type: 'bill', billIds: billIds.filter(Boolean) })
+    upsertPay(r)
+    return r
+  }
   const ids = billIds.filter(Boolean)
   if (!ids.length) throw new Error('没有选择账单')
   const list = ids.map(id => bills.find(b => b.billId === id)).filter(Boolean)
@@ -499,7 +651,51 @@ export function createBillPay(billIds = []) {
   return pay
 }
 
-export const payOrderOf = payId => app.payOrders.find(p => p.payId === payId) || null
+/**
+ * 收费活动的报名费。
+ *
+ * 与账单 / 报修共用一个支付入口：`type='activity'`，`refId` 是报名号。
+ * 金额取报名时算好的 `amount`（单价 × 人数），不在这里重算 ——
+ * 活动改价不该影响已经提交的报名。
+ */
+export async function createActivityPay(enrollId) {
+  if (IS_API) {
+    /* 报名费走统一支付入口：金额由服务端按报名记录算，前端不传 */
+    const r = await post('/mp/payments', { type: 'activity', refId: enrollId })
+    upsertPay(r)
+    return r
+  }
+  const e = app.enrollments.find(x => x.enrollId === enrollId)
+  if (!e) throw new Error('报名记录不存在')
+  if (!(Number(e.amount) > 0)) throw new Error('该活动免费，无需支付')
+  if (e.payStatus === '已支付') throw new Error('这笔报名费已支付')
+
+  const exist = findPending('activity', enrollId)
+  if (exist) {
+    exist.amount = round2(e.amount)
+    persist()
+    return exist
+  }
+
+  const pay = {
+    payId: nextPayId(),
+    type: 'activity',
+    refId: enrollId,
+    title: `${e.activityTitle || '社区活动'} · 报名费`,
+    sub: `${e.people} 人 · ${(e.activityStart || '').slice(0, 10)} 出发`,
+    amount: round2(e.amount),
+    createdAt: stamp(),
+    expireAt: payExpireAt(),
+    status: '待支付',
+    billIds: []
+  }
+  app.payOrders.unshift(pay)
+  persist()
+  return pay
+}
+
+export const payOrderOf = payId =>
+  (remoteReady() ? remotePayOf(payId) : null) || app.payOrders.find(p => p.payId === payId) || null
 
 /**
  * 模拟支付成功。
@@ -509,7 +705,19 @@ export const payOrderOf = payId => app.payOrders.find(p => p.payId === payId) ||
  *    业务侧只认"已支付"这个结果，前端不判断成功。
  *    契约：POST /mp/payments/{payId}/simulate（生产环境必须 404）。
  */
-export function simulatePay(payId) {
+export async function simulatePay(payId) {
+  if (IS_API) {
+    const remote = remotePayOf(payId)
+    if (remote) {
+      const r = await post(`/mp/payments/${payId}/simulate`)
+      upsertPay(r.payOrder)
+      if (r.order) upsertOrder(r.order)
+      if (r.bills) replaceBills(r.bills)
+      return r.payOrder
+    }
+    /* 付款单不在服务端 = 活动报名费（报名整条链在批 D 之前仍是本地闭环），
+       落到下面的本地实现，而不是报"订单不存在" */
+  }
   const pay = payOrderOf(payId)
   if (!pay) throw new Error('订单不存在')
   if (pay.status === '已支付') return pay
@@ -526,6 +734,11 @@ export function simulatePay(payId) {
       payTime: pay.paidAt,
       payMethod: '微信支付（模拟）'
     })
+  } else if (pay.type === 'activity') {
+    /* 报名费：只改报名记录的支付状态，报名本身仍是「已报名」 */
+    app.enrollments = app.enrollments.map(e =>
+      e.enrollId === pay.refId ? { ...e, payStatus: '已支付', paidAt: pay.paidAt, payMethod: pay.payMethod } : e
+    )
   } else if (pay.lines?.length) {
     for (const line of pay.lines) markBillPaid(line.billId, { payId, amount: line.amount, at: stamp() })
   } else {
@@ -537,7 +750,12 @@ export function simulatePay(payId) {
 
 /* ============================ 八、增项 / 评价 ============================ */
 
-export function confirmAddons(woId) {
+export async function confirmAddons(woId) {
+  if (IS_API) {
+    const r = await post(`/mp/orders/${woId}/addons/confirm`, {})
+    upsertOrder(r)
+    return decorate(r)
+  }
   const wo = orderOf(woId)
   if (!wo) throw new Error('工单不存在')
   const pending = wo.pendingAddons
@@ -617,7 +835,18 @@ export const EVAL_MOODS = [
 ]
 export const EVAL_RESOLVED = ['已解决', '未解决', '需关注后续进度']
 
-export function evaluateOrder(woId, { score = 5, tags = [], text = '', resolved = '' } = {}) {
+export async function evaluateOrder(woId, { score = 5, tags = [], text = '', resolved = '' } = {}) {
+  if (IS_API) {
+    /* `resolved`（已解决 / 未解决）契约里没有这一列，接口模式下不传；
+       要留就得先加字段，不能前端自己存一份 —— 员工端"我的评价"读不到它 */
+    const r = await post(`/mp/orders/${woId}/evaluate`, {
+      score: Number(score),
+      tags,
+      text: String(text || '').slice(0, 200)
+    })
+    upsertOrder(r)
+    return decorate(r)
+  }
   const wo = orderOf(woId)
   if (!wo) throw new Error('工单不存在')
   if (wo.status !== '已完工') throw new Error('该单当前不可评价')

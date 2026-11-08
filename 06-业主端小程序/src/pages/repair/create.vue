@@ -105,7 +105,7 @@ import NavBar from '@/components/NavBar.vue'
 import Bar from '@/components/Bar.vue'
 import Empty from '@/components/Empty.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
-import { PRICE_ITEMS, orderFee, priceGroups } from '@/api/pricing'
+import { orderFee, priceGroups, priceItems } from '@/api/pricing'
 import { PUBLIC_PLACES, activeHouse, createOrder, createOrderPay } from '@/api/mp'
 import { DEMO } from '@/config/demo'
 import { money } from '@/utils/format'
@@ -123,7 +123,8 @@ const photos = ref([])
 
 const slots = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '19:00-20:00']
 const house = computed(() => activeHouse())
-const sel = computed(() => PRICE_ITEMS.find(i => i.code === code.value) || null)
+/* priceItems() 而不是常量：接口模式下价目来自服务端快照，模块加载时还是空的 */
+const sel = computed(() => priceItems().find(i => i.code === code.value) || null)
 const fee = computed(() => orderFee(sel.value, 1))
 const canSubmit = computed(() => !!sel.value && (isPublic.value ? !!place.value : !!house.value))
 const days = computed(() => {
@@ -153,12 +154,12 @@ function pick(it) {
   code.value = it.code
 }
 
-function submit() {
+async function submit() {
   if (!sel.value) return toastErr('先选报修项目')
   if (isPublic.value && !place.value) return toastErr('请选择问题位置')
   if (!desc.value.trim()) return toastErr('写一句问题描述，师傅好带工具')
   try {
-    const wo = createOrder({
+    const wo = await createOrder({
       scope: isPublic.value ? 'public' : 'personal',
       houseId: house.value?.houseId || '',
       communityId: house.value?.communityId || 'P01',
@@ -175,7 +176,7 @@ function submit() {
       setTimeout(() => go('/pages/repair/detail', { woId: wo.woId }), 400)
       return
     }
-    const pay = createOrderPay(wo.woId)
+    const pay = await createOrderPay(wo.woId)
     go('/pages/pay/index', { payId: pay.payId, woId: wo.woId })
   } catch (e) {
     toastErr(e.message || '提交失败')

@@ -227,7 +227,7 @@ async function onConfirm() {
   )
   if (!ok) return
   try {
-    confirmAddons(w.woId)
+    await confirmAddons(w.woId)
     tick.value++
     toastOk('已确认，金额已并入本单')
   } catch (e) {
@@ -235,9 +235,9 @@ async function onConfirm() {
   }
 }
 
-function goPay() {
+async function goPay() {
   try {
-    const p = wo.value.payOrder || createOrderPay(wo.value.woId)
+    const p = wo.value.payOrder || await createOrderPay(wo.value.woId)
     uni.navigateTo({ url: `/pages/pay/index?payId=${encodeURIComponent(p.payId)}&woId=${encodeURIComponent(wo.value.woId)}` })
   } catch (e) {
     toastErr(e.message || '生成订单失败')
@@ -279,9 +279,9 @@ function toggleTag(t) {
   if (i >= 0) tags.value.splice(i, 1)
   else tags.value.push(t)
 }
-function submitEval() {
+async function submitEval() {
   try {
-    evaluateOrder(wo.value.woId, { score: mood.value, tags: tags.value, text: text.value, resolved: resolved.value })
+    await evaluateOrder(wo.value.woId, { score: mood.value, tags: tags.value, text: text.value, resolved: resolved.value })
     evalSheet.value = false
     tick.value++
     toastOk('评价已提交')

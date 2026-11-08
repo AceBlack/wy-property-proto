@@ -67,7 +67,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Bar from '@/components/Bar.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
-import { matchFor } from '@/api/mp'
+import { apiBind, apiRealname, matchFor } from '@/api/mp'
+import { hydrate } from '@/api/remote'
 import { app, approveBinding, approveReview, setRealname, submitReview } from '@/store/app'
 import { flow } from '@/store/auth-flow'
 import { toast, toastOk } from '@/utils/ui'
@@ -94,7 +95,7 @@ function validate() {
   return ''
 }
 
-function submit() {
+async function submit() {
   const msg = validate()
   err.value = msg
   if (msg) return
@@ -103,37 +104,47 @@ function submit() {
   flow.identity = identity.value
   flow.proof = photos.value.length ? '已上传证明材料' : ''
 
-  const r = matchFor({
-    phone: app.session.phone,
-    name: name.value.trim(),
-    idCard4: idCard4.value,
-    houseId: flow.houseId
-  })
+  try {
+    /* 接口模式：实名这一步交给服务端（只传姓名 + 后四位，完整号不出前端） */
+    await apiRealname({ name: name.value.trim(), idCard4: idCard4.value })
 
-  /* ① 档案对得上：立即生效，不经过人工 */
-  if (r.ok) {
-    approveBinding({
-      houseId: flow.houseId,
-      identity: r.role,
-      ownerId: r.ownerId,
-      verifyStatus: r.verifyStatus
+    const r = await matchFor({
+      phone: app.session.phone,
+      name: name.value.trim(),
+      idCard4: idCard4.value,
+      houseId: flow.houseId
     })
-    if (r.role !== identity.value) {
-      toast(`档案显示您是「${r.role}」，已按实际身份生效`)
-    } else {
-      toastOk('认证通过')
-    }
-    setTimeout(() => uni.reLaunch({ url: '/pages/home/index' }), 500)
-    return
-  }
 
-  /* ② 对不上：必须带材料，否则物业没法核验 */
-  if (!photos.value.length) {
-    err.value = `${r.reason}。请上传购房合同 / 房产证照片，物业才能核验`
-    return
+    /* ① 档案对得上：立即生效，不经过人工 */
+    if (r.ok) {
+      await apiBind([flow.houseId])
+      approveBinding({
+        houseId: flow.houseId,
+        identity: r.role,
+        ownerId: r.ownerId,
+        verifyStatus: r.verifyStatus
+      })
+      /* 绑完立刻拉快照：首页的房屋、账单、住户都来自它，等进页面再拉会先闪一下"暂无数据" */
+      await hydrate({ force: true })
+      if (r.role !== identity.value) {
+        toast(`档案显示您是「${r.role}」，已按实际身份生效`)
+      } else {
+        toastOk('认证通过')
+      }
+      setTimeout(() => uni.reLaunch({ url: '/pages/home/index' }), 500)
+      return
+    }
+
+    /* ② 对不上：必须带材料，否则物业没法核验 */
+    if (!photos.value.length) {
+      err.value = `${r.reason}。请上传购房合同 / 房产证照片，物业才能核验`
+      return
+    }
+    submitReview({ houseId: flow.houseId, identity: identity.value, proof: '已上传证明材料', reason: r.reason })
+    uni.navigateTo({ url: '/pages/auth/pending' })
+  } catch (e) {
+    err.value = e?.message || '认证失败，请稍后重试'
   }
-  submitReview({ houseId: flow.houseId, identity: identity.value, proof: '已上传证明材料', reason: r.reason })
-  uni.navigateTo({ url: '/pages/auth/pending' })
 }
 </script>
 

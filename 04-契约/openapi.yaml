@@ -98,6 +98,22 @@ tags:
       - 价目只有一份（`repairPrices.json`），业主下单页与员工现场增项读同一个源；
       - 增项的唯一形状是 `workOrders[].addons[]`，确认后**合并进本单总额**；
       - 支付只认「已支付」这一个结论，`/mp/payments/{payId}/simulate` 是演示替身。
+  - name: neighbor
+    description: |
+      邻里运营（PC 第 68 批）。移动端只承接「离开手机做不了」的四件事：
+      审闲置、处理举报、看活动、代客报名。发布类与投票一律留在 PC。
+  - name: listings
+    description: |
+      租售信息（A 域 · PC 第 69 批）。**只做信息发布**，物业全程不参与撮合与成交。
+
+      分水岭只有一条：是否参与撮合与成交。一旦出现"经纪人 / 带看 / 佣金 / 成交价"，
+      性质就从物业服务变成房地产经纪，需要《房地产经纪机构备案表》，微信类目也要换。
+
+      三组接口，边界写在路径上：
+      - `/public/listings/*` **免登录**，只回公开字段（房号、业主信息、楼管手机号一律不出）；
+      - `/listings/*` 后台，需 `a.listings.view` / `.audit` / `.viewing`；
+      - 审核人是**该房的责任楼管**，不是"审核员"角色，超 24 小时升直属上级。
+
   - name: employees
     description: |
       员工档案（人事口径：组织、岗位、合同、证照、考勤汇总）。
@@ -2832,6 +2848,64 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [work-orders]
+      operationId: createWorkOrder
+      summary: 新建工单（前台 / 客服受理）
+      description: |
+        五种来源类型：公共区域维修 / 商业服务 / 报事 / 投诉建议 / 咨询 / 其他。
+        建出来是「待派单」，不直接指派 —— 派单是独立动作，由有派单权的角色做。
+
+        三条业务校验：
+        1. **商业服务必须选服务项目**：价格与服务范围都写在项目里，
+           让前台手填金额的结果是同一个"空调加氟"报出三种价；
+        2. **公共区域维修必须选设施部位**（电梯 / 给排水 / 土建…）。没有部位，
+           维修工到场先要问一遍，SLA 从出门就开始烧；
+        3. 金额按**项目快照**写死（`materialFee` / `laborFee` / `totalFee` / `priceCode`），
+           字典改价不回溯历史工单 —— 改价只影响之后创建的。
+
+        SLA 按优先级定：特急 4 小时 / 紧急 8 小时 / 普通 24 小时。
+        这个数在创建时落到工单上，改配置不影响已经建出来的单。
+      x-permission: w.wo.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, type]
+              properties:
+                type:
+                  type: string
+                  enum: [公共区域维修, 商业服务, 报事, 投诉建议, 咨询, 其他]
+                title: { type: string, maxLength: 60 }
+                description: { type: string, maxLength: 500 }
+                communityId: { type: string, description: 空则按登录人默认项目 }
+                houseId: { type: string, description: 入户类工单必填 }
+                houseName: { type: string }
+                ownerId: { type: string }
+                ownerName: { type: string }
+                category: { type: string, description: 公共区域维修必填：设施部位 }
+                serviceItemCode: { type: string, description: 商业服务必填：服务项目编码 }
+                priority: { type: string, enum: [普通, 紧急, 特急] }
+                source: { type: string, example: 前台 }
+      responses:
+        '200':
+          description: 已创建（`status=待派单`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkOrderEnvelope' }
+        '409':
+          description: 选的服务项目已停用（40924）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 类型越界 / 缺服务项目 / 缺设施部位 / 缺标题（42207）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /work-orders/summary:
     get:
       tags: [work-orders]
@@ -3674,7 +3748,7 @@ paths:
           description: 该单不是付费入户单，不能抢
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /work-orders/{woId}/dispatch:
     post:
@@ -3799,7 +3873,7 @@ paths:
           description: 未接单 / 未到场时不能加项
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /work-orders/{woId}/addons/confirm:
     post:
@@ -4065,6 +4139,1071 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================ 邻里（移动端作业，PC 第 68 批）
+  /neighbor/summary:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborTodoSummary
+      summary: 邻里待办计数（工作台卡片）
+      description: |
+        只回两个数：本项目**待审核**的闲置、本项目**待处理**的举报。
+        两个数刻意不合并：一个是「能不能发」，一个是「发了之后怎么办」，判断依据与留痕要求都不同。
+
+        口径：**按登录人所属项目过滤**。手机上是 3 + 2，PC 全公司是 8 + 4，差的是数据范围 ——
+        为了数字一致去掉过滤，会让客服看到别的项目的业主。
+      x-permission: n.workbench.view
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborTodoEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/items:
+    get:
+      tags: [neighbor, mobile]
+      operationId: queryNeighborItems
+      summary: 闲置内容列表（待审核队列）
+      description: |
+        待审永远排最前 —— 队列页要的就是「下一步做什么」。
+        默认返回里 `sellerHouse` 带房号，**移动端只展示到楼栋**，门牌由前端截断（审核不需要知道具体门牌）。
+      x-permission: n.items.view
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          description: 待审核 / 已上架 / 已驳回 / 已下架 / 已售出 / 已过期
+          schema: { type: string }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/items/stats:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborItemStats
+      summary: 闲置看板（六状态计数 + 待处理举报）
+      description: |
+        六状态**分开数**：`待审核`是能不能发，`已驳回`是发过被拒，`已过期`是挂了 60 天没人要 ——
+        运营对这三类的动作完全不同（审核 / 回访原因 / 提醒续挂），合并成一个"非在架"就没法派活。
+
+        `reportPending` 从举报表取，不从闲置上的 `reportCount` 累加：后者是历史累计，
+        被处理过的举报仍然留在计数里，拿它当待办会一直显示红色角标。
+      x-permission: n.items.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/items/categories:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborItemCategories
+      summary: 闲置分类字典（含各分类在架数）
+      description: |
+        业主端发布表单的分类下拉、列表页的分类筛选，都读这一份 ——
+        三处各写一套的结果是"发布时能选母婴、筛选里没有母婴"。
+
+        `count` 只统计**已上架**：筛选按钮上的数字应当等于点进去后的条数。
+      x-permission: n.items.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemCategoriesEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/items/{itemId}:
+    get:
+      tags: [neighbor, mobile]
+      operationId: getNeighborItem
+      summary: 闲置详情
+      x-permission: n.items.view
+      parameters:
+        - $ref: '#/components/parameters/neighborItemId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /neighbor/items/{itemId}/audit:
+    post:
+      tags: [neighbor, mobile]
+      operationId: auditNeighborItem
+      summary: 闲置审核（通过 / 驳回）
+      description: |
+        **驳回必须写理由** —— 业主会拿着驳回通知来问「为什么」，没有理由的通知等于没通知。
+
+        通过后立刻对业主端可见；驳回后发布人可修改重提。
+      x-permission: n.items.audit
+      parameters:
+        - $ref: '#/components/parameters/neighborItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pass]
+              properties:
+                pass: { type: boolean, description: 'true=通过并上架，false=驳回' }
+                reason: { type: string, maxLength: 80, description: 'pass=false 时必填' }
+                operator: { type: string, description: '经办人（移动端传登录人姓名，便于 PC 追溯）' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemEnvelope' }
+        '409':
+          description: 已审核过（40960）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/items/{itemId}/offline:
+    post:
+      tags: [neighbor, mobile]
+      operationId: offlineNeighborItem
+      summary: 下架闲置（举报核实后顺手做）
+      description: 只有「已上架」能下架；下架必须写理由。
+      x-permission: n.items.audit
+      parameters:
+        - $ref: '#/components/parameters/neighborItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 80 }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborItemEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/reports:
+    get:
+      tags: [neighbor, mobile]
+      operationId: queryNeighborReports
+      summary: 举报列表（待处理队列）
+      description: |
+        返回 `communityId`（取被举报内容的项目）—— 举报记录本身没有项目字段，
+        移动端要按登录人项目过滤就必须由服务端带出来，否则只能看到全公司的单。
+      x-permission: n.reports.view
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [待处理, 已处理] }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborReportListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/reports/stats:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborReportStats
+      summary: 举报看板（待处理 / 已处理 / 按原因分布）
+      description: |
+        `byReason` 用来回答"最近是不是有人在刷同一个号" —— 只看总数看不出来。
+        按登录人数据范围过滤（举报记录本身没有项目字段，要从被举报内容带出来）。
+
+        与工作台卡片的 `reports` 数**必须同源**：卡片写 2、点进去 3，是最容易被
+        业主截图对比的错误。
+      x-permission: n.reports.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [pending, handled, total]
+                        properties:
+                          pending: { type: integer }
+                          handled: { type: integer }
+                          total: { type: integer }
+                          byReason:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                reason: { type: string }
+                                count: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/reports/{reportId}:
+    get:
+      tags: [neighbor, mobile]
+      operationId: getNeighborReport
+      summary: 举报详情
+      x-permission: n.reports.view
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, example: RP0101 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborReportEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /neighbor/reports/{reportId}/handle:
+    post:
+      tags: [neighbor, mobile]
+      operationId: handleNeighborReport
+      summary: 处理举报（四动作）
+      description: |
+        四选一：忽略 / 仅警告 / 下架并警告 / 封禁 7 天。
+        **说明必填** —— 事后要能解释为什么这么判。
+        「下架并警告」会同时把闲置置为已下架。
+
+        封禁在原型里只记处置状态，**不做登录拦截**：上线后由业主端校验封禁位。
+      x-permission: n.reports.handle
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, note]
+              properties:
+                action: { type: string, enum: [忽略, 仅警告, 下架并警告, 封禁 7 天] }
+                note: { type: string, maxLength: 100 }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborReportEnvelope' }
+        '409':
+          description: 已处理过（40970）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # --------------------------------------------------------------- 投票（意见征询）
+  # 三条总口径（写在这里，别再往各接口里各写一遍）：
+  #   ① 这是**意见征询**，不是业主大会表决 —— 任何响应里都不出现「通过 / 未通过」，
+  #      连 `conclusion` 这种空壳字段也不留（留了就会有人往里填）；
+  #   ② `totalVotes` = 选项票数之和，不读种子里的同名字段（两者能差出上百票）；
+  #   ③ `target` 是**分母**，取 `max(应投户数, 票数)`，所以 `partRate` 永远 ≤100%。
+  #
+  # 主键叫 `voteId`（值就是问卷表的 `surveyId`）。不做双主键：同一个东西两个编号，
+  # 对账时永远差一条。
+  /neighbor/votes:
+    get:
+      tags: [neighbor, mobile]
+      operationId: queryNeighborVotes
+      summary: 投票列表（意见征询）
+      description: |
+        排序：进行中 → 草稿 → 已结束，同组内按截止日**倒序**（新的在前）。
+        运营每天要看的是"还在跑的几个"，草稿排在已结束之前是因为草稿还能改、还要发。
+
+        三态都返回：业主端要「已结束」看历史，运营要「草稿」接着编辑。
+        `target` **由服务端按项目去重业主数现算**（租户不计，征询的是产权人意见），
+        不接受客户端传值 —— 传进来的分母一定对不上名单。
+      x-permission: n.votes.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+        - name: type
+          in: query
+          schema: { type: string, enum: [满意度调查, 意见征询, 方案征询] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [草稿, 进行中, 已结束] }
+        - $ref: '#/components/parameters/kw'
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [neighbor, mobile]
+      operationId: createNeighborVote
+      summary: 新建投票（草稿）
+      description: |
+        建出来是**草稿**，不直接对业主可见 —— 题目写错一个字的成本是全员重投。
+
+        选项 2~10 项、**不许重复**、单项 ≤30 字；`key` 由服务端生成（`A1`/`A2`…），
+        不接受客户端指定：客户端生成会撞 key，而票是按 key 记的。
+
+        `type` 只能是三种之一。它决定页面上的分组，不决定能不能投票 ——
+        别为了"能发出去"随手塞一个新类型，前端分组会直接漏掉它。
+      x-permission: n.votes.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NeighborVoteRequest' }
+      responses:
+        '200':
+          description: 已创建（草稿）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteEnvelope' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/votes/stats:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborVoteStats
+      summary: 投票看板（四态计数 + 两组平均参与率）
+      description: |
+        `runningPartRate` / `endedPartRate` 分开给：进行中的参与率还在爬，
+        和已结束的放一起取平均没有意义（一个 32%、一个 47%，平均出来 39% 谁也解释不了）。
+
+        `votesTotal` 是**票数合计**（多选一票勾两项算两票），不是户数。
+        要"参与户数"必须从投票记录表按 `ownerId` 去重，那是另一张表的事。
+      x-permission: n.votes.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/votes/{voteId}:
+    get:
+      tags: [neighbor, mobile]
+      operationId: getNeighborVote
+      summary: 投票详情（含选项）
+      description: |
+        详情页是给运营改题、发公告用的，所以选项票数**照实给**。
+        "投完才看结果"是**业主端**的约束，在 `/mp` 侧判，不在这一层 ——
+        在这里藏票数只会让运营看不见自己发的东西跑成什么样。
+
+        员工侧没有"我的票"：不返回 `myVote` 之类的字段。员工是来看进度的，不是来投票的。
+      x-permission: n.votes.view
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [neighbor, mobile]
+      operationId: updateNeighborVote
+      summary: 编辑投票（仅草稿）
+      description: |
+        **只有草稿能改。** 一旦发布（已有票投出），题目与选项都不可变：
+        改完的选项会让已投出的票指向不存在的位置，合计直接对不上。
+
+        要拦在服务端，不能只靠前端灰按钮 —— 灰按钮挡不住直接调接口。
+        真要改，正确做法是结束这一场、复制一份新的并说明变更。
+
+        草稿期改选项时，**key 相同的选项保留已累积的票数**（草稿正常没票，
+        但复制来的草稿可能有），被删掉的选项连票一起丢。
+      x-permission: n.votes.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NeighborVoteRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已开始，题目与选项不可改（40930）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [neighbor, mobile]
+      operationId: deleteNeighborVote
+      summary: 删除投票（仅草稿）
+      description: |
+        只有草稿能删。**进行中 / 已结束的不许删**：票已经投出去了，
+        删掉等于抹掉参与记录 —— 要下架就结束它，历史留着。
+
+        要删已结束的，走数据管理而不是这个接口。
+      x-permission: n.votes.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      responses:
+        '200':
+          description: 已删除
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { type: boolean, description: 恒为 true }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 非草稿不可删（40934）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /neighbor/votes/{voteId}/result:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborVoteResult
+      summary: 结果聚合（分布 + 参与率 + 可信度，**不给结论**）
+      description: |
+        返回分布、参与率，以及一个 `confidence` 提示（≥50% 有效 / ≥30% 可参考 / 否则偏低）。
+        `confidence` 是给运营看的**样本提示**，不是结论 —— 它的作用是让人在群里转发前
+        先看一眼"只有 12% 的人投了"。
+
+        **刻意不返回「是否通过」**：一旦给出结论，它就会被当成《民法典》278 条的
+        业主大会决议来主张 —— 而真表决要人数 + 专有部分面积双过半、要公示期、要纸质票，
+        小程序替代不了票箱。这条不是没做完，是不做；也不留 `conclusion` 空字段，
+        留了迟早有人往里填"通过"。
+
+        三个数各有各的算法，别混：
+        - 选项 `pct` 按**票数**算，按票数降序，合计 100%；
+        - `partRate` = 票数 / `target`；
+        - `notVoted` = `target` − 票数（分母已经兜过底，不会是负数）。
+      x-permission: n.votes.view
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteResultEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /neighbor/votes/{voteId}/publish:
+    post:
+      tags: [neighbor, mobile]
+      operationId: publishNeighborVote
+      summary: 发布投票（草稿 → 进行中）
+      description: |
+        发布即对项目内业主可见。两条前置校验：
+        1. `endAt` 不能已经过去（发一场已经截止的投票，业主点进去就是"已结束"）；
+        2. 选项至少 2 项 —— 一项的投票没有意义。
+
+        发布时把 `startAt` 置为当天（草稿的 `startAt` 是空的，用"创建日"当开始日
+        会让统计口径对不上）。
+
+        重复发布返回 409（40931），**不做幂等成功**：重复点击意味着有人以为没发出去，
+        要让他看到"已经在进行中"，而不是再发一场。已结束的不能重发（40932），
+        要再来一次请复制一份 —— 重发会让上一场的票凭空消失。
+      x-permission: n.votes.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      responses:
+        '200':
+          description: 成功（`status=进行中`，`startAt` 为当天）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已在进行中（40931）/ 已结束不能重发（40932）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/votes/{voteId}/end:
+    post:
+      tags: [neighbor, mobile]
+      operationId: endNeighborVote
+      summary: 提前结束投票
+      description: |
+        只有「进行中」能结束（40933）—— 草稿没有"结束"这回事，删掉即可。
+        结束只改状态，**不产出任何结论**（见 `/result` 的说明）。
+
+        结束后结果对全体可见 —— 业主端"已结束"tab 就是靠这个状态。
+      x-permission: n.votes.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborVoteId'
+      responses:
+        '200':
+          description: 成功（`status=已结束`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborVoteEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 不是进行中（40933）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /neighbor/activities:
+    get:
+      tags: [neighbor, mobile]
+      operationId: queryNeighborActivities
+      summary: 活动列表（仅本项目、未结束）
+      description: |
+        只列「报名中 / 待成行 / 已成行」。草稿、已流团、已结束不出现 ——
+        已结束的留在 PC 做导出与归档。
+
+        **待成行是独立状态**：报名截止后人数没到下限，既不是「报名中」也不是「已结束」。
+        列表上必须显示「待成行 / 还差 N 人」，不要统一写"报名中"。
+      x-permission: n.activities.view
+      parameters:
+        - name: communityId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: phase
+          in: query
+          schema: { type: string, enum: [报名中, 待成行, 已成行] }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [neighbor, mobile]
+      operationId: createNeighborActivity
+      summary: 新建活动（草稿）
+      description: |
+        建出来是**草稿**，发布后才对业主可见（`POST /{activityId}/publish`）。
+
+        校验比表单显示的多，都是踩过的：
+        1. `type` 只能是**公益 / 收费**。注意：种子里的历史活动存的是类别
+           （敬老 / 亲子 / 文体 / 出游），那是历史数据；新建一律走「收费与否」这个口径，
+           类别留给 `desc` 或后续的 `category` 字段。两种口径混在一个字段里，
+           是这批数据最该修的一处（见 `NeighborActivity.type` 的说明）。
+        2. **地点必填** —— 业主报名后要知道去哪，事后再补等于通知不到位；
+        3. `enrollDeadline` 必填，且**不能晚于开始时间**：活动开始了还在收人，
+           车已经走了；
+        4. 收费活动（`type=收费`）必须同时有：`fee > 0`、`minCapacity ≥ 1`、
+           `refundPolicy` 非空；分档比例要**随提前天数减少而降低**
+           （提前越久退得越多，反过来就是在惩罚早取消的人）；
+        5. `capacity` 不能小于已报名人数（编辑时）。
+
+        `phase` 不落库，按 `status` + `enrollDeadline` + 已报人数**现算**
+        （草稿 / 报名中 / 待成行 / 已成行 / 已流团 / 已结束）。
+      x-permission: n.activities.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NeighborActivityRequest' }
+      responses:
+        '200':
+          description: 已创建（草稿）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityEnvelope' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/activities/stats:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborActivityStats
+      summary: 活动看板（四阶段计数 + 收款 + 缺口）
+      description: |
+        五个数，各有各的用处，不能合并：
+        - `running` 报名中 / `waiting` 待成行 / `odd` 已成行 / `flowed` 已流团；
+        - `gapTotal` 是**待成行场次一共还差多少人成团** —— 决定今天要不要发推送拉一把。
+          这个数比"待成行 3 场"有用得多：差 2 人的和三场各差 20 人的，动作完全不同。
+
+        `paidAmount` 只统计收费活动的**已收**金额（含同行人）。
+        `enrollPeople` 是有效报名人次（不含已取消 / 已退款）。
+
+        按登录人数据范围过滤，与列表同源 —— 看板 12、列表 3 是最容易被截图对比的错误。
+        注意 `ended` 不在返回值里：已结束的场次在 PC 的归档页看，看板只看"还要不要管"。
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/activities/options:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborActivityOptions
+      summary: 活动下拉（代报名、举报跳转用）
+      description: |
+        只回**未结束、非草稿**的活动，形如 `{ value, label }`，label 里带日期
+        （「秋日露营 · 亲子两天一夜 · 2026-11-01」）—— 同名活动一年办两次是常事，
+        只给标题的选择框一定会选错。
+
+        这不是"活动类别字典"。类别与收费口径的枚举在契约 schema 里固定，
+        不需要再走一次接口。
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          required: [value, label]
+                          properties:
+                            value: { type: string, example: AC0016 }
+                            label: { type: string, example: 冬日温泉一日游 · 含往返与午餐 · 2026-11-22 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/activities/{activityId}:
+    get:
+      tags: [neighbor, mobile]
+      operationId: getNeighborActivity
+      summary: 活动详情（含退款规则）
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [neighbor, mobile]
+      operationId: updateNeighborActivity
+      summary: 编辑活动（已结束 / 已流团不可改）
+      description: |
+        两条硬规则，都是钱与承诺的问题：
+
+        1. **已结束或已流团的不能改**（40940）。已经成团办完的活动改内容，
+           等于事后修改宣传口径；已流团的改了，退款依据就没了。要改请复制一份新的。
+        2. **已有人报名，不能改单价**。已报名的人按旧价付过钱，改完金额就对不上，
+           退款也没依据。要调价请另开一场并说明。
+
+        `capacity` 不能小于已报名人数 —— 否则列表上出现「42/20」，进度条画到 210%。
+        活动开始后人数还在涨的现实里，这条比"名额已满就拒"更重要：
+        允许超，但要看得见超了多少（`over` 字段）。
+
+        其余字段（标题 / 地点 / 时间 / 名额 / 退款档位）在活动结束前都可以改：
+        换集结点是运营每天都会遇到的事，不给改的后果是让业主看到错的信息。
+      x-permission: n.activities.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NeighborActivityRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已结束 / 已流团不可改（40940）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/activities/{activityId}/enrolls:
+    get:
+      tags: [neighbor, mobile]
+      operationId: queryNeighborEnrolls
+      summary: 报名名单
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+        - name: status
+          in: query
+          schema: { type: string, enum: [已报名, 已签到, 已取消, 已退款] }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborEnrollListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /neighbor/activities/{activityId}/enroll:
+    post:
+      tags: [neighbor, mobile]
+      operationId: enrollNeighborActivity
+      summary: 代报名（可现场代收）
+      description: |
+        现场最常见：阿姨不会用小程序，前台帮她报、顺手收现金。
+
+        四条硬校验（服务端为准，客户端只做提前提示）：
+        1. **只有「报名中」能报名** —— 「待成行」报名已截止，直接 409；
+        2. 人数 ≤ `attendeeLimit`，且不超剩余名额；
+        3. `needInsurance=true` 时，**每位出行人都要姓名 + 证件号** —— 只有联系人买不了保险；
+        4. 同一手机号重复报名要拦（现场两个人同时办会重复），返回 409 并带上已有记录。
+
+        `paid=true` 记「已支付」并写 `paymentMethod`（现金 / 扫码），日结能看到这笔；
+        `paid=false` 记「待支付」，业主端会看到待付。
+      x-permission: n.activities.enroll
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NeighborEnrollRequest' }
+      responses:
+        '200':
+          description: 报名成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborEnrollEnvelope' }
+        '409':
+          description: 不在报名期 / 重复报名 / 名额不足
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/activities/{activityId}/publish:
+    post:
+      tags: [neighbor, mobile]
+      operationId: publishNeighborActivity
+      summary: 发布 / 重新发布活动（草稿或已流团 → 报名中）
+      description: |
+        两种入口共用：首次发布（草稿 → 报名中），以及流团后重新发（已流团 → 报名中，
+        清掉 `flowedAt`）。已结束的不能重发（40941）—— 办完的活动再发一次，
+        上一场的报名与收款记录会被新一场盖住。
+
+        三条前置校验：
+        1. 报名截止日不能已经过去（40943 之外另给 422）：已经截止的活动发出去，
+           业主点进去就是"不能报名"；
+        2. 开始时间不能已经过去 —— 发一场已经过去的活动没有意义；
+        3. 当前状态必须是草稿或已流团（40943），已在报名中的重复发布 40942。
+
+        发布即对项目内业主可见，并开始接受报名。
+      x-permission: n.activities.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      responses:
+        '200':
+          description: 成功（`phase=报名中`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已结束不能重发（40941）/ 已在报名中（40942）/ 状态不允许（40943）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /neighbor/activities/{activityId}/end:
+    post:
+      tags: [neighbor, mobile]
+      operationId: endNeighborActivity
+      summary: 结束活动（归档，不退款）
+      description: |
+        只改状态为「已结束」，**不动钱**。已经报名的、已经付款的保持原样 ——
+        活动办完了要归档，和"没办成要退钱"是两件事。
+
+        要退钱走 `/{activityId}/flow`（流团）或逐单 `/enrolls/{id}/refund`。
+        已经结束的再调一次 40944。
+      x-permission: n.activities.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      responses:
+        '200':
+          description: 成功（`phase=已结束`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborActivityEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已经结束（40944）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /neighbor/activities/{activityId}/flow:
+    post:
+      tags: [neighbor, mobile]
+      operationId: confirmNeighborActivityFlow
+      summary: 确认流团（未达下限 → 收费全额退、公益只取消）
+      description: |
+        **这是「待成行」唯一的出口**，所以门槛写得死一些：
+
+        1. 只有 `phase=待成行` 能确认（40945）—— 还在报名期就退款，等于把活动掐死在半路；
+        2. **必须写原因**：业主会拿着通知来问"为什么没成行"，没有原因的通知等于没通知；
+        3. 收费活动逐单**全额**退款（`refundAmount = fee × 人数`），比例恒 100%
+           —— 没成团是物业的问题，不是业主的；
+        4. 公益活动「只置取消」这条分支**业务上不可达**：公益没有成团下限
+           （`minCapacity = 0`），报名截止后直接判「已成行」，进不了「待成行」。
+           代码里保留该分支只是防御，别据此认为公益也能流团；
+        5. 已签到 / 已取消 / 已退款的不重复处理，逐单幂等。
+
+        活动置 `flowedAt` + `已结束`，`flowReason` 落库。
+        `phase` 的判定顺序里「已流团」必须在「已结束」之前 —— 否则确认流团后
+        这件事就再也看不见了，事后查"为什么这场没办成"没有任何痕迹。
+      x-permission: n.activities.edit
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 80, description: 流团原因，会发通知给报名人 }
+      responses:
+        '200':
+          description: 成功（返回活动与退款汇总）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [activity, count, refunded]
+                        properties:
+                          activity: { $ref: '#/components/schemas/NeighborActivity' }
+                          count: { type: integer, description: 本次处理的报名笔数（含公益的取消） }
+                          refunded: { type: number, description: 本次退款金额合计；公益活动为 0 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 不是「待成行」（40945）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 没写原因
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /neighbor/activities/{activityId}/refund-ratio:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborRefundRatio
+      summary: 按天算退款比例（取消前的预览）
+      description: |
+        业主点「取消报名」之前要知道能退多少，所以这个接口必须存在，
+        而且**算法只有一份**：服务端按活动自己的 `refundPolicy` **从天数大的往小找**
+        第一个命中的档位（提前 7 天 100% / 3 天 50% / 当天 0%）。
+
+        从大到小这一步不能省：升序排第一个命中 `gap >= days` 的永远是 `days=0` 那档，
+        提前一个月取消也只退 0%。（2026-11-06 修过一次这个问题，退款一直按最低档算，
+        页面只显示"已退款"没暴露。）
+
+        返回的是**一个数字**（百分比），不是对象。要"再等两天少退多少"，用
+        `atDay` 传两个日期各算一次 —— 档位表本身在活动详情里（`refundPolicy`）。
+
+        `atDay` 是**日期**（默认今天），不是"距开始天数"。
+        没有退款档位的活动（公益）恒返回 100。
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+        - name: atDay
+          in: query
+          description: 按哪天算（YYYY-MM-DD），默认今天
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 成功（data 就是百分比数字）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { type: number, example: 50, description: 退款百分比 0~100 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /neighbor/activities/{activityId}/enrolls/stats:
+    get:
+      tags: [neighbor, mobile]
+      operationId: neighborEnrollStats
+      summary: 报名统计（人数 / 收款 / 缺口 / 阶段）
+      description: |
+        与名单列表**同源**：`people` 含同行人、不含已取消与已退款。
+        名单页显示 12 人、统计显示 15 人，会让人现场重新点一遍人头。
+
+        `paidAmount` 只算收费活动；`refundAmount` 是已退出去的合计。
+        `gap` 是距成团还差几人（已成行为 0）—— 现场推活动时最有用的一个数。
+        `phase` 一起带上，省得前端再查一次详情才知道能不能报名。
+      x-permission: n.activities.view
+      parameters:
+        - $ref: '#/components/parameters/neighborActivityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborEnrollStatsEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /neighbor/enrolls/{enrollId}/cancel:
+    post:
+      tags: [neighbor, mobile]
+      operationId: cancelNeighborEnroll
+      summary: 取消报名（收费活动走退款）
+      x-permission: n.activities.enroll
+      parameters:
+        - $ref: '#/components/parameters/neighborEnrollId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 60 }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborEnrollEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /neighbor/enrolls/{enrollId}/refund:
+    post:
+      tags: [neighbor, mobile]
+      operationId: refundNeighborEnroll
+      summary: 按分档退款（金额服务端算，不接受前端传值）
+      description: |
+        退款比例来自活动配置的分档（如提前 7 天 100% / 提前 3 天 50% / 当天 0%），
+        **客户端不许自己算金额**。单笔超过 ¥2000 引导到 PC —— 移动端不做大额退款。
+      x-permission: n.activities.enroll
+      parameters:
+        - $ref: '#/components/parameters/neighborEnrollId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 60 }
+                operator: { type: string }
+      responses:
+        '200':
+          description: 成功（回 refundAmount 与命中的 ratio）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      enroll: { $ref: '#/components/schemas/NeighborEnroll' }
+                      ratio: { type: number, description: 命中档位百分比 }
+                      amount: { type: number, description: 实退金额 }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /neighbor/enrolls/{enrollId}/checkin:
+    post:
+      tags: [neighbor, mobile]
+      operationId: checkinNeighborEnroll
+      summary: 签到（活动当天）
+      description: |
+        只有「已报名」能签到；**「待成行」的活动不能签到** —— 人可能根本不成行。
+        签到记 `checkinBy` / `checkinAt`，回 PC 名单页能追溯是谁办的。
+      x-permission: n.activities.enroll
+      parameters:
+        - $ref: '#/components/parameters/neighborEnrollId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NeighborEnrollEnvelope' }
+        '409':
+          description: 已签到 / 状态不可签到 / 活动待成行
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   # --------------------------------------------------------------- rectify
   /rectify-orders:
@@ -6745,12 +7884,27 @@ paths:
           藏起来等于把电话全压给一线管家。
 
         业主端不允许自建房产：房与人的关系由后台档案决定，否则填个房号就能看别人家账。
+      parameters:
+        - name: houseId
+          in: query
+          required: false
+          description: |
+            可选的"只看这一套"。业主端目前是**先选房再比对**的交互（选社区 → 楼栋 → 房号），
+            传了这个参数就只校这一套：三项都对但房不符 → `level=none` 且 `mismatch.house=true`。
+            不传则返回该人名下全部房产（`level=one|many`）。
+            两种用法都不允许自建房产 —— 传了房号也得三项对得上。
+          schema: { type: string, example: H010110501 }
       responses:
         '200':
           description: 成功
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MpBindingCandidatesEnvelope' }
+        '422':
+          description: 还没实名（先调 /mp/auth/realname）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /mp/auth/bindings:
@@ -6832,6 +7986,12 @@ paths:
         业主是出租方，**能看自己房的租约金额与租期**。
 
         身份证一律只回后四位；手机号回掩码。
+
+        三条要留意的：
+        1. 只返回 `status=在住` 的租客 —— 已搬离的留着是历史，业主看住户名单时不需要；
+        2. 家庭成员**不给 `faceRegistered` / `appUser`** 的时候是真的没有这份数据
+           （样例里就没有），不要在前端渲染成"未录入人脸"——那是另一个结论；
+        3. 只有已绑定的房能查（403），候选列表里的房不算：能看见 ≠ 能查住户。
       parameters:
         - $ref: '#/components/parameters/houseId'
       responses:
@@ -6891,6 +8051,12 @@ paths:
 
         欠费口径与 PC 一致：状态为 未缴 / 部分缴 / 逾期 且 `unpaid > 0`；
         金额取 `unpaid`（部分缴过的只补差额），不是 `amount`。
+
+        **`summary.unpaid` 是"欠费合计"（只算上面三态），不是"所有未收之和"** ——
+        与后台 `GET /bills/summary` 的口径有意不同：业主关心"我要交多少"，
+        后台关心"账面还有多少没收到"。差异只在「已减免 / 已作废」这类不该再收的单上
+        （样例里 BL000130 状态=已减免 但 unpaid 仍有值，是种子数据的已知问题，
+        见 04-README §11.9；接口按状态判，不按金额判）。
       parameters:
         - name: houseId
           in: query
@@ -6924,6 +8090,14 @@ paths:
 
         业主端会把它直接展示成"材料 / 人工 / 合计"，所以 `material` 与 `labor` 必须分列，
         不能只给一个总价 —— 业主最常问的就是"为什么人工比材料贵"。
+
+        **不要下发 `materialCost` / `laborCost` / `cost` / `commissionRate`**：
+        那是采购成本与提成规则，业主看到等于看到毛利。样例数据在
+        `fixtures/repair-prices.json` 里已经剥掉了（生成器 `gen-pricing-fixture.mjs` 会自检）。
+
+        价目是**全项目共用的一份**，`communityId` 只决定"这个项目开不开线上报修"
+        与"多久上门"，不改变单价 —— 按项目裁价目会出现"同一项 A 项目 125、B 项目没有"，
+        而员工端现场增项用的是全量表，两边报价就对不上。
       parameters:
         - name: communityId
           in: query
@@ -6936,6 +8110,44 @@ paths:
               schema: { $ref: '#/components/schemas/MpPricingEnvelope' }
 
   /mp/orders:
+    get:
+      tags: [mp]
+      operationId: mpOrders
+      summary: 我的报修（个人单按已绑房，公共单按项目）
+      description: |
+        业主端的「我的报修」列表。**这张表在契约里一直缺着**：06 有列表页，
+        而契约只有「下单」和「单条详情」，等于客户端得先知道所有 woId 才能看列表。
+
+        `scope=personal`（默认）只返回**已绑房产**上的单；
+        `scope=public` 返回公共区域报修（`isPublic=true`），跟产权无关 ——
+        楼道灯泡坏了，租客也该能看见。
+
+        排序固定为「在做的在前，其次按提交时间倒序」：业主进来是看"我这单到哪了"。
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [personal, public], default: personal }
+        - name: houseId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, example: 处理中 }
+        - name: onlyDoing
+          in: query
+          description: 只看在做的（待派单 / 已派单 / 处理中 / 待确认）
+          schema: { type: boolean, default: false }
+        - name: communityId
+          in: query
+          description: scope=public 时限定项目
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpOrderListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [mp]
       operationId: mpCreateOrder
@@ -6953,13 +8165,36 @@ paths:
           application/json:
             schema:
               type: object
-              required: [houseId, priceCode, appointDate, appointSlot, description]
+              required: [priceCode, appointDate, appointSlot, description]
               properties:
-                houseId: { type: string, description: 必须是已绑定的房 }
+                scope:
+                  type: string
+                  enum: [personal, public]
+                  default: personal
+                  description: |
+                    `public` = 公共区域报修（大堂灯泡、电梯异响）。这类单**没有房屋**，
+                    要传 `place`，且不再做产权校验 —— 楼道坏了跟谁是业主没关系。
+                houseId:
+                  type: string
+                  description: '`scope=personal` 时必填，且必须是已绑定的房'
+                place:
+                  type: string
+                  description: '`scope=public` 时必填，如「1栋大堂」'
                 priceCode: { type: string, example: RP-W01 }
                 qty: { type: integer, minimum: 1, maximum: 5, default: 1 }
                 appointDate: { type: string, format: date }
-                appointSlot: { type: string, enum: ['09:00-11:00', '14:00-16:00', '19:00-21:00'] }
+                appointSlot:
+                  type: string
+                  pattern: '^\d{2}:\d{2}-\d{2}:\d{2}$'
+                  example: 09:00-10:00
+                  description: |
+                    上门时段，**1 小时粒度**：09:00-10:00 / 10:00-11:00 / 11:00-12:00 /
+                    14:00-15:00 / 15:00-16:00 / 16:00-17:00 / 19:00-20:00。
+
+                    契约原先写的是三个两小时时段（09:00-11:00 等），与业主端下单页的
+                    7 个一小时时段对不上 —— 按页面对齐：业主说的是"9 点到 10 点在家"，
+                    两小时一段等于把"我上午都在"和"我 9 点在家"混成一件事。
+                    上午 / 下午 / 晚上是**排班维度**，不进接口。
                 description: { type: string, maxLength: 120 }
                 photos:
                   type: array
@@ -7045,13 +8280,15 @@ paths:
     post:
       tags: [mp]
       operationId: mpCreatePayment
-      summary: 生成待支付订单（账单缴费 / 报修预付 / 增项补付）
+      summary: 生成待支付订单（账单缴费 / 报修预付 / 增项补付 / 活动报名费）
       description: |
-        三类都走这一个接口，靠 `type` 区分：`bill`（账单，可多张合并）、
-        `wo`（报修预付或增项补付）。
+        四类都走这一个接口，靠 `type` 区分：`bill`（账单，可多张合并）、
+        `wo`（报修预付或增项补付）、`activity`（收费活动报名费，2026-11-07 新增）。
 
         `amount` **由服务端算**：账单合计 = 所选账单 `unpaid` 之和；
-        报修 = `totalFee - paidAmount`（已预付的不重复收）。前端传金额一律忽略。
+        报修 = `totalFee - paidAmount`（已预付的不重复收）；
+        活动 = 报名时算好的 `amount`（单价 × 人数）—— 活动改价不影响已提交的报名。
+        前端传金额一律忽略。
       requestBody:
         required: true
         content:
@@ -7060,7 +8297,7 @@ paths:
               type: object
               required: [type]
               properties:
-                type: { type: string, enum: [bill, wo] }
+                type: { type: string, enum: [bill, wo, activity] }
                 billIds:
                   type: array
                   description: type=bill 时必填
@@ -7139,6 +8376,645 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict', description: 未完工 / 已有待确认增项 }
         '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # --------------------------------------------------------------- 业主侧内容（mp 组 · 第 73 批）
+  # 为什么另开一套而不是复用 `/neighbor/*`：那是**运营侧**（`n.*` 权限码 + 数据范围），
+  # 业主侧只做"我自己的动作"（我读过、我投了、我报名、我发布）。
+  # 两者混用会导致"客服能看的内容，业主用同一个接口也能看"。
+  /mp/neighbor/mine:
+    get:
+      tags: [mp, neighbor]
+      operationId: mpNeighborMine
+      summary: 我的邻里内容（已读 / 签收 / 投票 / 报名 / 闲置 / 想要）
+      description: |
+        一次拉齐六块"我的"数据，客户端一个请求就够了 —— 拆成六个接口的话，
+        邻里首页要打六次（正是这份设计最初想避免的"闪六下"）。
+
+        公共列表（公告列表 / 投票列表 / 闲置列表）仍由客户端本地渲染，
+        这里只回"我的状态"。新发布的闲置、新报名、已投票都从这里读。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpNeighborMineEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/neighbor/notices/{noticeId}/read:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborNoticeRead
+      summary: 标记公告已读（幂等）
+      description: |
+        重复调用返回**第一次**的阅读时间。刷一次就改一次的话，"这条公告读了多久"永远算不出来。
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: string, example: NT0012 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      noticeId: { type: string }
+                      readAt: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/neighbor/notices/{noticeId}/sign:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborNoticeSign
+      summary: 签收公告（**责任动作**，只对需要签收的公告开放）
+      description: |
+        只有「停水停电」「安全提示」这两类需要签收 —— 签收是留痕，是"我知道了"的证据。
+
+        不给所有公告开放：全都能签，就等于全都不用认真读。
+        不需要签收的公告返回 **422**，不是静默成功 —— 静默成功会让业主以为签过了。
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: string, example: NT0012 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      noticeId: { type: string }
+                      signedAt: { type: string }
+                      readAt: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: 该公告不需要签收
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/neighbor/votes/{voteId}/submit:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborVoteSubmit
+      summary: 提交投票（允许改票）
+      description: |
+        单选最多 1 项、多选最多 `maxPick` 项；只有「进行中」能投。
+
+        **改票按差额调整票数**：先扣掉旧票再记新票。只加不减的话，
+        同一个人多投几次就能把一个选项刷到全票。
+      parameters:
+        - name: voteId
+          in: path
+          required: true
+          schema: { type: string, example: SV0003 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [keys]
+              properties:
+                keys:
+                  type: array
+                  description: 选项 key（不是 label，也不是序号）
+                  items: { type: string, example: A1 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      voteId: { type: string }
+                      picks:
+                        type: array
+                        items: { type: string }
+                      changed: { type: boolean, description: true = 这次是改票，不是首投 }
+                      totalVotes: { type: integer }
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            key: { type: string }
+                            label: { type: string }
+                            votes: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: 这个投票不在你所在的项目
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已结束 / 未开始
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 选项为空 / 超上限 / 选项不存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/neighbor/activities/{activityId}/enroll:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborEnroll
+      summary: 活动报名
+      description: |
+        只有「报名中」能报；重复报名 409；名额按 `capacity - 已报人数` 判。
+
+        证件号**只在需要投保时收**（不投保的活动收了就是白担风险）；
+        条款必勾；需要投保时还要单独同意投保。
+      parameters:
+        - name: activityId
+          in: path
+          required: true
+          schema: { type: string, example: AC0016 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attendees, agreeTerms]
+              properties:
+                attendees:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [name, phone]
+                    properties:
+                      name: { type: string, description: 2~12 个汉字 }
+                      phone: { type: string }
+                      idNo: { type: string, description: 需要投保时必填（18 位） }
+                      ageType: { type: string, enum: [成人, 儿童, 老人] }
+                      emergencyName: { type: string }
+                      emergencyPhone: { type: string }
+                agreeTerms: { type: boolean, description: 必须为 true }
+                agreeInsurance: { type: boolean, description: 需要投保时必须为 true }
+      responses:
+        '200':
+          description: 成功（返回报名记录，含应缴金额）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpEnrollEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已报过 / 名额已满 / 不在报名中
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 出行人信息或条款不合规
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/neighbor/enrolls/{enrollId}/cancel:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborEnrollCancel
+      summary: 取消报名（收费活动按档退）
+      description: |
+        已签到的不能自助取消（现场已核销）。退款比例按活动开始日与今天的天数差取档，
+        与 `GET /neighbor/activities/{id}/refund-ratio` 同一套算法。
+      parameters:
+        - name: enrollId
+          in: path
+          required: true
+          schema: { type: string, example: AE9001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      enrollId: { type: string }
+                      status: { type: string, enum: [已取消, 已退款] }
+                      ratio: { type: integer, description: 退款比例 % }
+                      refundAmount: { type: number }
+                      refunded: { type: boolean, description: false = 免费活动，没有退款 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是自己的报名 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已签到 / 已取消
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/neighbor/items:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborPublishItem
+      summary: 发布闲置（先审后发）
+      description: |
+        状态一律「待审核」：审核在员工端做，业主端只提交与看状态。
+
+        楼栋**只能选自己名下的**：选别人的楼栋，等于把"我住那栋"这张牌打给全小区。
+        标题少于 4 字拒收（"转让"两个字，邻居没法判断是什么东西）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, price, buildingId]
+              properties:
+                title: { type: string, minLength: 4 }
+                category: { type: string, example: 母婴 }
+                price: { type: number, minimum: 0, description: 送人可以填 0 }
+                originPrice: { type: number }
+                condition: { type: string, example: 九成新 }
+                images: { type: integer, maximum: 9 }
+                buildingId: { type: string, description: 必须是本人已绑房产所在楼栋 }
+                desc: { type: string, maxLength: 300 }
+                contactMode: { type: string, enum: [站内私信, 公开] }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: 标题过短 / 含禁售词 / 价格非法 / 楼栋不属于本人
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/neighbor/items/{itemId}/want:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItemWant
+      summary: 想要 / 取消想要（切换）
+      description: |
+        同一个接口来回切。返回 `want` 表示切换后的状态。
+
+        **只回人数，不回名单**：邻居要的是"有多少人也想要"，
+        公开名单等于把每个人的兴趣挂出来；要联系卖家走站内私信。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, example: SH0001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      itemId: { type: string }
+                      want: { type: boolean, description: 切换后的状态 }
+                      wants: { type: integer, description: 当前想要人数 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/neighbor/items/{itemId}/messages:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItemMessage
+      summary: 站内私信（只记"发过"，不做 IM）
+      description: |
+        物业类目不允许做即时通讯，运维也不该扛聊天记录。这里只落一条"谁给哪件闲置发过话"，
+        真正的沟通走电话（卖家联系方式在帖子详情里）。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, example: SH0001 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      msgId: { type: string }
+                      itemId: { type: string }
+                      at: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/neighbor/items/{itemId}/offline:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItemOffline
+      summary: 下架自己的闲置
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, example: SH9001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是自己发布的 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/neighbor/items/{itemId}/renew:
+    post:
+      tags: [mp, neighbor]
+      operationId: mpNeighborItemRenew
+      summary: 重新上架（回到待审核）
+      description: |
+        只有「已下架 / 已过期 / 已驳回」需要续挂，其余状态 409。
+
+        **内容没改也要再审**：挂了三个月的帖子，图片和描述可能早就不合当前规矩了。
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string, example: SH9001 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpItemEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # --------------------------------------------------------------- 业主自助挂牌（mp 组）
+  # 为什么不复用 `/listings`：那个前缀是**后台**用的（`a.listings.view`），带数据范围。
+  # 业主发自己的房，权限模型是"这套房是不是我的"，不是"我能看哪些房"。
+  # 硬蹭后台接口的结果是业主能查全小区挂牌 —— 这是产权边界的漏洞，不是参数问题。
+  /mp/listings:
+    get:
+      tags: [mp]
+      operationId: mpMyListings
+      summary: 我的挂牌（含驳回理由与浏览/看房数）
+      description: |
+        只回**当前登录人名下房屋**的挂牌。与后台 `/listings` 的差别不只是权限：
+        这里是"我的房"，所以能给房号；后台列表反而要脱敏 `ownerPhone`。
+
+        三条业主最关心的信息必须原样给：
+        1. `rejectReason` —— 驳回理由原样返回，不做"已驳回，请联系管家"的概括。
+           业主拿着概括来问，管家还得再查一遍；
+        2. `viewCount` / `leadCount` —— 挂了三天没人看，是文案问题还是价格问题，
+           没有这两个数就只能靠猜；
+        3. `expireAt` —— 60 天到期，提前 7 天要提醒续挂，到期后才续要重新审核。
+
+        `canOffline` / `canRenew` / `canDeal` 由服务端算，不让前端按状态自己推 ——
+        前端推导的结果是按钮灰了却说不清为什么。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [mp]
+      operationId: mpPublishListing
+      summary: 发布挂牌（需业主本人 + 产权校验）
+      description: |
+        四道校验，缺一不可，**都在服务端**：
+
+        1. 登录且已实名（L1 → L2）；
+        2. 身份是**业主**。家属与租客都不行 —— 家属在 `bindings` 里也有一条记录，
+           靠"有没有绑定"判断会把家属放进来（这是最容易踩的一处）；
+        3. `houseId` 的产权人 = 会话里的业主人。租客能住不能租出去；
+        4. 同一套房**在架唯一**：已有「待审核」或「已发布」的挂牌 → 409。
+
+        面积 / 户型 / 朝向 / 楼层**不接收**：从房屋档案派生。接收了就会出现
+        "业主把 89㎡ 写成 120㎡"的纠纷，而物业没能力逐条核。
+
+        创建即「待审核」，审核人是**该房的责任楼管**（`house.stewardEmpId`），
+        不是某个"审核员"角色。24 小时未审升直属上级。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpListingRequest' }
+      responses:
+        '200':
+          description: 已提交（`status=待审核`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: 非业主本人 / 该房不在名下（40390）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: 该房已有在架挂牌（40990）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/listings/{listingId}:
+    get:
+      tags: [mp]
+      operationId: mpMyListingDetail
+      summary: 我的挂牌详情
+      description: |
+        非本人的挂牌一律 **404**，不是 403：403 等于告诉探测者"这条存在但不是你的"，
+        而房源挂牌是否存在于外人无所谓，对探测者却是有用的信息。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [mp]
+      operationId: mpUpdateListing
+      summary: 编辑挂牌（内容版本 +1，重新进审核）
+      description: |
+        改内容 = 换了一份要审核的东西，所以 `contentVersion + 1`、`status` 回「待审核」。
+        这就是"原样续挂免审、改了就要再审"的判定依据：
+        **`contentVersion === auditedVersion` 才免审**，不靠时间戳。
+
+        「已成交」不可改：成交后改价格会让历史记录与成交价对不上。
+
+        只允许改 5 项内容字段（`price` / `deposit` / `payTerm` / `decorate` /
+        `facilities` / `availableFrom` / `desc` / `images`），`houseId` 与 `type` 不可改 ——
+        换房等于换一条挂牌，改类型（出租 → 出售）等于换一个业务流程。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpListingRequest' }
+      responses:
+        '200':
+          description: 成功（回到待审核）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已成交不可改（40991）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mp/listings/{listingId}/offline:
+    post:
+      tags: [mp]
+      operationId: mpOfflineListing
+      summary: 下架我的挂牌
+      description: |
+        业主自己不想租了/不租了，**不需要填理由** —— 后台下架要理由是因为那是
+        平台处置，业主下架是自己的东西。硬要理由的结果是有人填"1"。
+
+        「待审核」的也能撤（撤自己的提交），「已成交」不能下架。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 60, description: 选填 }
+      responses:
+        '200':
+          description: 成功（`status=已下架`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已成交 / 已下架（40992）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/listings/{listingId}/renew:
+    post:
+      tags: [mp]
+      operationId: mpRenewListing
+      summary: 续挂（内容未改免审）
+      description: |
+        「已下架 / 已过期 / 已驳回」都能续挂，但走两条路：
+
+        - `contentVersion === auditedVersion`（内容没改过）→ 直接「已发布」，**不再送审**。
+          挂了 60 天没人问，续一下就完事，再审一遍是纯浪费；
+        - 内容改过 → 「待审核」。
+
+        「已驳回」的续挂一定要业主先改：驳回理由还在，原样再挂一次必然再驳一次。
+        服务端对这种情况返回 409 并带上理由，不要静默通过。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 已驳回未修改 / 仍在架（40993）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /mp/listings/{listingId}/deal:
+    post:
+      tags: [mp]
+      operationId: mpDealListing
+      summary: 标记已成交（业主自助）
+      description: |
+        业主自己租出去了/卖掉了，标一下，房源从对外开放列表里消失。
+
+        只改状态，**不收成交价、不收佣金**：这是物业服务里的信息发布，
+        不是房地产经纪。一旦开始记成交价与佣金，性质就变了（要《房地产经纪机构备案表》）。
+
+        后台审核与这里改的是同一个 `status`，所以两侧看到的结果一致。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      responses:
+        '200':
+          description: 成功（`status=已成交`）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpListingEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 非「已发布」不能标记成交（40994）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   # ================= 开票设置（2026-11-06 · 第 61 批） =================
   # 三块内容三个资源：抬头档案 / 费用项目 / 票据模板。
@@ -8214,6 +10090,438 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
 
 
+  # ---------------- 租售信息（A 域 · 第 69 批） ----------------
+  /public/listings:
+    get:
+      tags: [listings, mp]
+      operationId: queryPublicListings
+      summary: 房源列表（游客可见，免登录）
+      description: |
+        想租房的人基本不是本小区业主，登录墙会把客源挡光，所以这一组**免登录**。
+
+        边界不靠登录态，靠**字段白名单**：只回小区 / 楼栋 / 户型 / 面积 / 朝向 / 楼层 /
+        租金 / 押付 / 装修 / 配套 / 描述 / 图片 / 责任楼管姓名与微信。
+        **不回**房号（`room`）、`houseShort`、业主与楼管的手机号 —— 房号线上不给，
+        看房由楼管带过去；给了等于把"这户空着"公示出去。
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: houseType
+          in: query
+          schema: { type: string }
+        - name: minPrice
+          in: query
+          schema: { type: integer }
+        - name: maxPrice
+          in: query
+          schema: { type: integer }
+        - name: kw
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          description: 默认按编号；priceAsc / priceDesc
+          schema: { type: string, enum: [priceAsc, priceDesc] }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingPublicListEnvelope' }
+
+  /public/listings/{listingId}:
+    get:
+      tags: [listings, mp]
+      operationId: getPublicListing
+      summary: 房源详情（游客可见，免登录）
+      description: 已下架 / 已过期 / 待审核的挂牌对外一律 404 —— 不区分"没这条"和"不给你看"。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingPublicEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /public/listings/{listingId}/viewing:
+    post:
+      tags: [listings, mp]
+      operationId: createListingViewing
+      summary: 我要看房（留联系方式，免登录）
+      description: |
+        **不是注册**：只留一个号码，不建账号、不校验短信、不进客户池。
+
+        三条硬约束：
+        - 同一手机号 + 同一房源 **24 小时内只能提交一次**（409）；
+        - 手机号必须是 11 位（422）；
+        - 返回里带 `promise`（"楼管会在 24 小时内联系你"）与 `privacy`（号码用途与保留期限），
+          前端**必须原样展示** —— 不展示楼管电话之后，访客唯一的出路就是等。
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingViewingInput' }
+      responses:
+        '200':
+          description: 已收到
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingViewingEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 同一号码同一房源 24 小时内重复提交
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 称呼或手机号不合法
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /listings:
+    get:
+      tags: [listings]
+      operationId: queryListings
+      summary: 租售信息列表（后台）
+      description: |
+        数据范围按角色收敛：总经理全部项目、项目经理本项目、楼管责任范围（按 `houseIds`）。
+        待审核永远排最前，按等待时长正序 —— 这页看的就是"谁在等"。
+
+        `ownerPhone` **列表脱敏**，完整号码在详情里给（审核要打给业主）。
+      x-permission: a.listings.view
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [待审核, 已发布, 已驳回, 已下架, 已过期, 已成交] }
+        - name: stewardEmpId
+          in: query
+          schema: { type: string }
+        - name: overdue
+          in: query
+          description: 只看超 24 小时未审（已升级）
+          schema: { type: boolean }
+        - name: kw
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /listings/stats:
+    get:
+      tags: [listings]
+      operationId: listingStats
+      summary: 租售看板（待审 / 已升级 / 已发布 / 看房待联系）
+      x-permission: a.listings.view
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /listings/viewings:
+    get:
+      tags: [listings]
+      operationId: queryListingViewings
+      summary: 看房请求列表
+      description: 列表 `phone` 脱敏；完整号码在详情里给 —— 这一页会被投屏，全号摆一屏迟早出事。
+      x-permission: a.listings.viewing
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [待联系, 已联系, 已带看, 已关闭] }
+        - name: listingId
+          in: query
+          schema: { type: string }
+        - name: overdue
+          in: query
+          schema: { type: boolean }
+        - name: kw
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingViewingListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /listings/viewings/stats:
+    get:
+      tags: [listings]
+      operationId: listingViewingStats
+      summary: 看房请求看板
+      x-permission: a.listings.viewing
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingViewingStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /listings/viewings/{viewingId}:
+    get:
+      tags: [listings]
+      operationId: getListingViewing
+      summary: 看房请求详情（回完整号码）
+      x-permission: a.listings.viewing
+      parameters:
+        - $ref: '#/components/parameters/viewingId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingViewingEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /listings/viewings/{viewingId}/contact:
+    post:
+      tags: [listings]
+      operationId: markListingViewingContacted
+      summary: 标记看房请求已联系 / 已关闭（必写结果）
+      description: |
+        移动端的核心动作：PC 只做「谁超时了」的监控页，真正回电话的是手机上的人。
+
+        **结果必须写**（422）—— 下一个人接手时要能知道上次聊到哪；
+        不写结果的话同一个访客会被三个人各打一遍，访客记住的是"物业老打电话"。
+
+        只能从「待联系」转出（409）：已联系过的不再重复标记，否则时间线会被覆盖成最后一次。
+        转成「已带看」不在这里做 —— 带看是另一件事，由 PC 的看房记录维护。
+      x-permission: a.listings.viewing
+      parameters:
+        - $ref: '#/components/parameters/viewingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                status:
+                  type: string
+                  enum: [已联系, 已关闭]
+                  default: 已联系
+                  description: 已关闭 = 打不通 / 客户不需要了
+                note: { type: string, maxLength: 100, description: 联系结果，必填 }
+                operator: { type: string, description: 经办人（移动端传登录人姓名） }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingViewingEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 不是「待联系」状态（40942）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 没写结果 / 状态不在允许范围
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /listings/my-contact:
+    get:
+      tags: [listings, mobile]
+      operationId: getMyListingContact
+      summary: 我的对外联系方式
+      description: |
+        租售信息页展示给看房者的联系方式：微信号 + 二维码。
+        手机号**不在**这里 —— 它只在内部通讯录里，不对外展示。
+      parameters:
+        - name: empId
+          in: query
+          description: 不传 = 登录人本人；查他人需要 e.org.edit
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyContactEnvelope' }
+    patch:
+      tags: [listings, mobile]
+      operationId: updateMyListingContact
+      summary: 维护我的对外联系方式（本人自助，无权限码）
+      description: |
+        不设「是否公开」开关：填了就是愿意展示，没填就不显示 ——
+        加开关只会多出"填了但关着"这种没人说得清的状态。
+
+        改他人需要 `e.org.edit`（403）—— 那是 HR 的活。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                empId: { type: string, description: 不传 = 本人 }
+                wechatId: { type: string, maxLength: 30, description: 可空；空 = 清除 }
+                contactQrUrl: { type: string, description: 二维码图片地址，可空 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyContactEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /listings/{listingId}:
+    get:
+      tags: [listings]
+      operationId: getListing
+      summary: 挂牌详情（审核用，回业主完整号码）
+      description: 详情是操作场景 —— 审核要看、楼管要打给业主，所以这里给全号。
+      x-permission: a.listings.view
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /listings/{listingId}/audit:
+    post:
+      tags: [listings]
+      operationId: auditListing
+      summary: 审核（通过 / 驳回）
+      description: |
+        **审核人是该房的责任楼管**（`house.stewardEmpId`），不是"审核员"角色。
+        超 24 小时未审升直属上级（按 orgLeaders 解析，不写死角色名）。
+
+        驳回必填理由（422）—— 业主看得到这句，也会拿着它来问。
+        只有「待审核」能审（409）。
+      x-permission: a.listings.audit
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pass: { type: boolean, description: 'true=通过并公开，false=驳回' }
+                reason: { type: string, description: 驳回必填，业主可见 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 状态不是待审核
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 驳回未写理由
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /listings/{listingId}/offline:
+    post:
+      tags: [listings]
+      operationId: offlineListing
+      summary: 强制下架（必须写原因）
+      x-permission: a.listings.audit
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 60, description: 会记录在挂牌上，业主看得到 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingEnvelope' }
+        '409':
+          description: 只有已发布能下架
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: 未写原因
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /listings/{listingId}/steward:
+    patch:
+      tags: [listings]
+      operationId: reassignListingSteward
+      summary: 改派责任楼管
+      description: |
+        改的是**房源**的责任楼管，不是单条看房请求 ——
+        审核权、对外展示的微信号、后续请求都挂在这一个人身上，
+        只改请求会造成"审核归 A、微信是 B"。
+      x-permission: a.listings.audit
+      parameters:
+        - $ref: '#/components/parameters/listingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [empId]
+              properties:
+                empId: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingEnvelope' }
+        '422':
+          description: 员工不存在或已离职
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -8281,6 +10589,37 @@ components:
       in: path
       required: true
       schema: { type: string, example: AP00097 }
+    listingId:
+      name: listingId
+      in: path
+      required: true
+      schema: { type: string, example: LS00001 }
+    viewingId:
+      name: viewingId
+      in: path
+      required: true
+      schema: { type: string, example: VW00001 }
+    neighborItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, example: SH0101 }
+    neighborActivityId:
+      name: activityId
+      in: path
+      required: true
+      schema: { type: string, example: AC0016 }
+    neighborEnrollId:
+      name: enrollId
+      in: path
+      required: true
+      schema: { type: string, example: AE0301 }
+
+    neighborVoteId:
+      name: voteId
+      in: path
+      required: true
+      schema: { type: string, example: SV0004 }
     tenantId:
       name: tenantId
       in: path
@@ -8344,6 +10683,12 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
           example: { code: 40001, message: 'size 必须在 1..100 之间' }
+    ValidationError:
+      description: 业务校验未通过（驳回没写理由、状态不允许、重复提交等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { code: 42201, message: '驳回必须写理由 —— 业主看得到这句' }
     Unauthorized:
       description: 未登录 / 令牌过期
       content:
@@ -12127,12 +14472,16 @@ components:
 
     MpBindingMatch:
       type: object
-      description: 三项比对的逐项结论（业主端要用它渲染"哪一项对不上"）
-      required: [phone, name, cert]
+      description: |
+        逐项结论（业主端用它渲染"哪一项对不上"）。
+        **`house` 单独一位**：三项全对但房不在名下，是"人工审核"里最常见的一类
+        （买了房还没过户、档案漏录），和"名字填错"要给完全不同的提示。
+      required: [phone, name, cert, house]
       properties:
         phone: { type: boolean, description: true = 这一项对不上 }
         name: { type: boolean }
         cert: { type: boolean }
+        house: { type: boolean, description: true = 三项都对，但房不在这人名下 }
 
     MpMyHouse:
       type: object
@@ -12141,11 +14490,20 @@ components:
       properties:
         houseId: { type: string }
         fullName: { type: string, example: 翡翠城 1栋1单元0501 }
+        communityId:
+          type: string
+          description: 所属项目。业主端拿它调 `/mp/pricing?communityId=` 与生活服务，缺了就只能猜
         communityName: { type: string }
-        houseType: { type: string, enum: [一室一厅, 两室一厅, 三室两厅, 四室两厅, 复式] }
+        houseType:
+          type: string
+          description: 从房屋档案派生。住宅有 一室一厅 / 两室一厅 / 三室两厅 / 四室两厅 / 跃层 / 公寓（大开间），
+            商业有 配套 / 零售铺 / 餐饮铺 / 办公 —— 业主名下可能真有商铺，别用住宅枚举把它挡掉
         area: { type: number, description: 建筑面积 ㎡ }
-        deliverStatus: { type: string, enum: [已交付, 未交付] }
-        useStatus: { type: string, enum: [自住, 出租, 空置] }
+        deliverStatus: { type: string, enum: [已交付, 未交房] }
+        useStatus:
+          type: string
+          enum: [已入住, 正在装修, 装修未入住, 空置房, 已交房未装修, 未交房]
+          description: 取房屋档案原值。**不要**简化成"自住/出租/空置"：装修中的房既不是空置也不是自住
         bound: { type: boolean, description: 当前会话是否已绑 }
         steward:
           type: object
@@ -12161,6 +14519,20 @@ components:
       required: [level, mismatch]
       properties:
         level: { type: string, enum: [one, many, none], description: 命中 1 套 / 多套 / 无命中 }
+        identity:
+          type: string
+          enum: [业主, 家属, 租客]
+          description: |
+            以**档案**为准，不取用户自选的那个 —— 选了"业主"但档案是家属，按家属生效并提示。
+            业主端要在确认页把这句话说出来，否则家属会以为自己拿到了业主权限。
+        ownerId:
+          type: string
+          description: |
+            该身份对应的业主档案号（家属与租客也有：家属挂在业主上，租客记着业主）。
+            业主端"还有 N 套可绑定"靠它反查，缺了就只能再发一次请求。
+        verifyStatus:
+          type: string
+          description: 租客的核验状态（如「信息不全」）。空 = 无需核验
         reason: { type: string, description: level=none 时必填，说明哪一项对不上 }
         mismatch: { $ref: '#/components/schemas/MpBindingMatch' }
         houses:
@@ -12245,6 +14617,13 @@ components:
       type: object
       description: 本住在住人。**业主可见租金**（与楼管相反），身份证只回后四位
       properties:
+        owner:
+          type: object
+          description: 产权人。家属 / 租客自查时这里是**档案上的业主**，不是本人
+          properties:
+            name: { type: string }
+            phone: { type: string, description: 脱敏 }
+            relation: { type: string, example: 业主 }
         tenants:
           type: array
           items:
@@ -12301,6 +14680,10 @@ components:
               properties:
                 prepayWhenOrder: { type: boolean, description: true = 下单即预付 }
                 addonPaidOnSite: { type: boolean, description: true = 增项确认后补付 }
+            tradeOpts:
+              type: array
+              description: 工种枚举（下单页按工种筛选用），与员工端派单用的是同一份
+              items: { type: string, example: 水暖 }
             items:
               type: array
               items: { $ref: '#/components/schemas/RepairPriceItem' }
@@ -12333,8 +14716,8 @@ components:
       required: [payId, type, amount, status, expireAt]
       properties:
         payId: { type: string, example: PY202610200001 }
-        type: { type: string, enum: [bill, wo] }
-        refId: { type: string, description: bill=首张账单 id；wo=工单 id }
+        type: { type: string, enum: [bill, wo, activity] }
+        refId: { type: string, description: bill=首张账单 id；wo=工单 id；activity=报名号 enrollId }
         billIds:
           type: array
           items: { type: string }
@@ -12357,6 +14740,85 @@ components:
               period: { type: string }
               amount: { type: number }
 
+    MpNeighborMineEnvelope:
+      type: object
+      description: 我的邻里内容。六块"我的状态"，公共列表仍由客户端本地渲染
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            noticeReads:
+              type: object
+              description: '{ noticeId: 首次阅读时间 }。重复已读不刷新时间'
+              additionalProperties: { type: string }
+            noticeSigns:
+              type: object
+              description: '{ noticeId: 签收时间 }'
+              additionalProperties: { type: string }
+            votes:
+              type: object
+              description: '{ voteId: [选项 key] }，改票覆盖旧值'
+              additionalProperties:
+                type: array
+                items: { type: string }
+            wants:
+              type: array
+              description: 我"想要"的闲置 id
+              items: { type: string }
+            enrolls:
+              type: array
+              description: 我的报名（含活动摘要与可否取消），按时间倒序
+              items: { $ref: '#/components/schemas/NeighborEnroll' }
+            items:
+              type: array
+              description: 我发布的闲置，按发布时间倒序
+              items: { $ref: '#/components/schemas/NeighborItem' }
+            unread: { type: integer, description: 未读公告数（本社区已发布 − 已读） }
+            counts:
+              type: object
+              description: 邻里页三个角标
+              properties:
+                enroll: { type: integer }
+                vote: { type: integer }
+                item: { type: integer }
+                want: { type: integer }
+
+    MpEnrollEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/NeighborEnroll' }
+
+    MpItemEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/NeighborItem' }
+
+    MpOrderListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpOrderDetail' }
+            total: { type: integer }
+            summary:
+              type: object
+              description: 首页三个角标的来源；与 `/mp/me` 的 counts 同源，别各写一份
+              properties:
+                doing: { type: integer, description: 待派单 / 已派单 / 处理中 / 待确认 }
+                toEvaluate: { type: integer, description: 已完工但还没评价 }
+                pendingAddons: { type: integer, description: 有待确认增项的单数 }
+
     MpPayOrderEnvelope:
       type: object
       properties:
@@ -12374,7 +14836,7 @@ components:
             priceName: { type: string }
             priceQty: { type: integer }
             appointAt: { type: string, description: 预约上门时间 }
-            appointSlot: { type: string, enum: ['09:00-11:00', '14:00-16:00', '19:00-21:00'] }
+            appointSlot: { type: string, description: 上门时段，1 小时粒度，见 `POST /mp/orders` 的说明 }
             originFee: { type: number, description: 材料 + 人工（未含增项） }
             addonFee: { type: number, description: 已确认增项合计 }
             totalFee: { type: number, description: 合计 = originFee + addonFee }
@@ -12973,3 +15435,896 @@ components:
             location: { type: string }
             warrantyEnd: { type: string }
             warrantyExpired: { type: boolean }
+
+    NeighborTodoEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items, reports, total]
+              properties:
+                items: { type: integer, description: 本项目待审核闲置数 }
+                reports: { type: integer, description: 本项目待处理举报数 }
+                total: { type: integer }
+
+    NeighborItem:
+      type: object
+      required: [itemId, title, status, price]
+      properties:
+        itemId: { type: string, example: SH0101 }
+        title: { type: string }
+        category: { type: string, example: 家具 }
+        price: { type: number, description: 0 = 免费赠送 }
+        originPrice: { type: number }
+        freeGive: { type: boolean }
+        condition: { type: string, example: 九成新 }
+        images: { type: integer, description: 图片张数（原型不存图） }
+        desc: { type: string }
+        communityId: { type: string }
+        communityName: { type: string }
+        sellerName: { type: string, description: 已脱敏展示名 }
+        sellerType: { type: string, enum: [业主, 租户] }
+        sellerHouse: { type: string, description: 'P01-003-0602；移动端只展示楼栋' }
+        contactMode: { type: string }
+        publishAt: { type: string }
+        status: { type: string, enum: [待审核, 已上架, 已驳回, 已下架, 已售出, 已过期] }
+        rejectReason: { type: string }
+        auditBy: { type: string, description: 审核经办人（移动端传登录人） }
+        auditAt: { type: string }
+        reportCount: { type: integer }
+
+    NeighborItemEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NeighborItem' }
+
+    NeighborItemListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/NeighborItem' }
+                total: { type: integer }
+
+    NeighborReport:
+      type: object
+      required: [reportId, itemId, reason, status]
+      properties:
+        reportId: { type: string, example: RP0101 }
+        itemId: { type: string }
+        itemTitle: { type: string }
+        itemStatus: { type: string }
+        communityId: { type: string, description: 取被举报内容的项目（举报记录本身没有） }
+        communityName: { type: string }
+        sellerName: { type: string }
+        sellerHouse: { type: string }
+        reason: { type: string, enum: [虚假信息, 违禁品, 骚扰辱骂, 疑似诈骗, 重复刷屏, 其他] }
+        detail: { type: string }
+        reporterName: { type: string }
+        reporterHouse: { type: string }
+        at: { type: string }
+        status: { type: string, enum: [待处理, 已处理] }
+        action: { type: string, enum: [忽略, 仅警告, 下架并警告, 封禁 7 天] }
+        note: { type: string }
+        handledBy: { type: string, description: 处理人（移动端传登录人） }
+        handledAt: { type: string }
+
+    NeighborReportEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NeighborReport' }
+
+    NeighborReportListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/NeighborReport' }
+                total: { type: integer }
+
+    NeighborActivity:
+      type: object
+      required: [activityId, title, phase, fee]
+      properties:
+        activityId: { type: string, example: AC0016 }
+        title: { type: string }
+        category:
+          type: string
+          enum: [敬老, 亲子, 文体, 出游, 公益]
+          description: |
+            活动**类别**。与收费与否是两回事：敬老活动也可以收成本费。
+            第 70 批从 `type` 里拆出来的 —— 之前两种含义挤在一个字段里，
+            列表上会同时出现「亲子」和「收费」，按类型筛选等于筛了个寂寞。
+        feeType:
+          type: string
+          enum: [免费, 收费]
+          description: |
+            由 `fee > 0` 派生，**不落库**。
+            值用「免费 / 收费」而不是「公益 / 收费」：类别里已经有一个「公益」，
+            两个维度同词必然有人填错。这两者正交：公益类别的活动也可以是收费的。
+        fee: { type: number, description: 0 = 公益 }
+        feeText: { type: string, example: ¥168/人 }
+        communityId: { type: string }
+        communityName: { type: string }
+        startAt: { type: string }
+        endAt: { type: string }
+        place: { type: string }
+        capacity: { type: integer }
+        minCapacity: { type: integer, description: 成团下限 }
+        enrollDeadline: { type: string }
+        enrolled: { type: integer }
+        left: { type: integer }
+        fillRate: { type: number, description: 进度条用，上限 100（超额单独给 over） }
+        over: { type: integer, description: '超出名额的人数；种子里有 42/20 的活动' }
+        gap: { type: integer, description: 距成团还差几人 }
+        phase: { type: string, enum: [草稿, 报名中, 待成行, 已成行, 已流团, 已结束] }
+        phaseType: { type: string, description: 阶段标签色（PC 用） }
+        needInsurance: { type: boolean }
+        attendeeLimit: { type: integer, description: 每户限报人数 }
+        feeInclude: { type: string }
+        feeExclude: { type: string }
+        refundPolicy:
+          type: array
+          description: 退款分档；金额由服务端按它算，客户端不可手改
+          items:
+            type: object
+            properties:
+              days: { type: integer, description: 提前天数 }
+              ratio: { type: number, description: 退款百分比 }
+        paidAmount: { type: number }
+        organizer: { type: string }
+        desc: { type: string }
+        createdBy: { type: string }
+        flowedAt: { type: string, description: 确认流团的时间；有值即"已流团" }
+        flowReason: { type: string, description: 流团原因，会发通知给报名人 }
+
+    NeighborActivityEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NeighborActivity' }
+
+    NeighborActivityListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/NeighborActivity' }
+                total: { type: integer }
+
+    NeighborEnroll:
+      type: object
+      required: [enrollId, activityId, name, people, status]
+      properties:
+        enrollId: { type: string, example: AE0301 }
+        activityId: { type: string }
+        activityTitle: { type: string }
+        name: { type: string }
+        phone: { type: string, description: 列表掩码、详情明文 }
+        houseShort: { type: string }
+        people: { type: integer }
+        at: { type: string }
+        status: { type: string, enum: [已报名, 已签到, 已取消, 已退款, 候补中] }
+        fee: { type: number }
+        amount: { type: number }
+        payStatus: { type: string, enum: [已支付, 待支付, 已退款, 无需支付] }
+        source: { type: string, enum: [前台代报, 业主自助] }
+        operator: { type: string, description: 经办人（代报名时记录） }
+        paymentMethod: { type: string, enum: ['', 现金, 扫码] }
+        checkinBy: { type: string }
+        checkinAt: { type: string }
+        refundAmount: { type: number }
+        refundBy: { type: string }
+        cancelReason: { type: string }
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              idType: { type: string }
+              idNo: { type: string, description: 需投保时必填 }
+              phone: { type: string }
+              ageType: { type: string, enum: [成人, 儿童] }
+
+    NeighborEnrollEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NeighborEnroll' }
+
+    NeighborEnrollListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/NeighborEnroll' }
+                total: { type: integer }
+
+    NeighborEnrollRequest:
+      type: object
+      required: [name, phone, people]
+      properties:
+        name: { type: string, maxLength: 20 }
+        phone: { type: string, pattern: '^1\\d{10}$' }
+        houseShort: { type: string, description: 房号，对账用 }
+        people: { type: integer, minimum: 1, description: 不超过 attendeeLimit }
+        attendees:
+          type: array
+          description: needInsurance=true 时必须与 people 等长，且每人姓名 + 证件号
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              idType: { type: string }
+              idNo: { type: string }
+              ageType: { type: string }
+        paid: { type: boolean, description: 'true=现场已收款' }
+        paymentMethod: { type: string, enum: [现金, 扫码] }
+        operator: { type: string, description: 经办人 }
+        remark: { type: string, maxLength: 80 }
+
+    # ---------------- 邻里 · 投票（意见征询） ----------------
+
+    NeighborVoteOption:
+      type: object
+      required: [key, label, votes]
+      properties:
+        key: { type: string, example: A1, description: 服务端生成，票按它记 }
+        label: { type: string, example: 很满意 }
+        votes: { type: integer }
+
+    NeighborVote:
+      type: object
+      required: [voteId, title, type, status, options, totalVotes, target, partRate]
+      description: |
+        一条投票。**没有 `passed` / `conclusion` 这类字段**，是刻意不设（见 `/result` 的说明）。
+
+        `voteId` 的值就是问卷表的 `surveyId`（`SV0004` 这种），不新造编号：
+        同一个东西两个编号，对账时永远差一条。
+      properties:
+        voteId: { type: string, example: SV0004 }
+        title: { type: string }
+        type:
+          type: string
+          enum: [满意度调查, 意见征询, 方案征询]
+          description: 页面分组用；不决定能不能投票
+        communityId: { type: string }
+        communityName: { type: string }
+        desc: { type: string }
+        audience: { type: string, example: 全部业主, description: 征询范围（当前只有全部业主） }
+        startAt: { type: string, description: 'YYYY-MM-DD；草稿为空，发布时置为当天' }
+        endAt: { type: string, format: date }
+        status: { type: string, enum: [草稿, 进行中, 已结束] }
+        statusType: { type: string, description: 标签色（PC 列表用；业主端按 status 自己映射） }
+        multi: { type: boolean, description: 多选 }
+        maxPick: { type: integer, description: '多选上限；单选恒为 1' }
+        anonymous: { type: boolean }
+        optionCount: { type: integer, description: 列表页不展开选项时用 }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/NeighborVoteOption' }
+        totalVotes: { type: integer, description: 选项票数之和（不是种子里的同名字段） }
+        target:
+          type: integer
+          description: |
+            参与率的分母，取 `max(应投户数, 票数)`。
+            应投户数 = 项目内去重业主数（租户不计）；票数兜底是为了让参与率不超 100%
+            —— 种子的票数是独立随机生成的，出现过 310 票 / 189 户。
+        partRate: { type: number, description: 参与率，恒 ≤100 }
+        createdBy: { type: string }
+        createdAt: { type: string }
+        publishedAt: { type: string, description: 草稿为空 }
+        endedAt: { type: string, description: 未结束为空 }
+
+    NeighborVoteEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NeighborVote' }
+
+    NeighborVoteListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/NeighborVote' }
+                total: { type: integer }
+
+    NeighborVoteStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [total, running, draft, ended, runningPartRate, endedPartRate, votesTotal]
+              properties:
+                total: { type: integer }
+                running: { type: integer, description: 进行中 }
+                draft: { type: integer }
+                ended: { type: integer }
+                runningPartRate: { type: number, description: 进行中场次的平均参与率 }
+                endedPartRate: { type: number, description: 已结束场次的平均参与率 }
+                votesTotal:
+                  type: integer
+                  description: |
+                    票数合计（多选一票勾两项算两票）。
+                    要"参与户数"必须从投票记录表按 `ownerId` 去重 —— 别拿这个当户数用。
+
+    NeighborVoteResultOption:
+      allOf:
+        - $ref: '#/components/schemas/NeighborVoteOption'
+        - type: object
+          required: [pct]
+          properties:
+            pct: { type: number, description: 按票数算的占比，合计 100% }
+
+    NeighborVoteResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/NeighborVote'
+                - type: object
+                  required: [options, topOption, confidence, notVoted, target]
+                  description: |
+                    分布 + 参与率 + 样本提示。**没有结论字段，也不留空壳**。
+                  properties:
+                    options:
+                      type: array
+                      description: 按票数降序
+                      items: { $ref: '#/components/schemas/NeighborVoteResultOption' }
+                    topOption:
+                      allOf:
+                        - $ref: '#/components/schemas/NeighborVoteResultOption'
+                      description: 票数最高的选项（用于列表页首行摘要）
+                    confidence:
+                      type: string
+                      enum: [有效, 可参考, 偏低]
+                      description: |
+                        样本提示：参与率 ≥50% 有效 / ≥30% 可参考 / 否则偏低。
+                        这是给人看的提醒（"只有 12% 的人投了"），不是表决结论。
+                    notVoted: { type: integer, description: 'target − 票数，恒 ≥0' }
+
+    NeighborVoteRequest:
+      type: object
+      required: [title, type, communityId, endAt, options]
+      properties:
+        title: { type: string, maxLength: 40 }
+        type: { type: string, enum: [满意度调查, 意见征询, 方案征询] }
+        desc: { type: string, maxLength: 300 }
+        communityId: { type: string, description: 一期一项目，不跨项目发 }
+        endAt: { type: string, format: date, description: 发布时不能早于当天 }
+        multi: { type: boolean }
+        maxPick: { type: integer, minimum: 1, description: 多选时必填，不超过选项数 }
+        anonymous: { type: boolean, description: 默认 true }
+        audience: { type: string, description: 默认「全部业主」 }
+        options:
+          type: array
+          minItems: 2
+          maxItems: 10
+          description: 只收 label；key 由服务端生成（A1/A2…），不收客户端 key。选项不许重复
+          items:
+            type: object
+            required: [label]
+            properties:
+              label: { type: string, maxLength: 30 }
+    # ---------------- 邻里 · 活动（运营侧） ----------------
+
+    NeighborActivityRequest:
+      type: object
+      required: [title, category, communityId, startAt, endAt, place, capacity, enrollDeadline]
+      properties:
+        title: { type: string, maxLength: 40 }
+        category:
+          type: string
+          enum: [敬老, 亲子, 文体, 出游, 公益]
+          description: |
+            活动**类别**，必填。收费与否不在这里 —— 看 `fee`。
+            两者正交：敬老活动可以免费（茶话会），也可以收费（一日游）。
+        desc: { type: string, maxLength: 500 }
+        communityId: { type: string }
+        startAt: { type: string, description: 'YYYY-MM-DD 或 YYYY-MM-DD HH:mm' }
+        endAt: { type: string, description: 不能早于 startAt }
+        place: { type: string, description: 必填 —— 业主报名后要知道去哪 }
+        enrollDeadline:
+          type: string
+          format: date
+          description: 必填，且不能晚于 startAt。活动开始了还在收人，车已经走了
+        capacity: { type: integer, minimum: 1, description: 不能小于已报名人数 }
+        minCapacity: { type: integer, description: '`fee > 0` 时必填，≥1 且 ≤ capacity' }
+        fee:
+          type: number
+          minimum: 0
+          description: |
+            0 = 免费；> 0 = 收费。
+            `fee > 0` 时**必须**同时给 `minCapacity` 与 `refundPolicy`，否则 422
+            —— 收完钱团没成、又没有退款依据，是最难收拾的一类纠纷。
+            注意：想办收费活动却忘填单价会静默变成免费活动，前端要在提交前拦一道。
+        needInsurance: { type: boolean, description: 'true 时报名逐人收证件号' }
+        attendeeLimit: { type: integer, minimum: 1, description: 每户限报人数 }
+        feeInclude: { type: string }
+        feeExclude: { type: string }
+        refundPolicy:
+          type: array
+          description: |
+            `fee > 0` 时必填。比例必须**随提前天数减少而降低**（提前越久退得越多，
+            反过来就是在惩罚早取消的人），服务端会逐档校验。
+          items:
+            type: object
+            required: [days, ratio]
+            properties:
+              days: { type: integer, minimum: 0, description: 提前天数 }
+              ratio: { type: number, minimum: 0, maximum: 100, description: 退款百分比 }
+        organizer: { type: string }
+
+    NeighborActivityStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [total, running, waiting, odd, flowed, paidAmount, enrollPeople, gapTotal]
+              properties:
+                total: { type: integer, description: 全部活动数（含草稿与已结束） }
+                running: { type: integer, description: 报名中 }
+                waiting: { type: integer, description: 待成行 }
+                odd: { type: integer, description: 已成行 }
+                flowed: { type: integer, description: 已流团 }
+                paidAmount: { type: number, description: 收费活动的已收金额（含同行人） }
+                enrollPeople: { type: integer, description: 有效报名人次（不含已取消 / 已退款） }
+                gapTotal:
+                  type: integer
+                  description: |
+                    「待成行」场次一共还差多少人成团。
+                    差 2 人的和三场各差 20 人的，动作完全不同 —— 这个数比场次数有用。
+
+    NeighborRefundRatioEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: number
+              description: |
+                退款百分比（0~100）。**就是一个数字**，不是对象 ——
+                档位表在活动详情的 `refundPolicy` 里，这里只回"按今天算能退几成"。
+                没有退款档位的活动（公益）恒返回 100。
+
+    NeighborEnrollStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [total, people, checkedIn, cancelled, refunded, paidAmount, refundAmount, capacity, gap, phase]
+              properties:
+                total: { type: integer, description: 全部报名记录数（含已取消 / 已退款） }
+                people: { type: integer, description: 有效报名人数（含同行人） }
+                checkedIn: { type: integer }
+                cancelled: { type: integer }
+                refunded: { type: integer }
+                paidAmount: { type: number, description: 收费活动的已收金额 }
+                refundAmount: { type: number, description: 已退金额合计 }
+                capacity: { type: integer }
+                minCapacity: { type: integer }
+                gap: { type: integer, description: 距成团还差几人（已成行为 0） }
+                phase: { type: string, enum: [草稿, 报名中, 待成行, 已成行, 已流团, 已结束] }
+
+    # ---------------- 邻里 · 闲置与举报（统计） ----------------
+
+    NeighborItemStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [total, pending, online, rejected, offline, expired]
+              properties:
+                total: { type: integer }
+                pending: { type: integer, description: 待审核 }
+                online: { type: integer, description: 已上架 }
+                rejected: { type: integer }
+                offline: { type: integer }
+                expired: { type: integer }
+                todayNew: { type: integer, description: 今天新发（含待审） }
+                passRate: { type: number, description: '已审内容的通过率 = 已上架 /(已上架+已驳回)' }
+                reported:
+                  type: integer
+                  description: |
+                    内容上的举报次数**累计值**。注意它与"待处理举报数"不是一回事：
+                    这个数只增不减，被处理过的举报仍然留在里面，拿它当待办角标会一直红。
+
+    NeighborItemCategoriesEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              description: |
+                分类名数组（`["家电","家具",...]`），从**已有内容**里扫出来的，
+                顺序不保证。所以它只适合筛选，不适合发布表单 ——
+                发布时能选的分类要写死在前端（否则某个分类今天没人挂，
+                明天就发不出去了）。
+
+              items: { type: string, example: 家具 }
+
+
+    # ---------------- 业主自助挂牌（mp 组） ----------------
+
+    MpListing:
+      type: object
+      required: [listingId, status, price, contentType]
+      description: |
+        业主视角的一条挂牌。与后台 `Listing` 的区别：
+        **可以带房号**（这是业主自己的房），但**不带** `ownerId` / `ownerPhone` /
+        `stewardPhone` / `stewardEmpId` —— 业主不需要知道自己的档案号，更不需要知道楼管手机。
+
+        标签色由前端按 `status` 映射，服务端不返回颜色值：
+        同一状态在 PC 与小程序要两种色值，接口跟着端变是最难维护的一类耦合。
+      properties:
+        listingId: { type: string, example: LS00001 }
+        houseId: { type: string }
+        communityName: { type: string }
+        buildingName: { type: string }
+        unitName: { type: string }
+        room: { type: string }
+        houseShort: { type: string, example: P01-012-0602 }
+        houseType: { type: string, description: 派生，不可改 }
+        area: { type: number }
+        orientation: { type: string }
+        floor: { type: integer }
+        contentType: { type: string, enum: [出租, 出售] }
+        price: { type: number, description: 出租为元/月，出售为总价 }
+        deposit: { type: number }
+        payTerm: { type: string, enum: [押一付一, 押一付三, 押二付一, 半年付, 年付] }
+        decorate: { type: string, enum: [毛坯, 简装, 精装, 豪装] }
+        facilities:
+          type: array
+          items: { type: string }
+        availableFrom: { type: string, format: date }
+        desc: { type: string }
+        images: { type: integer, description: 图片张数 }
+        status: { type: string, enum: [待审核, 已发布, 已驳回, 已下架, 已过期, 已成交] }
+        rejectReason: { type: string, description: 原样返回，不要概括 }
+        offlineReason: { type: string }
+        offlineAt: { type: string }
+        auditAt: { type: string }
+        createdAt: { type: string }
+        expireAt: { type: string, description: 60 天到期 }
+        daysLeft: { type: integer, description: '距到期天数；负数 = 已过期' }
+        viewCount: { type: integer, description: 详情页浏览数（仅业主自己可见） }
+        leadCount: { type: integer, description: 看房请求数（仅业主自己可见） }
+        contentVersion: { type: integer }
+        auditedVersion: { type: integer, description: '相等 = 内容未改，续挂免审' }
+        canOffline: { type: boolean }
+        canRenew: { type: boolean }
+        canDeal: { type: boolean }
+
+    MpListingEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MpListing' }
+
+    MpListingListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/MpListing' }
+                total: { type: integer }
+
+    MpListingRequest:
+      type: object
+      required: [houseId, type, price]
+      description: |
+        只收这些。面积 / 户型 / 朝向 / 楼层**一律从房屋档案派生** ——
+        收进来就会出现"业主把 89㎡ 写成 120㎡"的纠纷，而物业没有能力逐条核。
+      properties:
+        houseId: { type: string, description: 发布时必填；编辑时忽略（换房等于换一条挂牌） }
+        type: { type: string, enum: [出租, 出售] }
+        price: { type: number, minimum: 500, maximum: 100000, description: 明显异常的定价也会被驳回 }
+        deposit: { type: number, description: 空则同 price }
+        payTerm: { type: string, enum: [押一付一, 押一付三, 押二付一, 半年付, 年付] }
+        decorate: { type: string, enum: [毛坯, 简装, 精装, 豪装] }
+        facilities:
+          type: array
+          items: { type: string }
+        availableFrom: { type: string, format: date }
+        desc: { type: string, maxLength: 300 }
+        images: { type: integer, minimum: 0, maximum: 9 }
+
+    # ---------------- 租售信息（A 域 · 第 69 批） ----------------
+
+    ListingPublic:
+      type: object
+      description: |
+        **对外视图**。只有这些字段会出现在免登录接口里。
+        刻意不含：`room`（房号）、`houseShort`、`ownerId/ownerName/ownerPhone`、
+        `stewardPhone`、`stewardEmpId`。边界靠字段白名单，不靠前端不显示。
+      required: [listingId, communityName, houseType, area, price, status]
+      properties:
+        listingId: { type: string, example: LS00001 }
+        communityId: { type: string }
+        communityName: { type: string, example: 翡翠城 }
+        buildingName: { type: string, description: 只到楼栋，不含单元与门牌 }
+        houseType: { type: string, description: 从房屋档案派生，业主改不了 }
+        area: { type: number, description: 建筑面积，派生 }
+        orientation: { type: string }
+        floor: { type: integer }
+        price: { type: number, description: 元/月 }
+        deposit: { type: number }
+        payTerm: { type: string, enum: [押一付一, 押一付三, 押二付一, 半年付, 年付] }
+        decorate: { type: string, enum: [毛坯, 简装, 精装, 豪装] }
+        facilities:
+          type: array
+          items: { type: string }
+        availableFrom: { type: string, description: 可入住日期 }
+        desc: { type: string }
+        images: { type: integer, description: 图片张数（原型不存图） }
+        status: { type: string, enum: [已发布] }
+        stewardName: { type: string, description: 责任楼管姓名；对外只给姓名与微信 }
+        stewardWechat: { type: string, description: 员工自维护，没填就是空串 }
+        stewardQrUrl: { type: string, description: 二维码图片；没传就是空串 }
+
+    Listing:
+      allOf:
+        - $ref: '#/components/schemas/ListingPublic'
+        - type: object
+          description: 后台视图，多出房号、产权人与审核轨迹
+          properties:
+            status:
+              type: string
+              enum: [待审核, 已发布, 已驳回, 已下架, 已过期, 已成交]
+            statusType: { type: string, description: 前端标签色 }
+            houseId: { type: string }
+            houseShort: { type: string, description: P01-011-0101，仅后台 }
+            room: { type: string, description: 房号，仅后台 }
+            ownerId: { type: string }
+            ownerName: { type: string }
+            ownerPhone:
+              type: string
+              description: '列表脱敏（138****8001）；详情回完整号码 —— 审核要打给业主'
+            stewardEmpId: { type: string }
+            stewardPosition: { type: string }
+            contentVersion: { type: integer, description: 内容版本号，改价改图即 +1 }
+            auditedVersion: { type: integer, description: 审核通过的版本；两者不等才需再审 }
+            needAudit: { type: boolean }
+            createdAt: { type: string }
+            hoursWaiting: { type: integer, description: 距提交过的小时数 }
+            overdue: { type: boolean, description: 待审核且超 24 小时 → 已升级 }
+            escalated: { type: boolean, description: 超 48 小时 }
+            expireAt: { type: string, description: 发布后 60 天 }
+            dealAt: { type: string }
+            auditBy: { type: string }
+            auditAt: { type: string }
+            rejectReason: { type: string, description: 驳回理由，业主可见 }
+            offlineBy: { type: string }
+            offlineAt: { type: string }
+            offlineReason: { type: string }
+            viewCount: { type: integer }
+            leadCount: { type: integer, description: 看房请求条数 }
+            viewings:
+              type: array
+              description: 仅详情返回
+              items: { $ref: '#/components/schemas/ListingViewing' }
+
+    ListingViewing:
+      type: object
+      description: |
+        看房请求。**没有 `visitorUserId`** —— 不建账号，只留一个号码。
+        对外承诺「24 小时内联系」；48 小时未联系升楼管的直属上级。
+      required: [viewingId, listingId, name, phone, status]
+      properties:
+        viewingId: { type: string, example: VW00001 }
+        listingId: { type: string }
+        communityId: { type: string }
+        communityName: { type: string }
+        buildingName: { type: string }
+        houseType: { type: string }
+        area: { type: number }
+        price: { type: number }
+        name: { type: string }
+        phone:
+          type: string
+          description: '列表脱敏；详情回完整号码（楼管要打这个电话）'
+        preferredTime: { type: string, enum: [工作日白天, 工作日晚上, 周末] }
+        note: { type: string }
+        status: { type: string, enum: [待联系, 已联系, 已带看, 已关闭] }
+        statusType: { type: string }
+        createdAt: { type: string }
+        hoursWaiting: { type: integer }
+        overdue: { type: boolean, description: 超 24 小时未回拨 }
+        escalated: { type: boolean, description: 超 48 小时 }
+        stewardEmpId: { type: string }
+        stewardName: { type: string }
+        handledBy: { type: string }
+        handledAt: { type: string }
+        resultNote: { type: string }
+        promise: { type: string, description: 仅创建时返回，前端原样展示 }
+        privacy: { type: string, description: 仅创建时返回，号码用途与保留期限 }
+
+    ListingViewingInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name: { type: string, maxLength: 20 }
+        phone: { type: string, pattern: '^1\d{10}$' }
+        preferredTime: { type: string, enum: [工作日白天, 工作日晚上, 周末] }
+        note: { type: string, maxLength: 100 }
+
+    ListingStats:
+      type: object
+      properties:
+        total: { type: integer }
+        pending: { type: integer }
+        escalated: { type: integer }
+        published: { type: integer }
+        rejected: { type: integer }
+        offline: { type: integer }
+        expired: { type: integer }
+        dealt: { type: integer }
+        viewingPending: { type: integer }
+        viewingOverdue: { type: integer }
+        viewTotal: { type: integer }
+
+    ListingViewingStats:
+      type: object
+      properties:
+        total: { type: integer }
+        pending: { type: integer }
+        overdue: { type: integer }
+        contacted: { type: integer }
+        visited: { type: integer }
+        closed: { type: integer }
+
+    ListingPublicEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ListingPublic' }
+
+    ListingPublicListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/ListingPublic' }
+                total: { type: integer }
+
+    ListingEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Listing' }
+
+    ListingListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/Listing' }
+                total: { type: integer }
+
+    ListingViewingEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ListingViewing' }
+
+    ListingViewingListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/ListingViewing' }
+                total: { type: integer }
+
+    ListingStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ListingStats' }
+
+    ListingViewingStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ListingViewingStats' }
+
+    MyContact:
+      type: object
+      required: [empId, name, wechatId, contactQrUrl]
+      description: |
+        对外联系方式（租售信息页展示给看房者）。
+        **没有手机号字段** —— 手机号只在内部通讯录里，对外展示是另一回事。
+      properties:
+        empId: { type: string }
+        name: { type: string }
+        position: { type: string }
+        wechatId: { type: string, description: 可空；空 = 不展示微信号 }
+        contactQrUrl: { type: string, description: 可空；空 = 不展示二维码 }
+
+    MyContactEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MyContact' }

@@ -8,7 +8,7 @@
     "positions": [
       "总经理"
     ],
-    "permCount": 82,
+    "permCount": 85,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -21,6 +21,9 @@
       "a.assetDash.view",
       "a.houses.edit",
       "a.houses.view",
+      "a.listings.audit",
+      "a.listings.view",
+      "a.listings.viewing",
       "a.owner360.view",
       "a.owners.edit",
       "a.owners.view",
@@ -111,7 +114,7 @@
     "positions": [
       "项目经理"
     ],
-    "permCount": 47,
+    "permCount": 50,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -124,6 +127,9 @@
       "a.assetDash.view",
       "a.houses.edit",
       "a.houses.view",
+      "a.listings.audit",
+      "a.listings.view",
+      "a.listings.viewing",
       "a.owner360.view",
       "a.owners.edit",
       "a.owners.view",
@@ -179,7 +185,7 @@
     "positions": [
       "客服专员"
     ],
-    "permCount": 15,
+    "permCount": 17,
     "domains": [
       "A 房产与业主",
       "E 组织与权限",
@@ -187,6 +193,8 @@
     ],
     "perms": [
       "a.houses.view",
+      "a.listings.view",
+      "a.listings.viewing",
       "a.owner360.view",
       "a.owners.view",
       "a.sensitive.view",
@@ -448,7 +456,7 @@
     "positions": [
       "楼栋管家"
     ],
-    "permCount": 17,
+    "permCount": 20,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -458,6 +466,9 @@
     "perms": [
       "a.houses.edit",
       "a.houses.view",
+      "a.listings.audit",
+      "a.listings.view",
+      "a.listings.viewing",
       "a.owner360.view",
       "a.owners.edit",
       "a.owners.view",
@@ -613,7 +624,7 @@
     "dataScope": "全部项目",
     "communities": [],
     "positions": [],
-    "permCount": 44,
+    "permCount": 45,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -625,6 +636,7 @@
     "perms": [
       "a.assetDash.view",
       "a.houses.view",
+      "a.listings.view",
       "a.owner360.view",
       "a.owners.view",
       "a.stewards.view",

@@ -59,6 +59,15 @@ export const PAGES = [
   // ---------- L4 收尾（29–32 页，数据与 IA 骨架齐备后补齐） ----------
   { path: '/a/tenants', name: 'TenantList', title: '租户管理', group: 'a', status: 'done', icon: 'Avatar', desc: '在住租户 · 核验 · 补充 · 搬离',
     component: () => import('@/views/a/TenantList.vue') },
+  // 租售信息（2026-11-06 第 69 批）：业主自己发、责任楼管审、访客留电话。
+  // 后台**没有「新建」**——挂牌只能由业主发起。留了编辑入口，最后一定变成"客服帮业主改价格"。
+  { path: '/a/listings', name: 'ListingList', title: '租售信息', group: 'a', status: 'done', icon: 'Sell',
+    desc: '业主发布 · 责任楼管审核 · 面积户型从档案带',
+    component: () => import('@/views/a/ListingList.vue') },
+  // 独立路径而不是 /a/listings/viewings：后者会让侧栏两项同时高亮（前缀匹配）
+  { path: '/a/viewings', name: 'ViewingList', title: '看房请求', group: 'a', status: 'done', icon: 'Phone',
+    desc: '访客留电话 · 楼管回拨 · 超 24 小时标红',
+    component: () => import('@/views/a/ViewingList.vue') },
 
   // ---------- B 费用 ----------
   { path: '/b/dashboard', name: 'FeeDashboard', title: '费用驾驶舱', group: 'b', status: 'done', icon: 'DataAnalysis', desc: '应收/实收/欠费/收缴率',
@@ -115,7 +124,7 @@ export const PAGES = [
     desc: '意见征询 · 参与率 · 结果分布（不做业主大会表决）',
     component: () => import('@/views/n/VoteManage.vue') },
   { path: '/n/activities', name: 'ActivityManage', title: '活动管理', group: 'n', status: 'done', icon: 'Ticket',
-    desc: '公益 / 收费 · 成团下限 · 退款分档',
+    desc: '类别 × 收费方式 · 成团下限 · 退款分档',
     component: () => import('@/views/n/ActivityManage.vue') },
   { path: '/n/activities/:id/enrolls', name: 'ActivityEnrolls', title: '报名名单', group: 'n', status: 'done', icon: 'List', hidden: true,
     desc: '出行人 · 代报名 · 退款 · 签到',

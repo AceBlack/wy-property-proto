@@ -203,10 +203,10 @@ function selectAll() {
   if (!picked.value.length) toast('没有欠费账单')
 }
 
-function paySelected() {
+async function paySelected() {
   if (!picked.value.length) return toastErr('先勾选要缴的账单')
   try {
-    const pay = createBillPay(picked.value)
+    const pay = await createBillPay(picked.value)
     go('/pages/pay/index', { payId: pay.payId })
   } catch (e) {
     toastErr(e.message || '生成待支付订单失败')

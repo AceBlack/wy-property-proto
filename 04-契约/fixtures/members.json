@@ -1,0 +1,132 @@
+[
+  {
+    "memberId": "MB00001",
+    "ownerId": "OW00001",
+    "name": "陈静",
+    "relation": "配偶",
+    "phone": "17619030789",
+    "idCard": "510194010361628168",
+    "certified": true,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00002",
+    "ownerId": "OW00001",
+    "name": "王小雪",
+    "relation": "子女",
+    "phone": "17521030244",
+    "idCard": "510181051621669049",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00003",
+    "ownerId": "OW00002",
+    "name": "陈静",
+    "relation": "配偶",
+    "phone": "17996601955",
+    "idCard": "510167021889985689",
+    "certified": true,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00004",
+    "ownerId": "OW00009",
+    "name": "肖玉兰",
+    "relation": "父母",
+    "phone": "15274759593",
+    "idCard": "510194032260412802",
+    "certified": true,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00005",
+    "ownerId": "OW00016",
+    "name": "龚晓东",
+    "relation": "其他",
+    "phone": "19032025009",
+    "idCard": "510195051268645013",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00006",
+    "ownerId": "OW00021",
+    "name": "曹海燕",
+    "relation": "其他",
+    "phone": "17153719042",
+    "idCard": "510164041749299186",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00007",
+    "ownerId": "OW00025",
+    "name": "曾芳",
+    "relation": "配偶",
+    "phone": "18600029760",
+    "idCard": "510187092521489996",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00008",
+    "ownerId": "OW00030",
+    "name": "白玉兰",
+    "relation": "配偶",
+    "phone": "19696462132",
+    "idCard": "510180062790279694",
+    "certified": false,
+    "liveTogether": false
+  },
+  {
+    "memberId": "MB00009",
+    "ownerId": "OW00033",
+    "name": "袁艳",
+    "relation": "父母",
+    "phone": "19746513127",
+    "idCard": "510197021018389804",
+    "certified": true,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00010",
+    "ownerId": "OW00034",
+    "name": "薛军",
+    "relation": "子女",
+    "phone": "17420977080",
+    "idCard": "510169022316004704",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00011",
+    "ownerId": "OW00039",
+    "name": "陆宇",
+    "relation": "配偶",
+    "phone": "13803892062",
+    "idCard": "510162072689447855",
+    "certified": true,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00012",
+    "ownerId": "OW00044",
+    "name": "秦振华",
+    "relation": "配偶",
+    "phone": "15635473514",
+    "idCard": "510163051016311250",
+    "certified": false,
+    "liveTogether": true
+  },
+  {
+    "memberId": "MB00013",
+    "ownerId": "OW00059",
+    "name": "孔国强",
+    "relation": "父母",
+    "phone": "13822228352",
+    "idCard": "510197111284051145",
+    "certified": true,
+    "liveTogether": true
+  }
+]

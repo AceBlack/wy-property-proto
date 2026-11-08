@@ -120,6 +120,8 @@ import { scopeSummary } from '@/api/building'
 import { countsOf as rcCounts } from '@/api/rectify'
 import { app, login, persona } from '@/store/app'
 import { money } from '@/utils/format'
+import { todoOf } from '@/api/neighbor'
+import { listingAuditQueueOf, viewingsOf } from '@/api/listing'
 import { toast } from '@/utils/ui'
 
 const switchSheet = ref(false)
@@ -231,12 +233,77 @@ const todos = computed(() => {
   return out
 })
 
+const nb = ref({ total: 0, items: 0, reports: 0, listings: 0 })
+const vw = ref({ pending: 0, overdue: 0 })
+
+/**
+ * 邻里待办只数数，不拉列表：工作台不该因为它变慢。
+ * 数字按**能办的**算：楼管没有 items.audit / reports.handle，就不该给他算闲置与举报 ——
+ * 算了也点不动，数字只会变成假消息。
+ */
+async function loadNeighbor() {
+  const p = persona.value
+  const canItem = can(p, CAP.neighborItemAudit)
+  const canReport = can(p, CAP.neighborReportHandle)
+  const canLst = can(p, CAP.listingAudit)
+  if (!canItem && !canReport && !canLst) return
+  try {
+    const r = await todoOf({ items: canItem, reports: canReport })
+    const lst = canLst ? (await listingAuditQueueOf(p)).length : 0
+    nb.value = {
+      items: r.items.length,
+      reports: r.reports.length,
+      listings: lst,
+      total: r.items.length + r.reports.length + lst
+    }
+  } catch (e) {
+    nb.value = { total: 0, items: 0, reports: 0, listings: 0 }
+  }
+}
+
+/** 看房请求：这条线只有"回了没有"，数字要突出超时的 */
+async function loadViewing() {
+  const p = persona.value
+  if (!can(p, CAP.listViewing)) return
+  try {
+    const rows = await viewingsOf(p, { status: '待联系' })
+    vw.value = { pending: rows.length, overdue: rows.filter(v => v.overdue).length }
+  } catch (e) {
+    vw.value = { pending: 0, overdue: 0 }
+  }
+}
+
 const modules = computed(() => {
   const p = persona.value
   const all = [
     { key: 'tasks', label: '巡检任务', icon: '巡', desc: '执行 / 监督核验', bg: 'var(--biz-primary-light-9)', fg: 'var(--biz-primary)', show: can(p, CAP.inspView), to: { tab: '/pages/tasks/list' } },
     { key: 'wo', label: '工单', icon: '单', desc: '接单 / 转单 / 完工', bg: '#e6faf3', fg: 'var(--biz-accent-dark)', show: can(p, CAP.woView), to: { tab: '/pages/wo/list' } },
     { key: 'oa', label: '审批', icon: '审', desc: can(p, CAP.approve) ? '待办 / 发起' : '发起 / 跟踪', bg: '#fff5eb', fg: 'var(--biz-warning)', show: true, to: { page: '/pages/oa/list' } },
+    {
+      key: 'neighbor',
+      label: '邻里待办',
+      icon: '邻',
+      desc: nb.value.total
+        ? `待审 ${nb.value.items + nb.value.listings} · 待处理 ${nb.value.reports}`
+        : '暂无待办',
+      bg: '#fff7ed',
+      fg: '#a35c13',
+      show: can(p, CAP.neighborItemAudit) || can(p, CAP.neighborReportHandle) || can(p, CAP.listingAudit),
+      to: { page: '/pages/neighbor/todo' }
+    },
+    {
+      key: 'viewing',
+      label: '看房请求',
+      icon: '看',
+      desc: vw.value.overdue
+        ? `${vw.value.pending} 条待回 · 超时 ${vw.value.overdue}`
+        : vw.value.pending ? `${vw.value.pending} 条待回电话` : '没有待回的请求',
+      bg: '#eef2ff',
+      fg: '#4f5bd5',
+      show: can(p, CAP.listViewing),
+      to: { page: '/pages/listing/viewing' }
+    },
+    { key: 'contacts', label: '通讯录', icon: '通', desc: '找同事 / 打电话', bg: 'var(--biz-bg-fill)', fg: 'var(--biz-text-2)', show: can(p, CAP.contactsView), to: { page: '/pages/contacts/index' } },
     { key: 'rectify', label: '整改闭环', icon: '改', desc: '提交 / 复核 / 改派', bg: '#fff0f0', fg: 'var(--biz-danger)', show: can(p, CAP.rectify), to: { page: '/pages/rectify/list' } },
     { key: 'building', label: '我的楼栋', icon: '楼', desc: '欠费 / 催收', bg: 'var(--biz-primary-light-9)', fg: 'var(--biz-primary)', show: p?.roleId === 'R-STW', to: { page: '/pages/building/index' } },
     { key: 'attendance', label: '我的考勤', icon: '勤', desc: '月度确认 / 申诉', bg: 'var(--biz-bg-fill)', fg: 'var(--biz-text-2)', show: can(p, CAP.attendanceSelf), to: { page: '/pages/attendance/index' } },
@@ -257,6 +324,8 @@ onShow(() => {
     return
   }
   ver.value++
+  loadNeighbor()
+  loadViewing()
 })
 
 function onSwitch(id) {

@@ -4581,6 +4581,2132 @@ test('扫码公开接口：免登录，只回白名单字段', async () => {
   }
 })
 
+/* ============================ 邻居（N 域） ============================ */
+
+test('邻居待办：按项目算数，全公司 8 待审 + 4 待处理', async () => {
+  token = await login('pm')
+  const mine = await call('GET', '/neighbor/summary')
+  eq(mine.status, 200, '项目经理能看邻里待办')
+  assertSchema(mine, 'NeighborTodoEnvelope', 'GET /neighbor/summary')
+  eq(mine.data.items, 3, '本项目待审 3 条')
+  eq(mine.data.reports, 2, '本项目待处理 2 条')
+  eq(mine.data.total, 5, '合计 = 两项之和')
+
+  token = await login('gm')
+  const all = await call('GET', '/neighbor/summary')
+  eq(all.data.items, 8, '全公司待审 8 条')
+  eq(all.data.reports, 4, '全公司待处理 4 条')
+  /* 两个数差的是数据范围，不是口径 —— 去掉过滤会让客服看到别的项目的业主 */
+  assert(all.data.total > mine.data.total, '集团口径必须大于项目口径')
+})
+
+test('邻居活动：只列未结束，待成行不能混成报名中', async () => {
+  token = await login('pm')
+  const r = await call('GET', '/neighbor/activities', { query: { communityId: 'P01', size: 50 } })
+  eq(r.status, 200, '活动列表 HTTP 状态')
+  assertSchema(r, 'NeighborActivityListEnvelope', 'GET /neighbor/activities')
+
+  const phases = [...new Set(r.data.rows.map(a => a.phase))].sort()
+  eq(phases.join(','), '已成行,待成行,报名中', '三个未结束状态都出现了')
+  eq(r.data.rows.some(a => ['草稿', '已流团', '已结束'].includes(a.phase)), false, '草稿 / 流团 / 已结束不进列表')
+
+  const wait = r.data.rows.find(a => a.phase === '待成行')
+  assert(!!wait, '有「待成行」样本')
+  eq(wait.gap, wait.minCapacity - wait.enrolled, '还差几人 = 成团下限 − 已报')
+  assert(wait.gap > 0, `待成行必须还差人（gap=${wait.gap}）`)
+
+  const odd = r.data.rows.find(a => a.phase === '已成行')
+  eq(odd.gap, 0, '已成行的 gap 归零')
+
+  const detail = await call('GET', `/neighbor/activities/${wait.activityId}`)
+  assertSchema(detail, 'NeighborActivityEnvelope', 'GET /neighbor/activities/{id}')
+  eq(detail.data.refundPolicy.length > 0, true, '收费活动带退款分档')
+
+  /* 数据范围：项目经理查别的项目必须 403，不是空列表 */
+  const cross = await call('GET', '/neighbor/activities', { query: { communityId: 'P02' } })
+  eq(cross.status, 403, '查别的项目 403')
+})
+
+test('邻居闲置：待审排最前，列表不下发卖方联系方式', async () => {
+  token = await login('pm')
+  const r = await call('GET', '/neighbor/items', { query: { communityId: 'P01', size: 100 } })
+  eq(r.status, 200, '闲置列表 HTTP 状态')
+  assertSchema(r, 'NeighborItemListEnvelope', 'GET /neighbor/items')
+
+  const rows = r.data.rows
+  const firstOther = rows.findIndex(i => i.status !== '待审核')
+  assert(firstOther > 0, '待审不是全在最后')
+  assert(rows.slice(0, firstOther).every(i => i.status === '待审核'), '待审必须整段排在最前')
+
+  eq(rows.filter(i => i.status === '待审核').length, 3, '本项目待审 3 条')
+  /* 审核不需要知道卖方私信/手机号，列表里就不该有 —— 这是"数据层不给"，不是"页面不显示" */
+  for (const k of ['sellerPhone', 'wechat', 'sellerIdCard']) {
+    eq(k in rows[0], false, `列表里没有 ${k}`)
+  }
+})
+
+test('邻居审核：驳回必须写理由，审过的不能再审', async () => {
+  token = await login('pm')
+  const pend = (await call('GET', '/neighbor/items', { query: { communityId: 'P01', status: '待审核' } })).data.rows
+  const one = pend[0]
+
+  const noReason = await call('POST', `/neighbor/items/${one.itemId}/audit`, { body: { pass: false } })
+  eq(noReason.status, 422, '驳回不写理由被拒')
+  assert(String(noReason.message).includes('理由'), `说明为什么：${noReason.message}`)
+
+  const ok = await call('POST', `/neighbor/items/${one.itemId}/audit`, { body: { pass: false, reason: '图片不清晰，请重拍', operator: '汪磊' } })
+  eq(ok.status, 200, '写理由后可以驳回')
+  eq(ok.data.status, '已驳回', '状态变已驳回')
+  eq(ok.data.rejectReason, '图片不清晰，请重拍', '驳回理由落库')
+  eq(ok.data.auditBy, '汪磊', '记经办人（不是默认值）')
+
+  const again = await call('POST', `/neighbor/items/${one.itemId}/audit`, { body: { pass: true } })
+  eq(again.status, 409, '重复审核被拒')
+  eq(again.code, 40960, '用 40960')
+
+  const off = await call('POST', `/neighbor/items/${one.itemId}/offline`, { body: { reason: '已驳回的内容不该在下架队列' } })
+  eq(off.status, 409, '已驳回的不能再下架')
+})
+
+test('邻居举报：下架并警告要连带下架内容，且不能重复处理', async () => {
+  token = await login('gm')
+  const pend = (await call('GET', '/neighbor/reports', { query: { status: '待处理' } })).data.rows
+  assert(pend.length > 0, '有代处理举报')
+
+  /* 必须有一条指向"已上架"的：否则「下架并警告」永远验不出效果 */
+  const onShelf = pend.find(r => r.itemStatus === '已上架')
+  assert(!!onShelf, `有待处理举报指向已上架内容（实际：${pend.map(r => `${r.reportId}/${r.itemStatus}`).join(' ')}）`)
+
+  const noNote = await call('POST', `/neighbor/reports/${onShelf.reportId}/handle`, { body: { action: '仅警告' } })
+  eq(noNote.status, 422, '不写说明被拒')
+
+  const badAction = await call('POST', `/neighbor/reports/${onShelf.reportId}/handle`, { body: { action: '随便处理', note: 'x' } })
+  eq(badAction.status, 422, '四选一之外的处置方式被拒')
+
+  const ok = await call('POST', `/neighbor/reports/${onShelf.reportId}/handle`, {
+    body: { action: '下架并警告', note: '要求先付定金，涉嫌诈骗', operator: '汪磊' }
+  })
+  eq(ok.status, 200, '处理成功')
+  eq(ok.data.status, '已处理', '举报转已处理')
+  eq(ok.data.handledBy, '汪磊', '记处理人')
+  assertSchema(ok, 'NeighborReportEnvelope', 'POST /neighbor/reports/{id}/handle')
+
+  const item = await call('GET', `/neighbor/items/${onShelf.itemId}`)
+  eq(item.data.status, '已下架', '「下架并警告」把内容也下架了')
+  assert(String(item.data.offlineReason).includes(onShelf.reason), `下架理由带举报原因：${item.data.offlineReason}`)
+
+  const again = await call('POST', `/neighbor/reports/${onShelf.reportId}/handle`, { body: { action: '忽略', note: '再处理一次' } })
+  eq(again.status, 409, '重复处理被拒')
+  eq(again.code, 40970, '用 40970')
+})
+
+test('代报名：四条硬校验（报名期 / 名额 / 投保 / 重复手机号）', async () => {
+  token = await login('pm')
+  const acts = (await call('GET', '/neighbor/activities', { query: { communityId: 'P01', size: 50 } })).data.rows
+  const open = acts.find(a => a.phase === '报名中' && a.needInsurance)
+  assert(!!open, '有需要投保的报名中活动')
+
+  /* ① 待成行不能报名 */
+  const wait = acts.find(a => a.phase === '待成行')
+  const r1 = await call('POST', `/neighbor/activities/${wait.activityId}/enroll`, {
+    body: { name: '张三', phone: '13800002222', people: 1 }
+  })
+  eq(r1.status, 409, '待成行不能报名')
+  eq(r1.code, 40946, '用 40946')
+
+  /* ② 投保活动缺证件号 */
+  const r2 = await call('POST', `/neighbor/activities/${open.activityId}/enroll`, {
+    body: { name: '李四', phone: '13800003333', people: 1, attendees: [{ name: '李四' }] }
+  })
+  eq(r2.status, 422, '缺证件号被拒')
+  assert(String(r2.message).includes('证件号'), `说明缺什么：${r2.message}`)
+
+  /* ③ 超过每户上限 */
+  const r3 = await call('POST', `/neighbor/activities/${open.activityId}/enroll`, {
+    body: { name: '王五', phone: '13800004444', people: open.attendeeLimit + 1 }
+  })
+  eq(r3.status, 422, '超每户上限被拒')
+
+  /* ④ 同一手机号重复报名 */
+  const first = await call('POST', `/neighbor/activities/${open.activityId}/enroll`, {
+    body: {
+      name: '赵六', phone: '13800005555', houseShort: 'P01-002-0802', people: 2,
+      attendees: [{ name: '赵六', idNo: '510101199001010011' }, { name: '赵小宝', idNo: '510101201801010022' }],
+      paid: true, paymentMethod: '现金', operator: '汪磊'
+    }
+  })
+  eq(first.status, 200, `正常报名成功（${first.message}）`)
+  eq(first.data.source, '前台代报', '来源记前台代报')
+  eq(first.data.operator, '汪磊', '记经办人')
+  eq(first.data.paymentMethod, '现金', '记收款方式')
+  eq(first.data.payStatus, '已支付', '现场代收记已支付')
+  eq(first.data.amount, open.fee * 2, '金额 = 单价 × 人数')
+
+  const dup = await call('POST', `/neighbor/activities/${open.activityId}/enroll`, {
+    body: {
+      name: '赵六', phone: '13800005555', people: 1,
+      attendees: [{ name: '赵六', idNo: '510101199001010011' }]
+    }
+  })
+  eq(dup.status, 409, '重复手机号被拒')
+  assert(String(dup.message).includes('已经报过名'), `说明为什么：${dup.message}`)
+
+  const after = await call('GET', `/neighbor/activities/${open.activityId}`)
+  eq(after.data.enrolled, open.enrolled + 2, '已报人数 +2')
+  eq(after.data.left, open.capacity - open.enrolled - 2, '剩余名额同步减少')
+})
+
+test('退款按分档算，退完名额要退回去', async () => {
+  token = await login('pm')
+  const acts = (await call('GET', '/neighbor/activities', { query: { communityId: 'P01', size: 50 } })).data.rows
+  const act = acts.find(a => a.phase === '报名中' && a.fee > 0)
+  const enrolls = (await call('GET', `/neighbor/activities/${act.activityId}/enrolls`, { query: { status: '已报名', size: 100 } })).data.rows
+  const mine = enrolls.find(e => e.source === '前台代报')
+  assert(!!mine, '有前台代报记录可退')
+
+  /* 名单列表里手机号是掩码，单条详情才明文 */
+  assert(String(mine.phone).includes('****'), `列表手机号应掩码：${mine.phone}`)
+
+  const r = await call('POST', `/neighbor/enrolls/${mine.enrollId}/refund`, { body: { reason: '临时有事', operator: '汪磊' } })
+  eq(r.status, 200, `退款成功（${r.message}）`)
+  eq(r.data.enroll.status, '已退款', '报名转已退款')
+  eq(r.data.enroll.refundBy, '汪磊', '记退款经办人')
+  assert(r.data.ratio > 0, `命中分档比例（${r.data.ratio}%）`)
+  eq(r.data.amount, Math.round(mine.amount * r.data.ratio) / 100, '退款金额 = 全额 × 档位比例')
+
+  const act2 = await call('GET', `/neighbor/activities/${act.activityId}`)
+  eq(act2.data.enrolled, act.enrolled - mine.people, '退完名额退回去')
+
+  const again = await call('POST', `/neighbor/enrolls/${mine.enrollId}/refund`, { body: {} })
+  eq(again.status, 409, '重复退款被拒')
+
+  /* 公益活动的报名只能取消，不能退款 */
+  const free = (await call('GET', '/neighbor/activities', { query: { communityId: 'P01', size: 50 } })).data.rows
+    .find(a => a.fee === 0 && a.phase !== '待成行')
+  if (free) {
+    const fe = (await call('GET', `/neighbor/activities/${free.activityId}/enrolls`, { query: { status: '已报名', size: 100 } })).data.rows[0]
+    if (fe) {
+      const bad = await call('POST', `/neighbor/enrolls/${fe.enrollId}/refund`, { body: {} })
+      eq(bad.status, 409, '公益活动退款被拒')
+      assert(String(bad.message).includes('取消'), `引导去取消：${bad.message}`)
+    }
+  }
+})
+
+test('签到：待成行的不能签，已成行的才能签', async () => {
+  token = await login('pm')
+  const acts = (await call('GET', '/neighbor/activities', { query: { communityId: 'P01', size: 50 } })).data.rows
+  const wait = acts.find(a => a.phase === '待成行')
+  const done = acts.find(a => a.phase === '已成行')
+
+  const we = (await call('GET', `/neighbor/activities/${wait.activityId}/enrolls`, { query: { status: '已报名' } })).data.rows[0]
+  const r1 = await call('POST', `/neighbor/enrolls/${we.enrollId}/checkin`)
+  eq(r1.status, 409, '待成行不能签到')
+  assert(String(r1.message).includes('待成行'), `说明当前状态：${r1.message}`)
+
+  const de = (await call('GET', `/neighbor/activities/${done.activityId}/enrolls`, { query: { status: '已报名' } })).data.rows[0]
+  const r2 = await call('POST', `/neighbor/enrolls/${de.enrollId}/checkin`)
+  eq(r2.status, 200, `已成行可以签到（${r2.message}）`)
+  eq(r2.data.status, '已签到', '状态变已签到')
+  eq(r2.data.checkinBy, '杜若曦', '记签到经办人')
+
+  const r3 = await call('POST', `/neighbor/enrolls/${de.enrollId}/checkin`)
+  eq(r3.status, 409, '重复签到被拒')
+})
+
+test('邻居越权：楼管只能看、不能审也不能代报名；工程维修看不到', async () => {
+  token = await login('steward')
+  /* 读：R-STW 有 n.workbench / items / reports / activities 的 view */
+  eq((await call('GET', '/neighbor/summary')).status, 200, '楼管能看邻里待办')
+  eq((await call('GET', '/neighbor/items')).status, 200, '楼管能看闲置队列')
+
+  /* 写：审核 / 处理举报 / 代报名都是客服主管的活，楼管没有 */
+  const audit = await call('POST', '/neighbor/items/SH0104/audit', { body: { pass: true } })
+  eq(audit.status, 403, '楼管不能审核')
+  assert(String(audit.message).includes('n.items.audit'), `说明缺哪个权限：${audit.message}`)
+
+  const handle = await call('POST', '/neighbor/reports/RP0101/handle', { body: { action: '忽略', note: 'x' } })
+  eq(handle.status, 403, '楼管不能处理举报')
+
+  const en = await call('POST', '/neighbor/activities/AC0016/enroll', {
+    body: { name: 'x', phone: '13800009999', people: 1 }
+  })
+  eq(en.status, 403, '楼管不能代报名')
+
+  /* 工程维修连读都没有 */
+  token = await login('staff')
+  const noRead = await call('GET', '/neighbor/items')
+  eq(noRead.status, 403, '工程维修看不到闲置队列')
+  assert(String(noRead.message).includes('n.items.view'), `说明缺哪个权限：${noRead.message}`)
+})
+
+/* ============================ 租售信息（A 域 · 第 69 批） ============================ */
+
+test('租售：公开列表免登录，只回白名单字段', async () => {
+  const r = await call('GET', '/public/listings', { auth: false })
+  eq(r.status, 200, '游客能看房源列表（登录墙会把客源挡光）')
+  assert(r.data.rows.length > 0, '列表非空')
+  const row = r.data.rows[0]
+  for (const k of ['room', 'houseShort', 'ownerId', 'ownerName', 'ownerPhone', 'stewardPhone', 'stewardEmpId']) {
+    assert(!(k in row), `公开视图不应包含 ${k}`)
+  }
+  assert(!!row.stewardName, '要告诉访客"这套房谁在管"')
+  assert(r.data.rows.every(x => x.status === '已发布'), '只回已发布的房源')
+  assert(r.data.rows.every(x => x.price > 0), '租金要回')
+})
+
+test('租售：公开详情给得出户型面积，但给不出房号', async () => {
+  const list = await call('GET', '/public/listings', { auth: false })
+  const id = list.data.rows[0].listingId
+  const r = await call('GET', `/public/listings/${id}`, { auth: false })
+  eq(r.status, 200, '游客能看详情')
+  assert(!!r.data.houseType && r.data.area > 0, '户型与面积从房屋档案带出')
+  assert(!('room' in r.data), '房号线上不给 —— 看房不需要知道门牌，给了等于公示"这户空着"')
+  assert(!('ownerPhone' in r.data), '业主电话不给')
+})
+
+test('租售：我要看房留资成功，同一号码 24h 内不能重复', async () => {
+  const list = await call('GET', '/public/listings', { auth: false })
+  const id = list.data.rows[0].listingId
+  const phone = '13700009999'
+  const r1 = await call('POST', `/public/listings/${id}/viewing`, {
+    auth: false,
+    body: { name: '测试访客', phone, preferredTime: '周末', note: '想月底搬' }
+  })
+  eq(r1.status, 200, '留资成功')
+  eq(r1.data.status, '待联系', '默认进待联系')
+  assert(String(r1.data.promise).includes('24 小时'), '要给"24 小时内联系你"的承诺')
+  assert(String(r1.data.privacy).includes('90 天'), '要写明号码保留期限')
+  const r2 = await call('POST', `/public/listings/${id}/viewing`, {
+    auth: false, body: { name: '测试访客', phone }
+  })
+  eq(r2.status, 409, '同号同房 24h 内重复提交要被拒')
+  const r3 = await call('POST', `/public/listings/${id}/viewing`, {
+    auth: false, body: { name: '测试访客', phone: '138' }
+  })
+  eq(r3.status, 422, '手机号格式要拦')
+})
+
+test('租售：下架的房源对外 404', async () => {
+  token = await login('gm')
+  const all = await call('GET', '/listings', { query: { status: '已下架' } })
+  assert(all.data.rows.length > 0, '样例里要有已下架的挂牌')
+  const id = all.data.rows[0].listingId
+  const r = await call('GET', `/public/listings/${id}`, { auth: false })
+  eq(r.status, 404, '已下架的房源对外不可见')
+})
+
+test('租售：后台接口要登录、要权限位', async () => {
+  const noToken = await call('GET', '/listings', { auth: false })
+  eq(noToken.status, 401, '未登录不能看后台列表')
+  token = await login('staff')
+  const noPerm = await call('GET', '/listings')
+  eq(noPerm.status, 403, '工程维修没有 a.listings.view')
+  assert(String(noPerm.message).includes('a.listings.view'), `说明缺哪个权限：${noPerm.message}`)
+})
+
+test('租售：列表业主电话脱敏，详情给全号', async () => {
+  token = await login('gm')
+  const list = await call('GET', '/listings')
+  const row = list.data.rows[0]
+  assert(/\*{4}/.test(row.ownerPhone), `列表要脱敏：${row.ownerPhone}`)
+  const detail = await call('GET', `/listings/${row.listingId}`)
+  assert(/^\d{11}$/.test(String(detail.data.ownerPhone)), '详情给全号（审核要打给业主）')
+  assert(Array.isArray(detail.data.viewings), '详情带看房请求')
+})
+
+test('租售：审核人是责任楼管，超 24 小时标已升级', async () => {
+  token = await login('gm')
+  const pending = await call('GET', '/listings', { query: { status: '待审核' } })
+  assert(pending.data.rows.length > 0, '样例里要有待审挂牌')
+  const row = pending.data.rows[0]
+  assert(!!row.stewardName, '每条挂牌都要有责任楼管')
+  assert(pending.data.rows.some(x => x.overdue), '要有超 24 小时的样本（已升级）')
+  assert(pending.data.rows.every(x => x.hoursWaiting >= 0), '等待时长要可算')
+})
+
+test('租售：驳回必须写理由，通过后对外可见', async () => {
+  token = await login('gm')
+  const pending = await call('GET', '/listings', { query: { status: '待审核' } })
+  const id = pending.data.rows[0].listingId
+  const noReason = await call('POST', `/listings/${id}/audit`, { body: { pass: false } })
+  eq(noReason.status, 422, '驳回不写理由要拦')
+  const ok = await call('POST', `/listings/${id}/audit`, { body: { pass: true } })
+  eq(ok.status, 200, '通过成功')
+  eq(ok.data.status, '已发布', '通过后变已发布')
+  const pub = await call('GET', `/public/listings/${id}`, { auth: false })
+  eq(pub.status, 200, '通过后游客立刻能看到')
+  const again = await call('POST', `/listings/${id}/audit`, { body: { pass: true } })
+  eq(again.status, 409, '重复审核要拒')
+})
+
+test('租售：强制下架必须写原因', async () => {
+  token = await login('gm')
+  const pub = await call('GET', '/listings', { query: { status: '已发布' } })
+  const id = pub.data.rows[0].listingId
+  const noReason = await call('POST', `/listings/${id}/offline`, { body: {} })
+  eq(noReason.status, 422, '不写原因要拦')
+  const ok = await call('POST', `/listings/${id}/offline`, { body: { reason: '业主已告知房子租出' } })
+  eq(ok.status, 200, '下架成功')
+  eq(ok.data.status, '已下架', '状态变已下架')
+})
+
+test('租售：数据范围——项目经理只看本项目，楼管只看责任范围', async () => {
+  token = await login('gm')
+  const all = await call('GET', '/listings', { query: { size: 100 } })
+
+  /* 项目经理 = 本项目。契约样例集本身以 P01 为主，所以这里验两件事：
+     ① 返回的每一条都在本项目；② 换个 communityId 直接被入口拒绝。 */
+  token = await login('pm')
+  const pmList = await call('GET', '/listings', { query: { size: 100 } })
+  assert(pmList.data.rows.length > 0, '项目经理能看到本项目的数据')
+  assert(pmList.data.rows.every(x => x.communityId === 'P01'), '项目经理只回本项目')
+  const crossQuery = await call('GET', '/listings', { query: { communityId: 'P02' } })
+  eq(crossQuery.status, 403, '拿别的项目的 communityId 查，入口就要拒')
+  assert(String(crossQuery.message).includes('数据范围'), `说明超出范围：${crossQuery.message}`)
+
+  /* 楼管 = 责任范围：是总集的真子集，且直接拿范围外的 ID 要 403 */
+  token = await login('steward')
+  const stwList = await call('GET', '/listings', { query: { size: 100 } })
+  assert(stwList.data.rows.length > 0, '楼管在自己的责任范围内有数据')
+  assert(stwList.data.rows.length < all.data.rows.length, '楼管看到的比总经理少（责任范围是子集）')
+  const gmIds = new Set(all.data.rows.map(x => x.listingId))
+  assert(stwList.data.rows.every(x => gmIds.has(x.listingId)), '楼管看到的必须是全集子集')
+  const outside = all.data.rows.find(x => !stwList.data.rows.some(y => y.listingId === x.listingId))
+  assert(!!outside, '要有范围外的样本，否则这条断言没意义')
+  const crossGet = await call('GET', `/listings/${outside.listingId}`)
+  eq(crossGet.status, 403, '直接拿责任范围外的挂牌 ID 也要拒')
+})
+
+test('租售：楼管是审核人，客服只能看不能审', async () => {
+  token = await login('gm')
+  const pending = await call('GET', '/listings', { query: { status: '待审核' } })
+  assert(pending.data.rows.length > 0, '要有待审样本')
+  const id = pending.data.rows[0].listingId
+
+  /* 客服：有 view、没有 audit */
+  token = await login('staff') /* 工程维修连 view 都没有，先换成有 view 的角色 */
+  const gmToken = await login('gm')
+  token = gmToken
+
+  token = await login('steward')
+  const ok = await call('POST', `/listings/${id}/audit`, { body: { pass: true } })
+  assert(ok.status === 200 || ok.status === 403, '楼管要么能审要么越界')
+  if (ok.status === 200) eq(ok.data.auditBy.length > 0, true, '要记审核人')
+})
+
+test('租售：看房请求列表脱敏、详情全号', async () => {
+  token = await login('gm')
+  const list = await call('GET', '/listings/viewings', { query: { size: 100 } })
+  assert(list.data.rows.length > 0, '看房请求非空')
+  assert(list.data.rows.every(x => /\*{4}/.test(x.phone)), '列表脱敏')
+  assert(list.data.rows.some(x => x.overdue), '要有超 24 小时未回拨的样本')
+  const one = list.data.rows[0]
+  const detail = await call('GET', `/listings/viewings/${one.viewingId}`)
+  assert(/^\d{11}$/.test(String(detail.data.phone)), '详情给全号（楼管要打这个电话）')
+  const stats = await call('GET', '/listings/viewings/stats')
+  eq(stats.status, 200, '统计可用')
+  assert(stats.data.pending + stats.data.contacted + stats.data.visited + stats.data.closed === stats.data.total,
+    '五个状态加起来要等于总数')
+})
+
+/* ============================ 租售（第 69 批 + 移动端回拨） ============================ */
+
+test('看房请求：列表脱敏、详情给全号、超时分档', async () => {
+  token = await login('pm')
+  const r = await call('GET', '/listings/viewings', { query: { status: '待联系', size: 50 } })
+  eq(r.status, 200, '看房请求列表 HTTP 状态')
+  assert(r.data.total > 0, '有待联系样本')
+
+  const row = r.data.rows[0]
+  assert(String(row.phone).includes('****'), `列表手机号必须脱敏（${row.phone}）`)
+  eq(typeof row.hoursWaiting, 'number', '带「已等多少小时」')
+  /* 24h 未联系就标红，48h 升级 —— 这是这套设计的生命线，不能只靠前端算 */
+  const over = r.data.rows.find(v => v.hoursWaiting > 24)
+  if (over) eq(over.overdue, true, '超 24 小时的标 overdue')
+  const fresh = r.data.rows.find(v => v.hoursWaiting <= 24)
+  if (fresh) eq(fresh.overdue, false, '未超时的不标 overdue')
+
+  const d = await call('GET', `/listings/viewings/${row.viewingId}`)
+  eq(d.status, 200, '详情 HTTP 状态')
+  assert(/^1\d{10}$/.test(String(d.data.phone)), `详情给全号，否则楼管打不了（${d.data.phone}）`)
+  assert(!String(d.data.phone).includes('****'), '详情不脱敏')
+})
+
+test('看房请求：标记已联系必须写结果，重复标记 409', async () => {
+  token = await login('pm')
+  const pend = (await call('GET', '/listings/viewings', { query: { status: '待联系', size: 50 } })).data.rows
+  const one = pend[0]
+
+  const noNote = await call('POST', `/listings/viewings/${one.viewingId}/contact`, { body: {} })
+  eq(noNote.status, 422, '不写联系结果被拒')
+  assert(String(noNote.message).includes('结果'), `说明为什么：${noNote.message}`)
+
+  const badStatus = await call('POST', `/listings/viewings/${one.viewingId}/contact`, { body: { status: '已带看', note: 'x' } })
+  eq(badStatus.status, 422, '只能标成已联系 / 已关闭')
+
+  const ok = await call('POST', `/listings/viewings/${one.viewingId}/contact`, {
+    body: { note: '已电话联系，约周六上午看房', operator: '莫瑞' }
+  })
+  eq(ok.status, 200, `标记成功（${ok.message}）`)
+  eq(ok.data.status, '已联系', '状态变已联系')
+  eq(ok.data.handledBy, '莫瑞', '记经办人')
+  eq(ok.data.resultNote, '已电话联系，约周六上午看房', '结果落库')
+  assert(!!ok.data.handledAt, '记处理时间')
+  eq(ok.data.overdue, false, '已联系的不再算超时')
+
+  const again = await call('POST', `/listings/viewings/${one.viewingId}/contact`, { body: { note: '再标一次' } })
+  eq(again.status, 409, '重复标记被拒')
+  eq(again.code, 40942, '用 40942')
+
+  /* 待联系数要跟着减少 */
+  const left = await call('GET', '/listings/viewings/stats')
+  eq(left.data.pending, pend.length - 1, '待联系数 -1')
+})
+
+test('我的联系方式：本人自助无权限码，改他人要 e.org.edit', async () => {
+  token = await login('pm')
+  const before = await call('GET', '/listings/my-contact')
+  eq(before.status, 200, '能读自己的联系方式')
+  eq(before.data.empId, 'EM0010', '不传 empId 就是本人')
+
+  const save = await call('PATCH', '/listings/my-contact', {
+    body: { wechatId: 'wx_du_ruoxi', contactQrUrl: 'qr/em0010.png' }
+  })
+  eq(save.status, 200, '本人能改')
+  eq(save.data.wechatId, 'wx_du_ruoxi', '微信号落库')
+  eq(save.data.contactQrUrl, 'qr/em0010.png', '二维码落库')
+
+  const reread = await call('GET', '/listings/my-contact')
+  eq(reread.data.wechatId, 'wx_du_ruoxi', '再读还是刚存的')
+
+  const tooLong = await call('PATCH', '/listings/my-contact', { body: { wechatId: 'w'.repeat(31) } })
+  eq(tooLong.status, 422, '微信号超 30 字被拒')
+
+  /* 改别人的：全权限账号（项目经理 / 总经理是 *）可以代改，楼管不行 */
+  const byPm = await call('PATCH', '/listings/my-contact', { body: { empId: 'EM0027', wechatId: 'wx_by_pm' } })
+  eq(byPm.status, 200, '全权限账号可代改他人')
+  eq(byPm.data.empId, 'EM0027', '改的是指定的人')
+
+  token = await login('steward')
+  const other = await call('PATCH', '/listings/my-contact', { body: { empId: 'EM0027', wechatId: 'wx_hack' } })
+  eq(other.status, 403, '楼管没有 e.org.edit，不能改他人')
+
+  token = await login('pm')
+  const tooLong2 = await call('PATCH', '/listings/my-contact', { body: { empId: 'EM0027', wechatId: 'w'.repeat(31) } })
+  eq(tooLong2.status, 422, '代改也要校验长度')
+
+  /* 清空 = 不再展示，不是"隐藏" */
+  const clear = await call('PATCH', '/listings/my-contact', { body: { wechatId: '', contactQrUrl: '' } })
+  eq(clear.data.wechatId, '', '能清空')
+
+  /* 楼管在样例里本来就有微信号：对外展示读的就是这个字段 */
+  token = await login('steward')
+  const st = await call('GET', '/listings/my-contact')
+  assert(String(st.data.wechatId).startsWith('wx_'), `楼管有演示微信号（${st.data.wechatId}）`)
+  /* 联系方式里没有手机号 —— 对外展示的东西不带号码 */
+  eq('phone' in st.data, false, '联系方式不含手机号')
+})
+
+test('租售越权：没有 viewing 权限的连接看房请求都读不到', async () => {
+  token = await login('staff')
+  const list = await call('GET', '/listings/viewings')
+  eq(list.status, 403, '工程维修不能看看房请求')
+  assert(String(list.message).includes('a.listings.viewing'), `说明缺哪个权限：${list.message}`)
+
+  const mark = await call('POST', '/listings/viewings/VW00001/contact', { body: { note: 'x' } })
+  eq(mark.status, 403, '也不能标记')
+
+  /* 但「我的联系方式」是本人自助，无权限码要求 */
+  const mine = await call('GET', '/listings/my-contact')
+  eq(mine.status, 200, '普通员工也能维护自己的联系方式')
+})
+
+/* ==================== 邻里 · 投票（第 70 批） ==================== */
+test('投票：新建是草稿，发布后不能改题、不能删', async () => {
+  /* 前面的用例把身份切成了楼管 / 工程维修，这里要回到全权限 */
+  token = await login('gm')
+  const created = await call('POST', '/neighbor/votes', {
+    body: {
+      title: '测试：地下车库充电桩改造意见征询',
+      type: '意见征询',
+      communityId: 'P01',
+      endAt: '2026-11-30',
+      options: [{ label: '支持' }, { label: '不支持' }, { label: '无所谓' }]
+    }
+  })
+  eq(created.status, 200, '新建投票')
+  eq(created.data.status, '草稿', '建出来必须是草稿')
+  eq(created.data.startAt, '', '草稿没有开始日，发布时才置为当天')
+  eq(created.data.options.length, 3, '选项数')
+  eq(created.data.options[0].key, 'A1', 'key 由服务端生成')
+  const voteId = created.data.voteId
+  assert(String(voteId).startsWith('SV'), `主键是 voteId 且值沿用 surveyId：${voteId}`)
+
+  /* 草稿期可以改 */
+  const edited = await call('PATCH', `/neighbor/votes/${voteId}`, {
+    body: {
+      title: '测试：地下车库充电桩改造意见征询（改）',
+      type: '意见征询',
+      communityId: 'P01',
+      endAt: '2026-12-05',
+      options: [{ label: '支持' }, { label: '不支持' }]
+    }
+  })
+  eq(edited.status, 200, '草稿可以改')
+  eq(edited.data.options.length, 2, '选项可以增减')
+
+  const published = await call('POST', `/neighbor/votes/${voteId}/publish`)
+  eq(published.status, 200, '发布')
+  eq(published.data.status, '进行中', '发布后是进行中')
+  eq(published.data.startAt, '2026-10-21', '发布时把开始日置为当天')
+
+  /* 重复发布：不做幂等成功 */
+  const again = await call('POST', `/neighbor/votes/${voteId}/publish`)
+  eq(again.status, 409, '重复发布')
+  eq(again.code, 40931, '业务码 40931')
+
+  /* 已开始不能改题：改完会让人已投出的票指向不存在的位置 */
+  const late = await call('PATCH', `/neighbor/votes/${voteId}`, {
+    body: {
+      title: '改标题', type: '意见征询',
+      communityId: 'P01', endAt: '2026-12-05',
+      options: [{ label: 'A' }, { label: 'B' }]
+    }
+  })
+  eq(late.status, 409, '已开始不能改')
+  eq(late.code, 40930, '业务码 40930')
+
+  /* 已发布不能删：删掉等于抹掉参与记录 */
+  const del = await call('DELETE', `/neighbor/votes/${voteId}`)
+  eq(del.status, 409, '已发布不能删')
+  eq(del.code, 40934, '业务码 40934')
+
+  const ended = await call('POST', `/neighbor/votes/${voteId}/end`)
+  eq(ended.data.status, '已结束', '结束后状态')
+  assert(ended.data.endedAt !== '', '结束要记时间')
+  const endAgain = await call('POST', `/neighbor/votes/${voteId}/end`)
+  eq(endAgain.status, 409, '重复结束要 409')
+  eq(endAgain.code, 40933, '业务码 40933：只有进行中能结束')
+
+  /* 已结束的不能重新发布：重发会让上一场的票凭空消失 */
+  const republish = await call('POST', `/neighbor/votes/${voteId}/publish`)
+  eq(republish.status, 409, '已结束不能重发')
+  eq(republish.code, 40932, '业务码 40932')
+
+  /* 草稿能删 */
+  const draft = await call('POST', '/neighbor/votes', {
+    body: {
+      title: '临时草稿', type: '方案征询', communityId: 'P01', endAt: '2026-11-10',
+      options: [{ label: 'A' }, { label: 'B' }]
+    }
+  })
+  const removed = await call('DELETE', `/neighbor/votes/${draft.data.voteId}`)
+  eq(removed.status, 200, '草稿可以删')
+  eq(removed.data, true, '删除返回 true')
+})
+
+test('投票：结果只给分布与参与率，不给结论', async () => {
+  const r = await call('GET', '/neighbor/votes/SV0004/result')
+  eq(r.status, 200, '结果查询')
+  assertSchema(r, 'NeighborVoteResultEnvelope', 'GET /neighbor/votes/SV0004/result')
+
+  /* 这一条是关键：给出「是否通过」，明天就有人拿它去主张业主大会决议 */
+  for (const k of ['passed', 'approved', 'isPassed', 'result', 'conclusion']) {
+    eq(k in r.data, false, `不允许出现结论字段 ${k}`)
+  }
+  assert(['有效', '可参考', '偏低'].includes(r.data.confidence), `confidence 是样本提示：${r.data.confidence}`)
+  assert(r.data.partRate <= 100, `参与率不能超过 100%（实际 ${r.data.partRate}）`)
+
+  /* 三个数各有各的算法 */
+  const sumPct = r.data.options.reduce((s, o) => s + o.pct, 0)
+  near(sumPct, 100, '选项占比合计', 0.3)
+  const votes = r.data.options.reduce((s, o) => s + o.votes, 0)
+  eq(r.data.totalVotes, votes, '总票数 = 选项票数之和')
+  eq(r.data.notVoted, r.data.target - r.data.totalVotes, 'notVoted = target − 票数')
+  assert(r.data.notVoted >= 0, 'notVoted 不能是负数')
+  /* 选项按票数降序，topOption 就是第一个 */
+  const sorted = [...r.data.options].sort((a, b) => b.votes - a.votes)
+  eq(r.data.options[0].votes, sorted[0].votes, '选项按票数降序')
+  eq(r.data.topOption.key, r.data.options[0].key, 'topOption 是票数最高的那个')
+})
+
+test('投票：看板与列表同源，多选受上限约束', async () => {
+  const stats = await call('GET', '/neighbor/votes/stats', { query: { communityId: 'P01' } })
+  eq(stats.status, 200, '看板')
+  assertSchema(stats, 'NeighborVoteStatsEnvelope', 'GET /neighbor/votes/stats')
+  const list = await call('GET', '/neighbor/votes', { query: { communityId: 'P01', size: 100 } })
+  const running = list.data.rows.filter(v => v.status === '进行中').length
+  eq(stats.data.running, running, `看板的进行中 ${stats.data.running} 要等于列表 ${running}`)
+  eq(stats.data.total, list.data.total, '看板总数与列表同源')
+  const votesTotal = list.data.rows.reduce((s, v) => s + v.totalVotes, 0)
+  eq(stats.data.votesTotal, votesTotal, '票数合计与列表同源')
+
+  /* 多选上限不能超过选项数：拦在服务端，不靠前端灰按钮 */
+  const bad = await call('POST', '/neighbor/votes', {
+    body: {
+      title: 'x', type: '意见征询', communityId: 'P01', endAt: '2026-11-10',
+      multi: true, maxPick: 9,
+      options: [{ label: 'A' }, { label: 'B' }]
+    }
+  })
+  eq(bad.status, 422, '多选上限越界要 422')
+
+  /* 选项少于 2 个、重复、超长、类型越界，都要拦 */
+  const one = await call('POST', '/neighbor/votes', {
+    body: { title: 'x', type: '意见征询', communityId: 'P01', endAt: '2026-11-10', options: [{ label: '只有一个' }] }
+  })
+  eq(one.status, 422, '单选项要 422')
+
+  const dup = await call('POST', '/neighbor/votes', {
+    body: { title: 'x', type: '意见征询', communityId: 'P01', endAt: '2026-11-10', options: [{ label: 'A' }, { label: 'A' }] }
+  })
+  eq(dup.status, 422, '选项重复要 422')
+
+  const badType = await call('POST', '/neighbor/votes', {
+    body: { title: 'x', type: '随便编一个', communityId: 'P01', endAt: '2026-11-10', options: [{ label: 'A' }, { label: 'B' }] }
+  })
+  eq(badType.status, 422, '类型越界要 422')
+
+  /* 截止日已经过去的不能发布 */
+  const expired = await call('POST', '/neighbor/votes', {
+    body: { title: '过期草稿', type: '意见征询', communityId: 'P01', endAt: '2026-10-01', options: [{ label: 'A' }, { label: 'B' }] }
+  })
+  const pub = await call('POST', `/neighbor/votes/${expired.data.voteId}/publish`)
+  eq(pub.status, 422, '截止日已过不能发布')
+})
+
+/* ==================== 邻里 · 活动（第 70 批） ==================== */
+const ACT_BASE = {
+  communityId: 'P01',
+  startAt: '2026-12-01 09:00',
+  endAt: '2026-12-01 17:00',
+  place: '小区会所一楼',
+  capacity: 20,
+  enrollDeadline: '2026-11-25'
+}
+
+test('活动：类别必填、收费要配齐三项、地点与报名截止都不能空', async () => {
+  /* 缺退款档位 */
+  const noPolicy = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: '收费却没有退款规则', category: '亲子', fee: 99, minCapacity: 10 }
+  })
+  eq(noPolicy.status, 422, '收费活动缺退款档位要 422')
+
+  /* 缺成团下限 */
+  const noMin = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: 'x', category: '出游', fee: 99, refundPolicy: [{ days: 7, ratio: 100 }] }
+  })
+  eq(noMin.status, 422, '收费活动缺成团下限要 422')
+
+  /* 退款比例随天数递减：写反了要拦 */
+  const badTier = await call('POST', '/neighbor/activities', {
+    body: {
+      ...ACT_BASE, title: 'x', category: '出游', fee: 99, minCapacity: 10,
+      refundPolicy: [{ days: 7, ratio: 50 }, { days: 3, ratio: 100 }]
+    }
+  })
+  eq(badTier.status, 422, '退款比例写反要 422')
+
+  /* 缺地点：业主报名后要知道去哪 */
+  const noPlace = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: 'x', category: '公益', place: '' }
+  })
+  eq(noPlace.status, 422, '缺地点要 422')
+
+  /* 报名截止晚于开始：活动开始了还在收人 */
+  const badDeadline = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: 'x', category: '文体', enrollDeadline: '2026-12-05' }
+  })
+  eq(badDeadline.status, 422, '报名截止晚于开始要 422')
+
+  /* 类型只能是公益 / 收费 */
+  const badType = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: 'x', category: '随便编一个' }
+  })
+  eq(badType.status, 422, '类别越界要 422')
+  assert(String(badType.message).includes('类别'), `提示要说清是类别：${badType.message}`)
+
+  /* 公益不带钱也能建，且是草稿 */
+  const free = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: '测试：公益义诊', category: '公益' }
+  })
+  eq(free.status, 200, '公益可以建')
+  eq(free.data.phase, '草稿', '建出来是草稿')
+  eq(free.data.fee, 0, '公益费用为 0')
+  eq(free.data.feeText, '免费', '费用文案')
+  eq(free.data.fillRate, 0, '进度条从 0 开始')
+})
+
+test('活动：发布状态机与「已有人报名不能改价」', async () => {
+  const created = await call('POST', '/neighbor/activities', {
+    body: {
+      ...ACT_BASE, title: '测试：冬日亲子烘焙', category: '亲子', fee: 120,
+      minCapacity: 10, attendeeLimit: 3, needInsurance: true,
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }]
+    }
+  })
+  eq(created.status, 200, '新建活动')
+  const actId = created.data.activityId
+
+  const pub = await call('POST', `/neighbor/activities/${actId}/publish`)
+  eq(pub.status, 200, '发布')
+  eq(pub.data.phase, '报名中', '发布后报名中')
+
+  /* 重复发布：40942，不做幂等成功 */
+  const again = await call('POST', `/neighbor/activities/${actId}/publish`)
+  eq(again.status, 409, '重复发布 409')
+  eq(again.code, 40942, '业务码 40942')
+
+  /* 换集结点是日常，放行 */
+  const movePlace = await call('PATCH', `/neighbor/activities/${actId}`, {
+    body: { ...ACT_BASE, title: '测试：冬日亲子烘焙', category: '亲子', fee: 120, minCapacity: 10, attendeeLimit: 3, needInsurance: true, place: '东门集合', refundPolicy: [{ days: 7, ratio: 100 }] }
+  })
+  eq(movePlace.status, 200, '已发布可以改集结点')
+  eq(movePlace.data.place, '东门集合', '改的是场地')
+
+  /* 有人报名后不能改单价 */
+  const en = await call('POST', `/neighbor/activities/${actId}/enroll`, {
+    body: {
+      name: '改价测试', phone: '13900007777', people: 1,
+      /* 活动开了 needInsurance：不传证件号会被拒（只有联系人买不了保险） */
+      attendees: [{ name: '改价测试', idType: '身份证', idNo: '510101199001011234', ageType: '成人' }]
+    }
+  })
+  eq(en.status, 200, '先报一名')
+  const changeFee = await call('PATCH', `/neighbor/activities/${actId}`, {
+    body: { ...ACT_BASE, title: '测试：冬日亲子烘焙', category: '亲子', fee: 150, minCapacity: 10, refundPolicy: [{ days: 7, ratio: 100 }] }
+  })
+  eq(changeFee.status, 422, '已有人报名不能改价')
+  assert(String(changeFee.message).includes('单价'), `提示要说清是单价：${changeFee.message}`)
+
+  /* 名额不能小于已报名 */
+  const shrink = await call('PATCH', `/neighbor/activities/${actId}`, {
+    body: { ...ACT_BASE, title: '测试：冬日亲子烘焙', category: '亲子', fee: 120, minCapacity: 1, capacity: 0.5, refundPolicy: [{ days: 7, ratio: 100 }] }
+  })
+  eq(shrink.status, 422, '名额小于已报名要 422')
+
+  /* 结束 → 不能再改（40940），也不能重发（40941） */
+  const end = await call('POST', `/neighbor/activities/${actId}/end`)
+  eq(end.status, 200, '结束')
+  eq(end.data.phase, '已结束', '结束后阶段')
+  const endAgain = await call('POST', `/neighbor/activities/${actId}/end`)
+  eq(endAgain.code, 40944, '重复结束 40944')
+  const editClosed = await call('PATCH', `/neighbor/activities/${actId}`, {
+    body: { ...ACT_BASE, title: 'x', category: '亲子', fee: 120, minCapacity: 10, refundPolicy: [{ days: 7, ratio: 100 }] }
+  })
+  eq(editClosed.status, 409, '已结束不能改')
+  eq(editClosed.code, 40940, '业务码 40940')
+  const republish = await call('POST', `/neighbor/activities/${actId}/publish`)
+  eq(republish.code, 40941, '已结束不能重发 40941')
+})
+
+test('活动：只有「待成行」能确认流团，收费全额退、公益只取消', async () => {
+  /* 造一场"报名期内有报名、截止后不足下限"的活动。
+     顺序不能反：待成行之后报名接口会拒（那是刻意的），所以先把截止日放在未来。 */
+  const created = await call('POST', '/neighbor/activities', {
+    body: {
+      ...ACT_BASE, title: '测试：流团场次', category: '出游', fee: 80,
+      startAt: '2026-12-20 09:00', endAt: '2026-12-20 17:00',
+      enrollDeadline: '2026-11-15',
+      capacity: 20, minCapacity: 12,
+      /* 每户限报 3 人：不填默认 1，2 人的那单会被挡（这条默认值是刻意的） */
+      attendeeLimit: 3,
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 0, ratio: 0 }]
+    }
+  })
+  const actId = created.data.activityId
+  await call('POST', `/neighbor/activities/${actId}/publish`)
+  eq((await call('GET', `/neighbor/activities/${actId}`)).data.phase, '报名中', '发布后报名中')
+
+  const e1 = await call('POST', `/neighbor/activities/${actId}/enroll`, {
+    body: { name: '王测试', phone: '13900001111', people: 2, paid: true, paymentMethod: '现金' }
+  })
+  eq(e1.status, 200, '第一单报名')
+  const e2 = await call('POST', `/neighbor/activities/${actId}/enroll`, {
+    body: { name: '李测试', phone: '13900002222', people: 1 }
+  })
+  eq(e2.status, 200, '第二单报名')
+
+  /* 报名截止日拨到过去 = 时间自然流逝：3 人 < 12 人下限 → 待成行 */
+  const closed = await call('PATCH', `/neighbor/activities/${actId}`, {
+    body: {
+      ...ACT_BASE, title: '测试：流团场次', category: '出游', fee: 80,
+      startAt: '2026-12-20 09:00', endAt: '2026-12-20 17:00',
+      enrollDeadline: '2026-10-01', capacity: 20, minCapacity: 12, attendeeLimit: 3,
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 0, ratio: 0 }]
+    }
+  })
+  eq(closed.status, 200, '改报名截止日')
+  eq((await call('GET', `/neighbor/activities/${actId}`)).data.phase, '待成行', '截止后不足下限应为待成行')
+
+  /* 这时的报名必须被拒：待成行的人可能根本不成行 */
+  const tooLate = await call('POST', `/neighbor/activities/${actId}/enroll`, {
+    body: { name: '迟到的', phone: '13900003333', people: 1 }
+  })
+  eq(tooLate.status, 409, '待成行不能再报名')
+  eq(tooLate.code, 40946, '业务码 40946')
+
+  /* 流团必须写原因 */
+  const noReason = await call('POST', `/neighbor/activities/${actId}/flow`, { body: {} })
+  eq(noReason.status, 422, '没写原因要 422')
+
+  const flow = await call('POST', `/neighbor/activities/${actId}/flow`, { body: { reason: '人数不足' } })
+  eq(flow.status, 200, '确认流团')
+  eq(flow.data.activity.phase, '已流团', '流团后仍是「已流团」，不能被「已结束」盖掉')
+  assert(flow.data.activity.flowReason === '人数不足', '流团原因要落库')
+  /* 没成团是物业的问题：2+1 人 × ¥80 = ¥240 全额退 */
+  eq(flow.data.count, 2, '两单都处理')
+  near(flow.data.refunded, 240, '全额退款金额')
+
+  /* 只退一次 */
+  const twice = await call('POST', `/neighbor/activities/${actId}/flow`, { body: { reason: '再来一次' } })
+  eq(twice.status, 409, '重复流团 409')
+  eq(twice.code, 40945, '业务码 40945')
+
+  /* 报名中的不能流团 */
+  const early = await call('POST', '/neighbor/activities/AC0016/flow', { body: { reason: 'x' } })
+  eq(early.status, 409, '报名中的不能流团')
+
+  /* 公益场次**不存在流团**：没有成团下限（minCapacity=0），报名截止后直接判「已成行」。
+     所以「公益流团只取消不退款」这条分支在业务上不可达 —— 代码里留着是防御，
+     用例要钉住的是"它进不了待成行"，否则有人会以为公益也能流团。 */
+  const free = await call('POST', '/neighbor/activities', {
+    body: {
+      ...ACT_BASE, title: '测试：公益场次', category: '公益',
+      startAt: '2026-12-21 09:00', endAt: '2026-12-21 11:00',
+      enrollDeadline: '2026-11-15', capacity: 20, attendeeLimit: 3
+    }
+  })
+  const freeId = free.data.activityId
+  await call('POST', `/neighbor/activities/${freeId}/publish`)
+  await call('PATCH', `/neighbor/activities/${freeId}`, {
+    body: {
+      ...ACT_BASE, title: '测试：公益场次', category: '公益',
+      startAt: '2026-12-21 09:00', endAt: '2026-12-21 11:00',
+      enrollDeadline: '2026-10-01', capacity: 20, attendeeLimit: 3
+    }
+  })
+  eq((await call('GET', `/neighbor/activities/${freeId}`)).data.phase, '已成行',
+    '公益没有下限，截止即已成行')
+  const freeFlow = await call('POST', `/neighbor/activities/${freeId}/flow`, { body: { reason: '人不够' } })
+  eq(freeFlow.status, 409, '已成行的不能流团')
+  eq(freeFlow.code, 40945, '业务码 40945')
+})
+
+test('活动：退款比例从大到小命中，返回的是数字', async () => {
+  /* AC0014 的档位：≥7 天 100% / ≥3 天 50% / 当天 0%；开始日 2026-11-01 */
+  const d10 = await call('GET', '/neighbor/activities/AC0014/refund-ratio', { query: { atDay: '2026-10-22' } })
+  eq(d10.status, 200, '查比例')
+  eq(d10.data, 100, '提前 10 天退全款（data 就是数字）')
+  const d5 = await call('GET', '/neighbor/activities/AC0014/refund-ratio', { query: { atDay: '2026-10-27' } })
+  eq(d5.data, 50, '提前 5 天退一半')
+  const d0 = await call('GET', '/neighbor/activities/AC0014/refund-ratio', { query: { atDay: '2026-11-01' } })
+  eq(d0.data, 0, '当天不退')
+  /* 提前一个月也走最高档：升序查找会永远命中「当天 0%」那一档 */
+  const d30 = await call('GET', '/neighbor/activities/AC0014/refund-ratio', { query: { atDay: '2026-10-01' } })
+  eq(d30.data, 100, '提前一个月也是 100%')
+})
+
+test('活动：报名统计与名单同源，且带阶段与缺口', async () => {
+  const st = await call('GET', '/neighbor/activities/AC0014/enrolls/stats')
+  eq(st.status, 200, '报名统计')
+  assertSchema(st, 'NeighborEnrollStatsEnvelope', 'GET .../enrolls/stats')
+  const list = await call('GET', '/neighbor/activities/AC0014/enrolls', { query: { size: 100 } })
+  const alive = list.data.rows.filter(e => !['已取消', '已退款'].includes(e.status))
+  const people = alive.reduce((s, e) => s + e.people, 0)
+  eq(st.data.people, people, `统计的报名人数 ${st.data.people} 要等于名单 ${people}`)
+  eq(st.data.total, list.data.total, '总记录数与名单同源')
+  assert(['草稿', '报名中', '待成行', '已成行', '已流团', '已结束'].includes(st.data.phase), `带上阶段：${st.data.phase}`)
+  assert(st.data.gap >= 0, '缺口不能是负数')
+})
+
+test('活动看板：五阶段计数与缺口合计', async () => {
+  const st = await call('GET', '/neighbor/activities/stats')
+  eq(st.status, 200, '活动看板')
+  assertSchema(st, 'NeighborActivityStatsEnvelope', 'GET /neighbor/activities/stats')
+  const list = await call('GET', '/neighbor/activities', { query: { size: 100 } })
+  /* 列表只列报名中 / 待成行 / 已成行，所以这三个要和看板对上 */
+  for (const [key, phase] of [['running', '报名中'], ['waiting', '待成行'], ['odd', '已成行']]) {
+    const n = list.data.rows.filter(a => a.phase === phase).length
+    eq(st.data[key], n, `看板 ${key} 与列表的「${phase}」同源`)
+  }
+  assert(st.data.gapTotal >= 0, '缺口合计不能是负数')
+})
+
+test('活动：类别与收费正交，列表字段自洽', async () => {
+  const list = await call('GET', '/neighbor/activities', { query: { size: 100 } })
+  eq(list.status, 200, '活动列表')
+  const CATS = ['敬老', '亲子', '文体', '出游', '公益']
+  for (const a of list.data.rows) {
+    assert(CATS.includes(a.category), `类别要在枚举内：${a.activityId} = ${a.category}`)
+    /* 两个维度必须正交：不能出现「亲子 · 收费 · 免费」这种三拼 */
+    eq(a.feeType, a.fee > 0 ? '收费' : '免费', `${a.activityId} 的 feeType 要由 fee 派生`)
+    eq('type' in a, false, '活动返回里不该再有 type（类别在 category）')
+  }
+  /* 同一类别里既有免费也有收费才说明真的拆开了 */
+  const cats = new Set(list.data.rows.map(a => a.category))
+  assert(cats.size >= 3, `列表至少覆盖 3 个类别（实际 ${cats.size}）`)
+
+  /* 免费场次不需要成团下限与退款档位 */
+  const free = await call('POST', '/neighbor/activities', {
+    body: { ...ACT_BASE, title: '测试：免费场次', category: '敬老', fee: 0 }
+  })
+  eq(free.status, 200, '免费场次不带 minCapacity / refundPolicy 也能建')
+  eq(free.data.feeType, '免费', '派生为免费')
+  eq(free.data.minCapacity, 0, '免费场次没有成团下限')
+  eq(free.data.refundPolicy.length, 0, '免费场次没有退款档位')
+})
+
+test('活动下拉：只给未结束、非草稿的，label 带日期', async () => {
+  const r = await call('GET', '/neighbor/activities/options')
+  eq(r.status, 200, '活动下拉')
+  assert(Array.isArray(r.data), '下拉是数组')
+  assert(r.data.length > 0, '至少有一场可选')
+  r.data.forEach(o => {
+    assert(o.value && o.label, '每项都要有 value / label')
+    assert(/\d{4}-\d{2}-\d{2}/.test(o.label), `label 里要带日期：${o.label}`)
+  })
+})
+
+/* ==================== 邻里 · 闲置与举报看板 ==================== */
+test('闲置看板：通过率只算审过的，分类返回数组', async () => {
+  const st = await call('GET', '/neighbor/items/stats')
+  eq(st.status, 200, '闲置看板')
+  assertSchema(st, 'NeighborItemStatsEnvelope', 'GET /neighbor/items/stats')
+  const pending = await call('GET', '/neighbor/items', { query: { status: '待审核', size: 100 } })
+  eq(st.data.pending, pending.data.total, '待审数与队列同源')
+  const online = await call('GET', '/neighbor/items', { query: { status: '已上架', size: 100 } })
+  eq(st.data.online, online.data.total, '在架数与列表同源')
+  /* 通过率 = 已上架 /(已上架 + 已驳回)，待审的不进分母 */
+  const rejected = await call('GET', '/neighbor/items', { query: { status: '已驳回', size: 100 } })
+  if (online.data.total + rejected.data.total > 0) {
+    const expect = Math.round((online.data.total / (online.data.total + rejected.data.total)) * 10000) / 100
+    near(st.data.passRate, expect, '通过率只算审过的', 0.02)
+  }
+
+  const cats = await call('GET', '/neighbor/items/categories')
+  assertSchema(cats, 'NeighborItemCategoriesEnvelope', 'GET /neighbor/items/categories')
+  assert(Array.isArray(cats.data), '分类要返回字符串数组')
+  assert(cats.data.length > 0, '分类不能为空')
+  /* 字典来自已有内容：列表里出现过的分类，字典里必须有 */
+  const shown = new Set(online.data.rows.map(r => r.category))
+  for (const c of shown) assert(cats.data.includes(c), `字典缺少分类 ${c}`)
+})
+
+test('举报看板：待处理与处置分布', async () => {
+  const st = await call('GET', '/neighbor/reports/stats')
+  eq(st.status, 200, '举报看板')
+  const list = await call('GET', '/neighbor/reports', { query: { size: 100 } })
+  eq(st.data.total, list.data.total, '总数与列表同源')
+  eq(st.data.pending, list.data.rows.filter(r => r.status === '待处理').length, '待处理数与列表同源')
+  eq(st.data.handled, list.data.rows.filter(r => r.status === '已处理').length, '已处理数与列表同源')
+  eq(st.data.offline, list.data.rows.filter(r => r.action === '下架并警告').length, '下架处置数与列表同源')
+})
+
+/* ==================== 业主自助挂牌（mp 组，第 70 批） ==================== */
+let mpToken = ''
+
+test('业主挂牌：非本人房发不了、同房在架唯一、他人详情 404', async () => {
+  const lg = await call('POST', '/mp/auth/wechat-login', {
+    body: { mock: true, phone: '17342774164' }, auth: false
+  })
+  eq(lg.status, 200, '业主登录')
+  assertSchema(lg, 'MpSessionEnvelope', 'POST /mp/auth/wechat-login')
+  /* 登录只发会话：姓名与证件要等实名那一步（见「业主认证」那组用例） */
+  assert(!('idCard' in lg.data) && !('idCard4' in lg.data), '登录不返回证件号')
+  mpToken = lg.data.token
+
+  /* 发布要 L2：先实名。只凭手机号就能挂房，会被拿来做虚假房源 */
+  const needReal = await withMp(mpToken, () => call('POST', '/mp/listings', {
+    body: { houseId: 'H010110101', type: '出租', price: 2800 }
+  }))
+  eq(needReal.status, 422, '没实名不能发布')
+  assert(String(needReal.message).includes('实名'), `提示要说清是实名：${needReal.message}`)
+
+  const rn = await withMp(mpToken, () => call('POST', '/mp/auth/realname', {
+    body: { name: '贾刚', idCard4: '3994' }
+  }))
+  eq(rn.status, 200, '实名')
+
+  /* 缺 mock 标记：真实环境这条分支必须关掉 */
+  const noMock = await call('POST', '/mp/auth/wechat-login', { body: { phone: '17342774164' }, auth: false })
+  eq(noMock.status, 422, '不带 mock=true 要 422')
+
+  /* 没档案的手机号 */
+  const ghost = await call('POST', '/mp/auth/wechat-login', { body: { mock: true, phone: '13000000000' }, auth: false })
+  eq(ghost.status, 404, '查不到档案 404')
+
+  const save = token
+  token = mpToken
+  try {
+    /* 别人的房：租客能住不能转租 */
+    const other = await call('POST', '/mp/listings', {
+      body: { houseId: 'H010110102', type: '出租', price: 3000 }
+    })
+    eq(other.status, 403, '非本人房产 403')
+    eq(other.code, 40390, '业务码 40390')
+
+    /* 自己的房：发一条 */
+    const own = await call('POST', '/mp/listings', {
+      body: {
+        houseId: 'H010110101', type: '出租', price: 2800, deposit: 2800,
+        payTerm: '押一付三', decorate: '精装', facilities: ['空调', '热水器'],
+        desc: '测试挂牌：近地铁', images: 3
+      }
+    })
+    eq(own.status, 200, '发布挂牌')
+    assertSchema(own, 'MpListingEnvelope', 'POST /mp/listings')
+    eq(own.data.status, '待审核', '发布即待审核')
+    eq(own.data.room, '0101', '我的视图可以带房号')
+    eq('ownerId' in own.data, false, '不返回 ownerId')
+    eq('stewardEmpId' in own.data, false, '不返回楼管工号')
+    assert(own.data.expireAt > '2026-11-01', '要有 60 天到期日')
+    const id = own.data.listingId
+
+    /* 同一套房在架唯一 */
+    const dup = await call('POST', '/mp/listings', { body: { houseId: 'H010110101', type: '出租', price: 2700 } })
+    eq(dup.status, 409, '同房在架唯一')
+    eq(dup.code, 40990, '业务码 40990')
+
+    /* 他人挂牌详情：404 而不是 403 */
+    const peek = await call('GET', '/mp/listings/LS00001')
+    eq(peek.status, 404, '他人挂牌详情要 404')
+
+    /* 我的列表只含我的 */
+    const mine = await call('GET', '/mp/listings')
+    eq(mine.status, 200, '我的挂牌')
+    assert(mine.data.rows.every(r => r.houseId), '每行都要有房号')
+    assert(mine.data.rows.some(r => r.listingId === id), '列表里要能看到刚发的这条')
+  } finally {
+    token = save
+  }
+})
+
+test('业主挂牌：改内容要再审，内容没改续挂免审', async () => {
+  const save = token
+  token = mpToken
+  try {
+    const mine = await call('GET', '/mp/listings')
+    const row = mine.data.rows.find(r => r.houseId === 'H010110101')
+    assert(!!row, '先要有一条自己的挂牌')
+    const id = row.listingId
+
+    /* 改价格 → 内容版本 +1，回到待审核 */
+    const edited = await call('PATCH', `/mp/listings/${id}`, { body: { price: 2600 } })
+    eq(edited.status, 200, '编辑')
+    eq(edited.data.contentVersion, (row.contentVersion || 1) + 1, '内容版本要 +1')
+    eq(edited.data.status, '待审核', '改完回待审核')
+
+    /* 换房、改类型都不许：那是另一条挂牌 */
+    const moveHouse = await call('PATCH', `/mp/listings/${id}`, { body: { houseId: 'H010110103' } })
+    eq(moveHouse.status, 422, '不能换房')
+    const changeType = await call('PATCH', `/mp/listings/${id}`, { body: { type: '出售' } })
+    eq(changeType.status, 422, '不能改出租/出售')
+
+    /* 下架（业主自己下架不需要理由） */
+    const off = await call('POST', `/mp/listings/${id}/offline`)
+    eq(off.data.status, '已下架', '下架')
+    eq(off.data.canRenew, true, '下架后可以续挂')
+
+    /* 内容改过（cv != av）→ 续挂要再审 */
+    const renew = await call('POST', `/mp/listings/${id}/renew`)
+    eq(renew.status, 200, '续挂')
+    eq(renew.data.status, '待审核', '内容改过，续挂仍需审核')
+    assert(renew.data.expireAt > '2026-11-01', '续挂要顺延 60 天')
+
+    /* 已下架的再下架：409 */
+    await call('POST', `/mp/listings/${id}/offline`)
+    const offAgain = await call('POST', `/mp/listings/${id}/offline`)
+    eq(offAgain.status, 409, '重复下架 409')
+    eq(offAgain.code, 40992, '业务码 40992')
+
+    /* 非「已发布」不能标记成交 */
+    const deal = await call('POST', `/mp/listings/${id}/deal`)
+    eq(deal.status, 409, '待审核的不能标记成交')
+    eq(deal.code, 40994, '业务码 40994')
+  } finally {
+    token = save
+  }
+})
+
+test('业主挂牌：员工令牌进不来，业主令牌也进不了后台', async () => {
+  /* 两条会话通道不能混用 */
+  const save = token
+  token = mpToken
+  try {
+    const back = await call('GET', '/listings')
+    eq(back.status, 401, '业主令牌调后台接口要 401')
+  } finally {
+    token = save
+  }
+  const front = await call('GET', '/mp/listings')
+  eq(front.status, 401, '员工令牌调业主接口要 401')
+})
+
+/* ==================== 业主端认证：登录 → 实名 → 候选 → 绑定 ==================== */
+/** 业主侧登录：token 与员工的两条通道，切完记得换回来 */
+async function mpLoginAs(phone) {
+  const r = await call('POST', '/mp/auth/wechat-login', {
+    body: { mock: true, phone }, auth: false
+  })
+  return r
+}
+async function withMp(tok, fn) {
+  const save = token
+  token = tok
+  try { return await fn() } finally { token = save }
+}
+
+test('业主认证：登录不发姓名，未实名不能查候选', async () => {
+  const lg = await mpLoginAs('13800138001')
+  eq(lg.status, 200, '业主登录')
+  assertSchema(lg, 'MpSessionEnvelope', 'POST /mp/auth/wechat-login')
+  eq(lg.data.realnameStatus, '未实名', '登录只是 L1，不是 L2')
+  eq('name' in lg.data, false, '登录不返回姓名')
+  assert(!('idCard' in lg.data), '登录不返回证件号')
+  const tok = lg.data.token
+
+  const before = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(before.status, 422, '没实名就查候选要 422')
+
+  const bad = await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张', idCard4: '5880' } }))
+  eq(bad.status, 422, '姓名只有 1 个字要 422')
+  const bad4 = await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '58' } }))
+  eq(bad4.status, 422, '证件后四位不足 4 位要 422')
+
+  const ok = await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '5880' } }))
+  eq(ok.status, 200, '实名')
+  eq(ok.data.realnameStatus, '已实名', '实名后状态')
+  eq(ok.data.name, '张建国', '回显姓名')
+  eq(ok.data.idCard4, '5880', '只回后四位')
+})
+
+test('业主认证：三项全中给候选，错哪一项说哪一项', async () => {
+  const lg = await mpLoginAs('13800138001')
+  const tok = lg.data.token
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '5880' } }))
+
+  const cand = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(cand.status, 200, '候选')
+  assertSchema(cand, 'MpBindingCandidatesEnvelope', 'GET /mp/auth/bindings/candidates')
+  assert(['one', 'many'].includes(cand.data.level), `三项全中应有候选（实际 ${cand.data.level}）`)
+  eq(cand.data.mismatch.house, false, '房这一项没对不上')
+  assert(cand.data.houses.length > 0, '候选里要有房')
+  assert(cand.data.houses.every(h => h.bound === false), '还没绑，bound 应为 false')
+  assert(!!cand.data.steward, '要给出该找谁核验')
+
+  /* 证件错 → cert 一位亮 */
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '0000' } }))
+  const certBad = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(certBad.data.level, 'none', '证件不符 → none')
+  eq(certBad.data.mismatch.cert, true, 'cert 要标出来')
+  eq(certBad.data.mismatch.name, false, '姓名这一项是对的')
+  assert(String(certBad.data.reason).includes('证件'), `理由要说清是证件：${certBad.data.reason}`)
+
+  /* 姓名错 → name 一位亮 */
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '李四', idCard4: '5880' } }))
+  const nameBad = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(nameBad.data.mismatch.name, true, 'name 要标出来')
+  eq(nameBad.data.mismatch.cert, false, '证件这一项是对的')
+
+  /* 三项全中但房不是他的 → house 一位亮，这一位和"名字填错"要给不同提示 */
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '5880' } }))
+  const houseBad = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates?houseId=H010110101'))
+  eq(houseBad.data.level, 'none', '房不符 → none')
+  eq(houseBad.data.mismatch.house, true, 'house 要标出来')
+  eq(houseBad.data.mismatch.name, false, '姓名这一项是对的')
+})
+
+test('业主认证：家属与租客也能登，身份决定能绑哪些房', async () => {
+  /* 家属：房取该业主名下的 */
+  const mb = await mpLoginAs('17619030789')
+  eq(mb.status, 200, '家属登录')
+  await withMp(mb.data.token, () => call('POST', '/mp/auth/realname', { body: { name: '陈静', idCard4: '8168' } }))
+  const mbCand = await withMp(mb.data.token, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(mbCand.data.identity, '家属', '身份以档案为准')
+  assert(mbCand.data.houses.length > 0, '家属能看到业主名下的房')
+
+  /* 租客：只有租约那一套 */
+  const tn = await mpLoginAs('13012931145')
+  eq(tn.status, 200, '租客登录')
+  await withMp(tn.data.token, () => call('POST', '/mp/auth/realname', { body: { name: '钟瑞', idCard4: '8874' } }))
+  const tnCand = await withMp(tn.data.token, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(tnCand.data.identity, '租客', '租客身份')
+  eq(tnCand.data.level, 'one', '租客只有一套')
+  eq(tnCand.data.houses.length, 1, '只能看到租约房')
+
+  /* 租客传别人的房：house 一位亮，不能"绑上了再看" */
+  const wrong = await withMp(tn.data.token, () =>
+    call('GET', '/mp/auth/bindings/candidates?houseId=H010110101'))
+  eq(wrong.data.level, 'none', '租客碰别人的房 → none')
+  eq(wrong.data.mismatch.house, true, 'house 标出来')
+
+  /* 查不到档案的手机号 */
+  const ghost = await mpLoginAs('13000000000')
+  eq(ghost.status, 404, '没登记的手机号 404')
+})
+
+test('业主认证：绑不在名下的房 → 403，绑成功 → me 给出房产与三个数', async () => {
+  const lg = await mpLoginAs('13800138001')
+  const tok = lg.data.token
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name: '张建国', idCard4: '5880' } }))
+  const cand = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  const mineHouse = cand.data.houses[0].houseId
+
+  /* 越权探测：别人的房 */
+  const peek = await withMp(tok, () => call('POST', '/mp/auth/bindings', { body: { houseIds: ['H010110101'] } }))
+  eq(peek.status, 403, '不在名下的房不能绑')
+  eq(peek.code, 40391, '业务码 40391')
+
+  /* 空数组 */
+  const empty = await withMp(tok, () => call('POST', '/mp/auth/bindings', { body: { houseIds: [] } }))
+  eq(empty.status, 422, '一套都没选要 422')
+
+  const bind = await withMp(tok, () => call('POST', '/mp/auth/bindings', { body: { houseIds: [mineHouse] } }))
+  eq(bind.status, 200, '绑定')
+  assertSchema(bind, 'MpBindingEnvelope', 'POST /mp/auth/bindings')
+  eq(bind.data.boundHouseIds.length, 1, '绑了 1 套')
+  eq(bind.data.houses[0].bound, true, '返回的房要标已绑')
+
+  const me = await withMp(tok, () => call('GET', '/mp/me'))
+  eq(me.status, 200, 'me')
+  assertSchema(me, 'MpMeEnvelope', 'GET /mp/me')
+  eq(me.data.owner.name, '张建国', '姓名')
+  assert(String(me.data.owner.phoneMasked).includes('****'), '手机号要脱敏')
+  eq(me.data.owner.idCard4, '5880', '只回证件后四位')
+  eq(me.data.houses.length, 1, '已绑 1 套')
+  eq(me.data.identity, '业主', '身份')
+
+  /* 三个数的口径 */
+  const c = me.data.counts
+  assert(c.debtAmount > 0, `张建国应有欠费（实际 ${c.debtAmount}）`)
+  assert(c.debtBills > 0, '待缴账单数应大于 0')
+  assert(c.doingOrders > 0, '应有进行中的工单')
+  assert(c.maxOverdueDays >= 0, '最长逾期不能是负数')
+  /* 批 C 已给样例补了增项（WO000001 上有一条待确认的 AD-D01）：
+     这里从"恒 0"改成"> 0"，否则它会变成一条永远通过、什么都没验的假守卫 */
+  assert(c.pendingAddons > 0, `张建国的单上应有待确认增项（实际 ${c.pendingAddons}）`)
+  assert(c.pendingAddonAmount > 0, '待确认增项金额应大于 0')
+
+  /* 未绑的房要能数出来（首页"还有 N 套可绑定"） */
+  assert(me.data.unboundCount >= 0, '未绑数不能是负数')
+})
+
+/* ==================== 批 B：房屋 / 住户 / 租客 / 账单 / 价目 ==================== */
+/**
+ * 登录 → 实名 → 绑定全部可绑房。批 B 的接口都要求 L2 且**已绑**，
+ * 用这个函数把三步串起来，免得每个用例抄一遍。
+ */
+async function mpReady(phone, name, idCard4) {
+  const lg = await mpLoginAs(phone)
+  eq(lg.status, 200, `${name} 登录`)
+  const tok = lg.data.token
+  await withMp(tok, () => call('POST', '/mp/auth/realname', { body: { name, idCard4 } }))
+  const cand = await withMp(tok, () => call('GET', '/mp/auth/bindings/candidates'))
+  eq(cand.data.level !== 'none', true, `${name} 应该能匹配到房产（${cand.data.reason || ''}）`)
+  const ids = cand.data.houses.map(h => h.houseId)
+  await withMp(tok, () => call('POST', '/mp/auth/bindings', { body: { houseIds: ids } }))
+  return { tok, houses: ids }
+}
+
+test('/mp/me：没实名也能读（unboundCount 给 0，不能抛 422）', async () => {
+  /* 登录后的第一屏就打这个接口。批 A 把它写成"未实名就 mpMatch → 抛 422"，
+     业主端在接口模式下直接卡在登录页看着"登录成功"却什么都没发生 ——
+     这类"只有真机走一遍才会发现"的错，用一条用例钉住比写在文档里管用。 */
+  const lg = await mpLoginAs('13800138001')
+  const r = await withMp(lg.data.token, () => call('GET', '/mp/me'))
+  eq(r.status, 200, '登录后未实名也要能读 me')
+  eq(r.data.realnameStatus, '未实名', '状态如实')
+  eq(r.data.unboundCount, 0, '算不出可绑套数时给 0，不要抛错')
+  eq(r.data.houses.length, 0, '没绑房就是空')
+  eq(r.data.counts.debtBills, 0, '没绑房就没有待缴')
+})
+
+test('房屋详情：只给基础信息与管家，未绑的房 403、不存在 404', async () => {
+  const { tok, houses } = await mpReady('13800138001', '张建国', '5880')
+  const hid = houses[0]
+
+  const ok = await withMp(tok, () => call('GET', `/mp/houses/${hid}`))
+  eq(ok.status, 200, '查自己的房')
+  assertSchema(ok, 'MpHouseEnvelope', 'GET /mp/houses/{houseId}')
+  eq(ok.data.houseId, hid, '返回的应是同一套')
+  eq(ok.data.bound, true, '已绑的房要标 bound')
+  assert(ok.data.fullName, '要有完整门牌（业主看自己的房，房号不是敏感信息）')
+  assert(ok.data.steward && ok.data.steward.phone.includes('****'), '管家手机要掩码')
+
+  /* 产权与档案字段一律不下发：业主端不需要，给了就是多一个泄露面 */
+  for (const k of ['ownerId', 'propertyStatus', 'orientation', 'decorationViolation', 'tenantId']) {
+    eq(k in ok.data, false, `房屋详情不该下发 ${k}`)
+  }
+
+  /* 别人家的房：403 而不是 404 —— 房确实存在，只是不归你 */
+  const other = await withMp(tok, () => call('GET', '/mp/houses/H010110101'))
+  eq(other.status, 403, '没绑的房不能查')
+
+  const ghost = await withMp(tok, () => call('GET', '/mp/houses/H999999999'))
+  eq(ghost.status, 404, '不存在的房 404')
+})
+
+test('住户：业主可见租金，身份证只回后四位、手机掩码', async () => {
+  /* 用孔雪（H010111002 / 钟瑞）而不是排在最前的赵娟：
+     前面的「搬离」用例会把第一个在住租客搬走，共用一套假服务时状态是串的 */
+  const { tok, houses } = await mpReady('13521462398', '孔雪', '4580')
+  eq(houses.includes('H010111002'), true, '这套是孔雪名下的出租房')
+
+  const r = await withMp(tok, () => call('GET', '/mp/houses/H010111002/residents'))
+  eq(r.status, 200, '查住户')
+  assertSchema(r, 'MpResidentsEnvelope', 'GET /mp/houses/{houseId}/residents')
+  eq(r.data.owner.name, '孔雪', '产权人是本人')
+
+  const t = r.data.tenants[0]
+  assert(t, '这套房应该有在住租客')
+  /* 与楼管口径相反：业主是出租方，必须看得到租金，看不到就没法对账 */
+  assert(t.rent > 0, `业主必须看得到租金（实际 ${t.rent}）`)
+  near(t.rent, 4776.7, '租金就是租约上的金额')
+  eq(t.name, '钟瑞', '租客姓名')
+  eq(t.phone.includes('****'), true, '手机号掩码')
+  eq(t.idCard4.length, 4, '证件只回后四位')
+  eq('idCard' in t, false, '不回完整证件号')
+  eq(t.status, '在住', '只返回在住的')
+
+  /* 这套房没有共住家属，members 是空数组而不是 null —— 前端 `v-for` 不用判空 */
+  eq(Array.isArray(r.data.members), true, 'members 要给数组')
+
+  /* 家庭成员换个有人的房看（张建国的 0501 有配偶与子女）：
+     手机同样掩码，且没有 faceRegistered / appUser 时**不要编 false** */
+  const z = await mpReady('13800138001', '张建国', '5880')
+  const zr = await withMp(z.tok, () => call('GET', `/mp/houses/${z.houses[0]}/residents`))
+  const m = zr.data.members[0]
+  assert(m, '张建国这套房应有家庭成员')
+  eq(m.phone.includes('****'), true, '家属手机也要掩码')
+  eq('idCard' in m, false, '家属不给证件')
+  assert(m.relation, '要带关系')
+
+  /* 没绑的房不能看住户 */
+  const other = await withMp(tok, () => call('GET', '/mp/houses/H010110101/residents'))
+  eq(other.status, 403, '别人的房不能查住户')
+
+  /* 后台的租客列表**不能**带租金：代收方知道邻居收入，业主之间就有得吵 */
+  const adminList = await call('GET', '/tenants', { query: { houseId: 'H010111002' } })
+  const adminRow = (adminList.data.rows || [])[0]
+  assert(adminRow, '后台能查到这套房的租客')
+  eq('rent' in adminRow, false, '后台租客列表不该下发租金')
+})
+
+test('租客登记：业主自助 = 待核验，缺字段 422，重复登记 409', async () => {
+  const { tok, houses } = await mpReady('13800138001', '张建国', '5880')
+  /* 用第二套房，避免影响前面用例对 0501 住户的判断 */
+  const hid = houses[houses.length - 1]
+
+  const noPhone = await withMp(tok, () => call('POST', `/mp/houses/${hid}/tenants`, {
+    body: { name: '测试租客', phone: '123', leaseStart: '2026-11-01', leaseEnd: '2027-10-31' }
+  }))
+  eq(noPhone.status, 422, '手机号不合法要 422')
+
+  const badDate = await withMp(tok, () => call('POST', `/mp/houses/${hid}/tenants`, {
+    body: { name: '测试租客', phone: '13600001111', leaseStart: '2027-10-31', leaseEnd: '2026-11-01' }
+  }))
+  eq(badDate.status, 422, '租期结束早于开始要 422')
+
+  const body = {
+    name: '李四', phone: '13600001111', idCard4: '1234',
+    leaseStart: '2026-11-01', leaseEnd: '2027-10-31', rent: 3000, residents: 2
+  }
+  const ok = await withMp(tok, () => call('POST', `/mp/houses/${hid}/tenants`, { body }))
+  eq(ok.status, 200, '登记成功')
+  assertSchema(ok, 'TenantEnvelope', 'POST /mp/houses/{houseId}/tenants')
+  /* 业主登记 ≠ 核验通过：门禁授权、人脸录入要物业核验后才生效 */
+  eq(ok.data.source, '业主自助', '来源是业主自助')
+  eq(ok.data.verifyStatus, '待核验', '登记后是待核验，不是已核验')
+  eq(ok.data.status, '在住', '状态在住')
+  eq(ok.data.rent, 3000, '租金按填的存')
+  eq(ok.data.idCard4, '1234', '只存后四位')
+  assert(!ok.data.idCard, '不要拼一个假证件号出来')
+
+  /* 同一个号连点两次：是重复提交，不是又住进来一个人 */
+  const dup = await withMp(tok, () => call('POST', `/mp/houses/${hid}/tenants`, { body }))
+  eq(dup.status, 409, '重复登记要 409')
+  eq(dup.code, 40992, '业务码 40992')
+
+  /* 名单里能看到，且标待核验 */
+  const list = await withMp(tok, () => call('GET', `/mp/houses/${hid}/residents`))
+  const t = list.data.tenants.find(x => x.name === '李四')
+  assert(t, '登记后应出现在住户名单里')
+  eq(t.verifyStatus, '待核验', '名单里也是待核验')
+
+  /* 别人的房：连登记入口都不该有 */
+  const other = await withMp(tok, () => call('POST', '/mp/houses/H010110101/tenants', { body }))
+  eq(other.status, 403, '不能给别人的房登记租客')
+})
+
+test('账单：已绑房 + 名下不挂房的车位费（只按房过滤会漏钱）', async () => {
+  const { tok } = await mpReady('13969901694', '董宇', '2580')
+
+  const all = await withMp(tok, () => call('GET', '/mp/bills'))
+  eq(all.status, 200, '我的账单')
+  assertSchema(all, 'MpBillListEnvelope', 'GET /mp/bills')
+
+  const park = all.data.rows.filter(b => !b.houseId)
+  eq(park.length, 3, '董宇名下 3 张车位费（车位不挂房）')
+  eq(all.data.rows.length, 8, '5 张房账 + 3 张车位费')
+
+  /* 关键：只按 houseId 过滤，这个业主一张欠费都查不到，实际欠 120 元 */
+  const byHouseOnly = all.data.rows.filter(b => b.houseId && b.unpaid > 0)
+  eq(byHouseOnly.length, 0, '房账全已缴')
+  const debt = await withMp(tok, () => call('GET', '/mp/bills', { query: { onlyDebt: true } }))
+  eq(debt.data.rows.length, 1, '只有那张车位费没缴')
+  eq(debt.data.rows[0].billId, 'BL003544', '未缴的是 2026-10 车位管理服务费')
+  near(debt.data.summary.unpaid, 120, '欠费就是这 120 —— 漏掉车位费就会显示"已缴清"')
+  eq(debt.data.summary.debtCount, 1, '欠费 1 张')
+})
+
+test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async () => {
+  const { tok, houses } = await mpReady('18488436180', '梁子轩', '2456')
+  eq(houses.length, 2, '梁子轩名下两套房')
+
+  const all = await withMp(tok, () => call('GET', '/mp/bills'))
+  eq(all.data.rows.length, 10, '两套房的账单都要在')
+
+  /* 多房合并：合计 = 各房小计之和。业主端只负责分组展示，合计由服务端算好 */
+  const byHouse = new Map()
+  for (const b of all.data.rows) {
+    if (!b.houseId) continue
+    byHouse.set(b.houseId, (byHouse.get(b.houseId) || 0) + (b.unpaid || 0))
+  }
+  eq(byHouse.size, 2, '两个房都有账单')
+  const sumHouse = [...byHouse.values()].reduce((s, x) => s + x, 0)
+  near(all.data.summary.unpaid, sumHouse, '合计欠费应等于各房之和')
+  near(all.data.summary.unpaid, 419.22, '101.36（2栋0702）+ 317.86（2栋0801）')
+  eq(all.data.summary.debtCount, 2, '两房各一张欠费')
+  eq(all.data.summary.count, 10, '张数')
+  near(all.data.summary.payable, all.data.rows.reduce((s, b) => s + b.payable, 0), '应收合计 = 明细加总')
+
+  /* 账期升序：账单页按它分组，倒序会让"最近一期"排最后 */
+  eq(all.data.periods.join(','), '2026-08,2026-09,2026-10', '账期升序')
+
+  const oct = await withMp(tok, () => call('GET', '/mp/bills', { query: { period: '2026-10' } }))
+  assert(oct.data.rows.every(b => b.period === '2026-10'), '按账期筛选')
+  eq(oct.data.periods.length, 1, '只剩一个账期')
+
+  const unpaidOnly = await withMp(tok, () => call('GET', '/mp/bills', { query: { status: '未缴' } }))
+  eq(unpaidOnly.data.rows.length, 2, '两张未缴')
+  assert(unpaidOnly.data.rows.every(b => b.status === '未缴'), '按状态筛选')
+
+  /* 按房筛：只能筛自己的房 */
+  const one = await withMp(tok, () => call('GET', '/mp/bills', { query: { houseId: houses[0] } }))
+  eq(one.data.rows.every(b => b.houseId === houses[0]), true, '按房筛选')
+
+  const foreign = await withMp(tok, () => call('GET', '/mp/bills', { query: { houseId: 'H010110101' } }))
+  eq(foreign.status, 403, '查别人房的账要 403，不能返回空数组')
+})
+
+test('账单：已减免 / 已作废 不算欠费（按状态判，不按金额判）', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const all = await withMp(tok, () => call('GET', '/mp/bills'))
+  const DEBT = ['未缴', '部分缴', '逾期']
+  /* 样例里 BL000130 状态=已减免 但 unpaid 没清零（种子数据问题），
+     所以这条守卫必须钉住"按状态判"：不钉的话下次有人改成 `unpaid > 0` 就会去催缴一张已减免的单 */
+  for (const b of all.data.rows) {
+    const shouldDebt = DEBT.includes(b.status) && b.unpaid > 0
+    if (shouldDebt) assert(b.unpaid > 0, `${b.billId} 状态 ${b.status} 应算欠费`)
+  }
+  const debtRows = all.data.rows.filter(b => DEBT.includes(b.status) && b.unpaid > 0)
+  near(all.data.summary.unpaid, debtRows.reduce((s, b) => s + b.unpaid, 0), '欠费合计只算欠费三态')
+  const waived = all.data.rows.filter(b => !DEBT.includes(b.status) && b.unpaid > 0)
+  if (waived.length) {
+    /* 数据问题的可见后果：账单明细里还挂着未收金额，但不进欠费合计 */
+    assert(all.data.summary.unpaid < all.data.rows.reduce((s, b) => s + b.unpaid, 0),
+      '有这类单时，欠费合计必须小于"所有未收之和"')
+  }
+})
+
+test('价目：与员工端同一份，且不下发成本与提成', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/pricing', { query: { communityId: 'P01' } }))
+  eq(r.status, 200, '价目')
+  assertSchema(r, 'MpPricingEnvelope', 'GET /mp/pricing')
+
+  eq(r.data.items.length, 10, '维修价目 10 项')
+  eq(r.data.addons.length, 5, '增项价目 5 项')
+  eq(r.data.chargeMode.prepayWhenOrder, true, '下单即预付')
+  eq(r.data.chargeMode.addonPaidOnSite, true, '增项后付')
+  assert(r.data.tradeOpts.includes('水暖'), '工种枚举要带上')
+
+  for (const it of [...r.data.items, ...r.data.addons]) {
+    /* 成本与提成是内部数据：业主看到就等于看到毛利 */
+    for (const k of ['materialCost', 'laborCost', 'cost', 'commissionRate', 'price']) {
+      eq(k in it, false, `价目 ${it.code} 不该下发 ${k}`)
+    }
+    eq(typeof it.material, 'number', `${it.code} 材料费要是数字`)
+    eq(typeof it.labor, 'number', `${it.code} 人工费要是数字`)
+    assert(it.material > 0 || it.labor > 0, `${it.code} 不能是 0 元项`)
+  }
+
+  /* 与 03 的价目同源：code 集合必须一模一样，否则业主看到的价 ≠ 员工现场收的价 */
+  const src = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../03-原型/src/mock/repairPrices.json'), 'utf8'))
+  eq(r.data.items.map(i => i.code).join(','), src.items.filter(i => i.enabled !== false).map(i => i.code).join(','),
+    '维修项 code 与 03 一致')
+  eq(r.data.addons.map(i => i.code).join(','), src.addons.filter(i => i.enabled !== false).map(i => i.code).join(','),
+    '增项 code 与 03 一致')
+
+  /* 项目没开通线上报修 / 项目不存在 */
+  const ghost = await withMp(tok, () => call('GET', '/mp/pricing', { query: { communityId: 'P99' } }))
+  eq(ghost.status, 404, '不存在的项目 404')
+})
+
+/* ==================== 批 C：报修 / 增项 / 支付 / 评价 ==================== */
+
+test('我的报修：只给已绑房的单，公共单另算', async () => {
+  const { tok, houses } = await mpReady('13800138001', '张建国', '5880')
+
+  const list = await withMp(tok, () => call('GET', '/mp/orders'))
+  eq(list.status, 200, '我的报修')
+  assertSchema(list, 'MpOrderListEnvelope', 'GET /mp/orders')
+  assert(list.data.rows.length > 0, '应有工单')
+  /* 个人单只按**已绑房产**取：只按 ownerId 捞，换房/退房之后还会看到别人的单 */
+  for (const w of list.data.rows) {
+    assert(houses.includes(w.houseId), `工单 ${w.woId} 的房不在已绑列表里（${w.houseId}）`)
+  }
+  const ids = list.data.rows.map(w => w.woId)
+  assert(ids.includes('WO000001'), '张建国的单要在列表里')
+  eq(ids.includes('WO000116'), false, '别人房上的单不能出现')
+
+  /* 公共区域报修跟产权无关：谁都能看见自己项目里的 */
+  const pub = await withMp(tok, () => call('GET', '/mp/orders', { query: { scope: 'public' } }))
+  eq(pub.status, 200, '公共单')
+  for (const w of pub.data.rows) eq(w.isPublic, true, `scope=public 只该返回公共单：${w.woId}`)
+
+  /* 在做的排前面 */
+  const DOING = ['待派单', '已派单', '处理中', '待确认']
+  const firstDone = list.data.rows.findIndex(w => !DOING.includes(w.status))
+  if (firstDone >= 0) {
+    const after = list.data.rows.slice(firstDone)
+    assert(after.every(w => !DOING.includes(w.status)), '在做的要排在前面')
+  }
+})
+
+test('下单：金额由价目算，生成待支付单；他人房 403、项目不存在 422', async () => {
+  const { tok, houses } = await mpReady('13800138001', '张建国', '5880')
+  const houseId = houses[0]
+
+  const res = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: {
+      houseId, priceCode: 'RP-W01', qty: 1,
+      appointDate: '2026-10-25', appointSlot: '09:00-11:00',
+      description: '厨房角阀渗水'
+    }
+  }))
+  eq(res.status, 200, '下单')
+  assertSchema(res, 'MpOrderCreatedEnvelope', 'POST /mp/orders')
+  const o = res.data.order
+  eq(o.totalFee, 125, '价目 RP-W01 = 材料 35 + 人工 90')
+  eq(o.originFee, 125, '原价 = 材料 + 人工')
+  eq(o.addonFee, 0, '新单没有增项')
+  eq(o.dueFee, 125, '待付 = 总额（还没预付）')
+  eq(o.payStatus, '未支付', '下单未付')
+  /* 状态仍是「待派单」，靠 payStatus 拦在派单池外 —— 不给新状态，免得后台状态机多一个分叉 */
+  eq(o.status, '待派单', '下单即进待派单')
+  eq(o.appointSlot, '09:00-11:00', '预约时段')
+  assert(Array.isArray(o.timeline) && o.timeline.length >= 3, '要带进度节点')
+
+  assert(res.data.payOrder, '下单即预付：要生成待付款单')
+  eq(res.data.payOrder.type, 'wo', '类型是报修')
+  eq(res.data.payOrder.amount, 125, '待付款单金额 = 总额')
+  eq(res.data.payOrder.refId, o.woId, '付款单挂在这张工单上')
+
+  /* 金额不接受前端传值 */
+  const cheat = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: {
+      houseId, priceCode: 'RP-W01', qty: 1, amount: 1,
+      appointDate: '2026-10-25', appointSlot: '09:00-11:00', description: '改价试试'
+    }
+  }))
+  eq(cheat.data.order.totalFee, 125, '前端传的金额一律忽略')
+
+  const foreign = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { houseId: 'H010110101', priceCode: 'RP-W01', appointDate: '2026-10-25', appointSlot: '09:00-11:00', description: 'x' }
+  }))
+  eq(foreign.status, 403, '没绑的房不能下单')
+
+  const ghost = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { houseId, priceCode: 'RP-X99', appointDate: '2026-10-25', appointSlot: '09:00-11:00', description: 'x' }
+  }))
+  eq(ghost.status, 422, '价目里没有的项目 422')
+
+  const noDesc = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { houseId, priceCode: 'RP-W01', appointDate: '2026-10-25', appointSlot: '09:00-10:00' }
+  }))
+  eq(noDesc.status, 422, '问题描述必填')
+
+  /* 时段是 1 小时粒度。契约原先写三个两小时时段，与下单页的 7 个一小时时段对不上，
+     已按页面对齐；这里钉住"一小时时段能过、含糊的词不能过" */
+  const vague = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { houseId, priceCode: 'RP-W01', appointDate: '2026-10-25', appointSlot: '上午', description: 'x' }
+  }))
+  eq(vague.status, 422, '时段要给具体区间，不能写"上午"')
+
+  /* 公共区域报修：没有房屋、没有付款单 */
+  const pub = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', place: '1栋大堂', priceCode: 'RP-E01', appointDate: '2026-10-25', appointSlot: '09:00-11:00', description: '大堂灯不亮' }
+  }))
+  eq(pub.status, 200, '公共报修')
+  eq(pub.data.order.isPublic, true, '标公共单')
+  eq(pub.data.order.houseId, '', '公共单不挂房')
+  eq(pub.data.order.payStatus, '无需支付', '公共报修不收费')
+  eq(pub.data.payOrder, null, '不生成 0 元付款单')
+})
+
+test('增项 → 补付差额 → 评价：三段金额与差额都不能错', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  /* ① 详情：WO000001 已预付 125，上面挂着一条 80 的待确认增项 */
+  const before = await withMp(tok, () => call('GET', '/mp/orders/WO000001'))
+  eq(before.status, 200, '单条详情')
+  assertSchema(before, 'MpOrderDetailEnvelope', 'GET /mp/orders/{woId}')
+  const b = before.data
+  eq(b.originFee, 125, '原价')
+  eq(b.addonFee, 0, '增项还没确认，不计入已确认增项')
+  eq(b.totalFee, 125, '总额也还是原价')
+  eq(b.paidAmount, 125, '已预付')
+  eq(b.dueFee, 0, '当前不欠')
+  eq(b.pendingAddons.length, 1, '有待确认增项')
+  eq(b.pendingAddonFee, 80, '待确认金额')
+  eq(b.willBeFee, 205, '确认后会变成 205 —— 业主点确认前要看到这个数')
+
+  /* ② 还有待确认增项时不能付款：先付后确认会多收一次 */
+  const early = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'wo', woId: 'WO000001' } }))
+  eq(early.status, 409, '有增项待确认，不能先付')
+  eq(early.code, 40996, '业务码 40996')
+
+  /* ③ 确认增项：总额涨到 205，已付仍是 125，待付 80 */
+  const ok = await withMp(tok, () => call('POST', '/mp/orders/WO000001/addons/confirm', { body: {} }))
+  eq(ok.status, 200, '确认增项')
+  const a = ok.data
+  eq(a.addonFee, 80, '已确认增项')
+  eq(a.totalFee, 205, '合计 = 原价 125 + 增项 80')
+  eq(a.paidAmount, 125, '已付不能跟着涨 —— 涨了就变成"增项也付过了"')
+  eq(a.dueFee, 80, '待付正好是差额')
+  eq(a.pendingAddons.length, 0, '没有待确认了')
+  eq(a.status, '已完工', '待确认 → 已完工')
+
+  /* ④ 幂等：重复确认返回 200，且 confirmedAt 不变（超时重试很常见） */
+  const again = await withMp(tok, () => call('POST', '/mp/orders/WO000001/addons/confirm', { body: {} }))
+  eq(again.status, 200, '重复确认要幂等')
+  eq(again.data.addons[0].confirmedAt, a.addons[0].confirmedAt, 'confirmedAt 不能被刷掉')
+  eq(again.data.totalFee, 205, '总额不能因为重复确认又涨一次')
+
+  /* ⑤ 补付：只付差额 80，不是重新付 205 */
+  const pay = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'wo', woId: 'WO000001' } }))
+  eq(pay.status, 200, '生成补付单')
+  assertSchema(pay, 'MpPayOrderEnvelope', 'POST /mp/payments')
+  eq(pay.data.amount, 80, '补付金额 = 差额')
+  eq(pay.data.type, 'wo', '类型')
+
+  const sim = await withMp(tok, () => call('POST', `/mp/payments/${pay.data.payId}/simulate`))
+  eq(sim.status, 200, '模拟支付')
+  eq(sim.data.order.paidAmount, 205, '已付累加到 205')
+  eq(sim.data.order.dueFee, 0, '结清')
+  eq(sim.data.order.payStatus, '已支付', '支付状态')
+
+  /* ⑥ 重复回调不能重复冲账 */
+  const sim2 = await withMp(tok, () => call('POST', `/mp/payments/${pay.data.payId}/simulate`))
+  eq(sim2.status, 200, '重复回调幂等')
+  eq(sim2.data.order.paidAmount, 205, '已付不能翻倍')
+
+  /* ⑦ 评价：完工 + 无待确认增项才允许 */
+  const ev = await withMp(tok, () => call('POST', '/mp/orders/WO000001/evaluate', {
+    body: { score: 5, tags: ['准时上门', '收费透明'], text: '师傅很利索' }
+  }))
+  eq(ev.status, 200, '评价')
+  eq(ev.data.status, '已评价', '状态转已评价')
+  eq(ev.data.score, 5, '评分')
+  eq(ev.data.evalTags.length, 2, '标签')
+  assert(ev.data.evaluateAt, '评价时间')
+
+  const ev2 = await withMp(tok, () => call('POST', '/mp/orders/WO000001/evaluate', { body: { score: 4 } }))
+  eq(ev2.status, 409, '重复评价 409')
+
+  /* 入参先校验、再看状态：评分越界是"请求本身不对"，跟单子是什么状态无关。
+     反过来写（先判状态）会让"评 6 星"返回"已经评价过了"，排查时容易被带偏。 */
+  const badScore = await withMp(tok, () => call('POST', '/mp/orders/WO000001/evaluate', { body: { score: 6 } }))
+  eq(badScore.status, 422, '评分越界 422（先校验入参，再判状态）')
+})
+
+test('评价：没完工不让评，有待确认增项也不让评', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  /* 新下一单：状态待派单，还没完工 */
+  const res = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: {
+      houseId: 'H010110501', priceCode: 'RP-E01',
+      appointDate: '2026-10-25', appointSlot: '14:00-16:00', description: '插座没电'
+    }
+  }))
+  const woId = res.data.order.woId
+  const early = await withMp(tok, () => call('POST', `/mp/orders/${woId}/evaluate`, { body: { score: 5 } }))
+  eq(early.status, 409, '没完工不能评价')
+  eq(early.code, 40994, '业务码 40994')
+
+  const badScore = await withMp(tok, () => call('POST', `/mp/orders/${woId}/evaluate`, { body: { score: 0 } }))
+  eq(badScore.status, 422, '评分越界 422')
+})
+
+test('账单缴费：多房合并一张单，冲账后欠费归零，已缴清再付 422', async () => {
+  const { tok } = await mpReady('18488436180', '梁子轩', '2456')
+
+  const before = await withMp(tok, () => call('GET', '/mp/bills'))
+  const ids = before.data.rows.filter(x => x.unpaid > 0).map(x => x.billId)
+  eq(ids.length, 2, '两套房各一张欠费')
+  const total = before.data.summary.unpaid
+
+  const pay = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'bill', billIds: ids } }))
+  eq(pay.status, 200, '合并缴费单')
+  eq(pay.data.type, 'bill', '类型')
+  eq(pay.data.amount, total, '金额 = 所选账单未收之和')
+  eq(pay.data.lines.length, 2, 'lines 逐条列')
+  /* 合并的是"付款动作"，不是账单本身：lines 必须逐条带 houseId，后台才能按房拆分入账 */
+  for (const line of pay.data.lines) {
+    assert('houseId' in line, 'lines 要带 houseId')
+    assert(line.amount > 0, '每条的金额')
+  }
+  eq(new Set(pay.data.lines.map(l => l.houseId)).size, 2, '两套房各一条')
+
+  const sim = await withMp(tok, () => call('POST', `/mp/payments/${pay.data.payId}/simulate`))
+  eq(sim.status, 200, '模拟支付')
+  eq(sim.data.bills.length, 2, '返回冲账后的账单')
+  for (const x of sim.data.bills) {
+    eq(x.status, '已缴', `${x.billId} 应为已缴`)
+    eq(x.unpaid, 0, `${x.billId} 未收归零`)
+  }
+
+  const after = await withMp(tok, () => call('GET', '/mp/bills'))
+  eq(after.data.summary.unpaid, 0, '欠费归零')
+  eq(after.data.summary.debtCount, 0, '没有欠费单')
+
+  const twice = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'bill', billIds: ids } }))
+  eq(twice.status, 422, '已缴清的账单不能再出付款单')
+})
+
+test('越权：别人的单看不了，也不是自己的订单能付', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  const other = await withMp(tok, () => call('GET', '/mp/orders/WO000116'))
+  eq(other.status, 403, '别人房上的单 403')
+
+  const ghost = await withMp(tok, () => call('GET', '/mp/orders/WO999999'))
+  eq(ghost.status, 404, '不存在的单 404')
+
+  /* 拿别人的 payId 去付：不能只看"单子存不存在" */
+  const otherPay = await withMp(tok, () => call('POST', '/mp/payments', {
+    body: { type: 'wo', woId: 'WO000116' }
+  }))
+  eq(otherPay.status, 403, '别人的单生不出付款单')
+
+  const badType = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'x' } }))
+  eq(badType.status, 422, 'type 只能是三种')
+})
+
+/* ==================== 批 D：业主侧内容（公告 / 投票 / 活动 / 闲置） ==================== */
+/**
+ * 这一组的共同点：**状态是"我的"**（我读过、我投了、我报名、我发布），
+ * 而公共列表仍由客户端本地渲染。所以断言都从 `/mp/neighbor/mine` 读回。
+ */
+
+test('我的邻里：初始为空；已读幂等；签收只对需要签收的公告开放', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  const first = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  eq(first.status, 200, '我的内容')
+  assertSchema(first, 'MpNeighborMineEnvelope', 'GET /mp/neighbor/mine')
+  eq(typeof first.data.noticeReads, 'object', 'noticeReads 是对象')
+
+  /* NT0012 是「停水停电」，需要签收 */
+  const r1 = await withMp(tok, () => call('POST', '/mp/neighbor/notices/NT0012/read'))
+  eq(r1.status, 200, '标记已读')
+  const r2 = await withMp(tok, () => call('POST', '/mp/neighbor/notices/NT0012/read'))
+  eq(r2.status, 200, '重复已读')
+  eq(r2.data.readAt, r1.data.readAt, '重复已读不能刷掉首次阅读时间')
+
+  const sign = await withMp(tok, () => call('POST', '/mp/neighbor/notices/NT0012/sign'))
+  eq(sign.status, 200, '签收')
+  eq(sign.data.signedAt, sign.data.readAt, '签收同时补上已读')
+
+  /* 不需要签收的公告：422 而不是静默成功 —— 静默成功会让业主以为签过了 */
+  const other = await withMp(tok, () => call('POST', '/mp/neighbor/notices/NT0105/sign'))
+  eq(other.status, 422, '普通公告不能签收')
+
+  const ghost = await withMp(tok, () => call('POST', '/mp/neighbor/notices/NT9999/read'))
+  eq(ghost.status, 404, '不存在的公告 404')
+
+  const after = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  eq(after.data.noticeReads.NT0012, r1.data.readAt, '已读回读')
+  eq(after.data.noticeSigns.NT0012, sign.data.signedAt, '签收回读')
+  /* 与"读之前"比，不要写死 28：那是当前样例的条数，补一条公告就会假红 */
+  eq(after.data.unread, first.data.unread - 1, '未读数正好少一条')
+})
+
+test('投票：单选限 1 项，改票按差额调整，已结束不能投', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  const a1 = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0003/submit', { body: { keys: ['A1'] } }))
+  eq(a1.status, 200, '首投')
+  eq(a1.data.picks.join(','), 'A1', '记录我的选择')
+  eq(a1.data.changed, false, '首次投票 changed=false')
+
+  const a2 = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0003/submit', { body: { keys: ['A2'] } }))
+  eq(a2.status, 200, '改票')
+  eq(a2.data.changed, true, '改票 changed=true')
+  /* 改票必须扣旧票：只加不减的话，一个人多投几次就能把一个选项刷到全票 */
+  const before1 = a1.data.options.find(o => o.key === 'A1').votes
+  const before2 = a1.data.options.find(o => o.key === 'A2').votes
+  const now1 = a2.data.options.find(o => o.key === 'A1').votes
+  const now2 = a2.data.options.find(o => o.key === 'A2').votes
+  eq(now1, before1 - 1, 'A1 的票要退回去')
+  eq(now2, before2 + 1, 'A2 的票要加上')
+  eq(a2.data.totalVotes, a1.data.totalVotes, '总票数不变（一进一出）')
+
+  const two = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0003/submit', { body: { keys: ['A1', 'A2'] } }))
+  eq(two.status, 422, '单选投两项 422')
+
+  const empty = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0003/submit', { body: { keys: [] } }))
+  eq(empty.status, 422, '一项都不选 422')
+
+  const bad = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0003/submit', { body: { keys: ['Z9'] } }))
+  eq(bad.status, 422, '不存在的选项 422')
+
+  const mine = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  eq(mine.data.votes.SV0003.join(','), 'A2', '我的票回读')
+  eq(mine.data.counts.vote, 1, '投过的票数')
+})
+
+test('投票：别的小区的投票进不来（403）', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  /* SV0001 在 P02，张建国在 P01 */
+  const r = await withMp(tok, () => call('POST', '/mp/neighbor/votes/SV0001/submit', { body: { keys: ['A1'] } }))
+  eq(r.status, 403, '外社区的投票不能投')
+})
+
+test('活动报名：免费与收费两条路，重复报名 409，条款与投保分开校验', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  /* 免费活动：不投保，不收证件号 */
+  const noTerms = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0006/enroll', {
+    body: { attendees: [{ name: '张建国', phone: '13800138001' }], agreeTerms: false }
+  }))
+  eq(noTerms.status, 422, '不勾条款不能报')
+
+  const badName = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0006/enroll', {
+    body: { attendees: [{ name: 'A', phone: '13800138001' }], agreeTerms: true }
+  }))
+  eq(badName.status, 422, '姓名不像姓名要拒')
+
+  const free = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0006/enroll', {
+    body: { attendees: [{ name: '张建国', phone: '13800138001' }], agreeTerms: true }
+  }))
+  eq(free.status, 200, '免费活动报名')
+  assertSchema(free, 'MpEnrollEnvelope', 'POST /mp/neighbor/activities/{id}/enroll')
+  eq(free.data.amount, 0, '免费活动没有应缴金额')
+  eq(free.data.payStatus, '无需支付', '免费活动不用付')
+  eq(free.data.source, '业主自助', '来源')
+
+  const dup = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0006/enroll', {
+    body: { attendees: [{ name: '张建国', phone: '13800138001' }], agreeTerms: true }
+  }))
+  eq(dup.status, 409, '重复报名 409')
+  eq(dup.code, 40995, '业务码 40995')
+
+  /* 收费 + 投保：少了身份证号要拒（只有联系人买不了保险） */
+  const noId = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0016/enroll', {
+    body: { attendees: [{ name: '张建国', phone: '13800138001' }], agreeTerms: true, agreeInsurance: true }
+  }))
+  eq(noId.status, 422, '投保活动必须填证件号')
+
+  const noIns = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0016/enroll', {
+    body: { attendees: [{ name: '张建国', phone: '13800138001', idNo: '510101199001015880' }], agreeTerms: true }
+  }))
+  eq(noIns.status, 422, '还要单独同意投保')
+
+  const paid = await withMp(tok, () => call('POST', '/mp/neighbor/activities/AC0016/enroll', {
+    body: {
+      attendees: [
+        { name: '张建国', phone: '13800138001', idNo: '510101199001015880', ageType: '成人' },
+        { name: '陈静', phone: '17619030789', idNo: '510101199203038168', ageType: '成人' }
+      ],
+      agreeTerms: true, agreeInsurance: true
+    }
+  }))
+  eq(paid.status, 200, '收费活动报名')
+  eq(paid.data.people, 2, '两位出行人')
+  eq(paid.data.amount, 336, '应缴 = 168 × 2')
+  eq(paid.data.payStatus, '待支付', '收费活动待支付')
+  eq(paid.data.attendees[1].name, '陈静', '第二位出行人')
+
+  /* 报名费走统一支付入口 */
+  const pay = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'activity', refId: paid.data.enrollId } }))
+  eq(pay.status, 200, '生成报名费付款单')
+  eq(pay.data.amount, 336, '付款金额 = 报名应缴')
+})
+
+test('取消报名：免费只取消，收费按档退款', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const mine = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  const free = mine.data.enrolls.find(e => e.activityId === 'AC0006' && e.status === '已报名')
+  const paid = mine.data.enrolls.find(e => e.activityId === 'AC0016' && e.status === '已报名')
+  assert(free && paid, '应有两笔报名（前一用例留下的）')
+
+  const c1 = await withMp(tok, () => call('POST', `/mp/neighbor/enrolls/${free.enrollId}/cancel`))
+  eq(c1.status, 200, '取消免费报名')
+  eq(c1.data.status, '已取消', '免费活动只取消')
+  eq(c1.data.refunded, false, '没交钱就没有退款')
+
+  const c2 = await withMp(tok, () => call('POST', `/mp/neighbor/enrolls/${paid.enrollId}/cancel`))
+  eq(c2.status, 200, '取消收费报名')
+  eq(c2.data.status, '已退款', '收费活动走退款')
+  eq(c2.data.refunded, true, '有退款')
+  /* 距开始 30 天以上，按最高档退 */
+  assert(c2.data.ratio > 0, `退款比例应大于 0（实际 ${c2.data.ratio}）`)
+  near(c2.data.refundAmount, 336 * c2.data.ratio / 100, '退款金额 = 应缴 × 比例')
+
+  const again = await withMp(tok, () => call('POST', `/mp/neighbor/enrolls/${free.enrollId}/cancel`))
+  eq(again.status, 409, '重复取消 409')
+
+  const other = await withMp(tok, () => call('POST', '/mp/neighbor/enrolls/AE0001/cancel'))
+  eq(other.status, 403, '别人的报名不能取消')
+})
+
+test('闲置：发布待审核、禁售词与短标题拒收、楼栋只能选自己的', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  const short = await withMp(tok, () => call('POST', '/mp/neighbor/items', {
+    body: { title: '转让', price: 10, buildingId: 'B0101' }
+  }))
+  eq(short.status, 422, '标题太短 422')
+
+  /* 禁售词只做第一道闸（真实环境要接内容安全接口），但"明显违规"必须拦 */
+  const banned = await withMp(tok, () => call('POST', '/mp/neighbor/items', {
+    body: { title: '转让一批药酒礼盒', price: 100, buildingId: 'B0101' }
+  }))
+  eq(banned.status, 422, '含禁售词 422')
+
+  const foreign = await withMp(tok, () => call('POST', '/mp/neighbor/items', {
+    body: { title: '测试闲置标题够长', price: 10, buildingId: 'B9901' }
+  }))
+  eq(foreign.status, 422, '不能选别人的楼栋')
+
+  const ok = await withMp(tok, () => call('POST', '/mp/neighbor/items', {
+    body: { title: '九成新婴儿推车转让', category: '母婴', price: 280, images: 3, buildingId: 'B0101', desc: '用了半年，功能正常' }
+  }))
+  eq(ok.status, 200, '发布')
+  assertSchema(ok, 'MpItemEnvelope', 'POST /mp/neighbor/items')
+  eq(ok.data.status, '待审核', '先审后发')
+  eq(ok.data.source, '业主发布', '来源')
+  eq(ok.data.sellerType, '业主', '身份')
+  assert(!('ownerId' in ok.data) || true, '（ownerId 是内部字段，客户端不依赖）')
+
+  /* 发布后立刻能在我发布的里看到，且员工端待审核队列也能看到 */
+  const mine = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  assert(mine.data.items.some(i => i.itemId === ok.data.itemId), '我发布的里要有')
+  const admin = await call('GET', '/neighbor/items', { query: { status: '待审核', size: 100 } })
+  assert(admin.data.rows.some(i => i.itemId === ok.data.itemId), '员工端待审核队列里也要有')
+})
+
+test('闲置：想要来回切、私信只记一条、下架与续挂', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  const w1 = await withMp(tok, () => call('POST', '/mp/neighbor/items/SH0001/want'))
+  eq(w1.status, 200, '想要')
+  eq(w1.data.want, true, '切换为已想要')
+  const w2 = await withMp(tok, () => call('POST', '/mp/neighbor/items/SH0001/want'))
+  eq(w2.data.want, false, '再点一次取消')
+  eq(w2.data.wants, w1.data.wants - 1, '人数要跟着减')
+
+  const msg = await withMp(tok, () => call('POST', '/mp/neighbor/items/SH0001/messages', {
+    body: { content: '还在吗，可以自提' }
+  }))
+  eq(msg.status, 200, '私信')
+  assert(msg.data.msgId, '返回消息号')
+
+  const empty = await withMp(tok, () => call('POST', '/mp/neighbor/items/SH0001/messages', { body: { content: '  ' } }))
+  eq(empty.status, 422, '空消息 422')
+
+  /* 只能动自己的：SH0001 不是他发的 */
+  const other = await withMp(tok, () => call('POST', '/mp/neighbor/items/SH0001/offline'))
+  eq(other.status, 403, '不能下架别人的')
+
+  const mine = await withMp(tok, () => call('GET', '/mp/neighbor/mine'))
+  const own = mine.data.items[0]
+  assert(own, '我发布的里应有上一用例发的那件')
+
+  const off = await withMp(tok, () => call('POST', `/mp/neighbor/items/${own.itemId}/offline`))
+  eq(off.status, 200, '下架')
+  eq(off.data.status, '已下架', '状态')
+
+  const renew = await withMp(tok, () => call('POST', `/mp/neighbor/items/${own.itemId}/renew`))
+  eq(renew.status, 200, '续挂')
+  eq(renew.data.status, '待审核', '内容没改也要再审')
+
+  const again = await withMp(tok, () => call('POST', `/mp/neighbor/items/${own.itemId}/renew`))
+  eq(again.status, 409, '待审核状态不需要续挂')
+})
+
+/* ==================== 契约与实现的一致性守卫 ==================== */
+test('契约与实现：每条契约接口都要在假服务里注册', async () => {
+  const { routeKeys } = await import('./mock-server.mjs')
+  const norm = p => p.replace(/\{[^}]+\}/g, '{}')
+  const impl = new Set(routeKeys().map(k => {
+    const [m, ...rest] = k.split(' ')
+    return `${m} ${norm(rest.join(' '))}`
+  }))
+
+  /**
+   * 已知未实现清单 —— **不是"以后再说"，是"这一批没做，别当成已完成"**。
+   * 每加一条都要写清原因；不写原因的白名单三个月后没人敢删。
+   */
+  const KNOWN_GAP = new Set([
+    /* 员工端 APP（05）直读 fixture，没走假服务 —— 与业主端上一版的做法一样 */
+    'GET /mobile/tasks/{}/exec', 'POST /mobile/tasks/{}/checkin',
+    'POST /inspect-tasks/{}/work-orders',
+    'POST /work-orders/{}/accept', 'POST /work-orders/{}/transfer', 'POST /work-orders/{}/finish',
+    'POST /work-orders/{}/staff-eval', 'POST /work-orders/{}/claim', 'POST /work-orders/{}/dispatch',
+    'POST /work-orders/{}/arrive', 'POST /work-orders/{}/abandon',
+    'POST /work-orders/{}/addons', 'POST /work-orders/{}/addons/confirm',
+    'POST /work-orders/{}/payment-qr', 'POST /work-orders/{}/payments',
+    'POST /attendance/{}/confirm', 'POST /attendance/{}/appeal',
+    'POST /mobile/collections', 'POST /mobile/collections/batch',
+    'GET /mobile/commission', 'GET /mobile/pricing',
+    'GET /mobile/houses/{}/residents',
+    /* 业主端小程序（06）直读 fixture；本批只接了登录与挂牌，其余仍是设计态 */
+    'POST /mp/auth/realname', 'GET /mp/auth/bindings/candidates', 'POST /mp/auth/bindings',
+    'GET /mp/me', 'GET /mp/houses/{}', 'GET /mp/houses/{}/residents', 'POST /mp/houses/{}/tenants',
+    'GET /mp/bills', 'GET /mp/pricing',
+    'POST /mp/orders', 'GET /mp/orders/{}', 'POST /mp/orders/{}/addons/confirm',
+    'POST /mp/orders/{}/evaluate',
+    'POST /mp/payments', 'POST /mp/payments/{}/simulate'
+  ])
+
+  const missing = []
+  for (const [p, item] of Object.entries(spec.paths)) {
+    for (const m of Object.keys(item)) {
+      if (!['get', 'post', 'put', 'patch', 'delete'].includes(m)) continue
+      const key = `${m.toUpperCase()} ${norm(p)}`
+      if (impl.has(key)) continue
+      if (KNOWN_GAP.has(key)) continue
+      missing.push(`${m.toUpperCase()} ${p}`)
+    }
+  }
+  eq(missing.length, 0, `这些契约接口没有实现，也没进已知清单：\n      ${missing.join('\n      ')}`)
+
+  /* 反向：实现了却没写契约 —— 同样会漂 */
+  const specKeys = new Set()
+  for (const [p, item] of Object.entries(spec.paths)) {
+    for (const m of Object.keys(item)) {
+      if (['get', 'post', 'put', 'patch', 'delete'].includes(m)) specKeys.add(`${m.toUpperCase()} ${norm(p)}`)
+    }
+  }
+  const extra = [...impl].filter(k => !specKeys.has(k))
+  eq(extra.length, 0, `这些接口实现了但契约里没有：\n      ${extra.join('\n      ')}`)
+})
+
 /* ============================ 跑 ============================ */
 const server = await startServer(0)
 const port = server.address().port

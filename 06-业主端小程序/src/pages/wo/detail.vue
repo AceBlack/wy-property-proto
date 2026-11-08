@@ -365,9 +365,9 @@ function toggleTag(t) {
   else tags.value.push(t)
 }
 
-function submitEval() {
+async function submitEval() {
   try {
-    evaluateOrder(wo.value.woId, { score: score.value, tags: tags.value, text: text.value })
+    await evaluateOrder(wo.value.woId, { score: score.value, tags: tags.value, text: text.value })
     evalSheet.value = false
     tick.value++
     toastOk('评价已提交')

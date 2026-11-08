@@ -7,6 +7,14 @@ import uni from '@dcloudio/vite-plugin-uni'
 const SRC = fileURLToPath(new URL('./src', import.meta.url))
 /** 只读引用的 PC 原型源码根（mock / utils/api / repairPrices） */
 const PC = fileURLToPath(new URL('../03-原型/src', import.meta.url))
+/**
+ * 只读引用的**契约 fixture** 根。
+ *
+ * 邻里与租售的后台数据由 `04-契约/scripts/gen-listings-fixture.mjs` 从同一套种子导出，
+ * 业主端直接读它，而不是在 06 里再造一份 —— 否则「业主看到的闲置 / 挂牌」和后台审核的
+ * 不是一批数据，评审时两边截图一对比就露。
+ */
+const CONTRACT = fileURLToPath(new URL('../04-契约/fixtures', import.meta.url))
 
 /**
  * 与员工端同一套做法（05-员工端APP/vite.config.js 的注释里有完整来龙去脉，这里只留结论）：
@@ -36,7 +44,9 @@ export default defineConfig({
   resolve: {
     alias: [
       // 只读别名：@pc/mock、@pc/utils/api、@pc/mock/repairPrices.json
-      { find: '@pc', replacement: PC }
+      { find: '@pc', replacement: PC },
+      // 契约 fixture：@contract/listings.json、@contract/neighbor-items.json …
+      { find: '@contract', replacement: CONTRACT }
     ]
   },
   optimizeDeps: {
@@ -51,8 +61,13 @@ export default defineConfig({
     // 避开员工端的 5199
     port: 5170,
     fs: {
-      // 允许读取工程外的 03-原型/src（Vite 默认只放行项目根）
-      allow: [fileURLToPath(new URL('.', import.meta.url)), PC, fileURLToPath(new URL('..', import.meta.url))]
+      // 允许读取工程外的 03-原型/src 与 04-契约/fixtures（Vite 默认只放行项目根）
+      allow: [
+        fileURLToPath(new URL('.', import.meta.url)),
+        PC,
+        CONTRACT,
+        fileURLToPath(new URL('..', import.meta.url))
+      ]
     }
   }
 })

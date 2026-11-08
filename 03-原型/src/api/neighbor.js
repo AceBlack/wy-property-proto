@@ -85,30 +85,38 @@ export const confirmFlow = (activityId, reason = '') =>
     : post(`/neighbor/activities/${activityId}/flow`, { reason }))
 
 /* ---------- 报名名单 ---------- */
-export const queryEnrolls = (opt = {}) =>
-  (IS_MOCK ? mock.queryEnrolls(opt) : get('/neighbor/enrollments', opt))
+/**
+ * 报名名单挂在活动下面，不是全局资源 —— 契约里只有
+ * `/neighbor/activities/{activityId}/enrolls`，没有 `/neighbor/enrollments` 这个列表。
+ * （这里原来写的是后者，因为原型一直跑 mock 分支，直到补契约才暴露。）
+ */
+export const queryEnrolls = (opt = {}) => {
+  if (IS_MOCK) return mock.queryEnrolls(opt)
+  if (!opt.activityId) throw new Error('查报名名单必须指定 activityId')
+  return get(`/neighbor/activities/${opt.activityId}/enrolls`, opt)
+}
 
 export const enrollStats = activityId =>
-  (IS_MOCK ? mock.enrollStats(activityId) : get(`/neighbor/activities/${activityId}/enrollments/stats`))
+  (IS_MOCK ? mock.enrollStats(activityId) : get(`/neighbor/activities/${activityId}/enrolls/stats`))
 
 export const enrollActivity = (activityId, body = {}) =>
   (IS_MOCK
     ? mock.enrollActivity(activityId, body)
-    : post(`/neighbor/activities/${activityId}/enrollments`, body))
+    : post(`/neighbor/activities/${activityId}/enroll`, body))
 
 export const cancelEnroll = (enrollId, reason = '') =>
   (IS_MOCK
     ? mock.cancelEnroll(enrollId, reason)
-    : post(`/neighbor/enrollments/${enrollId}/cancel`, { reason }))
+    : post(`/neighbor/enrolls/${enrollId}/cancel`, { reason }))
 
 /** 按分档退款：返回 { enroll, ratio, full, amount } */
 export const refundEnroll = (enrollId, reason = '') =>
   (IS_MOCK
     ? mock.refundEnroll(enrollId, reason)
-    : post(`/neighbor/enrollments/${enrollId}/refund`, { reason }))
+    : post(`/neighbor/enrolls/${enrollId}/refund`, { reason }))
 
 export const checkinEnroll = enrollId =>
-  (IS_MOCK ? mock.checkinEnroll(enrollId) : post(`/neighbor/enrollments/${enrollId}/checkin`))
+  (IS_MOCK ? mock.checkinEnroll(enrollId) : post(`/neighbor/enrolls/${enrollId}/checkin`))
 
 export const refundRatioOf = (activityId, atDay) =>
   (IS_MOCK ? mock.refundRatioOf(activityId, atDay) : get(`/neighbor/activities/${activityId}/refund-ratio`))
@@ -144,7 +152,7 @@ export const handleReport = (reportId, body = {}) =>
 
 /* ---------- 字典与权限 ---------- */
 export {
-  VOTE_TYPES, VOTE_STATUS, ACTIVITY_TYPES, ACTIVITY_PHASES,
+  VOTE_TYPES, VOTE_STATUS, ACTIVITY_CATEGORIES, ACTIVITY_PHASES,
   ITEM_STATUSES, REPORT_REASONS, REPORT_ACTIONS,
   canViewNeighborWorkbench, canViewVotes, canEditVotes,
   canViewActivities, canEditActivities, canEnrollActivities, canViewItems, canAuditItems,

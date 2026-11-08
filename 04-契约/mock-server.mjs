@@ -89,8 +89,19 @@ const USERS = {
     password: '123456', empId: stewardEmpId, name: (EMP.get(stewardEmpId) || {}).name || '楼栋管家',
     roleId: 'R-STW', roleName: '楼栋管家',
     /* 与种子里 R-STW 一致：楼管能改范围内的业主资料（含打标签），
-       但**没有** e.ownerTags.edit —— 字典由平台维护，楼管只能选不能改 */
-    permissions: ['a.owners.view', 'a.owners.edit', 'a.sensitive.view', 'b.bills.view', 'f.workorders.view', 'c.contacts.view'],
+       但**没有** e.ownerTags.edit —— 字典由平台维护，楼管只能选不能改。
+       邻里四项同样照抄 R-STW：只能看（workbench/items/reports/activities.view），
+       审核（items.audit）、处理举报（reports.handle）、代报名（activities.enroll）都不给 ——
+       这三件在 PC 端也是客服主管的活。所以这个账号同时是"越权 403"的测试样本。 */
+    permissions: [
+      'a.owners.view', 'a.owners.edit', 'a.sensitive.view', 'b.bills.view',
+      'f.workorders.view', 'c.contacts.view',
+      'n.workbench.view', 'n.items.view', 'n.reports.view', 'n.activities.view',
+      /* 2026-11-06（69 批）：租售这里是例外 —— 楼管就是审核人与回拨人。
+         邻里那三项（items.audit / reports.handle / activities.enroll）仍然不给，
+         所以这个账号照样是"越权 403"的样本，只是换了一个域。 */
+      'a.listings.view', 'a.listings.audit', 'a.listings.viewing'
+    ],
     dataScope: '责任范围', communities: stewardCommunities, houseIds: stewardsHouses
   },
   /* 员工自助视角：数据范围「仅本人」。用来验证工资表**不会把全表下发再让前端藏**——
@@ -376,8 +387,12 @@ function creditCodeCheck(code) {
 function tenantRow(t, { mask = true } = {}) {
   const h = HOUSE.get(t.houseId)
   const o = OWNER.get(t.ownerId)
+  /* 租金**只对业主开放**（`/mp/houses/{id}/residents`）。后台这条线上是"代收方视角"：
+     楼管知道邻居的收入，业主之间就有得吵 —— 契约 `Tenant` 里也没有 rent。
+     fixtures 里补 rent 是为了业主端能显示租约金额，别让它从这里漏出去。 */
+  const { rent: _rent, ...rest } = t
   return {
-    ...t,
+    ...rest,
     phone: mask ? maskPhone(t.phone) : t.phone,
     idCard: mask ? maskId(t.idCard) : t.idCard,
     phoneRedacted: mask,
@@ -421,7 +436,8 @@ const routes = []
 const on = (method, pattern, handler) => {
   const keys = []
   const re = new RegExp('^' + pattern.replace(/\{(\w+)\}/g, (_, k) => { keys.push(k); return '([^/]+)' }) + '$')
-  routes.push({ method, re, keys, handler })
+  /* pattern 原文也留着：契约测试要拿它跟 openapi.yaml 对账（见 contract-test 的守卫用例） */
+  routes.push({ method, pattern, re, keys, handler })
 }
 
 /* ---------------- auth ---------------- */
@@ -7277,6 +7293,2649 @@ on('POST', '/invoice-template/check', (ctx) => {
   return invTplCheck({ ...invTpl, ...(ctx.body || {}) })
 })
 
+/* ------------------------------ 邻居（N 域） ------------------------------ */
+/*
+ * 数据来自 fixtures/neighbor-*.json，由 `scripts/gen-neighbor-fixtures.mjs` 从
+ * `03-原型/src/utils/api.js` 的运行时种子生成 —— 手写会导致"假服务 3 条待审、
+ * 前端 mock 也 3 条"这种巧合很快失效，一改原型就对不上。
+ *
+ * 这一域有一个容易写错的地方：**活动阶段是推出来的，不是存的**。
+ * `status` 只有 草稿/报名中/已结束 三种，`报名中 / 待成行 / 已成行` 要看
+ * 报名截止日 + 已报人数 + 成团下限一起算。存成字段的话，代报名之后
+ * 「待成行」不会自动变「已成行」，列表就一直挂着"还差 0 人成团"。
+ */
+const neighborItems = readJson('fixtures/neighbor-items.json')
+const neighborReports = readJson('fixtures/neighbor-reports.json')
+const neighborActivities = readJson('fixtures/neighbor-activities.json')
+const neighborEnrolls = readJson('fixtures/neighbor-enrolls.json')
+/* 投票：fixture 里的 `totalVotes` 已经是选项之和（见 gen-neighbor-fixtures.mjs），
+   这里不再兼容源数据的同名字段 —— 兼容的结果是两种口径长期共存 */
+const neighborVotes = readJson('fixtures/neighbor-votes.json')
+
+/** 演示基准日：与 fixtures 的「当下」同一个口径 */
+const NV_TODAY = DATA_DATE
+
+const NV_PERM = {
+  workbench: 'n.workbench.view',
+  itemView: 'n.items.view',
+  itemAudit: 'n.items.audit',
+  reportView: 'n.reports.view',
+  reportHandle: 'n.reports.handle',
+  actView: 'n.activities.view',
+  actEnroll: 'n.activities.enroll',
+  actEdit: 'n.activities.edit',
+  voteView: 'n.votes.view',
+  voteEdit: 'n.votes.edit'
+}
+const NV_REPORT_ACTIONS = ['忽略', '仅警告', '下架并警告', '封禁 7 天']
+
+const nvItemOf = id => neighborItems.find(i => i.itemId === id) || null
+const nvReportOf = id => neighborReports.find(r => r.reportId === id) || null
+const nvActOf = id => neighborActivities.find(a => a.activityId === id) || null
+const nvEnrollOf = id => neighborEnrolls.find(e => e.enrollId === id) || null
+
+const NV_ENROLL_DEAD = ['已取消', '已退款']
+/** 已报名人数含同行人，不含已取消 / 已退款 —— 名额判定与列表数字必须同源 */
+const nvEnrolledOf = activityId => neighborEnrolls
+  .filter(e => e.activityId === activityId && !NV_ENROLL_DEAD.includes(e.status))
+  .reduce((s, e) => s + (Number(e.people) || 1), 0)
+
+const NV_PHASE_TYPE = {
+  草稿: 'info', 报名中: 'success', 待成行: 'warning',
+  已成行: 'success', 已流团: 'danger', 已结束: ''
+}
+
+function nvPhaseOf(a) {
+  if (a.status === '草稿') return '草稿'
+  /* 先判流团：confirmFlow 会把 status 一并置成已结束，先判已结束就永远看不到流团痕迹 */
+  if (a.flowedAt) return '已流团'
+  if (a.status === '已结束') return '已结束'
+  const deadline = a.enrollDeadline || String(a.startAt).slice(0, 10)
+  if (deadline >= NV_TODAY) return '报名中'
+  const min = Number(a.minCapacity) || 0
+  if (!min) return '已成行'
+  return nvEnrolledOf(a.activityId) >= min ? '已成行' : '待成行'
+}
+
+function nvItemRow(i) {
+  const { sellerPhone, wechat, ...rest } = i
+  return { ...rest, _ver: verOf('neighborItem', i.itemId) }
+}
+
+function nvReportRow(r) {
+  const i = nvItemOf(r.itemId)
+  return {
+    reportId: r.reportId,
+    itemId: r.itemId,
+    itemTitle: i ? i.title : '（内容已删除）',
+    itemStatus: i ? i.status : '',
+    /* 举报记录本身没有项目字段：移动端要按项目过滤，必须由服务端从被举报内容带出来 */
+    communityId: i ? i.communityId : '',
+    communityName: i ? communityNameOf(i.communityId) : '',
+    sellerName: i ? i.sellerName : '',
+    sellerHouse: i ? i.sellerHouse : '',
+    reason: r.reason,
+    detail: r.detail,
+    reporterName: r.reporterName,
+    reporterHouse: r.reporterHouse,
+    at: r.at,
+    status: r.status,
+    action: r.action || '',
+    note: r.note || '',
+    handledBy: r.handledBy || '',
+    handledAt: r.handledAt || ''
+  }
+}
+
+function nvActRow(a) {
+  const enrolled = nvEnrolledOf(a.activityId)
+  const phase = nvPhaseOf(a)
+  const min = Number(a.minCapacity) || 0
+  const fee = Number(a.fee) || 0
+  const paidAmount = neighborEnrolls
+    .filter(e => e.activityId === a.activityId && !NV_ENROLL_DEAD.includes(e.status) && fee > 0)
+    .reduce((s, e) => s + r2(fee * (Number(e.people) || 1)), 0)
+  return {
+    activityId: a.activityId,
+    title: a.title,
+    category: a.category,
+    /* 收费口径是派生值：免费 / 收费，与类别正交 */
+    feeType: fee > 0 ? '收费' : '免费',
+    fee,
+    feeText: fee > 0 ? `¥${r2(fee)}/人` : '免费',
+    communityId: a.communityId,
+    communityName: communityNameOf(a.communityId),
+    startAt: a.startAt,
+    endAt: a.endAt,
+    place: a.place,
+    capacity: a.capacity,
+    minCapacity: min,
+    enrollDeadline: a.enrollDeadline,
+    enrolled,
+    left: Math.max(0, a.capacity - enrolled),
+    /* 距成团还差几人：待成行时这是运营最想看的数 */
+    gap: min ? Math.max(0, min - enrolled) : 0,
+    phase: nvPhaseOf(a),
+    needInsurance: !!a.needInsurance,
+    attendeeLimit: a.attendeeLimit || 1,
+    feeInclude: a.feeInclude || '',
+    feeExclude: a.feeExclude || '',
+    refundPolicy: a.refundPolicy || [],
+    /* 进度条最多 100%：种子里有报名数超过名额的活动（42/20），
+       按比例直接画会出 210%，看起来像算错了。超额单独给一个数。 */
+    fillRate: a.capacity ? Math.min(100, r2((enrolled / a.capacity) * 100)) : 0,
+    over: Math.max(0, enrolled - a.capacity),
+    phaseType: NV_PHASE_TYPE[phase] || '',
+    desc: a.desc || '',
+    createdBy: a.createdBy || '',
+    flowedAt: a.flowedAt || '',
+    flowReason: a.flowReason || '',
+    paidAmount: r2(paidAmount),
+    organizer: a.organizer || '物业服务中心'
+  }
+}
+
+/** 列表掩码、详情明文 —— 与业主档案同一条口径 */
+function nvEnrollRow(e, { mask = true } = {}) {
+  const a = nvActOf(e.activityId)
+  const fee = a ? Number(a.fee) || 0 : 0
+  const people = Number(e.people) || 1
+  const settled = e.status === '已取消' || e.status === '已退款'
+  return {
+    enrollId: e.enrollId,
+    activityId: e.activityId,
+    activityTitle: a ? a.title : '（活动已删除）',
+    name: e.name,
+    phone: mask ? maskPhone(e.phone) : e.phone,
+    houseShort: e.houseShort || '',
+    people,
+    at: e.at,
+    status: e.status,
+    fee,
+    amount: r2(fee * people),
+    payStatus: e.status === '已退款'
+      ? '已退款'
+      : fee <= 0 ? '无需支付' : (e.paidCash ? '已支付' : '待支付'),
+    source: e.source || '业主自助',
+    operator: e.operator || '',
+    paymentMethod: e.paymentMethod || '',
+    checkinBy: e.checkinBy || '',
+    checkinAt: e.checkinAt || '',
+    refundAmount: e.refundAmount || 0,
+    refundBy: e.refundBy || '',
+    cancelReason: e.cancelReason || '',
+    attendees: e.attendees || [],
+    _ver: verOf('neighborEnroll', e.enrollId)
+  }
+}
+
+/** 按分档算退款比例：距开始 ≥N 天 → 对应比例，否则取最后一档（与 PC 同一套） */
+function nvRefundRatioOf(a) {
+  if (!a || !a.refundPolicy || !a.refundPolicy.length) return 100
+  const start = String(a.startAt).slice(0, 10)
+  const gap = Math.round((new Date(`${start}T00:00:00`) - new Date(`${NV_TODAY}T00:00:00`)) / 86400000)
+  /* 从天数大的往小找：升序排第一个满足 gap>=days 的永远是「当天 0%」那档 */
+  const tier = [...a.refundPolicy]
+    .sort((x, y) => Number(y.days) - Number(x.days))
+    .find(p => gap >= Number(p.days))
+  return tier ? Number(tier.ratio) : 0
+}
+
+const nvAssertActScope = (u, a) => {
+  if (!inScopeCommunity(u, a.communityId)) {
+    throw forbidden(`「${a.activityId}」不在你的数据范围内（${u.dataScope}）`)
+  }
+}
+
+/* ============================ 投票（意见征询） ============================
+ * 口径与 `03/src/utils/api.js` 的 N 域保持一致（那边是运行时的唯一真相）：
+ *   ① 不产出结论 —— 没有 `passed`，也不留 `conclusion` 这种空壳；
+ *   ② `totalVotes` = 选项票数之和；
+ *   ③ `target` = max(应投户数, 票数)，所以 `partRate` 恒 ≤100%。
+ * 主键是 `voteId`（值 = 问卷表的 surveyId），不新造编号。
+ */
+const NV_ACT_CATEGORIES = ['敬老', '亲子', '文体', '出游', '公益']
+const NV_VOTE_STATUS = ['草稿', '进行中', '已结束']
+const NV_VOTE_TYPES = ['满意度调查', '意见征询', '方案征询']
+const NV_VOTE_STATUS_TYPE = { 草稿: 'info', 进行中: 'success', 已结束: '' }
+
+const nvVoteOf = id => neighborVotes.find(v => v.surveyId === id) || null
+
+/** 应投户数：项目内去重业主数。租户不计 —— 征询的是产权人意见 */
+const nvTargetOf = communityId => new Set(
+  houses.filter(h => h.communityId === communityId && h.ownerId).map(h => h.ownerId)
+).size
+
+const nvVoteTotal = v => (v.options || []).reduce((n, o) => n + (Number(o.votes) || 0), 0)
+
+/**
+ * 票数归一：与前端 `_nvNormalizeVotes` 同一套算法。
+ *
+ * 种子里票数是独立随机生成的，出现过「310 票 / 189 户」这种硬伤 —— 参与率 164%，
+ * 这一页的数字立刻没人信了。真实系统里不可能（一户一票），所以按户数上限压回来：
+ * 超过 55% 的按比例缩到 55%，余数补给票数最高的选项，保证合计对得上。
+ * 只压不回补：本来就低于 55% 的不动，避免把「参与率低」这个真实信号抹平。
+ */
+function nvNormalizeVotes() {
+  neighborVotes.forEach(v => {
+    const target = nvTargetOf(v.communityId)
+    const total = nvVoteTotal(v)
+    if (!target || !total || total <= target * 0.55) return
+    const cap = Math.round(target * 0.55)
+    const factor = cap / total
+    let acc = 0
+    v.options.forEach(o => {
+      o.votes = Math.floor((Number(o.votes) || 0) * factor)
+      acc += o.votes
+    })
+    const rest = cap - acc
+    if (rest > 0) {
+      const top = v.options.reduce((m, o) => (o.votes > m.votes ? o : m), v.options[0])
+      top.votes += rest
+    }
+  })
+}
+nvNormalizeVotes()
+
+/**
+ * 问卷表里的 `type` 是「问卷 / 投票」，接口层用业务叫法。
+ * 映射只做一次（在载入后），不要在 `nvVoteRow` 里映射 —— 那样「列表筛选用原值、
+ * 返回用映射值」，按类型筛出来的结果会跟显示的标签对不上。
+ */
+const NV_TYPE_OF = { 问卷: '满意度调查', 投票: '意见征询' }
+neighborVotes.forEach(v => { v.type = NV_TYPE_OF[v.type] || v.type })
+
+function nvVoteRow(v) {
+  const total = nvVoteTotal(v)
+  const target = nvTargetOf(v.communityId)
+  /* 分母兜住上限：出现 310 票 / 189 户 时，参与率不会算成 164% */
+  const base = Math.max(target, total)
+  return {
+    voteId: v.surveyId,
+    title: v.title,
+    type: v.type,
+    communityId: v.communityId,
+    communityName: v.communityName,
+    desc: v.desc || '',
+    audience: v.audience || '全部业主',
+    startAt: v.startAt || '',
+    endAt: v.endAt,
+    status: v.status,
+    statusType: NV_VOTE_STATUS_TYPE[v.status] || '',
+    multi: !!v.multi,
+    maxPick: Number(v.maxPick) || 1,
+    anonymous: v.anonymous !== false,
+    optionCount: (v.options || []).length,
+    options: (v.options || []).map(o => ({ key: o.key, label: o.label, votes: Number(o.votes) || 0 })),
+    totalVotes: total,
+    target: base,
+    partRate: base ? r2((total / base) * 100) : 0,
+    createdBy: v.createdBy || '',
+    createdAt: v.createdAt || '',
+    publishedAt: v.publishedAt || '',
+    endedAt: v.endedAt || ''
+  }
+}
+
+/** 结果聚合：分布 + 参与率 + 样本提示。**没有结论字段，也不留空壳** */
+function nvVoteResultOf(v) {
+  const row = nvVoteRow(v)
+  const options = row.options
+    .map(o => ({ ...o, pct: row.totalVotes ? r2((o.votes / row.totalVotes) * 100) : 0 }))
+    .sort((a, b) => b.votes - a.votes)
+  const target = row.target || 1
+  return {
+    ...row,
+    options,
+    topOption: options[0] || null,
+    /* 样本提示，不是结论：作用是让人在群里转发前先看一眼"只有 12% 的人投了" */
+    confidence: row.partRate >= 50 ? '有效' : row.partRate >= 30 ? '可参考' : '偏低',
+    notVoted: Math.max(0, target - row.totalVotes)
+  }
+}
+
+const nvVoteListOf = u => neighborVotes.filter(v => inScopeCommunity(u, v.communityId))
+
+/** 校验投票请求体。返回规整后的字段（选项只收 label） */
+function nvVoteInput(body = {}) {
+  const title = String(body.title || '').trim()
+  if (!title) throw invalid('投票标题必填')
+  if (title.length > 40) throw invalid('标题最多 40 字')
+  if (!NV_VOTE_TYPES.includes(body.type)) {
+    throw invalid(`投票类型只能是 ${NV_VOTE_TYPES.join(' / ')}`)
+  }
+  if (!body.communityId) throw invalid('必须选择项目 —— 投票范围是按项目算的')
+  if (!body.endAt) throw invalid('必须设置截止日期')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.endAt))) throw invalid('截止日期格式应为 YYYY-MM-DD')
+  const opts = (body.options || []).map(o => String(o?.label ?? o ?? '').trim()).filter(Boolean)
+  if (opts.length < 2) throw invalid('至少需要 2 个选项')
+  if (opts.length > 10) throw invalid('选项最多 10 个')
+  if (new Set(opts).size !== opts.length) throw invalid('选项有重复，请合并')
+  if (opts.some(o => o.length > 30)) throw invalid('单个选项最多 30 字')
+  const multi = !!body.multi
+  const maxPick = multi ? (Number(body.maxPick) || 0) : 1
+  if (multi && (maxPick < 1 || maxPick > opts.length)) {
+    throw invalid(`多选时「最多可选」须在 1 ~ ${opts.length} 之间`)
+  }
+  return {
+    title,
+    type: body.type,
+    communityId: String(body.communityId),
+    desc: String(body.desc || '').trim().slice(0, 300),
+    endAt: String(body.endAt),
+    multi,
+    maxPick,
+    anonymous: body.anonymous !== false,
+    audience: String(body.audience || '全部业主'),
+    optionLabels: opts
+  }
+}
+
+on('GET', '/neighbor/summary', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.workbench, `缺少权限位 ${NV_PERM.workbench}：无权查看邻里工作台`)
+  const mine = c => inScopeCommunity(ctx.user, c)
+  const items = neighborItems.filter(i => mine(i.communityId) && i.status === '待审核').length
+  const reports = neighborReports
+    .filter(r => r.status === '待处理')
+    .filter(r => {
+      const i = nvItemOf(r.itemId)
+      return i && mine(i.communityId)
+    }).length
+  return { items, reports, total: items + reports }
+})
+
+on('GET', '/neighbor/items', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemView, `缺少权限位 ${NV_PERM.itemView}：无权查看闲置内容`)
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  const list = neighborItems
+    .filter(i => inScopeCommunity(ctx.user, i.communityId))
+    .filter(i => eq(i.communityId, q.communityId) && eq(i.status, q.status))
+    .filter(i => kwHit([i.itemId, i.title, i.sellerName, i.desc, i.sellerHouse], q.kw))
+    .map(nvItemRow)
+    /* 待审永远排最前：队列页要的就是"下一步做什么" */
+    .sort((a, b) => {
+      if ((a.status === '待审核') !== (b.status === '待审核')) return a.status === '待审核' ? -1 : 1
+      return String(b.publishAt).localeCompare(String(a.publishAt))
+    })
+  return page(list, q)
+})
+
+on('GET', '/neighbor/items/stats', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemView, `缺少权限位 ${NV_PERM.itemView}：无权查看闲置内容`)
+  assertInScope(ctx.user, ctx.query)
+  const mine = i => inScopeCommunity(ctx.user, i.communityId)
+  const all = neighborItems.filter(mine)
+  const audited = all.filter(i => ['已上架', '已驳回'].includes(i.status))
+  return {
+    total: all.length,
+    pending: all.filter(i => i.status === '待审核').length,
+    online: all.filter(i => i.status === '已上架').length,
+    rejected: all.filter(i => i.status === '已驳回').length,
+    offline: all.filter(i => i.status === '已下架').length,
+    expired: all.filter(i => i.status === '已过期').length,
+    todayNew: all.filter(i => String(i.publishAt).slice(0, 10) === NV_TODAY).length,
+    /* 通过率只算"审过的"：把待审的算进分母会把通过率稀释成看起来很低的数 */
+    passRate: audited.length ? r2((audited.filter(i => i.status === '已上架').length / audited.length) * 100) : 0,
+    /* 累计举报次数：只增不减，别拿它当待办角标（那个看 /reports/stats 的 pending） */
+    reported: all.reduce((n, i) => n + (Number(i.reportCount) || 0), 0)
+  }
+})
+
+on('GET', '/neighbor/items/categories', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemView, `缺少权限位 ${NV_PERM.itemView}：无权查看闲置内容`)
+  assertInScope(ctx.user, ctx.query)
+  /* 与前端 `itemCategories()` 同一口径：从已有内容里扫，顺序不保证。
+     所以它只适合筛选；发布表单的分类要写死，否则"今天没人挂"的分类明天就发不出去。 */
+  return [...new Set(neighborItems
+    .filter(i => inScopeCommunity(ctx.user, i.communityId))
+    .map(i => i.category))]
+})
+
+on('GET', '/neighbor/items/{itemId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemView, `缺少权限位 ${NV_PERM.itemView}：无权查看闲置内容`)
+  const i = nvItemOf(ctx.params.itemId)
+  if (!i) throw notFound('内容不存在')
+  if (!inScopeCommunity(ctx.user, i.communityId)) throw forbidden('这条内容不在你的数据范围内')
+  return nvItemRow(i)
+})
+
+on('POST', '/neighbor/items/{itemId}/audit', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemAudit, `缺少权限位 ${NV_PERM.itemAudit}：无权审核闲置内容`)
+  const i = nvItemOf(ctx.params.itemId)
+  if (!i) throw notFound('内容不存在')
+  if (!inScopeCommunity(ctx.user, i.communityId)) throw forbidden('这条内容不在你的数据范围内')
+  if (i.status !== '待审核') {
+    throw new ApiError(409, 40960, `这条已经是「${i.status}」，不能重复审核`)
+  }
+  const body = ctx.body || {}
+  if (typeof body.pass !== 'boolean') throw invalid('pass 必须是布尔值')
+  const why = String(body.reason || '').trim()
+  /* 驳回必须写理由 —— 业主会拿着通知来问为什么 */
+  if (!body.pass && !why) throw invalid('驳回必须写理由 —— 业主会拿着通知来问为什么')
+  Object.assign(i, {
+    status: body.pass ? '已上架' : '已驳回',
+    rejectReason: body.pass ? '' : why,
+    auditBy: String(body.operator || '').trim() || ctx.user.name,
+    auditAt: nowText()
+  })
+  bumpVer('neighborItem', i.itemId)
+  return nvItemRow(i)
+})
+
+on('POST', '/neighbor/items/{itemId}/offline', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.itemAudit, `缺少权限位 ${NV_PERM.itemAudit}：无权下架闲置内容`)
+  const i = nvItemOf(ctx.params.itemId)
+  if (!i) throw notFound('内容不存在')
+  if (!inScopeCommunity(ctx.user, i.communityId)) throw forbidden('这条内容不在你的数据范围内')
+  const why = String((ctx.body || {}).reason || '').trim()
+  if (!why) throw invalid('下架必须写理由')
+  if (i.status !== '已上架') {
+    throw new ApiError(409, 40961, `只有「已上架」能下架，这条是「${i.status}」`)
+  }
+  Object.assign(i, {
+    status: '已下架',
+    offlineReason: why,
+    auditBy: String((ctx.body || {}).operator || '').trim() || ctx.user.name,
+    auditAt: nowText()
+  })
+  bumpVer('neighborItem', i.itemId)
+  return nvItemRow(i)
+})
+
+on('GET', '/neighbor/reports', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.reportView, `缺少权限位 ${NV_PERM.reportView}：无权查看举报`)
+  const q = ctx.query
+  const list = neighborReports
+    .filter(r => {
+      const i = nvItemOf(r.itemId)
+      return i && inScopeCommunity(ctx.user, i.communityId)
+    })
+    .filter(r => eq(r.status, q.status) && eq(r.reason, q.reason))
+    .map(nvReportRow)
+    .filter(r => kwHit([r.itemTitle, r.reporterName, r.detail], q.kw))
+    .sort((a, b) => {
+      if ((a.status === '待处理') !== (b.status === '待处理')) return a.status === '待处理' ? -1 : 1
+      return String(b.at).localeCompare(String(a.at))
+    })
+  return page(list, q)
+})
+
+on('GET', '/neighbor/reports/stats', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.reportView, `缺少权限位 ${NV_PERM.reportView}：无权查看举报`)
+  assertInScope(ctx.user, ctx.query)
+  /* 举报记录本身没有项目字段，范围判断要从被举报内容带 —— 与列表同源 */
+  const mine = r => { const i = nvItemOf(r.itemId); return i && inScopeCommunity(ctx.user, i.communityId) }
+  const list = neighborReports.filter(mine)
+  return {
+    total: list.length,
+    pending: list.filter(r => r.status === '待处理').length,
+    handled: list.filter(r => r.status === '已处理').length,
+    /* 「下架并警告」的条数：这是唯一真伤到内容方的处置，单独数 */
+    offline: list.filter(r => r.action === '下架并警告').length
+  }
+})
+
+on('GET', '/neighbor/reports/{reportId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.reportView, `缺少权限位 ${NV_PERM.reportView}：无权查看举报`)
+  const r = nvReportOf(ctx.params.reportId)
+  if (!r) throw notFound('举报不存在')
+  const row = nvReportRow(r)
+  if (!inScopeCommunity(ctx.user, row.communityId)) throw forbidden('这条举报不在你的数据范围内')
+  return row
+})
+
+on('POST', '/neighbor/reports/{reportId}/handle', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.reportHandle, `缺少权限位 ${NV_PERM.reportHandle}：无权处理举报`)
+  const r = nvReportOf(ctx.params.reportId)
+  if (!r) throw notFound('举报不存在')
+  if (r.status === '已处理') throw new ApiError(409, 40970, '这条举报已经处理过了')
+  const body = ctx.body || {}
+  if (!NV_REPORT_ACTIONS.includes(body.action)) throw invalid(`处理方式只能是：${NV_REPORT_ACTIONS.join(' / ')}`)
+  const note = String(body.note || '').trim()
+  /* 说明必填 —— 事后要能解释为什么这么判 */
+  if (!note) throw invalid('处理说明必填 —— 事后要能解释为什么这么判')
+
+  const i = nvItemOf(r.itemId)
+  if (body.action === '下架并警告' && i && i.status === '已上架') {
+    Object.assign(i, {
+      status: '已下架',
+      offlineReason: `举报核实：${r.reason}`,
+      auditBy: String(body.operator || '').trim() || ctx.user.name,
+      auditAt: nowText()
+    })
+    bumpVer('neighborItem', i.itemId)
+  }
+  Object.assign(r, {
+    status: '已处理',
+    action: body.action,
+    note,
+    handledBy: String(body.operator || '').trim() || ctx.user.name,
+    handledAt: nowText()
+  })
+  return nvReportRow(r)
+})
+
+on('GET', '/neighbor/activities', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看活动`)
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  const list = neighborActivities
+    .filter(a => inScopeCommunity(ctx.user, a.communityId))
+    .filter(a => eq(a.communityId, q.communityId))
+    .map(nvActRow)
+    /* 只列「报名中 / 待成行 / 已成行」：草稿、已流团、已结束留在 PC 做导出归档 */
+    .filter(a => ['报名中', '待成行', '已成行'].includes(a.phase))
+    .filter(a => eq(a.phase, q.phase))
+    .filter(a => kwHit([a.title, a.activityId, a.place], q.kw))
+    .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)))
+  return page(list, q)
+})
+
+on('GET', '/neighbor/activities/stats', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看活动`)
+  assertInScope(ctx.user, ctx.query)
+  const rows = neighborActivities
+    .filter(a => inScopeCommunity(ctx.user, a.communityId))
+    .map(a => nvActRow(a))
+  const money = rows.filter(r => r.fee > 0)
+  return {
+    total: rows.length,
+    running: rows.filter(r => r.phase === '报名中').length,
+    waiting: rows.filter(r => r.phase === '待成行').length,
+    odd: rows.filter(r => r.phase === '已成行').length,
+    flowed: rows.filter(r => r.phase === '已流团').length,
+    paidAmount: r2(money.reduce((n, r) => n + r.paidAmount, 0)),
+    enrollPeople: rows.reduce((n, r) => n + r.enrolled, 0),
+    /* 待成行的活动一共还差多少人成团 —— 决定要不要发推送拉一把 */
+    gapTotal: rows.filter(r => r.phase === '待成行').reduce((n, r) => n + r.gap, 0)
+  }
+})
+
+on('GET', '/neighbor/activities/options', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看活动`)
+  assertInScope(ctx.user, ctx.query)
+  /* 只给未结束、非草稿的：下拉是用来代报名的，草稿和已结束的选了也没用 */
+  return neighborActivities
+    .filter(a => inScopeCommunity(ctx.user, a.communityId))
+    .filter(a => !['已结束', '草稿'].includes(nvPhaseOf(a)))
+    .map(a => ({
+      value: a.activityId,
+      /* label 带日期：同名活动一年办两次是常事，只给标题一定会选错 */
+      label: `${a.title} · ${String(a.startAt).slice(0, 10)}`
+    }))
+})
+
+on('GET', '/neighbor/activities/{activityId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看活动`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw notFound('活动不存在')
+  nvAssertActScope(ctx.user, a)
+  return nvActRow(a)
+})
+
+on('GET', '/neighbor/activities/{activityId}/enrolls', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看报名名单`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw notFound('活动不存在')
+  nvAssertActScope(ctx.user, a)
+  const q = ctx.query
+  /* 名单统一走分页信封；行内手机号掩码，单条详情才明文 */
+  return page(
+    neighborEnrolls
+      .filter(e => e.activityId === a.activityId)
+      .filter(e => eq(e.status, q.status))
+      .map(e => nvEnrollRow(e))
+      .sort((x, y) => String(x.at).localeCompare(String(y.at))),
+    q
+  )
+})
+
+on('POST', '/neighbor/activities/{activityId}/enroll', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEnroll, `缺少权限位 ${NV_PERM.actEnroll}：无权代报名`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw notFound('活动不存在')
+  nvAssertActScope(ctx.user, a)
+
+  const phase = nvPhaseOf(a)
+  if (phase !== '报名中') {
+    throw new ApiError(409, 40946, `活动当前是「${phase}」，不能再报名`)
+  }
+
+  const body = ctx.body || {}
+  const name = String(body.name || '').trim()
+  if (!name) throw invalid('联系人姓名必填')
+  if (name.length > 20) throw invalid('联系人姓名最多 20 字')
+  const phone = String(body.phone || '').trim()
+  if (!/^1\d{10}$/.test(phone)) throw invalid('联系电话须为 11 位手机号')
+  const people = Number(body.people)
+  if (!Number.isInteger(people) || people < 1) throw invalid('人数必须是 ≥1 的整数')
+  const limit = Number(a.attendeeLimit) || 1
+  if (people > limit) throw invalid(`这场活动每户最多报 ${limit} 人`)
+
+  /* 同一手机号重复报名要拦：现场两个人同时办会重复，静默加一条后果是名单多一人、钱少收一份 */
+  const dup = neighborEnrolls.find(e => e.activityId === a.activityId
+    && e.phone === phone && !NV_ENROLL_DEAD.includes(e.status))
+  if (dup) {
+    throw new ApiError(409, 40947, `「${dup.name}」已经报过名了（${dup.status}），不要重复添加`)
+  }
+
+  const enrolled = nvEnrolledOf(a.activityId)
+  if (enrolled + people > a.capacity) {
+    throw new ApiError(409, 40948, `名额只剩 ${Math.max(0, a.capacity - enrolled)} 人`)
+  }
+
+  /* 要投保就必须每位出行人实名 —— 只有联系人买不了保险 */
+  const attendees = (body.attendees || []).filter(t => String(t.name || '').trim())
+  if (a.needInsurance) {
+    if (attendees.length !== people) throw invalid(`需要投保，必须填满 ${people} 位出行人`)
+    for (const t of attendees) {
+      if (!String(t.idNo || '').trim()) throw invalid(`出行人「${t.name}」缺证件号，无法投保`)
+    }
+  }
+
+  if (body.paid && Number(a.fee) > 0 && !['现金', '扫码'].includes(body.paymentMethod)) {
+    throw invalid('现场已收款必须选收款方式（现金 / 扫码）')
+  }
+
+  const seq = neighborEnrolls.reduce((m, e) => Math.max(m, Number(String(e.enrollId).slice(2)) || 0), 0) + 1
+  const row = {
+    enrollId: `AE${String(seq).padStart(4, '0')}`,
+    activityId: a.activityId,
+    name,
+    phone,
+    houseShort: String(body.houseShort || '').trim(),
+    people,
+    at: nowText(),
+    status: '已报名',
+    attendees: attendees.map(t => ({
+      name: t.name,
+      idType: t.idType || '身份证',
+      idNo: String(t.idNo || '').trim(),
+      phone: t.phone || phone,
+      ageType: t.ageType || '成人'
+    })),
+    source: '前台代报',
+    remark: String(body.remark || '').trim(),
+    paidCash: Number(a.fee) > 0 ? !!body.paid : false,
+    operator: String(body.operator || '').trim() || ctx.user.name,
+    paymentMethod: Number(a.fee) > 0 && body.paid ? body.paymentMethod : ''
+  }
+  neighborEnrolls.unshift(row)
+  return nvEnrollRow(row, { mask: false })
+})
+
+on('POST', '/neighbor/enrolls/{enrollId}/cancel', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEnroll, `缺少权限位 ${NV_PERM.actEnroll}：无权取消报名`)
+  const e = nvEnrollOf(ctx.params.enrollId)
+  if (!e) throw notFound('报名记录不存在')
+  if (NV_ENROLL_DEAD.includes(e.status)) throw new ApiError(409, 40949, '这条报名已经取消了')
+  if (e.status === '已签到') throw new ApiError(409, 40950, '已签到的不能再取消，请走退款并备注')
+  const a = nvActOf(e.activityId)
+  if (a && Number(a.fee) > 0) {
+    throw new ApiError(409, 40951, '收费活动的报名取消要同时退款，请用「取消并退款」')
+  }
+  Object.assign(e, {
+    status: '已取消',
+    cancelReason: String((ctx.body || {}).reason || '').trim() || '业主主动取消'
+  })
+  bumpVer('neighborEnroll', e.enrollId)
+  return nvEnrollRow(e, { mask: false })
+})
+
+on('POST', '/neighbor/enrolls/{enrollId}/refund', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEnroll, `缺少权限位 ${NV_PERM.actEnroll}：无权办理退款`)
+  const e = nvEnrollOf(ctx.params.enrollId)
+  if (!e) throw notFound('报名记录不存在')
+  if (e.status === '已退款') throw new ApiError(409, 40952, '这条报名已经退过款了')
+  const a = nvActOf(e.activityId)
+  if (!a || Number(a.fee) <= 0) {
+    throw new ApiError(409, 40953, '公益活动的报名只需取消，无需退款')
+  }
+  const full = r2(Number(a.fee) * (Number(e.people) || 1))
+  /* 单笔超过 ¥2000 引导到 PC —— 移动端不做大额退款 */
+  if (full > 2000) throw new ApiError(409, 40954, '单笔退款超过 ¥2000，请到 PC 端办理')
+
+  const ratio = nvRefundRatioOf(a)
+  const amount = r2(full * ratio / 100)
+  Object.assign(e, {
+    status: '已退款',
+    refundAmount: amount,
+    refundAt: nowText(),
+    refundBy: String((ctx.body || {}).operator || '').trim() || ctx.user.name,
+    cancelReason: String((ctx.body || {}).reason || '').trim() || '现场取消'
+  })
+  bumpVer('neighborEnroll', e.enrollId)
+  return { enroll: nvEnrollRow(e, { mask: false }), ratio, amount }
+})
+
+on('POST', '/neighbor/enrolls/{enrollId}/checkin', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEnroll, `缺少权限位 ${NV_PERM.actEnroll}：无权签到`)
+  const e = nvEnrollOf(ctx.params.enrollId)
+  if (!e) throw notFound('报名记录不存在')
+  if (e.status === '已签到') throw new ApiError(409, 40955, '这条已经签过到了')
+  if (e.status !== '已报名') throw new ApiError(409, 40956, `「${e.status}」的报名不能签到`)
+  const a = nvActOf(e.activityId)
+  /* 待成行不能签到：人可能根本不成行 */
+  if (a && nvPhaseOf(a) !== '已成行') {
+    throw new ApiError(409, 40957, `活动当前是「${nvPhaseOf(a)}」，还不能签到`)
+  }
+  Object.assign(e, {
+    status: '已签到',
+    checkinBy: ctx.user.name,
+    checkinAt: nowText()
+  })
+  bumpVer('neighborEnroll', e.enrollId)
+  return nvEnrollRow(e, { mask: false })
+})
+
+/* ============================ 投票接口 ============================ */
+const nvNextId = (rows, field, prefix) => {
+  const max = rows.reduce((m, r) => Math.max(m, Number(String(r[field]).replace(/\D/g, '')) || 0), 0)
+  return prefix + String(max + 1).padStart(4, '0')
+}
+
+on('GET', '/neighbor/votes', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteView, `缺少权限位 ${NV_PERM.voteView}：无权查看投票`)
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  /* 进行中 → 草稿 → 已结束，同组内按截止日倒序：草稿还能改、还要发，排在已结束之前 */
+  const rank = { 进行中: 0, 草稿: 1, 已结束: 2 }
+  const list = nvVoteListOf(ctx.user)
+    .filter(v => eq(v.communityId, q.communityId))
+    .filter(v => eq(v.type, q.type))
+    .filter(v => eq(v.status, q.status))
+    .filter(v => kwHit([v.title, v.surveyId, v.desc], q.kw))
+    .map(v => nvVoteRow(v))
+    .sort((a, b) => {
+      if (rank[a.status] !== rank[b.status]) return (rank[a.status] ?? 9) - (rank[b.status] ?? 9)
+      return String(b.endAt).localeCompare(String(a.endAt))
+    })
+  return page(list, q)
+})
+
+on('GET', '/neighbor/votes/stats', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteView, `缺少权限位 ${NV_PERM.voteView}：无权查看投票`)
+  assertInScope(ctx.user, ctx.query)
+  const list = nvVoteListOf(ctx.user).filter(v => eq(v.communityId, ctx.query.communityId))
+  const running = list.filter(v => v.status === '进行中').map(v => nvVoteRow(v))
+  const ended = list.filter(v => v.status === '已结束').map(v => nvVoteRow(v))
+  const avg = rows => (rows.length ? r2(rows.reduce((s, v) => s + v.partRate, 0) / rows.length) : 0)
+  return {
+    total: list.length,
+    running: running.length,
+    draft: list.filter(v => v.status === '草稿').length,
+    ended: ended.length,
+    /* 两组分开给：进行中的参与率还在爬，和已结束的一起取平均没法解释 */
+    runningPartRate: avg(running),
+    endedPartRate: avg(ended),
+    /* 票数合计，多选一票勾两项算两票 —— 别拿它当户数用 */
+    votesTotal: list.reduce((s, v) => s + nvVoteTotal(v), 0)
+  }
+})
+
+on('GET', '/neighbor/votes/{voteId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteView, `缺少权限位 ${NV_PERM.voteView}：无权查看投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  return nvVoteRow(v)
+})
+
+on('GET', '/neighbor/votes/{voteId}/result', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteView, `缺少权限位 ${NV_PERM.voteView}：无权查看投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  return nvVoteResultOf(v)
+})
+
+on('POST', '/neighbor/votes', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteEdit, `缺少权限位 ${NV_PERM.voteEdit}：无权新建投票`)
+  const input = nvVoteInput(ctx.body || {})
+  if (!inScopeCommunity(ctx.user, input.communityId)) throw forbidden('该项目不在你的数据范围内')
+  const community = LS_COMMUNITY.get(input.communityId) || {}
+  const row = {
+    surveyId: nvNextId(neighborVotes, 'surveyId', 'SV'),
+    communityId: input.communityId,
+    communityName: community.name || '',
+    title: input.title,
+    type: input.type,
+    desc: input.desc,
+    audience: input.audience,
+    /* 草稿的 startAt 是空的，发布时才置为当天 */
+    startAt: '',
+    endAt: input.endAt,
+    status: '草稿',
+    multi: input.multi,
+    maxPick: input.maxPick,
+    anonymous: input.anonymous,
+    /* key 由服务端生成：客户端生成会撞 key，而票是按 key 记的 */
+    options: input.optionLabels.map((label, i) => ({ key: `A${i + 1}`, label, votes: 0 })),
+    createdBy: ctx.user.name,
+    createdAt: nowText(),
+    publishedAt: '',
+    endedAt: ''
+  }
+  neighborVotes.unshift(row)
+  return nvVoteRow(row)
+})
+
+on('PATCH', '/neighbor/votes/{voteId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteEdit, `缺少权限位 ${NV_PERM.voteEdit}：无权编辑投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  /* 已开始的不能改：改完的选项会让已投出的票指向不存在的位置 */
+  if (v.status !== '草稿') {
+    throw new ApiError(409, 40930, '投票已开始，题目与选项都不能再改。要调整请复制一份新的')
+  }
+  const input = nvVoteInput({ ...ctx.body, communityId: v.communityId })
+  const next = {
+    title: input.title,
+    type: input.type,
+    desc: input.desc,
+    audience: input.audience,
+    endAt: input.endAt,
+    multi: input.multi,
+    maxPick: input.maxPick,
+    anonymous: input.anonymous,
+    /* 保留原 key 上已累积的票数；被删掉的选项连票一起丢（草稿正常没票，安全） */
+    options: input.optionLabels.map((label, i) => {
+      const old = (v.options || []).find(o => o.label === label)
+      return { key: old ? old.key : `A${i + 1}`, label, votes: old ? Number(old.votes) || 0 : 0 }
+    })
+  }
+  Object.assign(v, next)
+  return nvVoteRow(v)
+})
+
+on('POST', '/neighbor/votes/{voteId}/publish', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteEdit, `缺少权限位 ${NV_PERM.voteEdit}：无权发布投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  /* 重复发布不做幂等成功：有人以为没发出去，要让他看到"已经在进行中" */
+  if (v.status === '进行中') throw new ApiError(409, 40931, '这个投票已经在进行中了')
+  if (v.status === '已结束') throw new ApiError(409, 40932, '已结束的投票不能重新发布，请复制一份')
+  if (String(v.endAt).slice(0, 10) < NV_TODAY) throw invalid(`截止日期 ${v.endAt} 已经过了，改一下再发布`)
+  if ((v.options || []).length < 2) throw invalid('至少需要 2 个选项才能发布')
+  /* 草稿的 startAt 是空的，用"创建日"当开始日会让统计口径对不上 */
+  Object.assign(v, { status: '进行中', startAt: NV_TODAY, publishedAt: nowText() })
+  return nvVoteRow(v)
+})
+
+on('POST', '/neighbor/votes/{voteId}/end', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteEdit, `缺少权限位 ${NV_PERM.voteEdit}：无权结束投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  /* 草稿没有"结束"这回事，删掉即可 */
+  if (v.status !== '进行中') throw new ApiError(409, 40933, '只有在进行中的投票才能结束')
+  /* 结束只改状态，不产出任何结论 */
+  Object.assign(v, { status: '已结束', endedAt: nowText() })
+  return nvVoteRow(v)
+})
+
+on('DELETE', '/neighbor/votes/{voteId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.voteEdit, `缺少权限位 ${NV_PERM.voteEdit}：无权删除投票`)
+  const v = nvVoteOf(ctx.params.voteId)
+  if (!v) throw new ApiError(404, 40430, '投票不存在')
+  if (!inScopeCommunity(ctx.user, v.communityId)) throw forbidden('这场投票不在你的数据范围内')
+  /* 只有草稿能删：票已经投出去了，删掉等于抹掉参与记录 */
+  if (v.status !== '草稿') throw new ApiError(409, 40934, '只有草稿能删除，已发布的投票要保留留痕')
+  neighborVotes.splice(neighborVotes.indexOf(v), 1)
+  return true
+})
+
+/* ============================ 活动（运营侧补充） ============================
+ * 校验与状态机照抄 `03/src/utils/api.js` 的 N 域，错误码也沿用同一套（40940~40945）：
+ * 前端已经按这些码写提示文案，改码等于改文案。
+ */
+function nvActivityInput(body = {}, cur = null) {
+  const title = String(body.title || '').trim()
+  if (!title) throw invalid('活动名称必填')
+  if (title.length > 40) throw invalid('活动名称最多 40 字')
+  /* 类别是枚举，必须选；收费与否看金额，不用单独传 type */
+  const category = String(body.category || '').trim()
+  if (!NV_ACT_CATEGORIES.includes(category)) {
+    throw invalid(`活动类别只能是 ${NV_ACT_CATEGORIES.join(' / ')}`)
+  }
+  const communityId = String(body.communityId || '')
+  if (!communityId) throw invalid('必须选择项目')
+  const startAt = String(body.startAt || '').slice(0, 16)
+  const endAt = String(body.endAt || '').slice(0, 16)
+  if (!startAt || !endAt) throw invalid('开始与结束时间都要填')
+  if (endAt < startAt) throw invalid('结束时间不能早于开始时间')
+  if (!String(body.place || '').trim()) throw invalid('活动地点必填 —— 业主报名后要知道去哪')
+  const capacity = Number(body.capacity) || 0
+  if (capacity < 1) throw invalid('名额至少 1 人')
+  const deadline = String(body.enrollDeadline || '').slice(0, 10)
+  if (!deadline) throw invalid('报名截止时间必填')
+  /* 活动开始了还在收人，车已经走了 */
+  if (deadline > startAt.slice(0, 10)) throw invalid('报名截止不能晚于活动开始 —— 否则活动开始了还在收人')
+  const enrolled = cur ? nvEnrolledOf(cur.activityId) : 0
+  if (cur && capacity < enrolled) throw invalid(`名额不能小于已报名人数（${enrolled} 人）`)
+
+  const fee = Number(body.fee) || 0
+  let minCapacity = 0
+  let refundPolicy = []
+  /* 收费与否只看金额：fee > 0 才需要成团下限与退款档位 */
+  if (fee > 0) {
+    minCapacity = Number(body.minCapacity) || 0
+    if (minCapacity < 1) throw invalid('收费活动必须设成团下限 —— 否则收完钱团没成，退款没依据')
+    if (minCapacity > capacity) throw invalid('成团下限不能大于名额')
+    refundPolicy = (body.refundPolicy || []).map(p => ({ days: Number(p.days), ratio: Number(p.ratio) }))
+    if (!refundPolicy.length) throw invalid('收费活动必须配退款分档')
+    for (const p of refundPolicy) {
+      if (!(p.days >= 0)) throw invalid('退款分档的「提前天数」必须是 0 或正整数')
+      if (!(p.ratio >= 0 && p.ratio <= 100)) throw invalid('退款比例须在 0 ~ 100 之间')
+    }
+    /* 提前越久退得越多：反过来就是在惩罚早取消的人 */
+    const sorted = [...refundPolicy].sort((a, b) => b.days - a.days)
+    for (let k = 1; k < sorted.length; k += 1) {
+      if (sorted[k].ratio > sorted[k - 1].ratio) {
+        throw invalid('退款比例应随「提前天数」减少而降低，请检查分档')
+      }
+    }
+    /* 钱已经收了再改单价，已报名的人金额就对不上 */
+    if (cur && enrolled > 0 && Number(cur.fee) !== fee) {
+      throw invalid('已有人报名，不能再改单价。要调价请另开一场活动')
+    }
+  }
+  return {
+    title,
+    category,
+    communityId,
+    startAt,
+    endAt,
+    place: String(body.place).trim(),
+    capacity,
+    minCapacity,
+    enrollDeadline: deadline,
+    fee,
+    feeInclude: String(body.feeInclude || '').trim(),
+    feeExclude: String(body.feeExclude || '').trim(),
+    refundPolicy,
+    needInsurance: !!body.needInsurance,
+    attendeeLimit: Math.max(1, Number(body.attendeeLimit) || 1),
+    desc: String(body.desc || '').trim()
+  }
+}
+
+on('POST', '/neighbor/activities', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEdit, `缺少权限位 ${NV_PERM.actEdit}：无权新建活动`)
+  const patch = nvActivityInput(ctx.body || {})
+  if (!inScopeCommunity(ctx.user, patch.communityId)) throw forbidden('该项目不在你的数据范围内')
+  const act = {
+    activityId: nvNextId(neighborActivities, 'activityId', 'AC'),
+    ...patch,
+    status: '草稿',
+    organizer: '物业服务中心',
+    views: 0,
+    createdBy: ctx.user.name
+  }
+  neighborActivities.unshift(act)
+  return nvActRow(act)
+})
+
+on('PATCH', '/neighbor/activities/{activityId}', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEdit, `缺少权限位 ${NV_PERM.actEdit}：无权编辑活动`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  /* 已结束或已流团的不能改：办完的改内容等于事后修改宣传口径，流团的改了退款依据就没了 */
+  if (a.status === '已结束' || a.flowedAt) {
+    throw new ApiError(409, 40940, '已结束或已流团的活动不能再改，请复制一份新的')
+  }
+  Object.assign(a, nvActivityInput(ctx.body || {}, a))
+  return nvActRow(a)
+})
+
+on('POST', '/neighbor/activities/{activityId}/publish', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEdit, `缺少权限位 ${NV_PERM.actEdit}：无权发布活动`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  if (a.status === '已结束') throw new ApiError(409, 40941, '已结束的活动不能重新发布，请复制一份')
+  if (a.status === '报名中' && !a.flowedAt) throw new ApiError(409, 40942, '活动已经在报名中了')
+  const phase = nvPhaseOf(a)
+  if (phase !== '草稿' && phase !== '已流团') {
+    throw new ApiError(409, 40943, `当前状态是「${phase}」，不能重新发布`)
+  }
+  if (String(a.enrollDeadline).slice(0, 10) < NV_TODAY) {
+    throw invalid(`报名截止 ${a.enrollDeadline} 已经过了，改一下再发布`)
+  }
+  if (String(a.startAt).slice(0, 10) < NV_TODAY) throw invalid('开始时间已经过了，改一下再发布')
+  Object.assign(a, { status: '报名中', flowedAt: '', flowReason: '' })
+  return nvActRow(a)
+})
+
+on('POST', '/neighbor/activities/{activityId}/end', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEdit, `缺少权限位 ${NV_PERM.actEdit}：无权结束活动`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  if (a.status === '已结束') throw new ApiError(409, 40944, '活动已经结束了')
+  /* 只改状态，不动钱：办完了归档，和"没办成要退钱"是两件事 */
+  a.status = '已结束'
+  return nvActRow(a)
+})
+
+on('POST', '/neighbor/activities/{activityId}/flow', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actEdit, `缺少权限位 ${NV_PERM.actEdit}：无权确认流团`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  if (nvPhaseOf(a) !== '待成行') throw new ApiError(409, 40945, '只有「待成行」的活动才能确认流团')
+  const reason = String(ctx.body?.reason || '').trim()
+  /* 业主会拿着通知来问"为什么没成行"，没有原因的通知等于没通知 */
+  if (!reason) throw invalid('流团必须写原因 —— 业主会来问为什么没成行')
+  const fee = Number(a.fee) || 0
+  const list = neighborEnrolls
+    .filter(e => e.activityId === a.activityId)
+    .filter(e => !['已取消', '已退款'].includes(e.status))
+  let refunded = 0
+  list.forEach(e => {
+    if (fee > 0) {
+      /* 没成团是物业的问题，不是业主的：比例恒 100% */
+      const money = r2(fee * (Number(e.people) || 1))
+      Object.assign(e, {
+        status: '已退款',
+        refundAmount: money,
+        refundAt: nowText(),
+        refundBy: ctx.user.name,
+        cancelReason: '未达成团人数，全额退款'
+      })
+      refunded = r2(refunded + money)
+    } else {
+      /* 公益没收到钱，只置取消 —— 造一张 0 元退款单只会让账更乱 */
+      Object.assign(e, { status: '已取消', cancelReason: '未达成团人数' })
+    }
+    bumpVer('neighborEnroll', e.enrollId)
+  })
+  Object.assign(a, { flowedAt: nowText(), flowReason: reason, status: '已结束' })
+  return { activity: nvActRow(a), count: list.length, refunded }
+})
+
+on('GET', '/neighbor/activities/{activityId}/refund-ratio', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看活动`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  /* 没有退款档位的活动（公益）恒 100 */
+  if (!a.refundPolicy || !a.refundPolicy.length) return 100
+  const start = String(a.startAt).slice(0, 10)
+  const atDay = String(ctx.query.atDay || NV_TODAY).slice(0, 10)
+  const gap = Math.floor((new Date(`${start}T00:00:00`) - new Date(`${atDay}T00:00:00`)) / 86400000)
+  /* 必须从天数大的往小找：升序排第一个命中 gap>=days 的永远是 days=0 那档 */
+  const tier = [...a.refundPolicy]
+    .sort((x, y) => Number(y.days) - Number(x.days))
+    .find(p => gap >= Number(p.days))
+  return tier ? Number(tier.ratio) : 0
+})
+
+on('GET', '/neighbor/activities/{activityId}/enrolls/stats', (ctx) => {
+  requirePerm(ctx.user, NV_PERM.actView, `缺少权限位 ${NV_PERM.actView}：无权查看报名名单`)
+  const a = nvActOf(ctx.params.activityId)
+  if (!a) throw new ApiError(404, 40440, '活动不存在')
+  nvAssertActScope(ctx.user, a)
+  const list = neighborEnrolls.filter(e => e.activityId === a.activityId)
+  const active = list.filter(e => !['已取消', '已退款'].includes(e.status))
+  const fee = Number(a.fee) || 0
+  return {
+    total: list.length,
+    /* 含同行人、不含已取消 / 已退款 —— 与名单列表同源 */
+    people: active.reduce((n, e) => n + (Number(e.people) || 1), 0),
+    checkedIn: list.filter(e => e.status === '已签到').length,
+    cancelled: list.filter(e => e.status === '已取消').length,
+    refunded: list.filter(e => e.status === '已退款').length,
+    paidAmount: r2(active.reduce((n, e) => n + fee * (Number(e.people) || 1), 0)),
+    refundAmount: r2(list.reduce((n, e) => n + (Number(e.refundAmount) || 0), 0)),
+    capacity: a.capacity,
+    minCapacity: Number(a.minCapacity) || 0,
+    gap: Math.max(0, (Number(a.minCapacity) || 0) - nvEnrolledOf(a.activityId)),
+    phase: nvPhaseOf(a)
+  }
+})
+
+/* ================= 业主端会话（mp 组） =================
+ * 这一套与员工的 `bearerAuth` 是**两条通道**：token 只带"我是谁、我名下有哪些房"，
+ * 不带角色、不带数据范围 —— 业主的可见范围就是自己名下的房，没有"范围"可配。
+ *
+ * 演示环境用手机号直登替代 code2Session。契约里 `mock=true` 在真实环境必须 422，
+ * 这条分支不能活到线上。
+ *
+ * 身份三选一（与 `03` / `06` 的 identity-rule 同一套口径）：
+ *   业主 owners（houseIds 由 houses.ownerId 反查）
+ *   家属 members（挂在 ownerId 上，房取该业主名下的）
+ *   租客 tenants（直接挂 houseId）
+ */
+const mpTokens = new Map()
+const MP_TTL = 2 * 3600
+const members = readJson('fixtures/members.json')
+
+const MP_ROLE = { OWNER: '业主', MEMBER: '家属', TENANT: '租客' }
+
+/** token 记录 → 会话对象（每次请求现取，实名与绑定状态都是最新的） */
+const mpAuth = (req) => {
+  const h = req.headers.authorization || ''
+  const m = h.match(/^Bearer\s+(.+)$/)
+  if (!m) throw unauthorized()
+  const hit = mpTokens.get(m[1])
+  if (!hit || hit.exp < Date.now()) throw unauthorized()
+  return hit
+}
+const mpOf = (ctx) => {
+  if (!ctx.mp) throw unauthorized()
+  return ctx.mp
+}
+
+/* ---------------- 房屋视图（业主端） ---------------- */
+/**
+ * 与后台 `WorkOrder` 那种"全字段"视图不同：业主端只看自己房的基础信息与管家，
+ * 不返回 houseId 之外的产权、证件类字段。
+ */
+function mpHouseRow(h, boundIds = []) {
+  const c = LS_COMMUNITY.get(h.communityId) || {}
+  const e = h.stewardEmpId ? (EMP.get(h.stewardEmpId) || {}) : {}
+  return {
+    houseId: h.houseId,
+    fullName: h.fullName,
+    communityId: h.communityId || '',
+    communityName: c.name || '',
+    houseType: h.houseType || '',
+    area: h.area || 0,
+    deliverStatus: h.deliverStatus || '',
+    useStatus: h.useStatus || '',
+    bound: boundIds.includes(h.houseId),
+    steward: e.empId
+      ? { empId: e.empId, name: e.name, position: e.position, phone: maskPhone(e.phone) }
+      : null
+  }
+}
+
+/* ---------------- 三项比对（业主 / 家属 / 租客） ---------------- */
+/**
+ * 与 `06/src/api/identity-rule.mjs` 完全同一套判定，只是搬到了服务端 ——
+ * **这是本批最重要的动因**：实名比对留在前端，等于把整份业主档案发给每个客户端。
+ *
+ * 三类人**都有 ownerId**（家属挂在业主上、租客也记着业主），所以不能靠 ownerId 区分身份，
+ * 必须看各自的专属字段：业主 = houseIds、家属 = memberId、租客 = tenantId + houseId。
+ */
+function mpMatch(sess, houseId = '') {
+  const mismatch = { phone: false, name: false, cert: false, house: false }
+  const fail = (reason, extra = {}) => ({
+    ok: false, identity: '', ownerId: sess.ownerId, houseIds: [], reason, mismatch, ...extra
+  })
+
+  if (!sess.realname) throw invalid('请先完成实名（姓名 + 证件后四位）')
+  const p = String(sess.phone || '').replace(/\D/g, '')
+  const n = String(sess.realname.name || '').trim()
+  const c = String(sess.realname.idCard4 || '').replace(/\D/g, '')
+
+  const ownersHouses = id => houses.filter(h => h.ownerId === id)
+  const ownerHit = owners.find(o => String(o.phone) === p)
+  const memberHit = members.find(x => String(x.phone) === p)
+  const tenantHit = tenants.find(x => String(x.phone) === p)
+
+  if (!ownerHit && !memberHit && !tenantHit) {
+    mismatch.phone = true
+    return fail('该手机号在物业档案里没有登记记录')
+  }
+  const pool = [ownerHit, memberHit, tenantHit].filter(Boolean)
+  if (!pool.some(x => x.name === n)) {
+    mismatch.name = true
+    return fail(`手机号登记的姓名不是「${n}」`)
+  }
+  const certPool = pool.filter(x => x.name === n && String(x.idCard || '').slice(-4) === c)
+  if (!certPool.length) {
+    mismatch.cert = true
+    return fail('证件号后四位与档案不一致')
+  }
+
+  /* 业主：名下房。owners 记录没有 memberId / tenantId 字段，靠这两个反着认 */
+  const o = certPool.find(x => !x.memberId && !x.tenantId)
+  if (o && ownersHouses(o.ownerId).length) {
+    const list = ownersHouses(o.ownerId)
+    const ids = houseId ? list.filter(h => h.houseId === houseId).map(h => h.houseId) : list.map(h => h.houseId)
+    if (!ids.length) {
+      mismatch.house = true
+      return fail('档案姓名与手机号一致，但所选房屋不在其名下', { ownerId: o.ownerId })
+    }
+    return { ok: true, identity: MP_ROLE.OWNER, ownerId: o.ownerId, houseIds: ids, reason: '', mismatch }
+  }
+
+  /* 家属：房取该业主名下的 */
+  const mb = certPool.find(x => !!x.memberId)
+  if (mb) {
+    const owner = owners.find(x => x.ownerId === mb.ownerId)
+    const list = owner ? ownersHouses(owner.ownerId) : []
+    const ids = houseId ? list.filter(h => h.houseId === houseId).map(h => h.houseId) : list.map(h => h.houseId)
+    if (!ids.length) {
+      mismatch.house = true
+      return fail('该住户未被登记在所选的房屋下', { ownerId: mb.ownerId })
+    }
+    return { ok: true, identity: MP_ROLE.MEMBER, ownerId: mb.ownerId, houseIds: ids, reason: '', mismatch }
+  }
+
+  /* 租客：直接挂房；信息不全也能进，但要标出来（门禁类功能降级） */
+  const t = certPool.find(x => !!x.tenantId)
+  if (t) {
+    const ids = houseId ? (t.houseId === houseId ? [t.houseId] : []) : [t.houseId]
+    if (!ids.length) {
+      mismatch.house = true
+      return fail('租约登记的房屋与所选房屋不一致', { ownerId: t.ownerId })
+    }
+    return {
+      ok: true,
+      identity: MP_ROLE.TENANT,
+      ownerId: t.ownerId,
+      houseIds: ids,
+      reason: '',
+      mismatch,
+      verifyStatus: t.verifyStatus || '待核验'
+    }
+  }
+
+  mismatch.house = true
+  return fail('未能确定身份与房屋的对应关系')
+}
+
+/** 首页三个数：口径见契约 GET /mp/me 的说明 */
+function mpCounts(sess) {
+  /* 取数与欠费判定都走 mpBillList / mpIsDebt —— 首页角标与账单页必须是同一套算法，
+     各自 filter 一次的结果是"角标显示欠 3 张，进去只有 2 张"。 */
+  const myBills = mpBillList(sess)
+  const debt = myBills.filter(mpIsDebt)
+  const myOrders = workOrders.filter(w => w.ownerId === sess.ownerId && !w.isPublic)
+  const DOING = ['待派单', '已派单', '处理中', '待确认']
+  const addons = myOrders.flatMap(w => (w.addons || [])).filter(a => !a.confirmed)
+  return {
+    debtAmount: r2(debt.reduce((s, b) => s + (Number(b.unpaid) || 0), 0)),
+    debtBills: debt.length,
+    maxOverdueDays: debt.reduce((m, b) => Math.max(m, Number(b.overdueDays) || 0), 0),
+    doingOrders: myOrders.filter(w => DOING.includes(w.status)).length,
+    pendingAddons: addons.length,
+    /* 增项金额字段是 `total`（= material + labor），不是 `amount` ——
+       批 A 写这段时样例里一条增项都没有，`Number(undefined) || 0` 恒等于 0，
+       于是"待确认金额"一直是 0 也没人发现。批 C 补上数据才露出来。 */
+    pendingAddonAmount: r2(addons.reduce((s, a) => s + (Number(a.total) || 0), 0)),
+    toEvaluate: myOrders.filter(w => w.status === '已完工' && !w.score).length
+  }
+}
+
+const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const addDays = (date, n) => {
+  const d = new Date(`${String(date).slice(0, 10)}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  return fmtDate(d)
+}
+const gapDays = (date) => Math.round(
+  (new Date(`${String(date).slice(0, 10)}T00:00:00`) - new Date(`${NV_TODAY}T00:00:00`)) / 86400000
+)
+
+/* ================= 认证四步：登录 → 实名 → 候选 → 绑定 ================= */
+
+on('POST', '/mp/auth/wechat-login', (ctx) => {
+  const body = ctx.body || {}
+  /* 真机上这里应该是 code2Session + getPhoneNumber 解密；演示环境直传手机号 */
+  if (!body.mock) throw invalid('演示环境须带 mock=true；真实环境请走 wx.login + 手机号授权')
+  const phone = String(body.phone || '').trim()
+  if (!/^1\d{10}$/.test(phone)) throw invalid('手机号须为 11 位')
+
+  /* 三张表一起找：业主端不止有业主，家属与租客同样要能登录（权限在绑定后按身份再收一道） */
+  const ow = owners.find(x => String(x.phone) === phone)
+  const mb = members.find(x => String(x.phone) === phone)
+  const tn = tenants.find(x => String(x.phone) === phone)
+
+  let sess = null
+  if (ow) {
+    sess = {
+      ownerId: ow.ownerId, identity: MP_ROLE.OWNER, memberId: '', tenantId: '',
+      name: ow.name, phone, verifyStatus: ''
+    }
+  } else if (mb) {
+    sess = {
+      ownerId: mb.ownerId, identity: MP_ROLE.MEMBER, memberId: mb.memberId, tenantId: '',
+      name: mb.name, phone, verifyStatus: ''
+    }
+  } else if (tn) {
+    sess = {
+      ownerId: tn.ownerId, identity: MP_ROLE.TENANT, memberId: '', tenantId: tn.tenantId,
+      name: tn.name, phone, verifyStatus: tn.verifyStatus || '待核验'
+    }
+  }
+  if (!sess) throw new ApiError(404, 40490, '未找到该手机号对应的档案，请联系物业服务中心')
+
+  const token = 'mp.' + Buffer.from(`${sess.ownerId}:${Date.now()}`).toString('base64url')
+  const rec = { ...sess, realname: null, boundHouseIds: [], exp: Date.now() + MP_TTL * 1000 }
+  mpTokens.set(token, rec)
+
+  /* 登录只发会话，**不带姓名与证件** —— 实名是下一步的事，登录时回显等于把档案先吐一遍 */
+  return {
+    phoneMasked: maskPhone(phone),
+    realnameStatus: '未实名',
+    boundCount: 0,
+    token
+  }
+})
+
+on('POST', '/mp/auth/realname', (ctx) => {
+  const me = mpOf(ctx)
+  const body = ctx.body || {}
+  const name = String(body.name || '').trim()
+  const idCard4 = String(body.idCard4 || '').trim()
+  if (name.length < 2 || name.length > 12) throw invalid('姓名长度应是 2~12 个字')
+  if (!/^\d{4}$/.test(idCard4)) throw invalid('证件号后四位须是 4 位数字')
+  /* 这一步只判格式，不判"这房是不是你的" —— 房的事在 candidates 里判 */
+  me.realname = { name, idCard4 }
+  return {
+    phoneMasked: maskPhone(me.phone),
+    realnameStatus: '已实名',
+    name,
+    idCard4,
+    boundCount: me.boundHouseIds.length
+  }
+})
+
+on('GET', '/mp/auth/bindings/candidates', (ctx) => {
+  const me = mpOf(ctx)
+  const houseId = String(ctx.query.houseId || '')
+  const r = mpMatch(me, houseId)
+  const bound = me.boundHouseIds || []
+  const list = r.houseIds.map(id => HOUSE.get(id)).filter(Boolean).map(h => mpHouseRow(h, bound))
+  /* 管家：有命中房按房取；没命中就用这个人名下一套房的管家（"我买了房但绑不上"要知道找谁） */
+  let steward = list[0]?.steward || null
+  if (!steward) {
+    const anyHouse = houses.find(h => h.ownerId === r.ownerId)
+    if (anyHouse) steward = mpHouseRow(anyHouse, bound).steward
+  }
+  /* `identity` 取**档案**算出来的，不取用户自选的那个 —— 家属选了"业主"也按家属生效 */
+  const base = {
+    identity: r.identity,
+    ownerId: r.ownerId,
+    verifyStatus: r.verifyStatus || '',
+    mismatch: r.mismatch,
+    steward
+  }
+  if (!r.ok) {
+    return { ...base, level: 'none', reason: r.reason, houses: [] }
+  }
+  return { ...base, level: list.length > 1 ? 'many' : 'one', reason: '', houses: list }
+})
+
+on('POST', '/mp/auth/bindings', (ctx) => {
+  const me = mpOf(ctx)
+  const body = ctx.body || {}
+  const houseIds = Array.isArray(body.houseIds) ? [...new Set(body.houseIds.map(String))] : []
+  if (!houseIds.length) throw invalid('至少要选一套房')
+  /* **重新算一遍**，不信客户端传上来的清单：能绑的只有 candidates 算出来的那些 */
+  const r = mpMatch(me)
+  if (!r.ok) throw forbidden(`档案与所选房屋不一致（${r.reason}）`)
+  const allowed = new Set(r.houseIds)
+  const bad = houseIds.filter(id => !allowed.has(id))
+  if (bad.length) {
+    throw new ApiError(403, 40391, `这些房不在您名下，不能绑定：${bad.join('、')}（不能"绑上了再看"）`)
+  }
+  me.boundHouseIds = [...new Set([...(me.boundHouseIds || []), ...houseIds])]
+  me.identity = r.identity
+  me.ownerId = r.ownerId
+  return {
+    boundHouseIds: me.boundHouseIds,
+    houses: me.boundHouseIds.map(id => HOUSE.get(id)).filter(Boolean).map(h => mpHouseRow(h, me.boundHouseIds))
+  }
+})
+
+on('GET', '/mp/me', (ctx) => {
+  const me = mpOf(ctx)
+  const owner = OWNER.get(me.ownerId) || {}
+  return {
+    owner: {
+      ownerId: me.ownerId,
+      name: me.name,
+      /* 家属/租客的"owner"是自己：姓名取本人的，证件后四位取实名时填的 */
+      phoneMasked: maskPhone(me.phone),
+      idCard4: me.realname ? me.realname.idCard4 : '',
+      certified: !!me.realname
+    },
+    identity: me.identity,
+    realnameStatus: me.realname ? '已实名' : '未实名',
+    verifyStatus: me.verifyStatus || '',
+    houses: (me.boundHouseIds || []).map(id => HOUSE.get(id)).filter(Boolean).map(h => mpHouseRow(h, me.boundHouseIds)),
+    counts: mpCounts(me),
+    /* 名下有房但还没绑的，首页要给"还有 N 套可绑定"的入口。
+       **没实名时是 0，而且不能去算** —— mpMatch 在未实名时会抛 422，
+       登录后第一屏就打 /mp/me 的客户端会被这个 422 直接噎住（批 B 踩到）。 */
+    unboundCount: me.realname
+      ? Math.max(0, (mpMatch(me).houseIds || []).length - (me.boundHouseIds || []).length)
+      : 0
+  }
+})
+
+const repairPrices = readJson('fixtures/repair-prices.json')
+
+/* ================= 批 B：房屋 / 住户 / 账单 / 价目 =================
+ * 这一组只读（租客登记一条写），口径全部按"业主自己看自己的房"：
+ *   - 房屋详情：只给基础信息与管家，不给产权、不给证件；
+ *   - 在住人：**业主可见租金**（他是出租方），身份证只回后四位、手机掩码；
+ *   - 账单：已绑房 + 本人名下不挂房的车位费（少这一条就漏钱）。
+ */
+
+/** 已绑房集合。绑过才算"我的"，候选列表里的房不算 —— 能看不等于能查账。 */
+const mpBound = (sess) => new Set(sess.boundHouseIds || [])
+
+/**
+ * 取一套"我的房"。两种失败必须分开：
+ *   404 房不存在（在任何人名下都不存在，等于没有）；
+ *   403 房存在但没绑给我 —— **不能回 404**：业主刚在候选列表里见过这套房，
+ *       回 404 会让人以为"刚选的房消失了"，然后反复重试。
+ */
+function mpMyHouse(sess, houseId) {
+  const h = HOUSE.get(String(houseId || ''))
+  if (!h) throw notFound('房屋不存在')
+  if (!mpBound(sess).has(h.houseId)) {
+    throw forbidden(`${h.fullName} 不在您已绑定的房产里，请先完成房屋绑定`)
+  }
+  return h
+}
+
+/**
+ * 欠费口径（与 PC、06 本地实现一致）：**状态在欠费三态 且 未收 > 0**。
+ * 只判 `unpaid > 0` 会把「已减免」的账单算成欠费 —— 减免就是不用交，
+ * 金额字段没清零是数据质量问题，不能让它变成一条催缴短信。
+ */
+const MP_DEBT_STATUS = ['未缴', '部分缴', '逾期']
+const mpIsDebt = b => MP_DEBT_STATUS.includes(b.status) && (Number(b.unpaid) || 0) > 0
+
+/**
+ * 家庭账单取数：已绑房产的账单 + **本人名下不挂房的车位费**。
+ *
+ * 车位是独立资产，账单不带 houseId。只按 houseId 过滤，业主会少看一笔钱
+ * （演示数据里李秀兰少 ¥362.52），然后打电话说"我明明交了"。
+ */
+function mpBillList(sess, q = {}) {
+  const ids = mpBound(sess)
+  return bills
+    .filter(b => (b.houseId ? ids.has(b.houseId) : b.ownerId === sess.ownerId))
+    .filter(b => !q.houseId || b.houseId === String(q.houseId))
+    .filter(b => !q.period || b.period === String(q.period))
+    .filter(b => !q.status || b.status === String(q.status))
+    .filter(b => String(q.onlyDebt) !== 'true' || mpIsDebt(b))
+    .sort((a, b) => {
+      /* 欠费在前（业主进来是来交钱的），同状态按账期倒序 */
+      const d = (mpIsDebt(b) ? 1 : 0) - (mpIsDebt(a) ? 1 : 0)
+      if (d) return d
+      if (a.period !== b.period) return String(b.period).localeCompare(String(a.period))
+      return String(a.billId).localeCompare(String(b.billId))
+    })
+}
+
+/**
+ * 在住人。业主视角与楼管**相反**：楼管不能看租金（代收方知道了邻居收入），
+ * 业主是出租方，必须能看自己房的租约金额与租期。
+ *
+ * 手机掩码、身份证只回后四位 —— 业主知道自己租客是谁，但不需要一屏完整的证件号。
+ */
+function mpResidentsOf(h) {
+  const owner = OWNER.get(h.ownerId) || {}
+  /* 家庭成员：fixtures 里只有 certified / liveTogether，人脸与 App 注册没有真值。
+     这两个字段**宁可不给**，也不要填 false —— 前端会把 false 渲染成"未录入人脸"，
+     而事实是"这套样例没这份数据"，两者在验收时是两件事。 */
+  const ms = members
+    .filter(m => m.ownerId === h.ownerId)
+    .map(m => ({
+      memberId: m.memberId,
+      name: m.name,
+      relation: m.relation || '其他',
+      phone: maskPhone(m.phone),
+      certified: !!m.certified
+    }))
+  const ts = tenants
+    .filter(t => t.houseId === h.houseId && t.status !== '已搬离')
+    .map(t => ({
+      tenantId: t.tenantId,
+      name: t.name,
+      phone: maskPhone(t.phone),
+      /* 业主自助登记的租客只填了后四位，档案里没有完整号 —— 按字段走，不要假造 */
+      idCard4: t.idCard ? String(t.idCard).slice(-4) : (t.idCard4 || ''),
+      leaseStart: t.leaseStart,
+      leaseEnd: t.leaseEnd,
+      /* 租金：业主可见。契约 MP_RESIDENTS 写明，楼管侧是另一套（不可见） */
+      rent: Number(t.rent) || 0,
+      residents: Number(t.residents) || 0,
+      verifyStatus: t.verifyStatus || '待核验',
+      source: t.source || '物业登记',
+      status: t.status || '在住'
+    }))
+  return {
+    owner: owner.name
+      ? { name: owner.name, phone: maskPhone(owner.phone), relation: '业主' }
+      : null,
+    members: ms,
+    tenants: ts
+  }
+}
+
+on('GET', '/mp/houses/{houseId}', (ctx) => {
+  const me = mpOf(ctx)
+  const h = mpMyHouse(me, ctx.params.houseId)
+  return mpHouseRow(h, me.boundHouseIds)
+})
+
+on('GET', '/mp/houses/{houseId}/residents', (ctx) => {
+  const me = mpOf(ctx)
+  return mpResidentsOf(mpMyHouse(me, ctx.params.houseId))
+})
+
+on('POST', '/mp/houses/{houseId}/tenants', (ctx) => {
+  const me = mpOf(ctx)
+  const h = mpMyHouse(me, ctx.params.houseId)
+  const b = ctx.body || {}
+  const name = String(b.name || '').trim()
+  const phone = String(b.phone || '').trim()
+
+  if (name.length < 2) throw invalid('租客姓名至少 2 个字')
+  if (!/^1\d{10}$/.test(phone)) throw invalid('租客手机号须为 11 位')
+  if (!b.leaseStart || !b.leaseEnd) throw invalid('租期起止都要填')
+  if (String(b.leaseEnd) <= String(b.leaseStart)) throw invalid('租期结束日必须晚于开始日')
+  if (b.rent !== undefined && Number(b.rent) < 0) throw invalid('月租金不能为负')
+
+  /* 同一个手机号在同一套房重复登记 = 点了两次提交，不是又要住进来一个人 */
+  const dup = tenants.find(t => t.houseId === h.houseId && String(t.phone) === phone && t.status === '在住')
+  if (dup) {
+    throw new ApiError(409, 40992, `${name}（${maskPhone(phone)}）已在本房登记为在住租客，无需重复登记`)
+  }
+
+  const seq = tenants.filter(t => String(t.tenantId).startsWith('TN9')).length
+  const row = {
+    tenantId: `TN9${String(seq + 1).padStart(4, '0')}`,
+    tenantType: '个人',
+    name,
+    phone,
+    /* 只收了后四位就只存后四位，别拼成假证件号 —— 后面按后四位比对的逻辑会被它带歪 */
+    idCard: '',
+    idCard4: String(b.idCard4 || '').replace(/\D/g, '').slice(0, 4),
+    houseId: h.houseId,
+    ownerId: h.ownerId,
+    leaseStart: String(b.leaseStart).slice(0, 10),
+    leaseEnd: String(b.leaseEnd).slice(0, 10),
+    rent: Number(b.rent) || 0,
+    residents: Math.max(1, Number(b.residents) || 1),
+    relation: '租客',
+    /* 业主登记 ≠ 核验通过：门禁授权、人脸录入要物业核验后才生效，
+       否则谁都能给自己开一张门禁卡 */
+    source: '业主自助',
+    verifyStatus: '待核验',
+    certified: false,
+    faceRegistered: false,
+    status: '在住'
+  }
+  tenants.push(row)
+  return { ...row, phone: maskPhone(row.phone), idCard4: row.idCard4 }
+})
+
+on('GET', '/mp/bills', (ctx) => {
+  const me = mpOf(ctx)
+  const q = ctx.query || {}
+  /* 带 houseId 查别人的房：直接 403，不当成"没数据"返回空数组 ——
+     空数组会让业主以为"这套房没账单"，实际上是没权限 */
+  if (q.houseId && !mpBound(me).has(String(q.houseId))) {
+    throw forbidden('这套房不在您已绑定的房产里')
+  }
+  const list = mpBillList(me, q)
+  const rows = list.map(billRow)
+  return {
+    rows,
+    summary: {
+      count: rows.length,
+      payable: r2(rows.reduce((s, b) => s + (Number(b.payable) || 0), 0)),
+      /* 欠费合计只算欠费三态：已减免的账单金额没清零是数据问题，不该变成待缴 */
+      unpaid: r2(rows.filter(mpIsDebt).reduce((s, b) => s + (Number(b.unpaid) || 0), 0)),
+      debtCount: rows.filter(mpIsDebt).length,
+      overdueCount: rows.filter(b => mpIsDebt(b) && (Number(b.overdueDays) || 0) > 0).length
+    },
+    /* 账期升序：账单页按它分组，倒序会让"最近一期"排在最后 */
+    periods: [...new Set(rows.map(b => b.period))].sort()
+  }
+})
+
+on('GET', '/mp/pricing', (ctx) => {
+  const cid = String((ctx.query || {}).communityId || '')
+  const proj = repairPrices.projects.find(p => p.communityId === cid)
+  if (cid && !proj) throw notFound(`项目 ${cid} 没有配置维修价目`)
+  if (proj && proj.enabled === false) throw forbidden(`${proj.name || cid} 暂未开通线上报修`)
+  /* 价目是**全项目共用**的一份，项目只决定"开不开"与"多久上门"。
+     这里不按项目裁 items —— 裁了会出现"同一项在 A 项目 125、B 项目没有"，
+     而员工端现场增项用的是全量表，两边报价就对不上。 */
+  return {
+    chargeMode: repairPrices.chargeMode,
+    tradeOpts: repairPrices.tradeOpts,
+    items: repairPrices.items,
+    addons: repairPrices.addons
+  }
+})
+
+/* ================= 批 C：报修 / 增项 / 支付 / 评价 =================
+ * 业主端这一组的核心是**钱分三段**：
+ *   originFee（价目材料 + 人工）/ addonFee（已确认增项）/ totalFee（合计），
+ *   paidAmount 是已预付，dueFee = totalFee - paidAmount 才是"还要付多少"。
+ * 增项确认后**不重开一单、不重付总额**，只补差额 —— 这是业主最容易被多收钱的地方。
+ */
+
+const MP_NOW = `${NV_TODAY} 11:30`
+/** 待付款单（不是支付流水）。只在内存里活着，服务重启即清空 —— 演示够用。 */
+const payOrders = []
+let mpWoSeq = 0
+let mpPaySeq = 0
+
+const mpInMinutes = (text, n) => {
+  const [d, t] = String(text).split(' ')
+  const [hh, mm] = t.split(':').map(Number)
+  const total = hh * 60 + mm + n
+  return `${d} ${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+const mpPriceOf = code => [...repairPrices.items, ...repairPrices.addons].find(i => i.code === code) || null
+
+/** 在做的单：首页"进行中"角标、列表排序都用它 */
+const MP_DOING = ['待派单', '已派单', '处理中', '待确认']
+
+/** 我的单：个人单按已绑房，公共单按项目（跟产权无关，登录即可见） */
+function mpOrderList(sess, q = {}) {
+  const ids = mpBound(sess)
+  const cmIds = new Set((sess.boundHouseIds || []).map(id => (HOUSE.get(id) || {}).communityId).filter(Boolean))
+  const wantPublic = String(q.scope) === 'public'
+  return workOrders
+    .filter(w => (wantPublic
+      ? !!w.isPublic && (!q.communityId || w.communityId === String(q.communityId))
+      : ids.has(w.houseId)))
+    .filter(w => !q.houseId || w.houseId === String(q.houseId))
+    .filter(w => String(q.onlyDoing) !== 'true' || MP_DOING.includes(w.status))
+    .filter(w => !q.status || w.status === String(q.status))
+}
+
+/** 进度节点：由字段推导，不另存节点表（与契约里的 timeline 一致） */
+function mpTimeline(w, addons) {
+  const confirmedAt = (addons || []).filter(a => a.confirmed).map(a => a.confirmedAt).filter(Boolean).sort().pop()
+  const rows = [
+    { key: 'create', label: '提交报修', at: w.createTime || '', done: true },
+    { key: 'accept', label: '师傅接单', at: w.acceptTime || '', done: !!w.acceptTime },
+    { key: 'arrive', label: '上门处理', at: w.arriveTime || '', done: !!w.arriveTime },
+    { key: 'addon', label: '增项确认', at: confirmedAt || '', done: !!confirmedAt },
+    { key: 'finish', label: '完工', at: w.finishTime || '', done: !!w.finishTime },
+    { key: 'eval', label: '评价', at: w.evaluateAt || '', done: w.status === '已评价' }
+  ]
+  /* 没有增项的单不显示"增项确认"这一节：一条永远不亮的节点只会让人以为流程卡住了 */
+  return (addons || []).length ? rows : rows.filter(r => r.key !== 'addon')
+}
+
+/**
+ * 业主视角的工单（= 契约 MpOrderDetail）。
+ * 金额一律**由数据算**，不接受前端传值 —— 前端算钱是"三处金额不一致"的根源。
+ */
+function mpOrderRow(w) {
+  const addons = Array.isArray(w.addons) ? w.addons : []
+  const originFee = r2((Number(w.materialFee) || 0) + (Number(w.laborFee) || 0))
+  const addonFee = r2(addons.filter(a => a.confirmed).reduce((s, a) => s + (Number(a.total) || 0), 0))
+  const pendingAddons = addons.filter(a => !a.confirmed)
+  const pendingAddonFee = r2(pendingAddons.reduce((s, a) => s + (Number(a.total) || 0), 0))
+  const totalFee = r2(w.totalFee || 0)
+  const paidAmount = r2(w.paidAmount != null ? w.paidAmount : (w.payStatus === '已支付' ? totalFee : 0))
+  const pay = payOrders.find(p => p.type === 'wo' && p.refId === w.woId && p.status === '待支付') || null
+  const price = mpPriceOf(w.priceCode)
+  return {
+    ...w,
+    addons,
+    pendingAddons,
+    pendingAddonFee,
+    originFee,
+    addonFee,
+    totalFee,
+    paidAmount,
+    dueFee: Math.max(0, r2(totalFee - paidAmount)),
+    /* 确认后会变成多少：业主点"确认"之前要看到结果，否则等于盲签 */
+    willBeFee: r2(originFee + addonFee + pendingAddonFee),
+    priceName: w.priceName || (price ? price.name : ''),
+    priceQty: Number(w.priceQty) || 1,
+    timeline: mpTimeline(w, addons),
+    /* 没有待付单时**不给这个键**，不要给 null —— 契约里它是 object，
+       给 null 客户端要额外判一次，用 `wo.payOrder` 真值判断就够了 */
+    ...(pay ? { payOrder: pay } : {})
+  }
+}
+
+const mpMyOrder = (sess, woId) => {
+  const w = workOrders.find(x => x.woId === String(woId))
+  if (!w) throw notFound('工单不存在')
+  if (!w.isPublic && !mpBound(sess).has(w.houseId)) {
+    /* 不是本人房上的单：404 还是 403？这里给 403 —— 单号是猜不出来的（WO000123 能猜到），
+       但业主手上可能有过别人转来的单号。给 403 至少不会让人以为"单子没了"。 */
+    throw forbidden('这张工单不在您的房产下')
+  }
+  return w
+}
+
+/* ---------------- 待付款单 ---------------- */
+
+const mpPayRow = p => ({ ...p })
+
+function mpPayPending(type, refId, ownerId) {
+  return payOrders.find(p => p.type === type && p.refId === refId && p.ownerId === ownerId && p.status === '待支付') || null
+}
+
+function mpNewPay({ type, refId, ownerId, title, sub, amount, billIds = [], lines = [] }) {
+  mpPaySeq += 1
+  const pay = {
+    payId: `PY${NV_TODAY.replace(/-/g, '')}${String(mpPaySeq).padStart(4, '0')}`,
+    type,
+    refId,
+    ownerId,
+    title,
+    sub,
+    amount,
+    billIds,
+    lines,
+    status: '待支付',
+    createdAt: MP_NOW,
+    expireAt: mpInMinutes(MP_NOW, 30)
+  }
+  payOrders.unshift(pay)
+  return pay
+}
+
+/* ---------------- 路由 ---------------- */
+
+on('GET', '/mp/orders', (ctx) => {
+  const me = mpOf(ctx)
+  const rows = mpOrderList(me, ctx.query)
+    .map(mpOrderRow)
+    /* 在做的排前面，其次按时间倒序 —— 业主进来是看"我这单到哪了" */
+    .sort((a, b) => {
+      const d = (MP_DOING.includes(b.status) ? 1 : 0) - (MP_DOING.includes(a.status) ? 1 : 0)
+      if (d) return d
+      return String(b.createTime).localeCompare(String(a.createTime))
+    })
+  return {
+    rows,
+    total: rows.length,
+    summary: {
+      doing: rows.filter(r => MP_DOING.includes(r.status)).length,
+      toEvaluate: rows.filter(r => r.status === '已完工' && !r.score).length,
+      pendingAddons: rows.filter(r => r.pendingAddons.length > 0).length
+    }
+  }
+})
+
+on('GET', '/mp/orders/{woId}', (ctx) => mpOrderRow(mpMyOrder(mpOf(ctx), ctx.params.woId)))
+
+on('POST', '/mp/orders', (ctx) => {
+  const me = mpOf(ctx)
+  const b = ctx.body || {}
+  const isPublic = String(b.scope || 'personal') === 'public'
+  const price = mpPriceOf(String(b.priceCode || ''))
+  if (!price || !repairPrices.items.some(i => i.code === price.code)) {
+    throw invalid(`维修项目不存在：${b.priceCode || '（空）'}`)
+  }
+  if (!b.description || !String(b.description).trim()) throw invalid('问题描述必填')
+  if (String(b.description).length > 120) throw invalid('问题描述最多 120 字')
+  if (!b.appointDate) throw invalid('请选择上门日期')
+  /* 时段是 1 小时粒度（09:00-10:00）。只校验形状不校验清单：
+     以后加时段不用改这里，但"上午/下午"这种词得在客户端就挡住 */
+  if (!/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(String(b.appointSlot || ''))) {
+    throw invalid('上门时段格式应是 09:00-10:00')
+  }
+
+  let house = null
+  if (!isPublic) {
+    if (!b.houseId) throw invalid('请选择要维修的房屋')
+    house = mpMyHouse(me, b.houseId) // 没绑 → 403
+  } else if (!b.place) {
+    throw invalid('公共区域报修要选位置')
+  }
+
+  const qty = Math.min(5, Math.max(1, Number(b.qty) || 1))
+  const material = isPublic ? 0 : r2((price.material || 0) * qty)
+  const labor = isPublic ? 0 : r2((price.labor || 0) * qty)
+  const total = r2(material + labor)
+
+  mpWoSeq += 1
+  const woId = `WO9${String(mpWoSeq).padStart(5, '0')}`
+  const wo = {
+    woId,
+    woNo: `BX${NV_TODAY.slice(0, 4)}9${String(mpWoSeq).padStart(4, '0')}`,
+    communityId: house ? house.communityId : String(b.communityId || 'P01'),
+    houseId: isPublic ? '' : house.houseId,
+    houseName: isPublic ? String(b.place) : house.fullName,
+    ownerId: me.ownerId,
+    ownerName: me.name,
+    /* 「入户维修」在 2026-11-02 已废弃（契约 WoType 写明）：收费的入户单是「商业服务」。
+       写回旧值不会报错，只会在后台筛选里变成一个谁都搜不到的类型。 */
+    type: isPublic ? '公共区域维修' : '商业服务',
+    category: price.category || '综合维修',
+    source: '小程序',
+    priority: '普通',
+    /* 状态先给「待派单」，但 `payStatus=未支付` 时**不进派单池** ——
+       派单池的取数条件是 `status=待派单 且 payStatus=已支付`。
+       不给新状态（比如"待支付"）是为了不让后台的状态机多一个分叉。 */
+    status: '待派单',
+    title: `${isPublic ? String(b.place) : (price.category || '维修')} · ${price.name}`,
+    description: String(b.description).trim(),
+    dispatchMode: '系统派单',
+    createTime: MP_NOW,
+    slaHours: 24,
+    slaDueAt: mpInMinutes(MP_NOW, 24 * 60),
+    slaUsedHours: 0,
+    slaBreached: false,
+    serviceItemCode: price.code,
+    serviceName: price.name,
+    priceCode: price.code,
+    priceName: price.name,
+    priceQty: qty,
+    feeType: isPublic ? '免费' : '收费',
+    materialFee: material,
+    laborFee: labor,
+    totalFee: total,
+    paidAmount: 0,
+    payStatus: isPublic ? '无需支付' : '未支付',
+    score: 0,
+    isPublic,
+    appointAt: `${b.appointDate ? String(b.appointDate).slice(0, 10) : NV_TODAY} ${String(b.appointSlot || '09:00-11:00').slice(0, 5)}`,
+    appointSlot: b.appointSlot || '09:00-11:00',
+    photos: Array.isArray(b.photos) ? b.photos : [],
+    addons: [],
+    _ver: 1
+  }
+  workOrders.unshift(wo)
+
+  /* 下单即预付：直接生成待付款单。免费/公共单不生成 —— 生成一张 0 元的单让业主点"支付"很蠢。 */
+  const pay = isPublic ? null : mpNewPay({
+    type: 'wo',
+    refId: woId,
+    ownerId: me.ownerId,
+    title: `${wo.category} · ${price.name}`,
+    sub: `${wo.houseName} · 工单 ${wo.woNo}`,
+    amount: total
+  })
+  return { order: mpOrderRow(wo), payOrder: pay ? mpPayRow(pay) : null }
+})
+
+on('POST', '/mp/orders/{woId}/addons/confirm', (ctx) => {
+  const me = mpOf(ctx)
+  const w = mpMyOrder(me, ctx.params.woId)
+  if (['已评价', '已关闭', '已取消'].includes(w.status)) {
+    throw new ApiError(409, 40993, `工单已${w.status}，不能再确认增项`)
+  }
+  const want = Array.isArray(ctx.body?.addonCodes) && ctx.body.addonCodes.length
+    ? new Set(ctx.body.addonCodes.map(String))
+    : null
+  const list = Array.isArray(w.addons) ? w.addons : []
+  if (!list.length) throw invalid('这单没有增项')
+  const targets = list.filter(a => !a.confirmed && (!want || want.has(a.code)))
+  /* 幂等：**已经有增项、但都确认过了**时返回 200 且不动 `confirmedAt` ——
+     客户端超时重试很常见，重复确认让它失败会让人以为"没确认上"然后反复点。
+     真正该报 422 的是"这单压根没有增项"。 */
+  if (!targets.length) return mpOrderRow(w)
+
+  for (const a of targets) {
+    a.confirmed = true
+    a.confirmedAt = MP_NOW
+    a.confirmedBy = '业主（小程序）'
+  }
+  /* 总额 = 原价 + **已确认**增项。没确认的不能提前算进总额，否则业主看到的总价是虚的 */
+  const origin = r2((Number(w.materialFee) || 0) + (Number(w.laborFee) || 0))
+  const addonFee = r2(list.filter(a => a.confirmed).reduce((s, a) => s + (Number(a.total) || 0), 0))
+  w.totalFee = r2(origin + addonFee)
+  const paid = r2(w.paidAmount || 0)
+  /* 还有差额就回到「未支付」，业主付的是差额；没差额就保持已支付 */
+  w.payStatus = w.totalFee > paid + 0.001 ? '未支付' : (paid > 0 ? '已支付' : '无需支付')
+  if (w.status === '待确认') {
+    w.status = '已完工'
+    w.finishTime = w.finishTime || MP_NOW
+  }
+  return mpOrderRow(w)
+})
+
+on('POST', '/mp/orders/{woId}/evaluate', (ctx) => {
+  const me = mpOf(ctx)
+  const w = mpMyOrder(me, ctx.params.woId)
+  const b = ctx.body || {}
+  const score = Number(b.score)
+  if (!Number.isInteger(score) || score < 1 || score > 5) throw invalid('评分须是 1~5 的整数')
+  if (w.status !== '已完工') {
+    throw new ApiError(409, 40994, w.status === '已评价' ? '这单已经评价过了' : `工单当前是「${w.status}」，完工后才能评价`)
+  }
+  /* 先把账算清，再谈感受：还有待确认增项时不让评价 */
+  if ((w.addons || []).some(a => !a.confirmed)) {
+    throw new ApiError(409, 40995, '还有增项没确认，确认后再评价')
+  }
+  const TAGS = ['准时上门', '穿着规范', '讲解清楚', '收拾干净', '收费透明', '态度好']
+  const tags = Array.isArray(b.tags) ? b.tags.map(String) : []
+  const badTag = tags.find(t => !TAGS.includes(t))
+  if (badTag) throw invalid(`评价标签只能是：${TAGS.join(' / ')}`)
+  if (b.text && String(b.text).length > 200) throw invalid('评价最多 200 字')
+
+  w.score = score
+  w.evalTags = tags
+  w.evaluate = String(b.text || '')
+  w.evaluateAt = MP_NOW
+  w.status = '已评价'
+  return mpOrderRow(w)
+})
+
+on('POST', '/mp/payments', (ctx) => {
+  const me = mpOf(ctx)
+  const b = ctx.body || {}
+  const type = String(b.type || '')
+
+  if (type === 'bill') {
+    const ids = (Array.isArray(b.billIds) ? b.billIds : []).map(String).filter(Boolean)
+    if (!ids.length) throw invalid('没有选择账单')
+    const list = ids.map(id => bills.find(x => x.billId === id)).filter(Boolean)
+    if (list.length !== ids.length) throw notFound('有账单不存在')
+    const ids_set = mpBound(me)
+    for (const x of list) {
+      const mine = x.houseId ? ids_set.has(x.houseId) : x.ownerId === me.ownerId
+      if (!mine) throw forbidden(`账单 ${x.billId} 不在您的名下`)
+      if (!mpIsDebt(x)) throw invalid(`账单 ${x.billId} 不欠费，不能缴费`)
+    }
+    const amount = r2(list.reduce((s, x) => s + (Number(x.unpaid) || 0), 0))
+    const houses = [...new Set(list.map(x => (x.houseId ? (HOUSE.get(x.houseId) || {}).fullName : '车位')).filter(Boolean))]
+    const park = list.some(x => !x.houseId)
+    const exist = payOrders.find(p => p.type === 'bill' && p.ownerId === me.ownerId &&
+      p.status === '待支付' && p.billIds.join(',') === ids.join(','))
+    if (exist) {
+      exist.amount = amount
+      return mpPayRow(exist)
+    }
+    return mpPayRow(mpNewPay({
+      type: 'bill',
+      refId: ids[0],
+      ownerId: me.ownerId,
+      title: houses.length > 1
+        ? `${houses.length} 套房合并缴费`
+        : list.length > 1 ? `${list.length} 张账单合并缴费` : `${list[0].itemName}（${list[0].period}）`,
+      sub: houses.length > 1
+        ? `${houses[0]} 等 ${houses.length} 套${park ? '（含车位）' : ''} · 共 ${list.length} 项`
+        : `${houses[0] || ''} · 共 ${list.length} 项`,
+      amount,
+      billIds: ids,
+      lines: list.map(x => ({
+        billId: x.billId,
+        houseId: x.houseId || '',
+        houseName: x.houseId ? (HOUSE.get(x.houseId) || {}).fullName || '' : '车位',
+        itemName: x.itemName,
+        period: x.period,
+        status: x.status,
+        overdueDays: Number(x.overdueDays) || 0,
+        amount: r2(x.unpaid)
+      }))
+    }))
+  }
+
+  if (type === 'wo') {
+    const w = mpMyOrder(me, b.woId)
+    if ((w.addons || []).some(a => !a.confirmed)) {
+      throw new ApiError(409, 40996, '有增项待确认，确认后才能一并支付')
+    }
+    const total = r2(w.totalFee || 0)
+    const paid = r2(w.paidAmount != null ? w.paidAmount : (w.payStatus === '已支付' ? total : 0))
+    const due = Math.max(0, r2(total - paid))
+    if (due <= 0) {
+      throw new ApiError(409, 40997, paid > 0 ? '该单已结清' : '该单无需支付')
+    }
+    const exist = mpPayPending('wo', w.woId, me.ownerId)
+    if (exist) {
+      exist.amount = due
+      return mpPayRow(exist)
+    }
+    return mpPayRow(mpNewPay({
+      type: 'wo',
+      refId: w.woId,
+      ownerId: me.ownerId,
+      title: `${w.category} · ${w.priceName || w.title}`,
+      sub: `${w.houseName} · 工单 ${w.woNo}${paid > 0 ? ' · 增项补付' : ''}`,
+      amount: due
+    }))
+  }
+
+  if (type === 'activity') {
+    const e = neighborEnrolls.find(x => x.enrollId === String(b.refId || b.enrollId || ''))
+    if (!e) throw notFound('报名记录不存在')
+    const amount = r2(e.amount || 0)
+    /* 报名费金额在业主侧报名接口里算（批 D）。现在 enrolls 样例没有 amount，
+       所以收费活动到这里统一是"没有可付金额"，而不是凭空收一笔。 */
+    if (amount <= 0) throw invalid('这笔报名没有应缴金额（免费活动，或报名费尚未生成）')
+    const exist = mpPayPending('activity', e.enrollId, me.ownerId)
+    if (exist) return mpPayRow(exist)
+    return mpPayRow(mpNewPay({
+      type: 'activity', refId: e.enrollId, ownerId: me.ownerId,
+      title: `${e.activityTitle || '社区活动'} · 报名费`,
+      sub: `${e.people} 人`,
+      amount
+    }))
+  }
+
+  throw invalid('type 只能是 bill / wo / activity')
+})
+
+on('POST', '/mp/payments/{payId}/simulate', (ctx) => {
+  const me = mpOf(ctx)
+  const pay = payOrders.find(p => p.payId === ctx.params.payId)
+  if (!pay) throw notFound('订单不存在')
+  if (pay.ownerId !== me.ownerId) throw forbidden('这不是您的订单')
+
+  /* 幂等：重复回调不能重复冲账。真实接入时这条靠渠道回调 + 唯一索引，这里靠状态判断 */
+  if (pay.status === '已支付') {
+    const w = pay.type === 'wo' ? workOrders.find(x => x.woId === pay.refId) : null
+    return { payOrder: mpPayRow(pay), ...(w ? { order: mpOrderRow(w) } : {}) }
+  }
+  if (pay.status !== '待支付') throw new ApiError(409, 40998, `订单${pay.status}，不能支付`)
+
+  pay.status = '已支付'
+  pay.paidAt = MP_NOW
+  pay.payMethod = '微信支付（模拟）'
+
+  if (pay.type === 'wo') {
+    const w = workOrders.find(x => x.woId === pay.refId)
+    if (!w) throw notFound('工单不存在')
+    /* 付的是**差额**：把已付累加上去，不能直接等于总额 ——
+       否则"先付 125、再补 80"会被记成只付了 205 里的一次 205。 */
+    w.paidAmount = r2((Number(w.paidAmount) || 0) + pay.amount)
+    w.payStatus = w.paidAmount + 0.001 >= r2(w.totalFee) ? '已支付' : '未支付'
+    w.payTime = MP_NOW
+    w.payMethod = '微信支付（模拟）'
+    return { payOrder: mpPayRow(pay), order: mpOrderRow(w) }
+  }
+
+  if (pay.type === 'bill') {
+    for (const line of pay.lines) {
+      const x = bills.find(v => v.billId === line.billId)
+      if (!x) continue
+      x.paidAmount = r2((Number(x.paidAmount) || 0) + line.amount)
+      x.unpaid = Math.max(0, r2((Number(x.payable) || 0) - x.paidAmount))
+      x.status = x.unpaid > 0.001 ? '部分缴' : '已缴'
+      x.payTime = MP_NOW
+      x.overdueDays = x.unpaid > 0.001 ? x.overdueDays : 0
+      bumpVer('bill', x.billId)
+    }
+    return {
+      payOrder: mpPayRow(pay),
+      bills: (pay.billIds || []).map(id => bills.find(v => v.billId === id)).filter(Boolean).map(billRow)
+    }
+  }
+
+  /* activity：付款单之外还要把**报名记录**标成已支付 ——
+     只改付款单的话，"我的报名"里那条会一直显示"待支付"，用户会重复付 */
+  const e = neighborEnrolls.find(x => x.enrollId === pay.refId)
+  if (e) {
+    e.payStatus = '已支付'
+    e.paidAt = MP_NOW
+    e.payMethod = '微信支付（模拟）'
+  }
+  return { payOrder: mpPayRow(pay) }
+})
+
+/* ================= 批 D：业主侧内容（公告 / 投票 / 活动 / 闲置） =================
+ * 这一组是**业主自己写**的动作，和运营侧那套（`n.*` 权限码）不是一个模型：
+ * 运营侧按"数据范围"过滤，业主侧按"这是我的"过滤。
+ *
+ * 状态存在内存里（`mpNv`），服务重启即清空 —— 演示够用，真实系统落三张表：
+ * `notice_reads` / `vote_ballots` / `item_wants`（+ 消息表）。
+ * `enrollments` 与 `items` 不另存，直接写进共享数组，这样**员工端立刻能看到**：
+ * 业主发的闲置会进「待审核」队列、报名会进活动名单 —— 否则两边各存一份，永远对不上。
+ */
+const mpNv = {
+  reads: new Map(), // ownerId -> Map(noticeId -> at)
+  signs: new Map(),
+  votes: new Map(), // ownerId -> Map(voteId -> [keys])
+  wants: new Map(), // ownerId -> Set(itemId)
+  messages: []
+}
+const mpNvGet = (map, key, init) => {
+  if (!map.has(key)) map.set(key, init())
+  return map.get(key)
+}
+const mpNvCommunities = (sess) => new Set(
+  (sess.boundHouseIds || []).map(id => (HOUSE.get(id) || {}).communityId).filter(Boolean)
+)
+/** 我能看到的公告：已发布 + 本社区（communityId 为空的算全公司公告） */
+const mpNvNotices = (sess) => {
+  const mine = mpNvCommunities(sess)
+  return notices.filter(n => n.status === '已发布' && (!n.communityId || mine.has(n.communityId)))
+}
+/**
+ * 哪些公告要签收：**影响日常生活的两类**（停水停电 / 安全提示）。
+ * 样例里没有 `needSign` 字段，也没必要为它改数据 —— 这个口径是业务规则，不是数据。
+ * 反过来"所有公告都能签"是不行的：全都能签，就等于全都不用认真读。
+ */
+const MP_NV_SIGN_TYPES = ['停水停电', '安全提示']
+const mpNvNeedSign = (n) => MP_NV_SIGN_TYPES.includes(n.type)
+
+const mpNvNotice = (noticeId) => {
+  const n = notices.find(x => x.noticeId === String(noticeId))
+  if (!n) throw notFound('公告不存在')
+  return n
+}
+
+const MP_NV_ENROLL_ALIVE = ['已报名', '待支付', '已签到']
+/** 我的报名（含活动摘要与能否取消） */
+function mpNvMyEnrolls(sess) {
+  return neighborEnrolls
+    .filter(e => e.ownerId === sess.ownerId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .map(e => {
+      const a = neighborActivities.find(x => x.activityId === e.activityId)
+      const phase = a ? nvPhaseOf(a) : ''
+      return {
+        ...e,
+        activityTitle: e.activityTitle || (a ? a.title : ''),
+        activityStart: e.activityStart || (a ? a.startAt : ''),
+        communityId: e.communityId || (a ? a.communityId : ''),
+        fee: Number(e.fee ?? (a ? a.fee : 0)) || 0,
+        amount: Number(e.amount) || 0,
+        payStatus: e.payStatus || (Number(e.fee) > 0 ? '待支付' : '无需支付'),
+        phase,
+        /* 已签到的不能自助取消（现场已核销），已流团/已结束的不必取消 */
+        canCancel: MP_NV_ENROLL_ALIVE.includes(e.status) && ['报名中', '待成行'].includes(phase) && e.status !== '已签到'
+      }
+    })
+}
+
+const mpNvMyItems = (sess) => neighborItems
+  .filter(i => i.ownerId === sess.ownerId)
+  .sort((a, b) => String(b.publishAt).localeCompare(String(a.publishAt)))
+
+/* ---------------- 我的内容（一次拉齐，客户端不用打五个请求） ---------------- */
+
+on('GET', '/mp/neighbor/mine', (ctx) => {
+  const me = mpOf(ctx)
+  const reads = Object.fromEntries(mpNvGet(mpNv.reads, me.ownerId, () => new Map()))
+  const signs = Object.fromEntries(mpNvGet(mpNv.signs, me.ownerId, () => new Map()))
+  const votes = Object.fromEntries(mpNvGet(mpNv.votes, me.ownerId, () => new Map()))
+  const wants = [...mpNvGet(mpNv.wants, me.ownerId, () => new Set())]
+  const enrolls = mpNvMyEnrolls(me)
+  const items = mpNvMyItems(me)
+  const unread = mpNvNotices(me).filter(n => !reads[n.noticeId]).length
+  return {
+    noticeReads: reads,
+    noticeSigns: signs,
+    votes,
+    wants,
+    enrolls,
+    items,
+    unread,
+    counts: {
+      enroll: enrolls.filter(e => MP_NV_ENROLL_ALIVE.includes(e.status)).length,
+      vote: Object.keys(votes).length,
+      item: items.length,
+      want: wants.length
+    }
+  }
+})
+
+/* ---------------- 公告：已读 / 签收 ---------------- */
+
+on('POST', '/mp/neighbor/notices/{noticeId}/read', (ctx) => {
+  const me = mpOf(ctx)
+  const n = mpNvNotice(ctx.params.noticeId)
+  const map = mpNvGet(mpNv.reads, me.ownerId, () => new Map())
+  /* 幂等：保留第一次的阅读时间。刷一次就改一次，"读了多久"就再也算不出来 */
+  if (!map.has(n.noticeId)) map.set(n.noticeId, MP_NOW)
+  return { noticeId: n.noticeId, readAt: map.get(n.noticeId) }
+})
+
+on('POST', '/mp/neighbor/notices/{noticeId}/sign', (ctx) => {
+  const me = mpOf(ctx)
+  const n = mpNvNotice(ctx.params.noticeId)
+  if (!mpNvNeedSign(n)) {
+    /* 签收是**责任动作**（停水停电这类要留痕），不能对所有公告都开放：
+       全都能签，就等于全都不用认真读 */
+    throw invalid('该公告不需要签收')
+  }
+  const reads = mpNvGet(mpNv.reads, me.ownerId, () => new Map())
+  const signs = mpNvGet(mpNv.signs, me.ownerId, () => new Map())
+  if (!reads.has(n.noticeId)) reads.set(n.noticeId, MP_NOW)
+  if (!signs.has(n.noticeId)) signs.set(n.noticeId, MP_NOW)
+  return { noticeId: n.noticeId, signedAt: signs.get(n.noticeId), readAt: reads.get(n.noticeId) }
+})
+
+/* ---------------- 投票：提交 ---------------- */
+
+on('POST', '/mp/neighbor/votes/{voteId}/submit', (ctx) => {
+  const me = mpOf(ctx)
+  const v = neighborVotes.find(x => x.surveyId === String(ctx.params.voteId))
+  if (!v) throw notFound('投票不存在')
+  if (!mpNvCommunities(me).has(v.communityId) && v.communityId) {
+    throw forbidden('这个投票不在您所在的项目')
+  }
+  if (v.status !== '进行中') {
+    throw new ApiError(409, 40997, v.status === '已结束' ? '该投票已结束' : '该投票还没开始')
+  }
+  const keys = [...new Set((Array.isArray(ctx.body?.keys) ? ctx.body.keys : []).map(String).filter(Boolean))]
+  if (!keys.length) throw invalid('请至少选择一项')
+  const limit = v.multi ? (Number(v.maxPick) || 1) : 1
+  if (keys.length > limit) throw invalid(`最多选 ${limit} 项`)
+  const bad = keys.find(k => !(v.options || []).some(o => o.key === k))
+  if (bad) throw invalid(`选项不存在：${bad}`)
+
+  const map = mpNvGet(mpNv.votes, me.ownerId, () => new Map())
+  const prev = map.get(v.surveyId) || []
+  /* 改票要**先扣掉旧票再记新票**：只加不减，多投几次就能把一个选项刷到全票 */
+  for (const o of v.options) {
+    const wasMine = prev.includes(o.key)
+    const isMine = keys.includes(o.key)
+    if (wasMine && !isMine) o.votes = Math.max(0, (Number(o.votes) || 0) - 1)
+    if (!wasMine && isMine) o.votes = (Number(o.votes) || 0) + 1
+  }
+  map.set(v.surveyId, keys)
+  v.totalVotes = nvVoteTotal(v)
+  return {
+    voteId: v.surveyId,
+    picks: keys,
+    changed: prev.length > 0,
+    totalVotes: v.totalVotes,
+    options: (v.options || []).map(o => ({ key: o.key, label: o.label, votes: Number(o.votes) || 0 }))
+  }
+})
+
+/* ---------------- 活动：报名 / 取消 ---------------- */
+
+on('POST', '/mp/neighbor/activities/{activityId}/enroll', (ctx) => {
+  const me = mpOf(ctx)
+  const a = neighborActivities.find(x => x.activityId === String(ctx.params.activityId))
+  if (!a) throw notFound('活动不存在')
+  const b = ctx.body || {}
+  if (!mpNvCommunities(me).has(a.communityId)) throw forbidden('这个活动不在您所在的项目')
+
+  const phase = nvPhaseOf(a)
+  if (phase !== '报名中') {
+    throw new ApiError(409, 40996, phase === '待成行' ? '报名已截止且未达成团人数，暂不能报名' : `活动${phase}，不能报名`)
+  }
+  if (neighborEnrolls.some(e => e.activityId === a.activityId && e.ownerId === me.ownerId && MP_NV_ENROLL_ALIVE.includes(e.status))) {
+    throw new ApiError(409, 40995, '您已经报过名了')
+  }
+  const cap = Number(a.capacity) || 0
+  const left = cap ? Math.max(0, cap - nvEnrolledOf(a.activityId)) : 999
+  if (left <= 0) throw new ApiError(409, 40994, '名额已满')
+
+  const list = (Array.isArray(b.attendees) ? b.attendees : []).filter(x => x && String(x.name || '').trim())
+  if (!list.length) throw invalid('至少填一位出行人')
+  const limit = Number(a.attendeeLimit) || 1
+  if (list.length > limit) throw invalid(`最多 ${limit} 位出行人`)
+  if (list.length > left) throw invalid(`只剩 ${left} 个名额`)
+  for (const p of list) {
+    if (!/^[\u4e00-\u9fa5·]{2,12}$/.test(String(p.name || '').trim())) throw invalid('出行人姓名需为 2~12 个汉字')
+    if (!/^1\d{10}$/.test(String(p.phone || '').trim())) throw invalid('出行人手机号格式不正确')
+    /* 证件号只在投保时收。不投保的活动收了就是白担风险（§12.3 第 3 条） */
+    if (a.needInsurance && !/^\d{17}[\dXx]$/.test(String(p.idNo || '').trim())) {
+      throw invalid('本活动为出行人投保，需填 18 位身份证号')
+    }
+  }
+  if (!b.agreeTerms) throw invalid('请先阅读并同意活动条款')
+  if (a.needInsurance && !b.agreeInsurance) throw invalid('需同意为出行人购买当日意外险')
+
+  const people = list.length
+  const fee = Number(a.fee) || 0
+  const seq = neighborEnrolls.filter(e => String(e.enrollId).startsWith('AE9')).length
+  const row = {
+    enrollId: `AE9${String(seq + 1).padStart(3, '0')}`,
+    activityId: a.activityId,
+    activityTitle: a.title,
+    activityStart: a.startAt,
+    communityId: a.communityId,
+    ownerId: me.ownerId,
+    name: String(list[0].name).trim(),
+    phone: String(list[0].phone).trim(),
+    houseShort: (HOUSE.get(me.boundHouseIds?.[0]) || {}).shortName || '',
+    people,
+    attendees: list.map(p => ({
+      name: String(p.name).trim(),
+      phone: String(p.phone).trim(),
+      idNo: a.needInsurance ? String(p.idNo || '').trim().toUpperCase() : '',
+      ageType: p.ageType || '成人',
+      emergencyName: String(p.emergencyName || '').trim(),
+      emergencyPhone: String(p.emergencyPhone || '').trim()
+    })),
+    source: '业主自助',
+    at: MP_NOW,
+    status: '已报名',
+    fee,
+    amount: r2(fee * people),
+    payStatus: fee > 0 ? '待支付' : '无需支付'
+  }
+  neighborEnrolls.unshift(row)
+  return row
+})
+
+on('POST', '/mp/neighbor/enrolls/{enrollId}/cancel', (ctx) => {
+  const me = mpOf(ctx)
+  const e = neighborEnrolls.find(x => x.enrollId === String(ctx.params.enrollId))
+  if (!e) throw notFound('报名记录不存在')
+  if (e.ownerId !== me.ownerId) throw forbidden('这不是您的报名')
+  if (e.status === '已签到') throw new ApiError(409, 40993, '已签到的报名不能自助取消，请联系客服')
+  if (!MP_NV_ENROLL_ALIVE.includes(e.status)) throw new ApiError(409, 40992, `报名已${e.status}`)
+
+  const a = neighborActivities.find(x => x.activityId === e.activityId)
+  const fee = Number(e.fee ?? (a ? a.fee : 0)) || 0
+  const ratio = fee > 0 ? nvRefundRatioOf(a) : 100
+  const refund = r2((Number(e.amount) || fee * (Number(e.people) || 1)) * ratio / 100)
+  e.status = fee > 0 ? '已退款' : '已取消'
+  e.refundRatio = ratio
+  e.refundAmount = refund
+  e.cancelledAt = MP_NOW
+  return { enrollId: e.enrollId, status: e.status, ratio, refundAmount: refund, refunded: fee > 0 }
+})
+
+/* ---------------- 闲置：发布 / 想要 / 私信 / 下架 / 续挂 ---------------- */
+
+/* 敏感词只做"明显违规"的第一道闸。真实环境要接微信 msgSecCheck —— 这里写明，不假装做了 */
+const MP_NV_BLOCK_WORDS = ['茅台', '香烟', '发票', '贷款', '枪支', '管制刀具', '活体', '代购', '药酒']
+
+on('POST', '/mp/neighbor/items', (ctx) => {
+  const me = mpOf(ctx)
+  const b = ctx.body || {}
+  const title = String(b.title || '').trim()
+  const desc = String(b.desc || '').trim()
+  const hit = MP_NV_BLOCK_WORDS.find(w => `${title} ${desc}`.includes(w))
+  if (hit) throw invalid(`内容含「${hit}」，属平台禁售范围，请修改后再发`)
+  if (title.length < 4) throw invalid('标题至少 4 个字，邻居才知道是什么')
+  if (desc.length > 300) throw invalid('描述最多 300 字')
+  const price = Number(b.price)
+  if (!Number.isFinite(price) || price < 0) throw invalid('价格填一个数字，送人可以填 0')
+  if (Number(b.images) > 9) throw invalid('图片最多 9 张')
+
+  /* 楼栋只能选自己名下的：选了别人的楼栋，等于把"我住那栋"这张牌打给全小区 */
+  const h = (me.boundHouseIds || []).map(id => HOUSE.get(id)).find(x => x && x.buildingId === String(b.buildingId || ''))
+  if (!h) throw invalid('请选择您名下的楼栋')
+
+  const seq = neighborItems.filter(i => String(i.itemId).startsWith('SH9')).length
+  const row = {
+    itemId: `SH9${String(seq + 1).padStart(3, '0')}`,
+    title,
+    category: b.category || '其他',
+    price,
+    originPrice: Number(b.originPrice) || 0,
+    condition: b.condition || '九成新',
+    cover: '',
+    images: Number(b.images) || 0,
+    desc,
+    communityId: h.communityId,
+    communityName: (LS_COMMUNITY.get(h.communityId) || {}).name || '',
+    /* 存房号串，**展示只到楼栋** —— 门牌漏给邻居，等于把住址公开 */
+    sellerHouse: h.shortName,
+    sellerName: `${String(me.name || '业主').slice(0, 1)}**`,
+    sellerType: me.identity === '租客' ? '租户' : '业主',
+    ownerId: me.ownerId,
+    contactMode: b.contactMode === '公开' ? '公开' : '站内私信',
+    publishAt: MP_NOW,
+    /* 先审后发：业主端只提交与看状态，审核在员工端 */
+    status: '待审核',
+    views: 0,
+    wants: 0,
+    source: '业主发布',
+    expireAt: ''
+  }
+  neighborItems.unshift(row)
+  return row
+})
+
+on('POST', '/mp/neighbor/items/{itemId}/want', (ctx) => {
+  const me = mpOf(ctx)
+  const it = neighborItems.find(x => x.itemId === String(ctx.params.itemId))
+  if (!it) throw notFound('闲置不存在')
+  const set = mpNvGet(mpNv.wants, me.ownerId, () => new Set())
+  const on = !set.has(it.itemId)
+  if (on) {
+    set.add(it.itemId)
+    it.wants = (Number(it.wants) || 0) + 1
+  } else {
+    set.delete(it.itemId)
+    it.wants = Math.max(0, (Number(it.wants) || 0) - 1)
+  }
+  /* 想要数只记**人数**，不记"谁要了"：邻居要的是"有多少人也想要"，
+     公开名单等于把每个人的兴趣挂出来；卖家要联系谁走站内私信 */
+  return { itemId: it.itemId, want: on, wants: Number(it.wants) || 0 }
+})
+
+on('POST', '/mp/neighbor/items/{itemId}/messages', (ctx) => {
+  const me = mpOf(ctx)
+  const it = neighborItems.find(x => x.itemId === String(ctx.params.itemId))
+  if (!it) throw notFound('闲置不存在')
+  const content = String(ctx.body?.content || '').trim()
+  if (!content) throw invalid('写一句话再发')
+  if (content.length > 200) throw invalid('消息最多 200 字')
+  /* 只留"发过"这条事实，不做 IM：物业类目不允许，运维也不该扛聊天记录 */
+  const row = {
+    msgId: `MS${String(mpNv.messages.length + 1).padStart(6, '0')}`,
+    itemId: it.itemId,
+    ownerId: me.ownerId,
+    from: me.name,
+    content,
+    at: MP_NOW
+  }
+  mpNv.messages.unshift(row)
+  return { msgId: row.msgId, itemId: row.itemId, at: row.at }
+})
+
+on('POST', '/mp/neighbor/items/{itemId}/offline', (ctx) => {
+  const me = mpOf(ctx)
+  const it = neighborItems.find(x => x.itemId === String(ctx.params.itemId))
+  if (!it) throw notFound('闲置不存在')
+  if (it.ownerId !== me.ownerId) throw forbidden('只能下架自己发布的')
+  it.status = '已下架'
+  it.offlineAt = MP_NOW
+  return it
+})
+
+on('POST', '/mp/neighbor/items/{itemId}/renew', (ctx) => {
+  const me = mpOf(ctx)
+  const it = neighborItems.find(x => x.itemId === String(ctx.params.itemId))
+  if (!it) throw notFound('闲置不存在')
+  if (it.ownerId !== me.ownerId) throw forbidden('只能续挂自己发布的')
+  if (!['已下架', '已过期', '已驳回'].includes(it.status)) {
+    throw new ApiError(409, 40991, `当前状态「${it.status}」不需要续挂`)
+  }
+  /* 内容没改也要再审：挂了三个月的帖子，图片和描述可能早就不合当前规矩了 */
+  it.status = '待审核'
+  it.renewAt = MP_NOW
+  it.rejectReason = ''
+  return it
+})
+
+/* ---------------- 业主视角的挂牌投影 ---------------- */
+const MP_LS_ACTIVE = ['待审核', '已发布']
+const lsUnitOf = (h) => {
+  const m = /(\d+单元)/.exec(String(h.fullName || ''))
+  return m ? m[1] : ''
+}
+
+/**
+ * 与后台 `lsRow` 分开写，因为两边的边界不一样：
+ * 这里有房号（是我自己的房），没有 `ownerId` / `ownerPhone` / 楼管手机号 ——
+ * 业主不需要知道自己的档案号，更不需要知道楼管的号码。
+ */
+function mpLsRow(l) {
+  const h = HOUSE.get(l.houseId) || {}
+  return {
+    listingId: l.listingId,
+    houseId: l.houseId,
+    communityId: h.communityId || '',
+    communityName: lsCommunityName(h.communityId),
+    buildingName: lsBuildingOf(h),
+    unitName: lsUnitOf(h),
+    room: h.room || '',
+    houseShort: h.shortName || '',
+    houseType: h.houseType || '',
+    area: h.area || 0,
+    orientation: h.orientation || '',
+    floor: h.floor || 0,
+    contentType: l.type,
+    price: l.price,
+    deposit: l.deposit,
+    payTerm: l.payTerm,
+    decorate: l.decorate,
+    facilities: [...(l.facilities || [])],
+    availableFrom: l.availableFrom,
+    desc: l.desc || '',
+    images: l.images || 0,
+    status: l.status,
+    /* 驳回理由原样返回：业主拿着概括来问，管家还得再查一遍 */
+    rejectReason: l.rejectReason || '',
+    offlineReason: l.offlineReason || '',
+    offlineAt: l.offlineAt || '',
+    auditAt: l.auditAt || '',
+    createdAt: l.createdAt || '',
+    expireAt: l.expireAt || '',
+    daysLeft: l.expireAt ? gapDays(l.expireAt) : 0,
+    viewCount: l.viewCount || 0,
+    leadCount: listingViewings.filter(v => v.listingId === l.listingId).length,
+    contentVersion: l.contentVersion || 1,
+    auditedVersion: l.auditedVersion || 0,
+    /* 能力位由服务端算，不让前端按状态自己推 —— 推出来的按钮灰了却说不清为什么 */
+    canOffline: MP_LS_ACTIVE.includes(l.status),
+    canRenew: ['已驳回', '已下架', '已过期'].includes(l.status),
+    canDeal: l.status === '已发布'
+  }
+}
+
+/** 非本人的挂牌一律 404：403 等于告诉探测者"这条存在但不是你的" */
+const mpLsOf = (id, ownerId) => {
+  const l = lsOf(id)
+  if (!l || l.ownerId !== ownerId) throw notFound('挂牌不存在')
+  return l
+}
+
+const mpLsInput = (body = {}) => {
+  const type = body.type === '出售' ? '出售' : '出租'
+  const price = Number(body.price)
+  if (!Number.isFinite(price) || price < 500) throw invalid('挂牌价请填 500 元以上（明显异常的价格也会被驳回）')
+  if (price > 100000) throw invalid('挂牌价超出合理范围')
+  return {
+    type,
+    price,
+    deposit: Number(body.deposit) || price,
+    payTerm: String(body.payTerm || '押一付三'),
+    decorate: String(body.decorate || '简装'),
+    facilities: Array.isArray(body.facilities) ? body.facilities.slice(0, 12).map(String) : [],
+    availableFrom: String(body.availableFrom || NV_TODAY).slice(0, 10),
+    desc: String(body.desc || '').slice(0, 300),
+    images: Math.min(9, Math.max(0, Number(body.images) || 0))
+  }
+}
+
+on('GET', '/mp/listings', (ctx) => {
+  const me = mpOf(ctx)
+  const list = listings
+    .filter(l => l.ownerId === me.ownerId)
+    .filter(l => eq(l.status, ctx.query.status))
+    .map(mpLsRow)
+    .sort((a, b) => String(b.listingId).localeCompare(String(a.listingId)))
+  return { rows: list, total: list.length }
+})
+
+on('POST', '/mp/listings', (ctx) => {
+  const me = mpOf(ctx)
+  const body = ctx.body || {}
+  /* 发布要 L2（已实名）：挂牌会把"这套房是谁的"公开出去，
+     只凭一个手机号就挂房，会被拿来做虚假房源 */
+  if (!me.realname) throw invalid('请先完成实名认证再发布（姓名 + 证件后四位）')
+  const houseId = String(body.houseId || '')
+  const h = HOUSE.get(houseId)
+  if (!h) throw invalid('房屋不存在')
+  /* 产权校验：家属在 bindings 里也有记录，靠"有没有绑定"判断会把家属放进来 */
+  if (h.ownerId !== me.ownerId) throw new ApiError(403, 40390, '这套房不在您的名下，无法发布（租客能住不能转租）')
+  if (h.usage !== '住宅') throw invalid('车位 / 商铺不能挂牌出租')
+  const active = listings.find(l => l.houseId === houseId && MP_LS_ACTIVE.includes(l.status))
+  if (active) throw new ApiError(409, 40990, `该房已有「${active.status}」的挂牌，请先下架或直接编辑`)
+  const input = mpLsInput(body)
+  const row = {
+    listingId: nvNextId(listings, 'listingId', 'LS'),
+    houseId,
+    ownerId: me.ownerId,
+    publisherUserId: me.ownerId,
+    stewardEmpId: h.stewardEmpId || '',
+    ...input,
+    status: '待审核',
+    contentVersion: 1,
+    /* 审核针对"内容版本"：0 表示还没审过任何版本，续挂时据此判免审 */
+    auditedVersion: 0,
+    createdAt: nowText(),
+    expireAt: addDays(NV_TODAY, 60),
+    dealAt: '', auditBy: '', auditAt: '', rejectReason: '',
+    offlineBy: '', offlineAt: '', offlineReason: '',
+    viewCount: 0
+  }
+  listings.push(row)
+  return mpLsRow(row)
+})
+
+on('GET', '/mp/listings/{listingId}', (ctx) => {
+  const me = mpOf(ctx)
+  return mpLsRow(mpLsOf(ctx.params.listingId, me.ownerId))
+})
+
+on('PATCH', '/mp/listings/{listingId}', (ctx) => {
+  const me = mpOf(ctx)
+  const l = mpLsOf(ctx.params.listingId, me.ownerId)
+  if (l.status === '已成交') throw new ApiError(409, 40991, '已成交的挂牌不能修改')
+  const body = ctx.body || {}
+  /* 换房等于换一条挂牌，改类型等于换一个业务流程 */
+  if (body.houseId && body.houseId !== l.houseId) throw invalid('不能换房；换一套房请重新发布')
+  if (body.type && body.type !== l.type) throw invalid('不能改出租 / 出售类型；请重新发布')
+  Object.assign(l, mpLsInput({ ...body, type: l.type, price: body.price ?? l.price }), {
+    /* 改内容 = 换了一份要审核的东西 */
+    contentVersion: (l.contentVersion || 1) + 1,
+    status: '待审核',
+    auditBy: '', auditAt: '', rejectReason: ''
+  })
+  return mpLsRow(l)
+})
+
+on('POST', '/mp/listings/{listingId}/offline', (ctx) => {
+  const me = mpOf(ctx)
+  const l = mpLsOf(ctx.params.listingId, me.ownerId)
+  if (l.status === '已成交') throw new ApiError(409, 40992, '已成交的挂牌不能下架')
+  if (l.status === '已下架') throw new ApiError(409, 40992, '这条挂牌已经下架了')
+  Object.assign(l, {
+    status: '已下架',
+    offlineBy: me.name,
+    offlineAt: nowText(),
+    /* 业主自己下架不需要理由；硬要理由的结果是有人填"1" */
+    offlineReason: String(ctx.body?.reason || '')
+  })
+  return mpLsRow(l)
+})
+
+on('POST', '/mp/listings/{listingId}/renew', (ctx) => {
+  const me = mpOf(ctx)
+  const l = mpLsOf(ctx.params.listingId, me.ownerId)
+  if (MP_LS_ACTIVE.includes(l.status)) {
+    throw new ApiError(409, 40993, `这条挂牌是「${l.status}」，不需要续挂`)
+  }
+  const same = (l.contentVersion || 1) === (l.auditedVersion || 0)
+  /* 已驳回又没改内容：原样再挂一次必然再驳一次 */
+  if (l.status === '已驳回' && !same) {
+    throw new ApiError(409, 40993, `请先按驳回理由修改内容：${l.rejectReason || '（未填理由）'}`)
+  }
+  Object.assign(l, {
+    /* 内容没改过 → 直接上架，不再送审；挂了 60 天没人问，续一下再审是纯浪费 */
+    status: same ? '已发布' : '待审核',
+    expireAt: addDays(NV_TODAY, 60),
+    offlineBy: '', offlineAt: '', offlineReason: ''
+  })
+  return mpLsRow(l)
+})
+
+on('POST', '/mp/listings/{listingId}/deal', (ctx) => {
+  const me = mpOf(ctx)
+  const l = mpLsOf(ctx.params.listingId, me.ownerId)
+  if (l.status !== '已发布') throw new ApiError(409, 40994, `「${l.status}」的挂牌不能标记成交`)
+  /* 只改状态，不收成交价、不收佣金：一记就变成房地产经纪 */
+  Object.assign(l, { status: '已成交', dealAt: nowText() })
+  return mpLsRow(l)
+})
+
 /* ------------------------------ HTTP ------------------------------ */
 const CORS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -7302,8 +9961,21 @@ function handler(req, res) {
       if (!hit) throw new ApiError(404, 40400, `接口不存在：${req.method} ${u.pathname}`)
       const m = u.pathname.match(hit.re)
       hit.keys.forEach((k, i) => { ctx.params[k] = decodeURIComponent(m[i + 1]) })
-      /* /auth/* 不需要令牌，其余都要 */
-      if (!u.pathname.startsWith('/auth/')) ctx.user = auth(req)
+      /* /auth/* 与 /public/* 不需要令牌，其余都要。
+         /public/* 的边界不靠登录态，靠"只回白名单字段"——扫码看资产、看房源的人
+         常常既没登录也不是业主。
+         /mp/auth/* 也要放行：业主端登录时还没有令牌，拦在这里就永远登不上。 */
+      /* 只有**登录**这一步免鉴权：`/mp/auth/realname`、`/bindings*` 都要带会话，
+         整个 `/mp/auth/` 前缀放行会让这三个接口拿不到 ctx.mp（全变 401）。 */
+      const isPublicPath = u.pathname.startsWith('/auth/')
+        || u.pathname.startsWith('/public/')
+        || u.pathname === '/mp/auth/wechat-login'
+      if (!isPublicPath) {
+        /* 业主端与员工端是两条会话通道，token 不能混用：
+           业主的 token 里没有角色与数据范围，员工的 token 里没有 ownerId。 */
+        if (u.pathname.startsWith('/mp/')) ctx.mp = mpAuth(req)
+        else ctx.user = auth(req)
+      }
       const data = hit.handler(ctx)
       send(res, ctx.status || 200, data)
     } catch (e) {
@@ -7311,6 +9983,433 @@ function handler(req, res) {
     }
   })
 }
+
+/* ================= 租售信息（A 域 · 2026-11-06 第 69 批） =================
+ * 只做**信息发布**：业主把房租出去的信息挂出来，责任楼管审一道，想租的人留电话。
+ * 物业全程不参与撮合与成交 —— 这条守住它是物业服务；破了它就是房地产经纪，
+ * 需要《房地产经纪机构备案表》，微信类目也要换。
+ *
+ * 四组接口，权限边界写在路径上：
+ *   /public/listings/*  游客（免登录）—— 只回公开字段，房号/业主/楼管手机号一律不出
+ *   /listings           后台 —— 需 a.listings.view / .audit / .viewing
+ *
+ * 三条硬口径：
+ *   ① 审核人是该房的责任楼管（house.stewardEmpId），超 24h 升直属上级；
+ *   ② 楼管手机号不出现在**任何**返回里，包括后台 —— 对外只给姓名、微信号、二维码；
+ *   ③ 面积 / 户型 / 朝向 / 楼层从 houses join，不在挂牌表里存副本。
+ */
+const listings = readJson('fixtures/listings.json')
+const listingViewings = readJson('fixtures/listings-viewings.json')
+
+const LS_PERM = { view: 'a.listings.view', audit: 'a.listings.audit', viewing: 'a.listings.viewing' }
+const LS_STATUS_TYPE = {
+  待审核: 'warning', 已发布: 'success', 已驳回: 'danger',
+  已下架: 'info', 已过期: 'info', 已成交: ''
+}
+const LS_VIEWING_TYPE = { 待联系: 'warning', 已联系: 'success', 已带看: 'success', 已关闭: 'info' }
+
+const LS_COMMUNITY = new Map(communities.map(c => [c.communityId || c.id, c]))
+const lsCommunityName = id => (LS_COMMUNITY.get(id) || {}).name || ''
+/** 契约只加载了 communities（没有 buildings 表），楼栋从房屋全名的「N栋」取 */
+const lsBuildingOf = h => {
+  const m = /(\d+栋)/.exec(String(h.fullName || ''))
+  return m ? m[1] : ''
+}
+
+const lsOf = id => listings.find(l => l.listingId === id) || null
+const lsViewOf = id => listingViewings.find(v => v.viewingId === id) || null
+
+/** 距创建过了多少小时（演示时钟 DATA_DATE 10:00 为"现在"） */
+function lsHoursSince(at) {
+  const t = new Date(String(at || '').replace(/-/g, '/')).getTime()
+  if (Number.isNaN(t)) return 0
+  const now = new Date(`${DATA_DATE}T10:00:00`).getTime()
+  return Math.max(0, Math.round((now - t) / 3600000))
+}
+
+/**
+ * 挂牌行。`pub = true` 是**对外视图**：只回公开字段。
+ * 房号（room）、houseShort、业主姓名电话、楼管手机号**都不在公开视图里** ——
+ * 房号线上不给，看房由楼管带过去；给了等于把"这户空着"公示出去。
+ */
+function lsRow(l, pub = false) {
+  const h = houses.find(x => x.houseId === l.houseId) || {}
+  const o = owners.find(x => x.ownerId === l.ownerId) || {}
+  const e = EMP.get(l.stewardEmpId) || {}
+  const hours = lsHoursSince(l.createdAt)
+  const pending = l.status === '待审核'
+  const base = {
+    listingId: l.listingId,
+    communityId: h.communityId || '',
+    communityName: lsCommunityName(h.communityId),
+    buildingName: lsBuildingOf(h),
+    houseType: h.houseType || '',
+    area: h.area || 0,
+    orientation: h.orientation || '',
+    floor: h.floor || 0,
+    price: l.price,
+    deposit: l.deposit,
+    payTerm: l.payTerm,
+    decorate: l.decorate,
+    facilities: [...(l.facilities || [])],
+    availableFrom: l.availableFrom,
+    desc: l.desc,
+    images: l.images || 0,
+    status: l.status
+  }
+  if (pub) {
+    return {
+      ...base,
+      /* 对外只给"谁在管这套房"，不给"这套房在几零几" */
+      stewardName: e.name || '',
+      stewardWechat: e.wechatId || '',
+      stewardQrUrl: e.contactQrUrl || ''
+    }
+  }
+  return {
+    ...base,
+    statusType: LS_STATUS_TYPE[l.status] || '',
+    houseId: l.houseId,
+    houseShort: h.shortName || '',
+    room: h.room || '',
+    ownerId: l.ownerId,
+    ownerName: o.name || '',
+    /* 列表脱敏、详情给全号 —— 会被投屏的页面不摆全号 */
+    ownerPhone: maskPhone(o.phone),
+    stewardEmpId: l.stewardEmpId,
+    stewardName: e.name || '',
+    stewardPosition: e.position || '',
+    contentVersion: l.contentVersion,
+    auditedVersion: l.auditedVersion,
+    needAudit: l.contentVersion !== l.auditedVersion,
+    createdAt: l.createdAt,
+    hoursWaiting: hours,
+    overdue: pending && hours > 24,
+    escalated: pending && hours > 48,
+    expireAt: l.expireAt,
+    dealAt: l.dealAt || '',
+    auditBy: l.auditBy || '',
+    auditAt: l.auditAt || '',
+    rejectReason: l.rejectReason || '',
+    offlineBy: l.offlineBy || '',
+    offlineAt: l.offlineAt || '',
+    offlineReason: l.offlineReason || '',
+    viewCount: l.viewCount || 0,
+    leadCount: listingViewings.filter(v => v.listingId === l.listingId).length,
+    _ver: verOf('listing', l.listingId)
+  }
+}
+
+/** 看房请求行。列表脱敏，详情给全号 */
+function lsViewRow(v, full = false) {
+  const l = lsOf(v.listingId)
+  const h = l ? (houses.find(x => x.houseId === l.houseId) || {}) : {}
+  const e = l ? (EMP.get(l.stewardEmpId) || {}) : {}
+  const hours = lsHoursSince(v.createdAt)
+  const pending = v.status === '待联系'
+  return {
+    viewingId: v.viewingId,
+    listingId: v.listingId,
+    communityId: h.communityId || '',
+    communityName: lsCommunityName(h.communityId),
+    buildingName: lsBuildingOf(h),
+    houseType: h.houseType || '',
+    area: h.area || 0,
+    price: l ? l.price : 0,
+    name: v.name,
+    phone: full ? v.phone : maskPhone(v.phone),
+    preferredTime: v.preferredTime,
+    note: v.note,
+    status: v.status,
+    statusType: LS_VIEWING_TYPE[v.status] || '',
+    createdAt: v.createdAt,
+    hoursWaiting: hours,
+    overdue: pending && hours > 24,
+    escalated: pending && hours > 48,
+    stewardEmpId: l ? l.stewardEmpId : '',
+    stewardName: e.name || '',
+    handledBy: v.handledBy || '',
+    handledAt: v.handledAt || '',
+    resultNote: v.resultNote || '',
+    _ver: verOf('listingViewing', v.viewingId)
+  }
+}
+
+/* ---------- 对外（游客，免登录） ---------- */
+
+on('GET', '/public/listings', (ctx) => {
+  /* 故意不 requirePerm：想租房的人基本不是本小区业主，登录墙会把客源挡光。
+     边界由"只回公开字段"保证，不靠登录态。 */
+  const q = ctx.query
+  const list = listings
+    .filter(l => l.status === '已发布')
+    .map(l => lsRow(l, true))
+    .filter(r => eq(r.communityId, q.communityId) && eq(r.houseType, q.houseType))
+    .filter(r => {
+      if (!q.minPrice && !q.maxPrice) return true
+      const min = Number(q.minPrice) || 0
+      const max = Number(q.maxPrice) || Infinity
+      return r.price >= min && r.price <= max
+    })
+    .filter(r => kwHit([r.communityName, r.houseType, r.desc, r.buildingName], q.kw))
+  const sorted = [...list].sort((a, b) => {
+    if (q.sort === 'priceAsc') return a.price - b.price
+    if (q.sort === 'priceDesc') return b.price - a.price
+    return String(b.listingId).localeCompare(String(a.listingId))
+  })
+  return page(sorted, q)
+})
+
+on('GET', '/public/listings/{listingId}', (ctx) => {
+  const l = lsOf(ctx.params.listingId)
+  if (!l || l.status !== '已发布') throw new ApiError(404, 40470, '该房源已下架或不存在')
+  return { ...lsRow(l, true), viewingsCount: 0 }
+})
+
+on('POST', '/public/listings/{listingId}/viewing', (ctx) => {
+  const l = lsOf(ctx.params.listingId)
+  if (!l || l.status !== '已发布') throw new ApiError(404, 40470, '该房源已下架或不存在')
+  const body = ctx.body || {}
+  const name = String(body.name || '').trim()
+  if (!name) throw new ApiError(422, 42270, '请填写称呼')
+  const phone = String(body.phone || '').trim()
+  if (!/^1\d{10}$/.test(phone)) throw new ApiError(422, 42271, '手机号须为 11 位')
+  /* 同一手机号同一房源 24h 内只允许一条：防连点，也防同行刷号码 */
+  const dup = listingViewings.find(v =>
+    v.listingId === l.listingId && v.phone === phone && lsHoursSince(v.createdAt) < 24)
+  if (dup) throw new ApiError(409, 40970, '已收到你的看房请求，楼管会联系你，无需重复提交')
+  const seq = listingViewings.length + 1
+  const v = {
+    viewingId: `VW${String(seq).padStart(5, '0')}`,
+    listingId: l.listingId,
+    name,
+    phone,
+    preferredTime: String(body.preferredTime || '工作日白天'),
+    note: String(body.note || '').slice(0, 100),
+    status: '待联系',
+    createdAt: `${DATA_DATE} 10:00`,
+    handledBy: '',
+    handledAt: '',
+    resultNote: ''
+  }
+  listingViewings.push(v)
+  return {
+    ...lsViewRow(v),
+    /* 这句是承诺，前端必须原样显示 —— 不展示电话之后，访客唯一的出路就是等 */
+    promise: '楼管会在 24 小时内联系你',
+    privacy: '该号码仅提供给本房责任楼管，用于本次看房联系；90 天后自动删除'
+  }
+})
+
+/* ---------- 后台 ---------- */
+
+/*
+ * 我的对外联系方式：**必须注册在 `/listings/{listingId}` 之前**。
+ * 路由表是「按注册顺序取第一个匹配」，晚注册的话 GET 会被当成 listingId='my-contact'，
+ * 报「挂牌不存在」——`/listings/stats` 排在前面也是同一个原因。
+ */
+const myContactOf = empId => {
+  const e = EMP.get(empId) || {}
+  return {
+    empId: e.empId || '',
+    name: e.name || '',
+    position: e.position || '',
+    wechatId: e.wechatId || '',
+    contactQrUrl: e.contactQrUrl || ''
+  }
+}
+
+on('GET', '/listings/my-contact', (ctx) => {
+  const empId = String(ctx.query.empId || ctx.user.empId)
+  if (empId !== ctx.user.empId && !hasPerm(ctx.user, 'e.org.edit')) {
+    throw forbidden('只能查看自己的联系方式')
+  }
+  return myContactOf(empId)
+})
+
+on('PATCH', '/listings/my-contact', (ctx) => {
+  const body = ctx.body || {}
+  const empId = String(body.empId || ctx.user.empId)
+  /* 本人自助不需要权限码；改他人是 HR 的活 */
+  if (empId !== ctx.user.empId && !hasPerm(ctx.user, 'e.org.edit')) {
+    throw forbidden('只能维护自己的联系方式')
+  }
+  const e = EMP.get(empId)
+  if (!e) throw notFound('员工不存在')
+  const wx = String(body.wechatId || '').trim()
+  if (wx.length > 30) throw invalid('微信号最多 30 个字符')
+  e.wechatId = wx
+  e.contactQrUrl = String(body.contactQrUrl || '').trim()
+  return myContactOf(empId)
+})
+
+on('GET', '/listings/stats', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.view, `缺少权限位 ${LS_PERM.view}：无权查看租售信息`)
+  const rows = listings.map(l => lsRow(l)).filter(r => inScopeCommunity(ctx.user, r.communityId))
+  const pending = rows.filter(r => r.status === '待审核')
+  const views = listingViewings.map(v => lsViewRow(v))
+  return {
+    total: rows.length,
+    pending: pending.length,
+    escalated: pending.filter(r => r.overdue).length,
+    published: rows.filter(r => r.status === '已发布').length,
+    rejected: rows.filter(r => r.status === '已驳回').length,
+    offline: rows.filter(r => r.status === '已下架').length,
+    expired: rows.filter(r => r.status === '已过期').length,
+    dealt: rows.filter(r => r.status === '已成交').length,
+    viewingPending: views.filter(v => v.status === '待联系').length,
+    viewingOverdue: views.filter(v => v.status === '待联系' && v.overdue).length,
+    viewTotal: rows.reduce((s, r) => s + r.viewCount, 0)
+  }
+})
+
+on('GET', '/listings/viewings/stats', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.viewing, `缺少权限位 ${LS_PERM.viewing}：无权查看看房请求`)
+  const rows = listingViewings.map(v => lsViewRow(v))
+  return {
+    total: rows.length,
+    pending: rows.filter(r => r.status === '待联系').length,
+    overdue: rows.filter(r => r.status === '待联系' && r.overdue).length,
+    contacted: rows.filter(r => r.status === '已联系').length,
+    visited: rows.filter(r => r.status === '已带看').length,
+    closed: rows.filter(r => r.status === '已关闭').length
+  }
+})
+
+on('GET', '/listings/viewings', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.viewing, `缺少权限位 ${LS_PERM.viewing}：无权查看看房请求`)
+  const q = ctx.query
+  const list = listingViewings
+    .map(v => lsViewRow(v))
+    .filter(r => inScopeCommunity(ctx.user, r.communityId))
+    .filter(r => eq(r.status, q.status) && eq(r.listingId, q.listingId))
+    .filter(r => kwHit([r.viewingId, r.name, r.phone, r.buildingName], q.kw))
+    .sort((a, b) => {
+      if ((a.status === '待联系') !== (b.status === '待联系')) return a.status === '待联系' ? -1 : 1
+      return String(a.createdAt).localeCompare(String(b.createdAt))
+    })
+  const rows = q.overdue ? list.filter(r => r.overdue) : list
+  return page(rows, q)
+})
+
+on('GET', '/listings/viewings/{viewingId}', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.viewing, `缺少权限位 ${LS_PERM.viewing}：无权查看看房请求`)
+  const v = lsViewOf(ctx.params.viewingId)
+  if (!v) throw new ApiError(404, 40471, '看房请求不存在')
+  /* 详情给全号：楼管要打这个电话 */
+  return lsViewRow(v, true)
+})
+
+/**
+ * 标记看房请求已联系 / 已关闭。
+ *
+ * 只能从「待联系」转出：重复标记会把 handledAt 覆盖成最后一次，
+ * 时间线就查不出"到底是谁第一次联系上的"。
+ * 结果必填 —— 下一个人接手时要能知道上次聊到哪，否同一个访客会被三个人各打一遍。
+ */
+on('POST', '/listings/viewings/{viewingId}/contact', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.viewing, `缺少权限位 ${LS_PERM.viewing}：无权处理看房请求`)
+  const v = lsViewOf(ctx.params.viewingId)
+  if (!v) throw new ApiError(404, 40471, '看房请求不存在')
+  if (v.status !== '待联系') {
+    throw new ApiError(409, 40942, `这条已经是「${v.status}」，不用再标记`)
+  }
+  const body = ctx.body || {}
+  const status = String(body.status || '已联系')
+  if (!['已联系', '已关闭'].includes(status)) throw invalid('只能标成「已联系」或「已关闭」')
+  const note = String(body.note || '').trim()
+  if (!note) throw invalid('要写一句联系结果 —— 下个人接手时得知道聊到哪了')
+  Object.assign(v, {
+    status,
+    handledBy: String(body.operator || '').trim() || ctx.user.name,
+    handledAt: nowText(),
+    resultNote: note
+  })
+  bumpVer('listingViewing', v.viewingId)
+  return lsViewRow(v, true)
+})
+
+on('GET', '/listings', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.view, `缺少权限位 ${LS_PERM.view}：无权查看租售信息`)
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  const list = listings
+    .map(l => lsRow(l))
+    .filter(r => inScopeCommunity(ctx.user, r.communityId) && inScopeHouse(ctx.user, r.houseId))
+    .filter(r => eq(r.communityId, q.communityId) && eq(r.status, q.status) && eq(r.stewardEmpId, q.stewardEmpId))
+    .filter(r => kwHit([r.listingId, r.houseShort, r.ownerName], q.kw))
+    .sort((a, b) => {
+      if ((a.status === '待审核') !== (b.status === '待审核')) return a.status === '待审核' ? -1 : 1
+      if (a.status === '待审核') return String(a.createdAt).localeCompare(String(b.createdAt))
+      return String(b.createdAt).localeCompare(String(a.createdAt))
+    })
+  const rows = q.overdue ? list.filter(r => r.overdue) : list
+  return page(rows, q)
+})
+
+on('GET', '/listings/{listingId}', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.view, `缺少权限位 ${LS_PERM.view}：无权查看租售信息`)
+  const l = lsOf(ctx.params.listingId)
+  if (!l) throw new ApiError(404, 40470, '挂牌不存在')
+  if (!inScopeHouse(ctx.user, l.houseId)) throw forbidden('这条挂牌不在你的数据范围内')
+  const row = lsRow(l)
+  const o = owners.find(x => x.ownerId === l.ownerId) || {}
+  /* 详情是操作场景（审核要看、楼管要打给业主），这里给全号 */
+  return {
+    ...row,
+    ownerPhone: o.phone || '',
+    viewings: listingViewings.filter(v => v.listingId === l.listingId).map(v => lsViewRow(v))
+  }
+})
+
+on('POST', '/listings/{listingId}/audit', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.audit, `缺少权限位 ${LS_PERM.audit}：无权审核租售信息`)
+  const l = lsOf(ctx.params.listingId)
+  if (!l) throw new ApiError(404, 40470, '挂牌不存在')
+  if (!inScopeHouse(ctx.user, l.houseId)) throw forbidden('这条挂牌不在你的数据范围内')
+  if (l.status !== '待审核') throw new ApiError(409, 40971, `这条已经是「${l.status}」，不能重复审核`)
+  const pass = ctx.body?.pass !== false
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!pass && !reason) throw new ApiError(422, 42272, '驳回必须写理由 —— 业主看得到这句')
+  l.status = pass ? '已发布' : '已驳回'
+  l.rejectReason = pass ? '' : reason
+  if (pass) l.auditedVersion = l.contentVersion
+  l.auditBy = ctx.user.name
+  l.auditAt = `${DATA_DATE} 10:00`
+  bumpVer('listing', l.listingId)
+  return lsRow(l)
+})
+
+on('POST', '/listings/{listingId}/offline', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.audit, `缺少权限位 ${LS_PERM.audit}：无权下架租售信息`)
+  const l = lsOf(ctx.params.listingId)
+  if (!l) throw new ApiError(404, 40470, '挂牌不存在')
+  if (l.status !== '已发布') throw new ApiError(409, 40972, `只有「已发布」的挂牌能下架，当前是「${l.status}」`)
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!reason) throw new ApiError(422, 42273, '下架必须写原因')
+  l.status = '已下架'
+  l.offlineReason = reason
+  l.offlineBy = ctx.user.name
+  l.offlineAt = `${DATA_DATE} 10:00`
+  bumpVer('listing', l.listingId)
+  return lsRow(l)
+})
+
+on('PATCH', '/listings/{listingId}/steward', (ctx) => {
+  requirePerm(ctx.user, LS_PERM.audit, `缺少权限位 ${LS_PERM.audit}：无权改派责任楼管`)
+  const l = lsOf(ctx.params.listingId)
+  if (!l) throw new ApiError(404, 40470, '挂牌不存在')
+  const empId = String(ctx.body?.empId || '')
+  const e = EMP.get(empId)
+  if (!e || e.status === '离职') throw new ApiError(422, 42274, '该员工不存在或已离职')
+  /* 改的是房源的责任楼管，不是单条请求 —— 审核权与联系方式都挂在这一个人身上 */
+  l.stewardEmpId = empId
+  bumpVer('listing', l.listingId)
+  return lsRow(l)
+})
+
+/** 已注册的路由清单（`GET /neighbor/votes` 这种形态），供契约与实现的一致性守卫使用 */
+export const routeKeys = () => routes.map(r => `${r.method} ${r.pattern}`)
 
 export function startServer(port = 4010) {
   const server = http.createServer(handler)
@@ -7323,6 +10422,7 @@ if (isMain) {
   startServer(port).then(() => {
     console.log(`契约假服务已启动：http://127.0.0.1:${port}`)
     console.log(`数据：${owners.length} 业主 / ${houses.length} 房屋 / ${bills.length} 账单 / ${payments.length} 流水 / ${workOrders.length} 工单`)
+    console.log(`邻里：${neighborItems.length} 闲置 / ${neighborReports.length} 举报 / ${neighborActivities.length} 活动 / ${neighborEnrolls.length} 报名`)
     console.log(`账号：gm（全部项目）/ pm（本项目 P01）/ steward（责任范围 ${stewardCommunities.join(',')} · ${(EMP.get(stewardEmpId) || {}).name}），密码 123456`)
   })
 }

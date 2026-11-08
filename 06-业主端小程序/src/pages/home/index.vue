@@ -3,7 +3,7 @@
   ------------------------------------------------------------
   双态是这一屏的关键（登录 ≠ 认证）：
     未认证 / 审核中 → 顶部「请绑定房屋」引导 + 公告与活动 + 服务入口（可点，点了才拦）
-    已认证          → 房卡 + 待办（待缴 / 在修 / 待确认增项）+ 四宫格 + 管家 + 社区活动
+    已认证          → 房卡 + 待办（待缴 / 在修 / 待确认增项）+ 五宫格 + 管家 + 社区活动 + 公告
   首页不是后台：认证之后也要保留公告与活动，别做成一屏待办。
 -->
 <template>
@@ -108,27 +108,28 @@
       </view>
       <scroll-view scroll-x class="acts">
         <view v-for="a in activities" :key="a.activityId" class="act" @tap="goActivity(a.activityId)">
-          <Cover :cover="a.cover" h="150rpx" :badge="a.status" :label="a.type" />
+          <Cover :cover="a.cover" h="150rpx" :badge="a.feeType" :label="a.category" />
           <text class="act__t">{{ a.title }}</text>
-          <text class="act__d">{{ a.startAt.slice(5, 10) }} · {{ a.place }}</text>
+          <text class="act__d">{{ a.startAt.slice(5, 10) }} · {{ a.phase }}</text>
         </view>
       </scroll-view>
 
-      <!-- 邻里动态 -->
+      <!-- 社区公告（邻里频道） -->
       <view class="sec-hd home-sec">
-        <text class="sec-hd__t">邻里动态</text>
-        <text class="sec-hd__d" @tap="goNeighbor('post')">进邻里</text>
+        <text class="sec-hd__t">社区公告</text>
+        <text class="sec-hd__d" @tap="goNeighbor('notice')">全部公告</text>
       </view>
-      <view v-for="p in posts" :key="p.postId" class="pc" @tap="goPost(p.postId)">
+      <view v-for="n in notices" :key="n.noticeId" class="pc" @tap="goNotice(n.noticeId)">
         <view class="pc__hd">
-          <Tag :text="p.category" size="sm" color="var(--biz-primary)" />
-          <text class="pc__at">{{ p.publishTime.slice(5, 10) }}</text>
+          <Tag :text="n.type" size="sm" color="var(--biz-primary)" />
+          <text v-if="!n.read" class="pc__unread">未读</text>
+          <text class="pc__at">{{ n.publishTime.slice(5, 10) }}</text>
         </view>
-        <text class="pc__t">{{ p.title }}</text>
-        <text class="pc__d">{{ p.content }}</text>
+        <text class="pc__t">{{ n.title }}</text>
+        <text class="pc__d">{{ n.content }}</text>
         <view class="pc__foot">
-          <text class="pc__m">{{ p.author }} · {{ p.authorRole }}</text>
-          <text class="pc__m">{{ p.commentCount }} 评论</text>
+          <text class="pc__m">{{ n.publisher }}</text>
+          <text class="pc__m">阅读 {{ n.readCount }}/{{ n.targetHouses }} 户</text>
         </view>
       </view>
 
@@ -192,7 +193,7 @@ import {
   residentsOf,
   unboundHouses
 } from '@/api/mp'
-import { activityList, posts as postList } from '@/api/neighbor'
+import { activityFeed, noticeList } from '@/api/neighbor'
 import { utilitySummary } from '@/api/utility'
 import { amount, money } from '@/utils/format'
 import { go, toast } from '@/utils/ui'
@@ -245,8 +246,8 @@ const unbound = computed(() => {
   ver.value
   return unboundHouses()
 })
-const activities = computed(() => activityList('doing').slice(0, 4))
-const posts = computed(() => postList({ sort: 'new' }).slice(0, 3))
+const activities = computed(() => activityFeed(4))
+const notices = computed(() => noticeList().slice(0, 3))
 const parks = computed(() => {
   const vid = new Set(vehicles.filter(v => v.ownerId && boundHouseIds().length && v.communityId === house.value?.communityId).map(v => v.parkId))
   return parkings.filter(p => p.ownerId && (p.ownerId === app.bindings[0]?.ownerId || vid.has(p.parkId))).slice(0, 3)
@@ -296,6 +297,15 @@ const services = computed(() => [
     bg: '#eef1ff',
     color: 'var(--biz-primary)',
     run: () => (gateOwner('车位信息') ? (parkSheet.value = true) : null)
+  },
+  {
+    /* 租售信息：游客也能看列表与详情，所以**不挂门禁**（§13.3） */
+    key: 'sale',
+    icon: '租',
+    label: '租售信息',
+    bg: '#e8f8ee',
+    color: '#0aa84f',
+    run: () => go('/pages/house-sale/list')
   }
 ])
 
@@ -324,8 +334,8 @@ function goRepairDetail(id) {
 function goActivity(id) {
   go('/pages/neighbor/activity', { id })
 }
-function goPost(id) {
-  go('/pages/neighbor/post', { id })
+function goNotice(id) {
+  go('/pages/neighbor/notice', { id })
 }
 function goNeighbor(tab) {
   uni.switchTab({ url: '/pages/neighbor/index' })
@@ -404,8 +414,8 @@ function callSteward() {
 
 .grid { display: flex; background: #fff; border-radius: 20rpx; padding: 28rpx 0; margin-top: 20rpx; box-shadow: var(--biz-shadow-card); }
 .grid__i { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
-.grid__ico { width: 84rpx; height: 84rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; font-size: 34rpx; font-weight: 700; }
-.grid__t { font-size: 22rpx; color: var(--biz-text-2); }
+.grid__ico { width: 76rpx; height: 76rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 700; }
+.grid__t { font-size: 20rpx; color: var(--biz-text-2); }
 
 .steward { display: flex; align-items: center; gap: 18rpx; margin-top: 20rpx; }
 .steward__body { flex: 1; min-width: 0; }
@@ -423,6 +433,7 @@ function callSteward() {
 .pc + .pc { margin-top: 16rpx; }
 .pc__hd { display: flex; align-items: center; justify-content: space-between; }
 .pc__at { font-size: 20rpx; color: var(--biz-text-4); }
+.pc__unread { font-size: 18rpx; color: var(--biz-danger); background: #fff0f1; border-radius: 4rpx; padding: 1rpx 8rpx; }
 .pc__t { display: block; margin-top: 12rpx; font-size: 27rpx; font-weight: 600; color: var(--biz-text-1); line-height: 1.4; }
 .pc__d { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--biz-text-3); line-height: 1.55; }
 .pc__foot { display: flex; justify-content: space-between; margin-top: 12rpx; }

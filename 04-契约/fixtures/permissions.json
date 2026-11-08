@@ -828,5 +828,35 @@
     "op": "view",
     "opName": "查看",
     "route": "/c/contacts"
+  },
+  {
+    "code": "a.listings.view",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "view",
+    "opName": "查看",
+    "route": "/a/listings"
+  },
+  {
+    "code": "a.listings.audit",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "audit",
+    "opName": "审核",
+    "route": "/a/listings"
+  },
+  {
+    "code": "a.listings.viewing",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "viewing",
+    "opName": "看房请求",
+    "route": "/a/listings"
   }
 ]

@@ -1816,6 +1816,9 @@ PERM_GROUPS = [
         ('owners', '业主档案', ('view', 'edit'), '/a/owners'),
         ('houses', '房屋台账', ('view', 'edit'), '/a/houses'),
         ('tenants', '租户管理', ('view', 'edit'), '/a/tenants'),
+        # 2026-11-06（69 批）：租售信息。只做信息发布，不进商业系统。
+        # 三个位分开：audit 给责任楼管（他第一次拿到 A 域写权限），viewing 给能接看房请求的人。
+        ('listings', '租售信息', ('view', 'audit', 'viewing'), '/a/listings'),
         ('vehicles', '车位与车辆', ('view', 'edit'), '/a/vehicles'),
         # 2026-10-29：楼栋责任范围（楼管分配 / 项目经理移交）
         ('stewards', '楼栋责任范围', ('view', 'edit'), '/a/stewards'),
@@ -1965,7 +1968,9 @@ ROLE_SPEC = [
      [('*', '*', ('view', 'edit', 'eval')),
       # 2026-11-06（68 批）：邻里。audit / handle 不在通配里（它们不是 view/edit），要单列，
       # 否则总经理进得去页面却点不动审核按钮。
-      ('n', '*', ('view', 'edit', 'audit', 'handle'))]),
+      ('n', '*', ('view', 'edit', 'enroll', 'audit', 'handle')),
+      # 2026-11-06（69 批）：租售。audit / viewing 同样不在通配里
+      ('a', 'listings', ('view', 'audit', 'viewing'))]),
     ('R-PM', '项目经理', '项目', '本项目', [], ['项目经理'],
      '单项目第一责任人，统筹收费、工单与现场，不含人事与工资',
      [('a', '*', ('view', 'edit')),
@@ -1985,6 +1990,7 @@ ROLE_SPEC = [
       ('e', 'audit', ('view',)),
       # 2026-11-06（68 批）：邻里四频道全给他 —— 项目经理是项目里唯一能发布投票与活动的人
       ('n', '*', ('view', 'edit', 'enroll', 'audit', 'handle')),
+      ('a', 'listings', ('view', 'audit', 'viewing')),
       ('f', 'quality|inspectPlans|inspect|inspectTemplates|qualityEval|supFinding', ('view',))]),
     ('R-CS', '客服专员', '项目', '本项目', [], ['客服专员'],
      '一线客服：受理业主诉求、执行巡检任务，不含公告发布与档案编辑',
@@ -2001,7 +2007,9 @@ ROLE_SPEC = [
       ('n', 'workbench|votes|activities|items|reports', ('view',)),
       # 代报名与「建活动」分开：客服在现场帮业主报名，但不该能建活动、改价格、确认流团
       ('n', 'activities', ('enroll',)),
-      ('n', 'items', ('audit',)), ('n', 'reports', ('handle',))]),
+      ('n', 'items', ('audit',)), ('n', 'reports', ('handle',)),
+      # 租售：能看、能接看房请求（客服也会帮接电话），但审核归责任楼管
+      ('a', 'listings', ('view', 'viewing'))]),
     ('R-CHG', '收银员', '项目', '本项目', [], ['收银员'],
      '前台收费与开票：可收款，不可改账单金额；租户到场代缴时可补充租户信息',
      [('a', 'owners|houses', ('view',)),
@@ -2077,7 +2085,12 @@ ROLE_SPEC = [
       ('f', 'workorders|woDetail', ('view', 'edit')),
       ('a', 'stewards', ('view',)),
       # 2026-11-06（68 批）：楼管在邻里只读 + 看本范围的待审闲置，审核仍归客服/项目
-      ('n', 'workbench|items|reports', ('view',)),
+      # 2026-11-06 晚（Q1）：补 activities.view —— 楼管要能答"这活动还能不能报"，
+      # 原数据漏了这一条，交接单 §11.6 写的是 3 条只读（items / reports / activities）
+      ('n', 'workbench|items|reports|activities', ('view',)),
+      # 2026-11-06（69 批）：租售。楼管是审核人与回拨人 ——
+      # 这是他第一次拿到 A 域的写权限（此前对 A 域全是 view）。
+      ('a', 'listings', ('view', 'audit', 'viewing')),
       ('e', 'downloads', ('view',))]),
     ('R-SEC', '部门经理', '项目', '本部门', [], ['客服主管', '工程主管', '安保主管', '环境主管'],
      '班组长级：负责本班组现场核验、监督，以及本班组月度计划的提报与执行（不含评分，评价由上级与运营做）',
@@ -2785,7 +2798,10 @@ for i, (title, typ, place, cap, fee) in enumerate(_ACT_TPL, 1):
         'communityId': cm['communityId'],
         'communityName': cm['name'],
         'title': title,
-        'type': typ,
+        # 2026-11-07（70 批）：`type` 拆两维 —— 这里存「类别」（敬老/亲子/文体/出游/公益），
+        # 收费与否由 fee 派生（feeType = 免费/收费）。原先把两套含义塞进 type，
+        # 页面会出现「亲子 · 收费」与「收费 · 收费」并存的标签。
+        'category': typ,
         'cover': i % 6,
         'startAt': dts(st),
         'endAt': dts(st + timedelta(hours=2)),
@@ -2852,6 +2868,16 @@ for i, (title, typ, opts) in enumerate(_SURVEY_TPL, 1):
         'totalVotes': sum(votes),
         'options': [{'key': 'A%d' % (j + 1), 'label': lb, 'votes': votes[j]} for j, lb in enumerate(opts)],
     })
+
+# 2026-11-07（业主端接邻里 §12）：给一条问卷补「多选」口径。
+# 后台的 vote 字段里本来就有 multi / maxPick / resultVisibility，只是种子全是单选，
+# 业主端做多选时没有样本可演。**只改这一条、且不新增随机消费** ——
+# 加一行模板会消耗 _rng，后面 30 多张表的随机内容会整体漂移（踩过一次）。
+for _s in SURVEYS:
+    _s['resultVisibility'] = '投票后可见'
+    if _s['surveyId'] == 'SV0004':
+        _s['multi'] = True
+        _s['maxPick'] = 2
 
 SURVEY_VOTES = []
 _vidx = 0
@@ -3360,9 +3386,17 @@ DATA = {
 META = {'generatedAt': '2026-10-21', 'seed': SEED,
         'counts': {k: len(v) if isinstance(v, list) else 'object' for k, v in DATA.items()}}
 
+# 这两张表的读者是「人」——权限码与角色是 review 时逐条看的，压成单行等于看不了 diff。
+# 其余表是机器读的，单行更省体积。indent=2 要写死在这里，否则每次重跑都会把格式打回单行，
+# 然后在 git 里留一堆"内容没变但整行都变了"的噪声（第 70 批踩过）。
+HUMAN_READABLE = {'permissions.json', 'roles.json'}
 for k, v in DATA.items():
     with open(os.path.join(OUT, k + '.json'), 'w', encoding='utf-8') as f:
-        json.dump(v, f, ensure_ascii=False)
+        if k + '.json' in HUMAN_READABLE:
+            json.dump(v, f, ensure_ascii=False, indent=2)
+            f.write('\n')
+        else:
+            json.dump(v, f, ensure_ascii=False)
 with open(os.path.join(OUT, '_meta.json'), 'w', encoding='utf-8') as f:
     json.dump(META, f, ensure_ascii=False, indent=1)
 

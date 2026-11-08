@@ -69,7 +69,14 @@
 
     <!-- 演示身份 -->
     <Sheet v-model:show="demoVisible" title="选择演示身份" sub="数据取自物业档案，登录后仍需房产认证才能缴费报修">
-      <view v-for="p in personas" :key="p.id" class="demo-row" :class="{ 'is-on': pid === p.id }" @tap="pickPersona(p)">
+      <view
+        v-for="p in personas"
+        :key="p.id"
+        :id="`persona-${p.id}`"
+        class="demo-row"
+        :class="{ 'is-on': pid === p.id }"
+        @tap="pickPersona(p)"
+      >
         <Avatar :name="p.name" size="sm" :tone="p.id.length" />
         <view class="demo-row__body">
           <view class="demo-row__hd">
@@ -92,6 +99,8 @@ import Tag from '@/components/Tag.vue'
 import Avatar from '@/components/Avatar.vue'
 import { PERSONAS } from '@/config/personas'
 import { isLogged, login } from '@/store/app'
+import { apiLogin } from '@/api/mp'
+import { hydrate } from '@/api/remote'
 import { maskPhone } from '@/utils/format'
 import { toast, toastErr } from '@/utils/ui'
 import { HOME } from '@/utils/guard'
@@ -166,9 +175,22 @@ function pickPersona(p) {
   finish(p.id)
 }
 
-function finish(personaId) {
+async function finish(personaId) {
   const p = personas.find(x => x.id === personaId)
-  login({ phone: p ? p.phone : phone.value, personaId })
+  const ph = p ? p.phone : phone.value
+  /* 接口模式：先换 token 再落本地会话。失败就停在登录页，不要"看着登上了其实没会话" */
+  let tok = ''
+  try {
+    const r = await apiLogin(ph)
+    tok = r?.token || ''
+  } catch (e) {
+    toastErr(e.message || '登录失败，请稍后重试')
+    return
+  }
+  login({ phone: ph, personaId, token: tok })
+  /* 登录只是 L1，快照要 L2 才有 —— 这里拉一次，成功后进首页就有房与账单；
+     没绑房时 hydrate 会拿到空列表，等于没做，不影响流程 */
+  await hydrate({ force: true })
   toast('登录成功')
   setTimeout(() => uni.reLaunch({ url: HOME }), 300)
 }

@@ -39,8 +39,18 @@ export const REQUIRED_FIELDS = [
   { table: 'tenants', field: 'tenantId', why: '租户档案跳转与核验/搬离的唯一键' },
   { table: 'tenants', field: 'verifyStatus', why: '核验门槛与状态徽标' },
   { table: 'tenants', field: 'status', why: '在住 / 已搬离（默认只列在住）' },
-  { table: 'tenants', field: 'tenantType', why: '个人 / 公司：两套核验门槛' }
+  { table: 'tenants', field: 'tenantType', why: '个人 / 公司：两套核验门槛' },
 ]
+
+/**
+ * 邻里（n.*）不在本清单里：它的数据是 `utils/api.js` **运行时种子**，不在 mock/*.json，
+ * 这里按表读取会全部报"表缺失"。邻里的字段口径由 smoke 的 16 条用例覆盖。
+ *
+ * 租售（a.listings.*）同理：`LISTINGS` / `VIEWINGS` 也是运行时种子，
+ * 字段口径由 smoke 的「房源审核 / 看房请求 / 联系方式」几条用例覆盖。
+ * 但它的**员工联系方式**落在 `employees` 表上（wechatId / contactQrUrl），
+ * 那两个字段值得进清单 —— 缺了不会报错，只会让对外展示变成空白。
+ */
 
 /** 会签节点的形状：有 approvers 就必须有 signMode，否则进度算不出来 */
 const SIGN_FIELD = { table: 'approvals.flow[].approvers', field: 'signMode', why: '会签进度与名单（PC 53 批）' }

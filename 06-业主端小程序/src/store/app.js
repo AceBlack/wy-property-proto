@@ -14,6 +14,7 @@
 import { computed, reactive } from 'vue'
 import { bills, workOrders } from '@pc/mock'
 import { stamp } from '@/config/demo'
+import { setToken } from '@/api/client'
 
 const KEY = 'wy_owner_mp_v2'
 
@@ -26,6 +27,9 @@ function readCache() {
 }
 
 const cache = readCache()
+/* 切接口后 token 要跨刷新保留：不恢复的话刷新一次就掉回 L1，用户会以为被踢下线。
+   非接口模式 token 是空串，这一步等于没做。 */
+setToken(cache.session?.token)
 
 export const app = reactive({
   /** 登录态 + 实名信息（实名只在认证流程里填，登录不强制） */
@@ -44,20 +48,30 @@ export const app = reactive({
   billPays: cache.billPays || {},
   paySeq: cache.paySeq || 0,
 
-  /** 内容侧写回 */
-  comments: cache.comments || [], // 业主评论
-  postLikes: cache.postLikes || {}, // { postId: true }
-  enrollments: cache.enrollments || [], // 活动报名
+  /** 内容侧写回（2026-11-07 按交接单 §12 改为四频道） */
+  noticeReads: cache.noticeReads || {}, // { noticeId: at }
+  noticeSigns: cache.noticeSigns || {}, // { noticeId: at } 签收是独立动作
+  enrollments: cache.enrollments || [], // 活动报名（含出行人、金额、支付状态）
   votes: cache.votes || {}, // { surveyId: [optionKey] }
   wants: cache.wants || [], // 闲置想要
-  secondhandComments: cache.secondhandComments || [],
+  itemPosts: cache.itemPosts || [], // 我发布的闲置（先审后发）
+  messages: cache.messages || [], // 站内私信（只记"发过"，不做 IM）
+  /** 租售信息 */
+  listings: cache.listings || [], // 我发布的挂牌（本地新增）
+  viewings: cache.viewings || [], // 我要看房（游客留资）
   utilityPays: cache.utilityPays || [], // 水电燃气充值流水
   utilitySeq: cache.utilitySeq || 0,
   /** 报修撤销 / 催办 */
   repairs: cache.repairs || {}, // { woId: { cancelledAt, urgedAt, urgeCount } }
   /** 业主自助添加 / 解除的家庭成员 */
   membersAdded: cache.membersAdded || [],
-  membersRemoved: cache.membersRemoved || []
+  membersRemoved: cache.membersRemoved || [],
+  /**
+   * 服务端快照（批 B）：接口模式下由 `api/remote.js` 的 hydrate() 填充，
+   * 本地模式恒为空 → 选择器自动回落本地档案。
+   * 单独放一个字段而不是散进 bills / houses：**退出登录时能一把清干净**。
+   */
+  remote: cache.remote || { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
 })
 
 /* ---------------- 派生：身份 ---------------- */
@@ -110,17 +124,21 @@ export function persist() {
       payOrders: app.payOrders,
       billPays: app.billPays,
       paySeq: app.paySeq,
-      comments: app.comments,
-      postLikes: app.postLikes,
+      noticeReads: app.noticeReads,
+      noticeSigns: app.noticeSigns,
       enrollments: app.enrollments,
       votes: app.votes,
       wants: app.wants,
-      secondhandComments: app.secondhandComments,
+      itemPosts: app.itemPosts,
+      messages: app.messages,
+      listings: app.listings,
+      viewings: app.viewings,
       utilityPays: app.utilityPays,
       utilitySeq: app.utilitySeq,
       repairs: app.repairs,
       membersAdded: app.membersAdded,
-      membersRemoved: app.membersRemoved
+      membersRemoved: app.membersRemoved,
+      remote: app.remote
     })
   } catch (e) {
     /* 缓存写失败不阻断演示 */
@@ -190,8 +208,9 @@ export function rehydrate() {
 }
 
 /* ---------------- 登录（L1） ---------------- */
-export function login({ phone, personaId = '' }) {
-  app.session = { phone: String(phone || '').trim(), personaId, name: '', idCard4: '', at: stamp() }
+export function login({ phone, personaId = '', token = '' }) {
+  app.session = { phone: String(phone || '').trim(), personaId, name: '', idCard4: '', at: stamp(), token }
+  setToken(token)
   /* 换人登录：认证与绑定必须清空，否则会把上一个人的房产带过来 */
   app.auth = { status: 'none', identity: '', reason: '', at: '', applicant: null }
   app.bindings = []
@@ -264,43 +283,12 @@ export function unbindHouse(houseId) {
   persist()
 }
 
-/* ---------------- 内容侧 ---------------- */
-export function addComment(c) {
-  app.comments.unshift({ ...c, at: stamp(), status: '待审核' })
-  persist()
-}
-
-export function toggleLike(postId) {
-  if (app.postLikes[postId]) delete app.postLikes[postId]
-  else app.postLikes[postId] = stamp()
-  persist()
-}
-
-export function enroll(activityId, payload) {
-  if (app.enrollments.some(e => e.activityId === activityId && e.status !== '已取消')) return false
-  app.enrollments.unshift({ activityId, ...payload, at: stamp(), status: '已报名' })
-  persist()
-  return true
-}
-
-export function cancelEnroll(activityId) {
-  app.enrollments = app.enrollments.map(e =>
-    e.activityId === activityId ? { ...e, status: '已取消', cancelledAt: stamp() } : e
-  )
-  persist()
-}
-
-export function castVote(surveyId, keys) {
-  app.votes[surveyId] = keys
-  persist()
-}
-
-export function toggleWant(itemId) {
-  const i = app.wants.indexOf(itemId)
-  if (i >= 0) app.wants.splice(i, 1)
-  else app.wants.push(itemId)
-  persist()
-}
+/* ---------------- 内容侧 ----------------
+ * 2026-11-07：邻里改为「公告 / 投票 / 活动 / 闲置」四频道（交接单 §12），
+ * 动态、跟帖、公开评论墙按类目红线**全部下线**。
+ * 写操作统一放在 `api/neighbor.js` 与 `api/listing.js`（它们要读 fixtures 与规则），
+ * store 只负责状态与持久化 —— 这里不再重复一份"半套业务规则"。
+ */
 
 export function urgeRepair(woId) {
   const r = app.repairs[woId] || {}
@@ -329,6 +317,8 @@ export function logout() {
   app.auth = { status: 'none', identity: '', reason: '', at: '', applicant: null }
   app.bindings = []
   app.activeHouseId = ''
+  /* 快照要一起清：不清的话换个人登录，页面会先渲染上一个人的账单与房屋 */
+  app.remote = { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
   persist()
 }
 
@@ -344,17 +334,21 @@ export function resetAll() {
     payOrders: [],
     billPays: {},
     paySeq: 0,
-    comments: [],
-    postLikes: {},
+    noticeReads: {},
+    noticeSigns: {},
     enrollments: [],
     votes: {},
     wants: [],
-    secondhandComments: [],
+    itemPosts: [],
+    messages: [],
+    listings: [],
+    viewings: [],
     utilityPays: [],
     utilitySeq: 0,
     repairs: {},
     membersAdded: [],
-    membersRemoved: []
+    membersRemoved: [],
+    remote: { fetched: false, at: 0, me: null, houses: [], residents: {}, bills: null, pricing: null, orders: null, payOrders: [], neighbor: null }
   })
   try {
     uni.removeStorageSync(KEY)

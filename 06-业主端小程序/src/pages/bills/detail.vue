@@ -84,9 +84,9 @@ onShow(() => {
   ver.value++
 })
 
-function pay() {
+async function pay() {
   try {
-    const p = createBillPay([id.value])
+    const p = await createBillPay([id.value])
     go('/pages/pay/index', { payId: p.payId })
   } catch (e) {
     toastErr(e.message || '生成订单失败')

@@ -1,0 +1,192 @@
+{
+  "chargeMode": {
+    "prepayWhenOrder": true,
+    "addonPaidOnSite": true
+  },
+  "tradeOpts": [
+    "水暖",
+    "电工",
+    "木工",
+    "空调",
+    "泥瓦",
+    "综合",
+    "电梯"
+  ],
+  "projects": [
+    {
+      "communityId": "P01",
+      "name": "翡翠城",
+      "enabled": true,
+      "grabArriveMinutes": 15,
+      "abandonLimit": 3
+    },
+    {
+      "communityId": "P02",
+      "name": "星光天地",
+      "enabled": true,
+      "grabArriveMinutes": 20,
+      "abandonLimit": 3
+    },
+    {
+      "communityId": "P03",
+      "name": "锦绣家园",
+      "enabled": true,
+      "grabArriveMinutes": 20,
+      "abandonLimit": 2
+    }
+  ],
+  "items": [
+    {
+      "code": "RP-W01",
+      "category": "水管漏水",
+      "name": "角阀/软管更换（含材料）",
+      "trade": "水暖",
+      "material": 35,
+      "labor": 90,
+      "unit": "次",
+      "minutes": 40
+    },
+    {
+      "code": "RP-W02",
+      "category": "下水道堵塞",
+      "name": "下水道疏通（台盆/地漏）",
+      "trade": "水暖",
+      "material": 0,
+      "labor": 120,
+      "unit": "次",
+      "minutes": 50
+    },
+    {
+      "code": "RP-E01",
+      "category": "电路故障",
+      "name": "线路排查与空开更换",
+      "trade": "电工",
+      "material": 45,
+      "labor": 110,
+      "unit": "次",
+      "minutes": 60
+    },
+    {
+      "code": "RP-E02",
+      "category": "照明不亮",
+      "name": "灯具/光源更换（不含灯具）",
+      "trade": "电工",
+      "material": 0,
+      "labor": 60,
+      "unit": "盏",
+      "minutes": 25
+    },
+    {
+      "code": "RP-M01",
+      "category": "门锁故障",
+      "name": "门锁检修 / 锁芯更换",
+      "trade": "木工",
+      "material": 60,
+      "labor": 80,
+      "unit": "次",
+      "minutes": 40
+    },
+    {
+      "code": "RP-M02",
+      "category": "门窗损坏",
+      "name": "门窗五金调整",
+      "trade": "木工",
+      "material": 25,
+      "labor": 70,
+      "unit": "次",
+      "minutes": 35
+    },
+    {
+      "code": "RP-A01",
+      "category": "空调不制冷",
+      "name": "空调清洗加氟（挂机）",
+      "trade": "空调",
+      "material": 80,
+      "labor": 150,
+      "unit": "台",
+      "minutes": 70
+    },
+    {
+      "code": "RP-T01",
+      "category": "瓷砖空鼓",
+      "name": "瓷砖空鼓修补（≤2㎡）",
+      "trade": "泥瓦",
+      "material": 55,
+      "labor": 130,
+      "unit": "处",
+      "minutes": 90
+    },
+    {
+      "code": "RP-P01",
+      "category": "墙面开裂",
+      "name": "墙面裂缝修补（≤1㎡）",
+      "trade": "泥瓦",
+      "material": 40,
+      "labor": 100,
+      "unit": "处",
+      "minutes": 80
+    },
+    {
+      "code": "RP-O01",
+      "category": "其他",
+      "name": "上门检测（可抵扣维修费）",
+      "trade": "综合",
+      "material": 0,
+      "labor": 50,
+      "unit": "次",
+      "minutes": 20
+    }
+  ],
+  "addons": [
+    {
+      "code": "AD-D01",
+      "category": "其他",
+      "name": "拆旧 / 清运",
+      "trade": "综合",
+      "material": 0,
+      "labor": 80,
+      "unit": "项",
+      "minutes": 60
+    },
+    {
+      "code": "AD-D02",
+      "category": "其他",
+      "name": "高空作业（外立面/挑空）",
+      "trade": "综合",
+      "material": 0,
+      "labor": 120,
+      "unit": "次",
+      "minutes": 90
+    },
+    {
+      "code": "AD-D03",
+      "category": "其他",
+      "name": "夜间 / 节假日加急",
+      "trade": "综合",
+      "material": 0,
+      "labor": 100,
+      "unit": "次",
+      "minutes": 45
+    },
+    {
+      "code": "AD-D04",
+      "category": "其他",
+      "name": "超出范围的辅材（玻璃胶/管件等）",
+      "trade": "综合",
+      "material": 60,
+      "labor": 0,
+      "unit": "份",
+      "minutes": 20
+    },
+    {
+      "code": "AD-D05",
+      "category": "其他",
+      "name": "二次上门（业主原因）",
+      "trade": "综合",
+      "material": 0,
+      "labor": 40,
+      "unit": "次",
+      "minutes": 30
+    }
+  ]
+}

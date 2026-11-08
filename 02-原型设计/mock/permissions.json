@@ -60,6 +60,36 @@
     "route": "/a/tenants"
   },
   {
+    "code": "a.listings.view",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "view",
+    "opName": "查看",
+    "route": "/a/listings"
+  },
+  {
+    "code": "a.listings.audit",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "audit",
+    "opName": "操作",
+    "route": "/a/listings"
+  },
+  {
+    "code": "a.listings.viewing",
+    "domain": "a",
+    "domainName": "A 房产与业主",
+    "func": "listings",
+    "funcName": "租售信息",
+    "op": "viewing",
+    "opName": "操作",
+    "route": "/a/listings"
+  },
+  {
     "code": "a.vehicles.view",
     "domain": "a",
     "domainName": "A 房产与业主",
@@ -248,6 +278,156 @@
     "op": "view",
     "opName": "查看",
     "route": "/b/multi-revenue"
+  },
+  {
+    "code": "b.invoiceSet.view",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "invoiceSet",
+    "funcName": "开票设置",
+    "op": "view",
+    "opName": "查看",
+    "route": "/b/invoice-settings"
+  },
+  {
+    "code": "b.invoiceSet.edit",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "invoiceSet",
+    "funcName": "开票设置",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/b/invoice-settings"
+  },
+  {
+    "code": "b.tempCharges.view",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "tempCharges",
+    "funcName": "临时收费",
+    "op": "view",
+    "opName": "查看",
+    "route": "/b/temp-charges"
+  },
+  {
+    "code": "b.tempCharges.edit",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "tempCharges",
+    "funcName": "临时收费",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/b/temp-charges"
+  },
+  {
+    "code": "n.workbench.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "workbench",
+    "funcName": "邻里运营",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/workbench"
+  },
+  {
+    "code": "n.votes.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "votes",
+    "funcName": "投票管理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/votes"
+  },
+  {
+    "code": "n.votes.edit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "votes",
+    "funcName": "投票管理",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/n/votes"
+  },
+  {
+    "code": "n.activities.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.activities.edit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.activities.enroll",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "enroll",
+    "opName": "操作",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.items.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "items",
+    "funcName": "闲置审核",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/items"
+  },
+  {
+    "code": "n.items.audit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "items",
+    "funcName": "闲置审核",
+    "op": "audit",
+    "opName": "操作",
+    "route": "/n/items"
+  },
+  {
+    "code": "n.reports.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "reports",
+    "funcName": "举报处理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/reports"
+  },
+  {
+    "code": "n.reports.handle",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "reports",
+    "funcName": "举报处理",
+    "op": "handle",
+    "opName": "操作",
+    "route": "/n/reports"
+  },
+  {
+    "code": "c.contacts.view",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "contacts",
+    "funcName": "通讯录",
+    "op": "view",
+    "opName": "查看",
+    "route": "/c/contacts"
   },
   {
     "code": "c.employees.view",
@@ -898,155 +1078,5 @@
     "op": "edit",
     "opName": "操作",
     "route": "/f/plan-templates"
-  },
-  {
-    "code": "b.invoiceSet.view",
-    "domain": "b",
-    "domainName": "B 费用",
-    "func": "invoiceSet",
-    "funcName": "开票设置",
-    "op": "view",
-    "opName": "查看",
-    "route": "/b/invoice-settings"
-  },
-  {
-    "code": "b.invoiceSet.edit",
-    "domain": "b",
-    "domainName": "B 费用",
-    "func": "invoiceSet",
-    "funcName": "开票设置",
-    "op": "edit",
-    "opName": "维护",
-    "route": "/b/invoice-settings"
-  },
-  {
-    "code": "b.tempCharges.view",
-    "domain": "b",
-    "domainName": "B 费用",
-    "func": "tempCharges",
-    "funcName": "临时收费",
-    "op": "view",
-    "opName": "查看",
-    "route": "/b/temp-charges"
-  },
-  {
-    "code": "b.tempCharges.edit",
-    "domain": "b",
-    "domainName": "B 费用",
-    "func": "tempCharges",
-    "funcName": "临时收费",
-    "op": "edit",
-    "opName": "操作",
-    "route": "/b/temp-charges"
-  },
-  {
-    "code": "c.contacts.view",
-    "domain": "c",
-    "domainName": "C 办公协同",
-    "func": "contacts",
-    "funcName": "通讯录",
-    "op": "view",
-    "opName": "查看",
-    "route": "/c/contacts"
-  },
-  {
-    "code": "n.workbench.view",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "workbench",
-    "funcName": "邻里运营",
-    "op": "view",
-    "opName": "查看",
-    "route": "/n/workbench"
-  },
-  {
-    "code": "n.votes.view",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "votes",
-    "funcName": "投票管理",
-    "op": "view",
-    "opName": "查看",
-    "route": "/n/votes"
-  },
-  {
-    "code": "n.votes.edit",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "votes",
-    "funcName": "投票管理",
-    "op": "edit",
-    "opName": "操作",
-    "route": "/n/votes"
-  },
-  {
-    "code": "n.activities.view",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "activities",
-    "funcName": "活动管理",
-    "op": "view",
-    "opName": "查看",
-    "route": "/n/activities"
-  },
-  {
-    "code": "n.activities.edit",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "activities",
-    "funcName": "活动管理",
-    "op": "edit",
-    "opName": "操作",
-    "route": "/n/activities"
-  },
-  {
-    "code": "n.activities.enroll",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "activities",
-    "funcName": "活动管理",
-    "op": "enroll",
-    "opName": "代报名",
-    "route": "/n/activities"
-  },
-  {
-    "code": "n.items.view",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "items",
-    "funcName": "闲置审核",
-    "op": "view",
-    "opName": "查看",
-    "route": "/n/items"
-  },
-  {
-    "code": "n.items.audit",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "items",
-    "funcName": "闲置审核",
-    "op": "audit",
-    "opName": "审核",
-    "route": "/n/items"
-  },
-  {
-    "code": "n.reports.view",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "reports",
-    "funcName": "举报处理",
-    "op": "view",
-    "opName": "查看",
-    "route": "/n/reports"
-  },
-  {
-    "code": "n.reports.handle",
-    "domain": "n",
-    "domainName": "N 邻里运营",
-    "func": "reports",
-    "funcName": "举报处理",
-    "op": "handle",
-    "opName": "处理",
-    "route": "/n/reports"
   }
 ]

@@ -48,7 +48,7 @@
         </view>
         <view class="stats__i" @tap="goNeighbor">
           <text class="stats__n">{{ stats.comments }}</text>
-          <text class="stats__t">评论</text>
+          <text class="stats__t">发布</text>
         </view>
         <view class="stats__i" @tap="goNeighbor">
           <text class="stats__n">{{ stats.enroll }}</text>
@@ -73,6 +73,7 @@
         <Cell label="个人认证" :value="authText" arrow @tap="toAuth" />
         <Cell label="房屋管理" :value="approved ? `${houses.length} 套` : '未认证'" arrow @tap="goHouse" />
         <Cell label="家庭绑定" :value="approved ? `${memberCount} 人` : '未认证'" arrow @tap="goHouse" />
+        <Cell label="我的挂牌（租售）" :value="''" arrow @tap="goMyListings" />
         <Cell label="停车绑定" value="P1" arrow @tap="toast('停车绑定 P1，本轮只做只读展示')" />
         <Cell label="设置" value="" arrow @tap="toast('设置 P1')" />
         <Cell label="客服 / 反馈 / 投诉" value="" arrow :last="true" @tap="goFeedback" />
@@ -134,7 +135,7 @@ const stats = computed(() => {
   ver.value
   return {
     repairs: myOrders().length,
-    comments: app.comments.length,
+    comments: app.itemPosts.length,
     enroll: app.enrollments.filter(e => e.status !== '已取消').length,
     wants: app.wants.length
   }
@@ -154,7 +155,9 @@ const grids = computed(() => [
   { key: 'util', icon: '水', label: '便民缴费', run: () => (gateOwner('便民缴费') ? go('/pages/utility/index') : null) },
   { key: 'park', icon: '车', label: '我的车位', run: () => (gateOwner('车位信息') ? toast('车位详情在首页四宫格') : null) },
   { key: 'door', icon: '门', label: '门禁钥匙', run: () => (gateOwner('门禁钥匙') ? toast('门禁钥匙在首页四宫格') : null) },
-  { key: 'family', icon: '家', label: '家庭账单', run: () => (gatePerm('bills', '家庭账单') ? go('/pages/bills/index') : null) }
+  { key: 'family', icon: '家', label: '家庭账单', run: () => (gatePerm('bills', '家庭账单') ? go('/pages/bills/index') : null) },
+  /* 租售信息是公开频道，但入口放在这里也合理；点了不拦（游客可直接看列表） */
+  { key: 'sale', icon: '租', label: '租售信息', run: () => go('/pages/house-sale/list') }
 ])
 
 onShow(() => {
@@ -174,6 +177,7 @@ function goHouse() {
 }
 const goRepair = () => go('/pages/repair/list')
 const goFeedback = () => go('/pages/mine/feedback')
+const goMyListings = () => (gateOwner('我的挂牌') ? go('/pages/house-sale/mine') : null)
 function goNeighbor() {
   uni.switchTab({ url: '/pages/neighbor/index' })
 }

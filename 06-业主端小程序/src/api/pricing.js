@@ -8,18 +8,30 @@
  * 全部走本文件的 `orderFee()` / `addonFee()`，页面里不许再出现 `material + labor` 这种自己算的写法。
  */
 import repairPrices from '@pc/mock/repairPrices.json'
+import { remotePricing, remoteReady } from './remote'
 
+/* 本地源：接口模式下只作兜底（价目接口没拉到 / 没开接口） */
 export const PRICE_ITEMS = repairPrices.items || []
 export const ADDON_ITEMS = repairPrices.addons || []
 export const TRADE_OPTS = repairPrices.tradeOpts || []
 export const CHARGE_MODE = repairPrices.chargeMode || {}
 
-const PROJ = new Map((repairPrices.projects || []).map(p => [p.communityId, p]))
-const BY_CODE = new Map([...PRICE_ITEMS, ...ADDON_ITEMS].map(i => [i.code, i]))
-const BY_CATEGORY = new Map(PRICE_ITEMS.map(i => [i.category, i]))
+/**
+ * 批 B：价目也走快照。**必须用函数而不是常量** —— 常量在模块加载时就定了值，
+ * 那时快照还是空的，页面拿到的永远是本地那份。两份数据虽然同源，
+ * 但接口模式下"用了哪一份"必须能说清，否则价格对不上时无从查起。
+ */
+const live = () => (remoteReady() ? remotePricing() : null)
+export const priceItems = () => live()?.items || PRICE_ITEMS
+export const addonItems = () => live()?.addons || ADDON_ITEMS
+export const tradeOpts = () => live()?.tradeOpts || TRADE_OPTS
+export const chargeMode = () => live()?.chargeMode || CHARGE_MODE
 
-export const priceOfCode = code => BY_CODE.get(code) || null
-export const priceOfCategory = c => BY_CATEGORY.get(c) || null
+const PROJ = new Map((repairPrices.projects || []).map(p => [p.communityId, p]))
+
+/* 每次现查：价目表总共 15 条，为它做一层缓存反而要处理"缓存什么时候失效" */
+export const priceOfCode = code => [...priceItems(), ...addonItems()].find(i => i.code === code) || null
+export const priceOfCategory = c => priceItems().find(i => i.category === c) || null
 
 export function projectParam(communityId) {
   return (
@@ -58,7 +70,7 @@ export const addonFee = (item, qty = 1) => orderFee(item, qty)
 /** 按品类分组，下单页按"维修类型"分组展示；同组内保留价目表原顺序 */
 export function priceGroups() {
   const map = new Map()
-  for (const it of PRICE_ITEMS) {
+  for (const it of priceItems()) {
     if (!map.has(it.category)) map.set(it.category, [])
     map.get(it.category).push(it)
   }

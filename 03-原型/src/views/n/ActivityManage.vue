@@ -1,8 +1,10 @@
 <!--
   邻里 · 活动管理
   ------------------------------------------------------------
-  两类活动：公益（免费）与收费（成本分摊）。
-  收费活动有三个不能省的字段：**成团下限**、**退款分档**、**是否投保**。
+  **类别**（敬老 / 亲子 / 文体 / 出游 / 公益）与**收费方式**（免费 / 收费）是两个维度，
+  不是二选一：敬老茶话会免费，敬老一日游可以收成本费。2026-11-07 之前这两个维度
+  挤在 type 一个字段里，列表上会同时出现「亲子 · 免费」和「收费 · 收费」。
+  收费场次有三个不能省的字段：**成团下限**、**退款分档**、**是否投保**。
   少了成团下限，钱收了团没成、退款没依据；少了退款分档，
   取消时只能凭人情拍脑袋 —— 而这件事每场活动都会发生。
 -->
@@ -11,10 +13,12 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>活动管理</b>：业主端「邻里 · 活动」的内容源。公益免费，收费按<b>成本分摊</b>
-        （车费、门票、餐费），不写「旅游」—— 以旅游名义收费需要《旅行社业务经营许可证》。
+        <b>活动管理</b>：业主端「邻里 · 活动」的内容源。<b>类别</b>（敬老 / 亲子 / 文体 / 出游 / 公益）
+        与<b>收费方式</b>（免费 / 收费）分开填 —— 它们是两个维度，不是二选一。
+        收费按<b>成本分摊</b>（车费、门票、餐费），不写「旅游」——
+        以旅游名义收费需要《旅行社业务经营许可证》。
         <br />
-        <b>成团下限</b>是收费活动的必填项：报名截止后未达下限就进「待成行」，
+        <b>成团下限</b>是收费场次的必填项：报名截止后未达下限就进「待成行」，
         由运营点「确认流团」触发<b>全额原路退款</b>。少了这一态，钱收了团没成，
         活动当天业主自己发现没车来接 —— 然后在群里炸。
         <br />
@@ -55,8 +59,8 @@
         <el-select v-model="q.communityId" clearable placeholder="全部项目" style="width:150px;" @change="applyFilter">
           <el-option v-for="c in cmOpts" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
-        <el-select v-model="q.type" clearable placeholder="全部类型" style="width:120px;" @change="applyFilter">
-          <el-option v-for="t in ACTIVITY_TYPES" :key="t" :label="t" :value="t" />
+        <el-select v-model="q.category" clearable placeholder="全部类别" style="width:120px;" @change="applyFilter">
+          <el-option v-for="c in ACTIVITY_CATEGORIES" :key="c" :label="c" :value="c" />
         </el-select>
         <el-select v-model="q.phase" clearable placeholder="全部状态" style="width:130px;" @change="applyFilter">
           <el-option v-for="p in ACTIVITY_PHASES" :key="p" :label="p" :value="p" />
@@ -84,10 +88,10 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="类型 / 费用" width="164">
+        <el-table-column label="类别 / 费用" width="164">
           <template #default="{ row }">
             <el-tag size="small" :type="row.fee > 0 ? 'warning' : 'success'" effect="plain" class="nowrap">
-              {{ row.type }}{{ row.fee > 0 ? ' · 收费' : ' · 免费' }}
+              {{ row.category }} · {{ row.feeType }}
             </el-tag>
             <div class="sub">{{ row.feeText }}</div>
           </template>
@@ -153,15 +157,22 @@
           <el-input v-model="ed.title" maxlength="40" show-word-limit placeholder="如：邻里出游 · 青城前山一日游" />
         </el-form-item>
 
-        <el-form-item label="活动类型" required>
-          <el-radio-group v-model="ed.type">
-            <el-radio-button label="公益" value="公益">公益（免费）</el-radio-button>
-            <el-radio-button label="收费" value="收费">收费（成本分摊）</el-radio-button>
+        <el-form-item label="活动类别" required>
+          <el-select v-model="ed.category" placeholder="选一个类别" style="width:180px;">
+            <el-option v-for="c in ACTIVITY_CATEGORIES" :key="c" :label="c" :value="c" />
+          </el-select>
+          <span class="hint" style="margin-left:10px;">类别与收费是两回事：敬老活动也可以收成本费</span>
+        </el-form-item>
+
+        <el-form-item label="收费方式" required>
+          <el-radio-group v-model="ed.feeMode">
+            <el-radio-button value="免费">免费</el-radio-button>
+            <el-radio-button value="收费">收费（成本分摊）</el-radio-button>
           </el-radio-group>
           <div class="hint">
-            {{ ed.type === '收费'
+            {{ ed.feeMode === '收费'
               ? '收费只做成本分摊（车费 / 门票 / 餐费），不要写成「旅游产品」—— 那是旅行社业务'
-              : '公益活动不收款，只需报名与签到' }}
+              : '不收款的场次只需报名与签到' }}
           </div>
         </el-form-item>
 
@@ -199,7 +210,7 @@
           <span class="hint" style="margin-left:10px;">人 · 防止一户报满全场</span>
         </el-form-item>
 
-        <template v-if="ed.type === '收费'">
+        <template v-if="ed.feeMode === '收费'">
           <el-divider content-position="left"><span class="div-t">收费设置</span></el-divider>
 
           <el-form-item label="单价" required>
@@ -314,7 +325,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import {
-  ACTIVITY_PHASES, ACTIVITY_TYPES, activityStats, canEditActivities,
+  ACTIVITY_CATEGORIES, ACTIVITY_PHASES, activityStats, canEditActivities,
   confirmFlow, endActivity, publishActivity, queryActivities, saveActivity
 } from '@/api/neighbor'
 import { PAGE_SIZES, communityOpts } from '@/api/shared'
@@ -325,7 +336,7 @@ const router = useRouter()
 const canEdit = computed(() => canEditActivities())
 const cmOpts = communityOpts()
 
-const q = reactive({ kw: '', communityId: '', type: '', phase: '' })
+const q = reactive({ kw: '', communityId: '', category: '', phase: '' })
 const pageNo = ref(1)
 const size = ref(20)
 const total = ref(0)
@@ -347,14 +358,14 @@ async function load() {
   }
 }
 function applyFilter() { pageNo.value = 1; load() }
-function resetFilter() { Object.assign(q, { kw: '', communityId: '', type: '', phase: '' }); applyFilter() }
+function resetFilter() { Object.assign(q, { kw: '', communityId: '', category: '', phase: '' }); applyFilter() }
 function onSize() { pageNo.value = 1; load() }
 function goEnrolls(row) { router.push(`/n/activities/${row.activityId}/enrolls`) }
 
 /* ---------------- 表单 ---------------- */
 const ed = reactive({
   visible: false, saving: false, activityId: '',
-  title: '', type: '公益', communityId: '', startAt: '', endAt: '', place: '',
+  title: '', category: '文体', feeMode: '免费', communityId: '', startAt: '', endAt: '', place: '',
   capacity: 40, attendeeLimit: 2, enrollDeadline: '',
   fee: null, minCapacity: null, feeInclude: '', feeExclude: '', needInsurance: false,
   refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }],
@@ -369,7 +380,7 @@ function addTier() {
 function openCreate() {
   Object.assign(ed, {
     visible: true, saving: false, activityId: '',
-    title: '', type: '公益', communityId: cmOpts[0]?.id || '', startAt: '', endAt: '', place: '',
+    title: '', category: '文体', feeMode: '免费', communityId: cmOpts[0]?.id || '', startAt: '', endAt: '', place: '',
     capacity: 40, attendeeLimit: 2, enrollDeadline: '',
     fee: null, minCapacity: null, feeInclude: '', feeExclude: '', needInsurance: false,
     refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }],
@@ -380,7 +391,8 @@ function openCreate() {
 function openEdit(row) {
   Object.assign(ed, {
     visible: true, saving: false, activityId: row.activityId,
-    title: row.title, type: row.type, communityId: row.communityId,
+    title: row.title, category: row.category, feeMode: row.fee > 0 ? '收费' : '免费',
+    communityId: row.communityId,
     startAt: row.startAt, endAt: row.endAt, place: row.place,
     capacity: row.capacity, attendeeLimit: row.attendeeLimit, enrollDeadline: row.enrollDeadline,
     fee: row.fee || null, minCapacity: row.minCapacity || null,
@@ -393,11 +405,16 @@ function openEdit(row) {
 }
 
 async function saveForm() {
+  /* 选了收费却没填单价，后端会当成免费活动静默通过 —— 这类错最贵，先拦在提交前 */
+  if (ed.feeMode === '收费' && !(Number(ed.fee) > 0)) {
+    ElMessage.warning('选了「收费」就要填单价；不收费请选「免费」')
+    return
+  }
   ed.saving = true
   try {
     await saveActivity({
       title: ed.title,
-      type: ed.type,
+      category: ed.category,
       communityId: ed.communityId,
       startAt: ed.startAt,
       endAt: ed.endAt,
@@ -405,12 +422,12 @@ async function saveForm() {
       capacity: ed.capacity,
       attendeeLimit: ed.attendeeLimit,
       enrollDeadline: ed.enrollDeadline,
-      fee: ed.type === '收费' ? ed.fee : 0,
-      minCapacity: ed.type === '收费' ? ed.minCapacity : 0,
+      fee: ed.feeMode === '收费' ? ed.fee : 0,
+      minCapacity: ed.feeMode === '收费' ? ed.minCapacity : 0,
       feeInclude: ed.feeInclude,
       feeExclude: ed.feeExclude,
-      needInsurance: ed.type === '收费' ? ed.needInsurance : false,
-      refundPolicy: ed.type === '收费' ? ed.refundPolicy : [],
+      needInsurance: ed.feeMode === '收费' ? ed.needInsurance : false,
+      refundPolicy: ed.feeMode === '收费' ? ed.refundPolicy : [],
       desc: ed.desc
     }, ed.activityId)
     ElMessage.success(ed.activityId ? '已保存' : '已存为草稿，确认后点「发布」')

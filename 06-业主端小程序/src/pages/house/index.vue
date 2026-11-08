@@ -21,6 +21,10 @@
           <view class="btn btn--sm btn--line" @tap="setActive(h.houseId)"><text>{{ h.houseId === activeId ? '当前房屋' : '设为当前' }}</text></view>
           <view class="btn btn--sm btn--ghost" @tap="goMembers(h.houseId)"><text>家庭成员</text></view>
         </view>
+        <view class="hi__acts">
+          <view class="btn btn--sm btn--ghost" @tap="goPublish"><text>发布租售</text></view>
+          <view class="btn btn--sm btn--ghost" @tap="goListings"><text>我的挂牌</text></view>
+        </view>
       </view>
 
       <!-- 住户 -->
@@ -110,6 +114,8 @@ function setActive(id) {
   toast('已切换当前房屋')
 }
 const goMembers = id => go('/pages/house/member-manage', { houseId: id })
+const goPublish = () => (gateOwner('发布租售') ? go('/pages/house-sale/publish') : null)
+const goListings = () => (gateOwner('我的挂牌') ? go('/pages/house-sale/mine') : null)
 </script>
 
 <style scoped>

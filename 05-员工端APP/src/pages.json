@@ -178,6 +178,69 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "我的提成"
       }
+    },
+    {
+      "path": "pages/contacts/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "通讯录"
+      }
+    },
+    {
+      "path": "pages/neighbor/todo",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "邻里待办"
+      }
+    },
+    {
+      "path": "pages/neighbor/item",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "闲置审核"
+      }
+    },
+    {
+      "path": "pages/neighbor/report",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "举报处理"
+      }
+    },
+    {
+      "path": "pages/neighbor/activity",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "邻里活动"
+      }
+    },
+    {
+      "path": "pages/neighbor/enroll",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "活动详情"
+      }
+    },
+    {
+      "path": "pages/neighbor/listing",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "房源审核"
+      }
+    },
+    {
+      "path": "pages/listing/viewing",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "看房请求"
+      }
+    },
+    {
+      "path": "pages/mine/contact",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的联系方式"
+      }
     }
   ],
   "globalStyle": {

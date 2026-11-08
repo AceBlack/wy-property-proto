@@ -8,7 +8,21 @@
  *      保证仓库不膨胀，又足够覆盖分页、筛选、越权与边界场景；
  *   ③ 金额四舍五入到分、日期统一 `YYYY-MM-DD` / `YYYY-MM-DD HH:mm`。
  *
- * 用法：node scripts/gen-fixtures.mjs
+ * ⚠️ **不要整目录重跑这个脚本**（2026-11-08 批 B 实测）：
+ *
+ *   `fixtures/` 里在跑的是一份 **2026-10-30 的快照**（houses 220 套、业主带 `tagIds`、
+ *   房屋带 `orientation`、communities.houseCount=264），而本脚本现在的切片是
+ *   `houses.slice(0, 160)` 且 pick 列表里没有那两个字段。整目录重跑的后果：
+ *
+ *     - houses 220 → 160，`bills` / `tenants` 里指向 161~220 的房屋变成孤儿；
+ *     - 契约测试里"张建国的两套房"（H010110501 / H010121102）直接查不到；
+ *     - `02/mock` 的业主数据在 10-30 之后又重随机过一次（`pets` 等字段漂移），
+ *       owners 也会跟着变。
+ *
+ *   缺字段就写**增量脚本**（先例：`gen-tenant-rent.mjs` / `gen-members-fixture.mjs`）。
+ *   要整目录重跑，先把 160/220 的口径对齐，并确认 bills / tenants 的引用仍然闭合。
+ *
+ * 用法：node scripts/gen-fixtures.mjs（先读上面那段）
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -181,7 +195,10 @@ write('work-orders.json', woRows)
 const tenantRows = read('tenants.json').slice(0, 80).map((t, i) => {
   const row = pick(t, [
     'tenantId', 'name', 'phone', 'idCard', 'houseId', 'ownerId',
-    'leaseStart', 'leaseEnd', 'relation', 'residents', 'source', 'verifyStatus', 'certified', 'faceRegistered'
+    /* rent / tenantType：契约 `/mp/houses/{id}/residents` 写明"业主可见租金"，
+       投影里漏掉的话接口只能返回 0 —— 第 72 批补（同时用 gen-tenant-rent.mjs 增量补了现有文件） */
+    'leaseStart', 'leaseEnd', 'rent', 'tenantType',
+    'relation', 'residents', 'source', 'verifyStatus', 'certified', 'faceRegistered'
   ])
   /* 人为留 6 条「关系」为空的记录：核验门槛是 5 项（姓名/手机/证件/关系/居住人数），
      否则样例里全齐，「核验不通过」这条分支永远测不到 */
@@ -273,7 +290,14 @@ const qualityRows = read('qualityChecks.json').slice(0, 90).map(q => ({
 }))
 
 /* ---------- 员工（只为把责任楼管的名字解出来，不做人事模块契约） ---------- */
-const empRows = read('employees.json').slice(0, 80).map(e => pick(e, ['empId', 'name', 'position', 'orgId', 'status']))
+const empRows = read('employees.json').slice(0, 80).map(e => ({
+  ...pick(e, ['empId', 'name', 'position', 'orgId', 'status']),
+  /* 租售信息对外展示的联系方式（第 69 批）：只有楼栋管家对外，其他岗位留空。
+     缺了这两个字段，假服务返回的 stewardWechat 永远是空的，
+     「业主能看到楼管微信吗」这条就没法验。 */
+  wechatId: e.position === '楼栋管家' ? `wx_${String(e.phone || '').slice(-4)}` : '',
+  contactQrUrl: ''
+}))
 write('employees.json', empRows)
 
 write('tenants.json', tenantRows)

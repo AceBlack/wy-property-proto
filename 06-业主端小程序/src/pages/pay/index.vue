@@ -18,7 +18,7 @@
         </view>
 
         <view class="card">
-          <view class="sec-hd"><text class="sec-hd__t">订单信息</text><text class="sec-hd__d">{{ pay.type === 'bill' ? '账单缴费' : '报修付费' }}</text></view>
+          <view class="sec-hd"><text class="sec-hd__t">订单信息</text><text class="sec-hd__d">{{ typeText }}</text></view>
           <Cell label="项目" :value="pay.title" />
           <Cell label="说明" :value="pay.sub" />
           <Cell label="订单号" :value="pay.payId" />
@@ -38,7 +38,7 @@
           <view class="sum-row sum-row--total"><text class="sum-row__k">合计</text><text class="sum-row__v">{{ money(pay.amount) }}</text></view>
         </view>
 
-        <view v-else class="card">
+        <view v-else-if="pay.type === 'wo'" class="card">
           <view class="sec-hd"><text class="sec-hd__t">费用明细</text><text class="sec-hd__d">下单即见价</text></view>
           <view class="sum-row"><text class="sum-row__k">材料费</text><text class="sum-row__v">{{ money(wo?.materialFee) }}</text></view>
           <view class="sum-row"><text class="sum-row__k">人工费</text><text class="sum-row__v">{{ money(wo?.laborFee) }}</text></view>
@@ -48,6 +48,14 @@
             <text class="sum-row__k">{{ wo?.paidAmount ? '本次应付（增项差额）' : '合计' }}</text>
             <text class="sum-row__v">{{ money(pay.amount) }}</text>
           </view>
+        </view>
+
+        <view v-else class="card">
+          <view class="sec-hd"><text class="sec-hd__t">报名费</text><text class="sec-hd__d">活动费用</text></view>
+          <view class="sum-row"><text class="sum-row__k">活动</text><text class="sum-row__v">{{ pay.title.replace(' · 报名费', '') }}</text></view>
+          <view class="sum-row"><text class="sum-row__k">人数</text><text class="sum-row__v">{{ enroll?.people || 1 }} 人</text></view>
+          <view class="sum-row sum-row--total"><text class="sum-row__k">合计</text><text class="sum-row__v">{{ money(pay.amount) }}</text></view>
+          <text v-if="enroll?.fee" class="py__tip">单价 ¥{{ enroll.fee }}/人。取消报名按活动退款分档计算，可在「邻里 → 我的 → 我报名的」里操作。</text>
         </view>
 
         <view v-if="!paid" class="card">
@@ -63,7 +71,8 @@
         <view v-if="paid" class="py__done">
           <view class="py__done-acts">
             <view v-if="wo" class="btn btn--primary" @tap="goWo"><text>查看报修进度</text></view>
-            <view class="btn btn--line" @tap="goBack"><text>{{ wo ? '返回首页' : '返回账单' }}</text></view>
+            <view v-else-if="pay.type === 'activity'" class="btn btn--primary" @tap="goEnroll"><text>查看我的报名</text></view>
+            <view class="btn btn--line" @tap="goBack"><text>{{ wo ? '返回首页' : pay.type === 'activity' ? '返回活动' : '返回账单' }}</text></view>
           </view>
         </view>
       </template>
@@ -81,18 +90,27 @@ import Bar from '@/components/Bar.vue'
 import Cell from '@/components/Cell.vue'
 import Empty from '@/components/Empty.vue'
 import { billsOf, orderOf, payOrderOf, simulatePay } from '@/api/mp'
+import { app } from '@/store/app'
 import { amount, money } from '@/utils/format'
 import { toastOk, toastErr } from '@/utils/ui'
-import { gateOwner } from '@/utils/guard'
+import { gateLogin, gateOwner } from '@/utils/guard'
 
 const payId = ref('')
 const woId = ref('')
 const tick = ref(0)
 
 onLoad(o => {
-  if (!gateOwner('支付')) return
   payId.value = o?.payId ? decodeURIComponent(o.payId) : ''
   woId.value = o?.woId ? decodeURIComponent(o.woId) : ''
+  /**
+   * 门禁按订单类型分：
+   *   · 账单 / 报修 → 需要业主认证（钱是房上的）；
+   *   · 活动报名费 → 只要登录（活动是社区公共内容，租客也能报）。
+   */
+  const p = payId.value ? payOrderOf(payId.value) : null
+  if (p?.type === 'activity') {
+    if (!gateLogin()) return
+  } else if (!gateOwner('支付')) return
 })
 
 const pay = computed(() => {
@@ -105,15 +123,24 @@ const wo = computed(() => {
   if (pay.value?.type !== 'wo') return null
   return orderOf(pay.value.refId)
 })
+const typeText = computed(() => {
+  const t = pay.value?.type
+  return t === 'bill' ? '账单缴费' : t === 'activity' ? '活动报名费' : '报修付费'
+})
+const enroll = computed(() => {
+  tick.value
+  if (pay.value?.type !== 'activity') return null
+  return app.enrollments.find(e => e.enrollId === pay.value.refId) || null
+})
 const billRows = computed(() => {
   tick.value
   if (!pay.value || pay.value.type !== 'bill') return []
   return pay.value.lines || billsOf(pay.value.billIds || [])
 })
 
-function onPay() {
+async function onPay() {
   try {
-    simulatePay(payId.value)
+    await simulatePay(payId.value)
     tick.value++
     toastOk('支付成功（模拟）')
   } catch (e) {
@@ -127,7 +154,11 @@ function goWo() {
 }
 function goBack() {
   if (wo.value) uni.reLaunch({ url: '/pages/home/index' })
+  else if (pay.value?.type === 'activity') uni.navigateBack()
   else uni.navigateBack()
+}
+function goEnroll() {
+  uni.redirectTo({ url: '/pages/neighbor/my?tab=enroll' })
 }
 </script>
 

@@ -679,6 +679,186 @@ async function main() {
   await shot('28-sup-submit')
 
   /* ---------- 13. 数字对齐 ---------- */
+  /* ---------- 15. 通讯录 ---------- */
+  console.log('\n[15] 通讯录（一线也能找同事）')
+  await asPersona(0, '周明')
+  await goto('/pages/home/index')
+  check('工作台有通讯录入口', await visible('#mod-contacts'))
+  await goto('/pages/contacts/index')
+  check('通讯录按部门分组列出在职同事', (await count('.p')) > 100, `rows=${await count('.p')}`)
+  check('部门 chips 是一级 + 二级（不铺三级班组）', (await count('.chip')) >= 4, `chips=${await count('.chip')}`)
+  check('手机号明文（与员工档案的脱敏相反）', !(await has('****')))
+  await shot('30-contacts')
+
+  await setInputValue('#ct-kw', '1790')
+  await sleep(700)
+  check('搜手机后 4 位能命中', (await count('.p')) >= 1 && (await count('.p')) < 20, `hits=${await count('.p')}`)
+  await tapSel('.p', 0, 700)
+  check('点人能呼叫 / 复制', (await has('呼叫')) && (await has('复制号码')))
+  await page.evaluate(() => document.querySelector('.sheet__mask')?.click())
+  await sleep(400)
+
+  await goto('/pages/mine/index')
+  check('「我的」里也有通讯录入口', await visible('#me-contacts'))
+
+  /* ---------- 16. 邻里（通讯录之外的第二块新功能） ---------- */
+  console.log('\n[16] 邻里 · 待办 / 审核 / 举报 / 活动 / 代报名')
+  await asPersona(1, '汪磊')
+  await goto('/pages/home/index')
+  check('班组长工作台有邻里待办卡', await visible('#mod-neighbor'))
+  const nbDesc = await page.evaluate(() => document.querySelector('#mod-neighbor')?.innerText || '')
+  check('卡片按本项目显示待审 / 待处理', nbDesc.includes('待审 3') && nbDesc.includes('待处理 2'), nbDesc.replace(/\n/g, ' '))
+
+  await goto('/pages/neighbor/todo')
+  check('待办分两个队列且数字对', (await has('待审 3')) && (await has('待处理 2')))
+  check('闲置队列有 3 条', (await count('[id^=nb-item-]')) === 3, `items=${await count('[id^=nb-item-]')}`)
+  await shot('31-neighbor-todo')
+
+  await tapSel('[id^=nb-item-]', 0, 1300)
+  check('审核页只到楼栋、不显示门牌', (await has('只到楼栋')) && !(await has('-0602')))
+  await shot('32-neighbor-item')
+  await tapSel('#nb-pass', 0, 1500)
+  check('通过后待审数减少', await waitText('待审 2'))
+
+  await tapSel('#nb-reports', 0, 900)
+  check('举报队列有 2 条', (await count('[id^=nb-report-]')) === 2, `reports=${await count('[id^=nb-report-]')}`)
+  await tapSel('[id^=nb-report-]', 0, 1300)
+  check('举报页给出四个处置动作', (await count('.act')) === 4)
+  await tapSel('#nb-act-2', 0, 400)
+  await setInputValue('#nb-note', '图片确为活体交易，下架并提醒发布人')
+  await shot('33-neighbor-report')
+  await tapSel('#nb-handle', 0, 1500)
+  check('处理完待处理数减少', await waitText('待处理 1'))
+
+  await goto('/pages/neighbor/activity')
+  check('活动只列本项目、未结束', (await has('本项目')) && (await has('待成行')) && (await has('报名中')))
+  check('待成行显示还差几人成团', await has('还差'))
+  check('报名中的卡片直接给代报名入口', await visible('#nb-ac-enroll-AC0016'))
+  check('待成行的卡片没有代报名入口', !(await visible('#nb-ac-enroll-AC0014')))
+  await shot('34-neighbor-activity')
+
+  /* 列表内代报名：现场最短路径 —— 不进详情，卡片上直接开表单 */
+  await tapSel('#nb-ac-enroll-AC0016', 0, 900)
+  check('卡片上打开的就是同一张报名表', await visible('#nb-name'))
+  await setInputValue('#nb-name', '王秀兰')
+  await setInputValue('#nb-phone', '13800001111')
+  await setInputValue('#nb-house', '1-2-0802')
+  await tapSel('#nb-people-plus', 0, 400)
+  await setInputValue('#nb-at-name-0', '王秀兰')
+  await setInputValue('#nb-at-id-0', '510101199001010011')
+  await setInputValue('#nb-at-name-1', '李小宝')
+  await setInputValue('#nb-at-id-1', '510101201801010022')
+  await tapSel('#nb-paid', 0, 300)
+  await tapSel('#nb-pay-扫码', 0, 300)
+  await shot('35-neighbor-enroll')
+  await tapSel('#nb-submit', 0, 1700)
+  check('列表内报名后人数当场刷新', await waitText('已报 2/40'))
+
+  await tapSel('#nb-activity-AC0016', 0, 1400)
+  check('活动详情给出退款分档', (await has('提前 7 天')) && (await has('100%')))
+  check('新报的这条已进名单', (await has('王秀兰')) && (await has('前台代报')))
+
+  await tapSel('#nb-enroll-btn', 0, 900)
+  check('详情页打开的还是同一张表单', await visible('#nb-name'))
+  await tapSel('.sheet__mask', 0, 500)
+
+  await goto('/pages/neighbor/enroll?activityId=AC0014')
+  check('待成行的活动不能报名', (await has('不能报名')) && (await visible('#nb-enroll-off')))
+
+  await asPersona(0, '周明')
+  await goto('/pages/home/index')
+  check('一线（工程维修）看不到邻里入口', !(await visible('#mod-neighbor')))
+
+  /* ---------- 17. 租售（审房源 / 回看房电话 / 我的联系方式） ---------- */
+  console.log('\n[17] 租售 · 房源审核 / 看房请求 / 联系方式')
+
+  /* 楼管：审核人与回拨人，但邻里只有只读权限 */
+  await asPersona(2, '莫瑞')
+  await goto('/pages/home/index')
+  check('楼管工作台有看房请求卡', await visible('#mod-viewing'))
+  check('楼管工作台有邻里待办卡（房源待审）', await visible('#mod-neighbor'))
+  const mrNb = await page.evaluate(() => document.querySelector('#mod-neighbor')?.innerText || '')
+  check('楼管的待审数只算房源', /待审 [1-9]/.test(mrNb), mrNb.replace(/\n/g, ' '))
+
+  await goto('/pages/neighbor/todo')
+  const mrListings = await count('[id^=nb-listing-]')
+  check('楼管待审核里只有房源、没有闲置', mrListings > 0 && (await count('[id^=nb-item-]')) === 0,
+    `房源 ${mrListings} / 闲置 ${await count('[id^=nb-item-]')}`)
+  await tapSel('#nb-reports', 0, 700)
+  check('楼管没有举报处理权，待处理为空', (await count('[id^=nb-report-]')) === 0)
+  await tapSel('#nb-items', 0, 700)
+  await shot('36-listing-queue')
+
+  await tapSel('[id^=nb-listing-]', 0, 1400)
+  check('审核页给产权核验标记', await has('产权人已核验'))
+  check('审核页写明只看图 + 判断话术', (await has('审核只看图')) && (await has('陌生人找到这户人家')))
+  check('审核页不核对面积户型', await has('档案派生，不用核对'))
+  await shot('37-listing-audit')
+  await tapSel('#lv-pass', 0, 1600)
+  check('通过后状态变已发布', await waitText('已发布'))
+  check('处理过的不能再审', await waitText('已处理，无需再审'))
+
+  /* 驳回要写理由 */
+  await goto('/pages/neighbor/todo')
+  const rest = await count('[id^=nb-listing-]')
+  if (rest > 0) {
+    await tapSel('[id^=nb-listing-]', 0, 1400)
+    await tapSel('#lv-reject', 0, 900)
+    await tapSel('#lv-reject-ok', 0, 600)
+    check('驳回不选理由被拦', await has('请选一条驳回理由'))
+    await tapSel('#lv-reason-1', 0, 300)
+    await setInputValue('#lv-note', '楼道特征明显，能定位到具体楼栋')
+    await tapSel('#lv-reject-ok', 0, 1600)
+    check('驳回后状态变已驳回', await waitText('已驳回'))
+  }
+
+  /* 看房请求：超时要一眼看出来，拨完能记结果 */
+  await goto('/pages/listing/viewing')
+  const before = await count('[id^=lv-view-]')
+  check('看房请求列出待联系', before > 0, `待联系 ${before}`)
+  check('超 24 小时的卡片标红', (await count('.vw.is-over')) > 0, `标红 ${await count('.vw.is-over')}`)
+  await shot('38-listing-viewing')
+
+  await tapSel('[id^=lv-view-]', 0, 900)
+  check('处理弹层给全号与结果输入', (await visible('#lv-result')) && (await visible('#lv-call-sheet')))
+  await tapSel('#lv-pick-0', 0, 300)
+  await shot('39-listing-contact')
+  await tapSel('#lv-contacted', 0, 1600)
+  check('标记后待联系减少', (await count('[id^=lv-view-]')) === before - 1, `现在 ${await count('[id^=lv-view-]')}`)
+
+  /* 我的 → 联系方式 */
+  await goto('/pages/mine/index')
+  check('「我的」有联系方式入口', await visible('#me-contact'))
+  await tapSel('#me-contact', 0, 900)
+  check('联系方式页写明给谁看', (await has('租售信息页')) && (await has('没有「是否公开」开关')))
+  check('联系方式页不给手机号', await has('手机号只在内部通讯录里'))
+  await setInputValue('#mc-wechat', 'wx_morui_demo')
+  await tapSel('#mc-save', 0, 1600)
+  await goto('/pages/mine/contact')
+  const wx = await page.evaluate(() => document.querySelector('#mc-wechat input')?.value || '')
+  check('保存后重新进页面能回填', wx === 'wx_morui_demo', `实际 ${wx}`)
+
+  /* 客服：能接看房请求，但看不到房源待审 */
+  await asPersona(1, '汪磊')
+  await goto('/pages/home/index')
+  check('客服也有看房请求卡', await visible('#mod-viewing'))
+  await goto('/pages/neighbor/todo')
+  check('客服待审核里只有闲置、没有房源',
+    (await count('[id^=nb-item-]')) > 0 && (await count('[id^=nb-listing-]')) === 0)
+
+  /* 项目经理：两类都有 */
+  await asPersona(3, '徐悦')
+  await goto('/pages/neighbor/todo')
+  check('项目经理两类都能审',
+    (await count('[id^=nb-item-]')) > 0 && (await count('[id^=nb-listing-]')) > 0)
+
+  /* 一线：入口不出现 */
+  await asPersona(0, '周明')
+  await goto('/pages/home/index')
+  check('一线看不到看房请求卡', !(await visible('#mod-viewing')))
+  await goto('/pages/mine/index')
+  check('一线没有联系方式入口', !(await visible('#me-contact')))
+
   console.log('\n[13] 与 PC 数字对齐')
   await goto('/pages/mine/index')
   const chkRows = await page.evaluate(() =>

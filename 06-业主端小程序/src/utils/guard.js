@@ -70,6 +70,25 @@ export function gatePerm(key, label = '该功能') {
   return false
 }
 
+/**
+ * 投票门禁：征询的是**产权人**意见，租户不计入参与率，所以不让租户投。
+ * 只拦"提交"，看题目与结果不拦 —— 拦太早会让人连内容都看不见。
+ */
+export function gateVoter(label = '投票') {
+  if (!gateOwner(label)) return false
+  if (identity.value === '租客') {
+    uni.showModal({
+      title: '租户暂不参与',
+      content: '投票征询的是产权人意见（参与率按户计算，租户不计入）。可以查看题目与结果，也可以把意见转告业主。',
+      showCancel: false,
+      confirmText: '知道了',
+      confirmColor: '#5b6cff'
+    })
+    return false
+  }
+  return true
+}
+
 /** 权限快捷判断（页面里直接用，不要各写一套） */
 export const can = perm
 

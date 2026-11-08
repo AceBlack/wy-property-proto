@@ -16421,7 +16421,14 @@ export const canHandleReports = () => _hasPerm(NV_PERM.reportHandle)
 /* ---------- 字典 ---------- */
 export const VOTE_TYPES = ['意见征询', '满意度调查', '方案征询']
 export const VOTE_STATUS = ['草稿', '进行中', '已结束']
-export const ACTIVITY_TYPES = ['公益', '收费']
+/**
+ * 活动**类别**（2026-11-07 第 70 批拆出来的）。
+ *
+ * 收费与否**不在这里**：看 `fee`，由它派生 `feeType = 免费 / 收费`。
+ * 原先两套含义挤在 `type` 一个字段里，页面上会同时出现「亲子 · 免费」和「收费 · 收费」，
+ * 按类型筛选也会把「亲子」和「收费」并列 —— 那是字段设计的问题，不是数据的问题。
+ */
+export const ACTIVITY_CATEGORIES = ['敬老', '亲子', '文体', '出游', '公益']
 /** 草稿不在活动列表的主筛选里，但新建后、发布前就是这个状态 */
 export const ACTIVITY_PHASES = ['草稿', '报名中', '待成行', '已成行', '已流团', '已结束']
 export const ITEM_STATUSES = ['待审核', '已上架', '已驳回', '已下架', '已售出', '已过期']
@@ -16643,8 +16650,9 @@ export function voteResult(voteId) {
     /** 参与率低于 30% 时结果只能"参考"，不能拿去对外说"业主都同意" */
     confidence: row.partRate >= 50 ? '有效' : row.partRate >= 30 ? '可参考' : '偏低',
     notVoted: Math.max(0, target - row.totalVotes),
-    target,
-    conclusion: ''
+    target
+    /* 这里**不放 conclusion: ''** —— 空壳字段迟早有人往里填"通过"，
+       而这是意见征询，不是业主大会表决（契约 /neighbor/votes/{id}/result 写明不给结论）。 */
   }
 }
 
@@ -16748,7 +16756,7 @@ export function deleteVote(voteId) {
 }
 
 /* ==================================================================
- * ② 活动（公益 / 收费）
+ * ② 活动（类别 × 免费/收费）
  * ================================================================== */
 
 const NV_ACTS = []
@@ -16791,7 +16799,9 @@ function _nvActRow(a) {
   return {
     activityId: a.activityId,
     title: a.title,
-    type: a.type,
+    category: a.category,
+    /* 收费口径是**派生值**：只有「免费 / 收费」，与类别正交，不落库 */
+    feeType: (Number(a.fee) || 0) > 0 ? '收费' : '免费',
     fee: Number(a.fee) || 0,
     feeText: a.fee > 0 ? `¥${_nvR2(a.fee)}/人` : '免费',
     communityId: a.communityId,
@@ -16845,7 +16855,7 @@ function _nvSeedActivities() {
   const extra = [
     {
       activityId: 'AC0013', communityId: 'P02', title: '邻里出游 · 青城前山一日游',
-      type: '出游', cover: 3, startAt: '2026-11-15 07:30', endAt: '2026-11-15 18:00',
+      category: '出游', cover: 3, startAt: '2026-11-15 07:30', endAt: '2026-11-15 18:00',
       place: '青城山前山景区（小区南门集合上车）', capacity: 40, minCapacity: 20, fee: 180,
       enrollDeadline: '2026-11-10', needInsurance: true, attendeeLimit: 4,
       feeInclude: '往返大巴、景区门票、团队午餐、随车导游、旅游意外险',
@@ -16855,7 +16865,7 @@ function _nvSeedActivities() {
     },
     {
       activityId: 'AC0014', communityId: 'P01', title: '秋日露营 · 亲子两天一夜',
-      type: '出游', cover: 5, startAt: '2026-11-01 14:00', endAt: '2026-11-02 12:00',
+      category: '出游', cover: 5, startAt: '2026-11-01 14:00', endAt: '2026-11-02 12:00',
       place: '青龙湖露营地（统一大巴往返）', capacity: 30, minCapacity: 15, fee: 260,
       enrollDeadline: '2026-10-18', needInsurance: true, attendeeLimit: 4,
       feeInclude: '营位、帐篷租赁、两正餐一早餐、往返交通、意外险',
@@ -16864,8 +16874,31 @@ function _nvSeedActivities() {
       desc: '按 15 人成团，不足则全额退款。'
     },
     {
+      /* 2026-11-06：P01 原来只有 AC0014（待成行，按规则不能报名），
+         代报名在翡翠城没有一个可报名样本 —— 补一场报名中的收费活动。 */
+      activityId: 'AC0016', communityId: 'P01', title: '冬日温泉一日游 · 含往返与午餐',
+      category: '出游', cover: 4, startAt: '2026-11-28 08:00', endAt: '2026-11-28 19:00',
+      place: '花水湾温泉度假区（小区北门集合上车）', capacity: 40, minCapacity: 15, fee: 168,
+      enrollDeadline: '2026-11-20', needInsurance: true, attendeeLimit: 4,
+      feeInclude: '往返大巴、温泉门票、团队午餐、随车服务、旅游意外险',
+      feeExclude: '泳衣租赁、个人消费',
+      refundPolicy: [{ days: 7, ratio: 100 }, { days: 3, ratio: 50 }, { days: 0, ratio: 0 }],
+      desc: '按 15 人成团，不足则全额退款。出行人需实名用于投保。'
+    },
+    {
+      /* 2026-11-06：P01 没有「已成行」的活动，签到没法演示 —— 补一场已过截止且已达下限的。
+         AC0016 报名中（可代报名）/ AC0014 待成行（不能报名）/ AC0017 已成行（可签到），三个分支齐了。 */
+      activityId: 'AC0017', communityId: 'P01', title: '社区义诊 · 免费量血压与用药咨询',
+      category: '公益', cover: 2, startAt: '2026-10-24 09:00', endAt: '2026-10-24 12:00',
+      place: '翡翠城 1 栋架空层', capacity: 40, minCapacity: 10, fee: 0,
+      enrollDeadline: '2026-10-16', needInsurance: false, attendeeLimit: 2,
+      feeInclude: '', feeExclude: '',
+      refundPolicy: [],
+      desc: '社区卫生服务中心进小区，现场量血压、血糖与用药咨询；已达下限，按报名顺序通知。'
+    },
+    {
       activityId: 'AC0015', communityId: 'P03', title: '亲子农场采摘 · 含午餐',
-      type: '出游', cover: 2, startAt: '2026-10-25 09:00', endAt: '2026-10-25 16:00',
+      category: '出游', cover: 2, startAt: '2026-10-25 09:00', endAt: '2026-10-25 16:00',
       place: '禾田农场（自驾前往，园区东门集合）', capacity: 60, minCapacity: 20, fee: 88,
       enrollDeadline: '2026-10-20', needInsurance: true, attendeeLimit: 5,
       feeInclude: '采摘 2 斤、农场午餐、儿童手作材料',
@@ -16949,7 +16982,8 @@ function _nvSeedEnrolls() {
   const plan = [
     { activityId: 'AC0013', count: 14, day: '2026-10-19' },
     { activityId: 'AC0014', count: 8, day: '2026-10-15' },
-    { activityId: 'AC0015', count: 22, day: '2026-10-18' }
+    { activityId: 'AC0015', count: 22, day: '2026-10-18' },
+    { activityId: 'AC0017', count: 12, day: '2026-10-12' }
   ]
   const units = ['0701', '1102', '0302', '0503', '0901', '0204', '1201', '0802']
   plan.forEach(p => {
@@ -16993,7 +17027,7 @@ export function queryActivities({ pageNo = 1, size = 20, filters = {} } = {}) {
     assertInScope({ communityId: filters.communityId })
     const list = NV_ACTS
       .filter(a => eq(a, filters.communityId, 'communityId'))
-      .filter(a => eq(a, filters.type, 'type'))
+      .filter(a => eq(a, filters.category, 'category'))
       .filter(a => (filters.phase ? _nvPhaseOf(a) === filters.phase : true))
       .filter(a => kwHit(a, filters.kw, ['title', 'activityId', 'place']))
       .map(_nvActRow)
@@ -17036,7 +17070,10 @@ function _nvValidateActivity(body = {}, cur = null) {
   const title = String(body.title || '').trim()
   if (!title) throw _nvError('活动名称必填')
   if (title.length > 40) throw _nvError('活动名称最多 40 字')
-  if (!ACTIVITY_TYPES.includes(body.type)) throw _nvError('活动类型只能是 公益 / 收费')
+  const category = String(body.category || '').trim()
+  if (!ACTIVITY_CATEGORIES.includes(category)) {
+    throw _nvError(`活动类别只能是 ${ACTIVITY_CATEGORIES.join(' / ')}`)
+  }
   if (!body.communityId) throw _nvError('必须选择项目')
   if (!body.startAt || !body.endAt) throw _nvError('开始与结束时间都要填')
   if (String(body.endAt) < String(body.startAt)) throw _nvError('结束时间不能早于开始时间')
@@ -17052,8 +17089,10 @@ function _nvValidateActivity(body = {}, cur = null) {
   if (cur && capacity < enrolled) throw _nvError(`名额不能小于已报名人数（${enrolled} 人）`)
 
   const fee = Number(body.fee) || 0
-  if (body.type === '收费') {
-    if (fee <= 0) throw _nvError('收费活动必须填单价，公益请把类型改成「公益」')
+  /* 收费与否只看金额：fee > 0 才需要成团下限与退款档位。
+     想办收费活动却忘填单价 → 会静默变成免费活动，所以前端在提交前先拦一道
+     （ed.feeMode === '收费' 但 fee 为空时提示），后端只按金额判。 */
+  if (fee > 0) {
     const min = Number(body.minCapacity) || 0
     if (min < 1) throw _nvError('收费活动必须设成团下限 —— 否则收完钱团没成，退款没依据')
     if (min > capacity) throw _nvError('成团下限不能大于名额')
@@ -17091,18 +17130,18 @@ export function saveActivity(body = {}, activityId = '') {
 
   const patch = {
     title: String(body.title).trim(),
-    type: body.type,
+    category: String(body.category).trim(),
     communityId: body.communityId,
     startAt: body.startAt,
     endAt: body.endAt,
     place: String(body.place).trim(),
     capacity,
-    minCapacity: body.type === '收费' ? Number(body.minCapacity) || 0 : 0,
+    minCapacity: fee > 0 ? Number(body.minCapacity) || 0 : 0,
     enrollDeadline: deadline,
     fee,
     feeInclude: String(body.feeInclude || '').trim(),
     feeExclude: String(body.feeExclude || '').trim(),
-    refundPolicy: body.type === '收费' ? (body.refundPolicy || []).map(p => ({ days: Number(p.days), ratio: Number(p.ratio) })) : [],
+    refundPolicy: fee > 0 ? (body.refundPolicy || []).map(p => ({ days: Number(p.days), ratio: Number(p.ratio) })) : [],
     needInsurance: !!body.needInsurance,
     attendeeLimit: Math.max(1, Number(body.attendeeLimit) || 1),
     desc: String(body.desc || '').trim()
@@ -17276,14 +17315,17 @@ export function enrollActivity(activityId, body = {}) {
     source: '前台代报',
     remark: String(body.remark || '').trim(),
     /** 前台代收现金：直接记已支付，日结里能看到这笔 */
-    paidCash: a.fee > 0 ? !!body.paid : false
+    paidCash: a.fee > 0 ? !!body.paid : false,
+    /* 2026-11-06（Q3）：谁办的、怎么收的。以前只有 paidCash，业主说"我交过钱"没法核 */
+    operator: String(body.operator || '').trim() || currentOperator().name,
+    paymentMethod: a.fee > 0 && body.paid ? String(body.paymentMethod || '现金').trim() : ''
   }
   NV_ENROLLS.unshift(row)
   track('neighbor_enroll', { activityId, people })
   return _nvEnrollRow(row)
 }
 
-export function cancelEnroll(enrollId, reason = '') {
+export function cancelEnroll(enrollId, reason = '', operator = '') {
   if (!canEnrollActivities()) throw _nvError(`当前角色没有取消报名的权限（${NV_PERM.actEnroll}）`, 403)
   const e = _nvEnrollOf(enrollId)
   if (!e) throw _nvError('报名记录不存在', 40447)
@@ -17303,13 +17345,18 @@ export function refundRatioOf(activityId, atDay = TODAY) {
   if (!a || !a.refundPolicy || !a.refundPolicy.length) return 100
   const start = String(a.startAt).slice(0, 10)
   const gap = Math.floor((new Date(`${start}T00:00:00`) - new Date(`${toDay(atDay)}T00:00:00`)) / 86400000)
+  /*
+   * 必须**从天数大的往小找**：分档是「提前 7 天 100% / 3 天 50% / 当天 0%」，
+   * 升序排第一个满足 gap>=days 的永远是 days=0 那档 —— 提前一个月取消也只退 0%。
+   * 2026-11-06 修正：以前就是这个写法，退款金额一直按最低档算，页面只显示"已退款"没暴露。
+   */
   const tier = [...a.refundPolicy]
-    .sort((x, y) => Number(x.days) - Number(y.days))
+    .sort((x, y) => Number(y.days) - Number(x.days))
     .find(p => gap >= Number(p.days))
   return tier ? Number(tier.ratio) : 0
 }
 
-export function refundEnroll(enrollId, reason = '') {
+export function refundEnroll(enrollId, reason = '', operator = '') {
   if (!canEnrollActivities()) throw _nvError(`当前角色没有办理退款的权限（${NV_PERM.actEnroll}）`, 403)
   const e = _nvEnrollOf(enrollId)
   if (!e) throw _nvError('报名记录不存在', 40447)
@@ -17324,13 +17371,14 @@ export function refundEnroll(enrollId, reason = '') {
     status: '已退款',
     refundAmount: amount,
     refundAt: _nvStamp(),
+    refundBy: operator || currentOperator().name,
     cancelReason: String(reason || '').trim() || `按退款规则（提前档位 ${ratio}%）退款`
   })
   track('neighbor_enroll_refund', { enrollId, amount, ratio })
   return { enroll: _nvEnrollRow(e), ratio, full, amount }
 }
 
-export function checkinEnroll(enrollId) {
+export function checkinEnroll(enrollId, operator = '') {
   if (!canEnrollActivities()) throw _nvError(`当前角色没有签到的权限（${NV_PERM.actEnroll}）`, 403)
   const e = _nvEnrollOf(enrollId)
   if (!e) throw _nvError('报名记录不存在', 40447)
@@ -17338,7 +17386,7 @@ export function checkinEnroll(enrollId) {
   if (e.status !== '已报名') throw _nvError(`「${e.status}」的报名不能签到`, 40954)
   const a = _nvActOf(e.activityId)
   if (a && _nvPhaseOf(a) === '待成行') throw _nvError('活动还没确定成行，暂时不能签到', 40955)
-  Object.assign(e, { status: '已签到' })
+  Object.assign(e, { status: '已签到', checkinBy: operator || currentOperator().name, checkinAt: _nvStamp() })
   return _nvEnrollRow(e)
 }
 
@@ -17495,7 +17543,7 @@ export function itemCategories() {
 
 /* ---------- 写 ---------- */
 
-export function auditItem(itemId, { pass = true, reason = '' } = {}) {
+export function auditItem(itemId, { pass = true, reason = '', operator = '' } = {}) {
   if (!canAuditItems()) throw _nvError(`当前角色没有审核闲置的权限（${NV_PERM.itemAudit}）`, 403)
   const i = _nvItemOf(itemId)
   if (!i) throw _nvError('内容不存在', 40460)
@@ -17505,14 +17553,15 @@ export function auditItem(itemId, { pass = true, reason = '' } = {}) {
   Object.assign(i, {
     status: pass ? '已上架' : '已驳回',
     rejectReason: pass ? '' : why,
-    auditBy: currentOperator().name,
+    /* operator 由员工端传入（移动端登录人）；PC 不传则沿用当前角色对应的人 */
+    auditBy: operator || currentOperator().name,
     auditAt: _nvStamp()
   })
   track('neighbor_item_audit', { itemId, pass })
   return _nvItemRow(i)
 }
 
-export function offlineItem(itemId, reason = '') {
+export function offlineItem(itemId, reason = '', operator = '') {
   if (!canAuditItems()) throw _nvError(`当前角色没有下架内容的权限（${NV_PERM.itemAudit}）`, 403)
   const i = _nvItemOf(itemId)
   if (!i) throw _nvError('内容不存在', 40460)
@@ -17520,7 +17569,7 @@ export function offlineItem(itemId, reason = '') {
   if (i.status !== '已上架') throw _nvError(`只有「已上架」的内容能下架，当前是「${i.status}」`, 40962)
   const why = String(reason || '').trim()
   if (!why) throw _nvError('下架必须写理由')
-  Object.assign(i, { status: '已下架', offlineReason: why, auditBy: currentOperator().name, auditAt: _nvStamp() })
+  Object.assign(i, { status: '已下架', offlineReason: why, auditBy: operator || currentOperator().name, auditAt: _nvStamp() })
   track('neighbor_item_offline', { itemId })
   return _nvItemRow(i)
 }
@@ -17541,6 +17590,10 @@ function _nvReportRow(r) {
     itemId: r.itemId,
     itemTitle: i ? i.title : '（内容已删除）',
     itemStatus: i ? i.status : '',
+    /* 2026-11-06：移动端要按登录人项目过滤举报（举报记录本身没有 communityId，
+       取被举报内容的项目）。PC 页面不读这两个字段，不影响。 */
+    communityId: i ? i.communityId : '',
+    communityName: i ? communityName(i.communityId) : '',
     sellerName: i ? i.sellerName : '',
     sellerHouse: i ? i.sellerHouse : '',
     reason: r.reason,
@@ -17608,7 +17661,7 @@ export function reportStats() {
   }
 }
 
-export function handleReport(reportId, { action = '', note = '' } = {}) {
+export function handleReport(reportId, { action = '', note = '', operator = '' } = {}) {
   if (!canHandleReports()) throw _nvError(`当前角色没有处理举报的权限（${NV_PERM.reportHandle}）`, 403)
   const r = _nvReportOf(reportId)
   if (!r) throw _nvError('举报不存在', 40470)
@@ -17620,14 +17673,14 @@ export function handleReport(reportId, { action = '', note = '' } = {}) {
   if (action === '下架并警告' && i && i.status === '已上架') {
     i.status = '已下架'
     i.offlineReason = `举报核实：${r.reason}`
-    i.auditBy = currentOperator().name
+    i.auditBy = operator || currentOperator().name
     i.auditAt = _nvStamp()
   }
   Object.assign(r, {
     status: '已处理',
     action,
     note: String(note).trim(),
-    handledBy: currentOperator().name,
+    handledBy: operator || currentOperator().name,
     handledAt: _nvStamp()
   })
   track('neighbor_report_handle', { reportId, action })
@@ -17691,3 +17744,684 @@ _nvSeedActivities()
 _nvSeedEnrolls()
 _nvSeedItems()
 _nvSeedReports()
+
+/* ==================================================================
+ * A 域子模块 · 租售信息（2026-11-06 第 69 批）
+ *
+ * 只做**信息发布**：业主把房租出去的信息挂出来，责任楼管审一道，想租的人留电话。
+ * 物业全程不参与撮合与成交 —— 这条守住，它就是物业服务；破了，它就是房地产经纪，
+ * 需要《房地产经纪机构备案表》，微信类目也要换。
+ *
+ * 四条硬口径（后端实现时别丢）：
+ *   ① **审核人 = 该房的责任楼管**，不是"审核员"。按 house.stewardEmpId 分派；
+ *      24 小时未审升到直属上级（按 orgLeaders 解析，不写死角色名）。
+ *   ② **楼管手机号不出现在任何对外返回里**。访客要联系就留自己的号码，楼管回拨。
+ *      方向反过来，责任也反过来：要保护的是访客的号码。
+ *   ③ **审核只针对「内容版本」**：contentVersion !== auditedVersion 才需要再审。
+ *      业主原样续挂、原样重新上架直接回「已发布」，否则每 60 天全量重审一遍。
+ *   ④ 面积 / 户型 / 朝向 / 楼层**一律从 house 派生**，不存副本。
+ *      存了副本，房本面积一改挂牌页就是错的，而且没人知道哪个准。
+ *
+ * 与商业系统的关系：零。不进商业系统，不再有"佣金"这个字段存在的理由。
+ * ================================================================== */
+
+const LV_PERM_VIEW = 'a.listings.view'
+const LV_PERM_AUDIT = 'a.listings.audit'
+const LV_PERM_VIEWING = 'a.listings.viewing'
+
+export const canViewListings = () => _hasPerm(LV_PERM_VIEW)
+export const canAuditListings = () => _hasPerm(LV_PERM_AUDIT)
+export const canViewListingsViewing = () => _hasPerm(LV_PERM_VIEWING)
+
+export const LISTING_STATUS = ['待审核', '已发布', '已驳回', '已下架', '已过期', '已成交']
+export const LISTING_DECORATE = ['毛坯', '简装', '精装', '豪装']
+export const LISTING_PAY_TERM = ['押一付一', '押一付三', '押二付一', '半年付', '年付']
+export const LISTING_FACILITIES = ['冰箱', '洗衣机', '空调', '热水器', '宽带', '家私', '电梯', '车位']
+export const VIEWING_STATUS = ['待联系', '已联系', '已带看', '已关闭']
+
+const _LV_STATUS_TYPE = {
+  待审核: 'warning', 已发布: 'success', 已驳回: 'danger',
+  已下架: 'info', 已过期: 'info', 已成交: ''
+}
+const _LV_VIEWING_TYPE = { 待联系: 'warning', 已联系: 'success', 已带看: 'success', 已关闭: 'info' }
+
+const _lvError = (msg, code = 42240) => Object.assign(new Error(msg), { code })
+const _lvR2 = n => Math.round((Number(n) || 0) * 100) / 100
+const _lvStamp = () => `${TODAY} ${_now().slice(11, 16)}`
+
+/** 演示时钟的"现在"：2026-10-21 10:00，与 PC 其它页一致 */
+const _lvNow = () => new Date(`${TODAY}T10:00:00`)
+
+/** 距创建过了多少小时 —— 列表要显示"已等 6 小时"，运营看的就是这个 */
+function _lvHoursSince(at) {
+  const t = new Date(String(at || '').replace(/-/g, '/')).getTime()
+  if (Number.isNaN(t)) return 0
+  return Math.max(0, Math.round((_lvNow().getTime() - t) / 3600000))
+}
+
+/** 手机号：有敏感字段权限给明文，否则脱敏。楼管要联系业主，客服核对身份也要 */
+const _lvPhone = p => (_hasPerm('a.sensitive.view') ? p : maskPhone(p))
+
+const LISTINGS = []
+const VIEWINGS = []
+let _lvSeq = 0
+let _lvViewSeq = 0
+
+const _lvOf = listingId => LISTINGS.find(x => x.listingId === listingId) || null
+const _lvViewOf = viewingId => VIEWINGS.find(x => x.viewingId === viewingId) || null
+
+/** 房源派生信息：全部从 house 取，不落库 */
+function _lvHouseOf(listing) {
+  const h = houses.find(x => x.houseId === listing.houseId) || {}
+  const b = buildings.find(x => x.buildingId === h.buildingId)
+  const u = units.find(x => x.unitId === h.unitId)
+  return {
+    houseId: h.houseId,
+    communityId: h.communityId,
+    communityName: communityName(h.communityId),
+    buildingId: h.buildingId,
+    buildingName: b ? b.name : '',
+    unitName: u ? u.name : '',
+    room: h.room,
+    houseShort: h.shortName,
+    fullName: h.fullName,
+    houseType: h.houseType,
+    area: h.area,
+    orientation: h.orientation,
+    floor: h.floor,
+    decoration: h.decoration
+  }
+}
+
+function _lvOwnerOf(listing, full = false) {
+  const o = owners.find(x => x.ownerId === listing.ownerId) || {}
+  /* 列表脱敏、详情/审核给全号 —— 与看房请求同一条规矩：
+     会被投屏和截图的页面不摆全号，需要操作的场景才给。 */
+  return {
+    ownerId: o.ownerId,
+    ownerName: o.name,
+    ownerPhone: full ? _lvPhone(o.phone) : maskPhone(o.phone),
+    certified: !!o.certified
+  }
+}
+
+function _lvStewardOf(listing) {
+  const e = employees.find(x => x.empId === listing.stewardEmpId) || {}
+  /* 对外只给姓名与微信，手机号永不出现在这里 —— 见文件头第 ② 条 */
+  return { empId: e.empId, name: e.name, position: e.position, wechatId: e.wechatId || '', qrUrl: e.contactQrUrl || '' }
+}
+
+function _lvRow(l) {
+  const h = _lvHouseOf(l)
+  const o = _lvOwnerOf(l)
+  const s = _lvStewardOf(l)
+  const hours = _lvHoursSince(l.createdAt)
+  const pending = l.status === '待审核'
+  return {
+    listingId: l.listingId,
+    ...h,
+    ...o,
+    stewardEmpId: s.empId,
+    stewardName: s.name,
+    stewardPosition: s.position,
+    stewardWechat: s.wechatId,
+    price: l.price,
+    deposit: l.deposit,
+    payTerm: l.payTerm,
+    decorate: l.decorate,
+    facilities: [...(l.facilities || [])],
+    availableFrom: l.availableFrom,
+    desc: l.desc,
+    images: l.images || 0,
+    status: l.status,
+    statusType: _LV_STATUS_TYPE[l.status] || '',
+    contentVersion: l.contentVersion,
+    auditedVersion: l.auditedVersion,
+    needAudit: l.contentVersion !== l.auditedVersion,
+    createdAt: l.createdAt,
+    hoursWaiting: hours,
+    /** 超 24h 未审 = 已升级给上级；超 48h 标红 */
+    overdue: pending && hours > 24,
+    escalated: pending && hours > 48,
+    expireAt: l.expireAt,
+    dealAt: l.dealAt || '',
+    auditBy: l.auditBy || '',
+    auditAt: l.auditAt || '',
+    rejectReason: l.rejectReason || '',
+    offlineBy: l.offlineBy || '',
+    offlineAt: l.offlineAt || '',
+    offlineReason: l.offlineReason || '',
+    viewCount: l.viewCount || 0,
+    leadCount: VIEWINGS.filter(v => v.listingId === l.listingId).length
+  }
+}
+
+function _lvViewRow(v) {
+  const l = _lvOf(v.listingId)
+  const h = l ? _lvHouseOf(l) : {}
+  const s = l ? _lvStewardOf(l) : {}
+  const hours = _lvHoursSince(v.createdAt)
+  const pending = v.status === '待联系'
+  return {
+    viewingId: v.viewingId,
+    listingId: v.listingId,
+    ...h,
+    price: l ? l.price : 0,
+    name: v.name,
+    /* 列表只给脱敏号码：这一页会被投屏、截图、导出，全号摆一屏迟早出事。
+       完整号码在 getViewing（详情）里给，并且要留访问痕迹。 */
+    phone: maskPhone(v.phone),
+    phoneFull: _lvPhone(v.phone),
+    preferredTime: v.preferredTime,
+    note: v.note,
+    status: v.status,
+    statusType: _LV_VIEWING_TYPE[v.status] || '',
+    createdAt: v.createdAt,
+    hoursWaiting: hours,
+    overdue: pending && hours > 24,
+    escalated: pending && hours > 48,
+    stewardEmpId: s.empId || '',
+    stewardName: s.name || '',
+    handledBy: v.handledBy || '',
+    handledAt: v.handledAt || '',
+    resultNote: v.resultNote || ''
+  }
+}
+
+/* ---------------- 种子 ----------------
+ * 一条挂牌 = 一套真房子。业主、楼管、面积户型全部从 house/owner/employee 关联出来，
+ * 不编造"某某小区 3 室 120 平"这种假条目 —— 审核页要能点进业主档案核对。
+ */
+function _lvRand(seed) {
+  let s = seed % 2147483647
+  if (s <= 0) s += 2147483646
+  return () => (s = (s * 16807) % 2147483647) / 2147483647
+}
+
+function _lvSeed() {
+  const rng = _lvRand(20261106 + 69)
+  const pick = list => list[Math.floor(rng() * list.length) % list.length]
+
+  /*
+   * 对外联系方式（微信号 / 二维码）挂在员工档案上，租售信息页展示给看房者。
+   * 样例数据里没有这两个字段 —— 不补的话「我的 → 联系方式」第一次进来是一片空白，
+   * 看不出"没填"和"填了没显示"的区别。只补楼栋管家：其他岗位本就不对外展示。
+   * 放在 rng 取数之后，不参与随机序列，加这行不会让下面的样例数据漂移。
+   */
+  employees.forEach(e => {
+    if (e.position !== '楼栋管家') return
+    if (e.wechatId === undefined) e.wechatId = `wx_${String(e.phone || e.empNo || '').slice(-4)}`
+    if (e.contactQrUrl === undefined) e.contactQrUrl = ''
+  })
+
+  /* 只取「住宅 + 已入住 + 有产权人」：空置房挂出来等于公示这套没人住 */
+  const pool = houses.filter(h => h.usage === '住宅' && h.useStatus === '已入住' && h.ownerId && h.stewardEmpId)
+  const picked = []
+  const used = new Set()
+  const take = h => { if (h && !used.has(h.houseId)) { used.add(h.houseId); picked.push(h); return true } return false }
+
+  /*
+   * 每位楼栋管家各保证 2 套 —— 原来只给「锚点楼管」6 套。
+   *
+   * 只给一个人的后果很具体：审核权、看房请求都挂在 `stewardEmpId` 上，
+   * 其他楼管用责任范围进来是 0 条；手机端按责任楼管过滤，页面直接空白，
+   * 看着像功能坏了（第 69 批交付后翡翠城的莫瑞就撞上了这个）。
+   *
+   * 锚点规则与 currentScope() 一致：优先取挂在项目部的那个，排在第一位多分不到，只是顺序靠前。
+   */
+  const stw = employees.filter(e => e.position === '楼栋管家' && e.status !== '离职')
+  const anchorSteward = stw.find(e => communityOfOrg(e.orgId)) || stw[0]
+  const anchors = anchorSteward ? [anchorSteward, ...stw.filter(e => e !== anchorSteward)] : stw
+  anchors.forEach(e => pool.filter(h => h.stewardEmpId === e.empId).slice(0, 2).forEach(take))
+  let guard = 0
+  while (picked.length < 14 && guard < 4000) {
+    guard += 1
+    take(pool[Math.floor(rng() * pool.length) % pool.length])
+  }
+
+  const FAC_GROUPS = [
+    ['冰箱', '洗衣机', '空调', '热水器', '宽带', '家私'],
+    ['空调', '热水器', '宽带'],
+    ['冰箱', '洗衣机', '空调', '热水器', '电梯'],
+    ['空调', '宽带', '家私', '车位']
+  ]
+  const DESCS = [
+    '自住出租，家具家电齐全，可拎包入住。小区中间楼层，采光好，楼下就是儿童乐园。',
+    '业主长期在外地，房子一直空着，希望租给爱干净、稳定的家庭。',
+    '近地铁 4 号线，步行 8 分钟。周边有菜市场和幼儿园，适合小两口。',
+    '刚做过深度保洁，厨房卫生间都是新换的。不接受养宠物，介意勿扰。',
+    '南北通透，主卧带阳台。租期一年起，押一付三。',
+    '业主自住三年，保养得好。楼下有充电桩车位，有车的话可以一起租。'
+  ]
+
+  /* 状态手工排布：审核页和"已升级"标红都要有东西可看 */
+  const plan = [
+    /* 待审核 4 条：两条超 48h（已升级）、一条刚提交、一条超 24h */
+    { status: '待审核', hoursAgo: 60 },
+    { status: '待审核', hoursAgo: 52 },
+    { status: '待审核', hoursAgo: 30 },
+    { status: '待审核', hoursAgo: 3 },
+    /* 已发布 6 条 */
+    { status: '已发布', hoursAgo: 240 },
+    { status: '已发布', hoursAgo: 190 },
+    { status: '已发布', hoursAgo: 150 },
+    { status: '已发布', hoursAgo: 96 },
+    { status: '已发布', hoursAgo: 40 },
+    { status: '已发布', hoursAgo: 12 },
+    /* 已驳回 1 */
+    {
+      status: '已驳回', hoursAgo: 72,
+      rejectReason: '第 3 张图拍到了门牌号，请删掉或打码后重新提交'
+    },
+    /* 已下架 1（物业强制） */
+    {
+      status: '已下架', hoursAgo: 300,
+      offlineReason: '业主已当面告知房子已租出，联系不上，先强制下架'
+    },
+    /* 已过期 1 */
+    { status: '已过期', hoursAgo: 1600 },
+    /* 已成交 1 */
+    { status: '已成交', hoursAgo: 700, dealAt: '2026-10-02 15:20' }
+  ]
+
+  /*
+   * 待审核的 4 条要**分散到不同楼管**。
+   * 原来是按 picked 顺序取前 4 套，而 picked 前 6 套是"锚点楼管"的房子 ——
+   * 结果 4 条待审全压在一个人身上，其他楼管进去看到 0 条。
+   * PC 上还能靠"全部项目"看出有数据，手机上按责任楼管过滤，就是一片空白，
+   * 看着像功能坏了（第 69 批交付后业主端在翡翠城就撞上了这个）。
+   */
+  const byStw = new Map()
+  picked.forEach(h => {
+    const k = h.stewardEmpId
+    if (!byStw.has(k)) byStw.set(k, [])
+    byStw.get(k).push(h)
+  })
+  /* 按楼管轮转重排：待审核和看房请求都挂在"谁的房子"上，全压在锚点一个人身上，
+     别的楼管打开就是空的（PC 还能靠"全部项目"自证，手机上按责任楼管过滤，看着像功能坏了） */
+  const rotated = []
+  {
+    const buckets = [...byStw.values()].map(list => list.slice())
+    for (let guard = 0; rotated.length < picked.length && guard < 200; guard += 1) {
+      const q = buckets[guard % buckets.length]
+      if (q && q.length) rotated.push(q.shift())
+    }
+  }
+
+  plan.forEach((p, i) => {
+    /* 兜底回 picked[i]：宁可重复一套房，也不能让 h.area 读到 undefined 把整页打崩 */
+    const h = rotated[i] || picked[i]
+    _lvSeq += 1
+    const createdAt = new Date(_lvNow().getTime() - p.hoursAgo * 3600000)
+    const pad = n => String(n).padStart(2, '0')
+    const at = `${createdAt.getFullYear()}-${pad(createdAt.getMonth() + 1)}-${pad(createdAt.getDate())} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}`
+    const dec = pick(LISTING_DECORATE)
+    const area = Number(h.area) || 90
+    /* 租金按面积估，25~32 元/平，取整到 50 */
+    const rate = 25 + Math.round(rng() * 7)
+    const price = Math.round((area * rate) / 50) * 50
+    const expireAt = new Date(createdAt.getTime() + 60 * 86400000)
+    LISTINGS.push({
+      listingId: `LS${String(_lvSeq).padStart(5, '0')}`,
+      houseId: h.houseId,
+      ownerId: h.ownerId,
+      publisherUserId: h.ownerId,
+      stewardEmpId: h.stewardEmpId,
+      type: '出租',
+      price,
+      deposit: price,
+      payTerm: pick(LISTING_PAY_TERM),
+      decorate: dec,
+      facilities: pick(FAC_GROUPS),
+      availableFrom: `${TODAY.slice(0, 8)}${pad((rng() > 0.5 ? 25 : 28))}`,
+      desc: pick(DESCS),
+      images: 4 + Math.floor(rng() * 5),
+      status: p.status,
+      contentVersion: p.status === '已驳回' ? 2 : 1,
+      auditedVersion: p.status === '已发布' || p.status === '已下架' || p.status === '已过期' || p.status === '已成交' ? 1 : 0,
+      createdAt: at,
+      expireAt: `${expireAt.getFullYear()}-${pad(expireAt.getMonth() + 1)}-${pad(expireAt.getDate())}`,
+      dealAt: p.dealAt || '',
+      auditBy: ['已发布', '已下架', '已过期', '已成交', '已驳回'].includes(p.status) ? '莫瑞' : '',
+      auditAt: ['已发布', '已下架', '已过期', '已成交', '已驳回'].includes(p.status) ? at : '',
+      rejectReason: p.rejectReason || '',
+      offlineBy: p.status === '已下架' ? '徐悦' : '',
+      offlineAt: p.status === '已下架' ? at : '',
+      offlineReason: p.offlineReason || '',
+      viewCount: 20 + Math.floor(rng() * 300)
+    })
+  })
+
+  /* 看房请求：只挂在"已发布"的房源上 —— 没公开的房子没人看得到 */
+  const published = LISTINGS.filter(l => l.status === '已发布')
+  /*
+   * 排序时先按楼管各取一套，再排剩下的。
+   * 不这么做的话，前几条请求全落在同一个楼管的房子上，
+   * 别的楼管打开「看房请求」是空的 —— 而这条线是靠"已等多少小时"立命的。
+   */
+  const pubOrder = []
+  {
+    const seen = new Set()
+    published.forEach(l => {
+      if (seen.has(l.stewardEmpId)) return
+      seen.add(l.stewardEmpId)
+      pubOrder.push(l)
+    })
+    published.forEach(l => { if (!pubOrder.includes(l)) pubOrder.push(l) })
+  }
+  const NAMES = ['刘敏', '张伟', '陈晓东', '王丽娜', '李强', '周文娟', '赵磊', '孙倩']
+  const TIMES = ['工作日白天', '工作日晚上', '周末']
+  const NOTES = ['在附近上班，想月底前搬进来', '带一个小孩，两室够用就行', '先看看，不着急', '预算 3000 以内']
+  const vPlan = [
+    { status: '待联系', hoursAgo: 70 },
+    { status: '待联系', hoursAgo: 30 },
+    { status: '待联系', hoursAgo: 6 },
+    { status: '待联系', hoursAgo: 2 },
+    { status: '已联系', hoursAgo: 48, result: '已电话沟通，约周六上午看房' },
+    { status: '已联系', hoursAgo: 20, result: '客户出差，下周再联系' },
+    { status: '已联系', hoursAgo: 10, result: '已告知押一付三，客户考虑中' },
+    { status: '已带看', hoursAgo: 36, result: '已看房，客户觉得楼层偏低' },
+    { status: '已关闭', hoursAgo: 60, result: '客户已租别处' },
+    { status: '已关闭', hoursAgo: 26, result: '号码停机，联系不上' }
+  ]
+  vPlan.forEach((p, i) => {
+    const l = pubOrder[i % pubOrder.length]
+    _lvViewSeq += 1
+    const createdAt = new Date(_lvNow().getTime() - p.hoursAgo * 3600000)
+    const pad = n => String(n).padStart(2, '0')
+    VIEWINGS.push({
+      viewingId: `VW${String(_lvViewSeq).padStart(5, '0')}`,
+      listingId: l.listingId,
+      name: NAMES[i % NAMES.length],
+      phone: `139${String(10000000 + i * 3317).slice(-8)}`,
+      preferredTime: TIMES[i % TIMES.length],
+      note: NOTES[i % NOTES.length],
+      status: p.status,
+      createdAt: `${createdAt.getFullYear()}-${pad(createdAt.getMonth() + 1)}-${pad(createdAt.getDate())} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}`,
+      handledBy: p.status === '待联系' ? '' : '莫瑞',
+      handledAt: p.status === '待联系' ? '' : `${TODAY} 09:${pad(20 + i)}`,
+      resultNote: p.result || ''
+    })
+  })
+}
+
+/* ---------------- 读 ---------------- */
+
+/**
+ * 按当前角色的数据范围收敛挂牌。
+ *
+ * 三个模式走三条路：
+ *   全部项目 → 不动；责任范围 → 按 houseIds；本项目 / 指定项目 → 按 communityIds。
+ * 只做 assertInScope 是不够的 —— 那只是在"传了 communityId 参数"时拒绝越界，
+ * 不传就照样把别的项目的数据全吐出来。项目经理打开列表看到 14 套、
+ * 其中一半不在自己项目里，这就是数据范围失效。
+ */
+const _LV_HOUSE_OF = new Map()
+function _lvScopedListings() {
+  const s = currentScope()
+  if (s.mode === '全部项目') return LISTINGS
+  if (s.mode === '责任范围') {
+    return LISTINGS.filter(l => (s.houseIds ? s.houseIds.has(l.houseId) : l.stewardEmpId === s.empId))
+  }
+  const comms = s.communityIds
+  if (!comms || !comms.size) return []
+  return LISTINGS.filter(l => {
+    if (!_LV_HOUSE_OF.has(l.houseId)) {
+      const h = houses.find(x => x.houseId === l.houseId) || {}
+      _LV_HOUSE_OF.set(l.houseId, h.communityId || '')
+    }
+    return comms.has(_LV_HOUSE_OF.get(l.houseId))
+  })
+}
+
+export function queryListings({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewListings()) throw _lvError(`当前角色没有查看租售信息的权限（${LV_PERM_VIEW}）`, 403)
+  return delay(() => {
+    assertInScope({ communityId: filters.communityId })
+    const me = currentOperator()
+    const list = _lvScopedListings()
+      .filter(l => eq(l, filters.communityId, 'communityId'))
+      .filter(l => eq(l, filters.status, 'status'))
+      .filter(l => eq(l, filters.stewardEmpId, 'stewardEmpId'))
+      .filter(l => (filters.mine ? l.stewardEmpId === me.empId : true))
+      .filter(l => {
+        if (!filters.kw) return true
+        const h = _lvHouseOf(l)
+        const o = owners.find(x => x.ownerId === l.ownerId) || {}
+        return kwHit({ ...h, ownerName: o.name, listingId: l.listingId }, filters.kw,
+          ['listingId', 'houseShort', 'fullName', 'ownerName'])
+      })
+      /* 待审核排最前，其次按等待时长倒序 —— 这页看的就是"谁在等" */
+      .sort((a, b) => {
+        if ((a.status === '待审核') !== (b.status === '待审核')) return a.status === '待审核' ? -1 : 1
+        if (a.status === '待审核') return String(a.createdAt).localeCompare(String(b.createdAt))
+        return String(b.createdAt).localeCompare(String(a.createdAt))
+      })
+      .map(_lvRow)
+    const rows = filters.overdue ? list.filter(r => r.overdue) : list
+    return paged(rows, pageNo, size)
+  })
+}
+
+/** 数据范围说明：楼管进页面要知道「这几套是归我管的」，而不是「为什么只有 6 条」 */
+export function listingScopeHint() {
+  const s = currentScope()
+  if (s.mode === '全部项目') return '数据范围：全部项目'
+  const names = [...(s.communityIds || [])].map(id => communityName(id)).join('、') || '—'
+  if (s.mode === '责任范围') {
+    const n = s.houseIds ? s.houseIds.size : 0
+    return `数据范围：责任范围 · ${names} · 负责 ${n} 套房屋`
+  }
+  return `数据范围：${s.mode} · ${names}`
+}
+
+export function listingStats() {
+  const rows = _lvScopedListings().map(_lvRow)
+  const pending = rows.filter(r => r.status === '待审核')
+  const published = rows.filter(r => r.status === '已发布')
+  const viewings = _lvScopedViewings().map(_lvViewRow)
+  return {
+    total: rows.length,
+    pending: pending.length,
+    escalated: pending.filter(r => r.overdue).length,
+    published: published.length,
+    rejected: rows.filter(r => r.status === '已驳回').length,
+    offline: rows.filter(r => r.status === '已下架').length,
+    expired: rows.filter(r => r.status === '已过期').length,
+    dealt: rows.filter(r => r.status === '已成交').length,
+    viewingPending: viewings.filter(v => v.status === '待联系').length,
+    viewingOverdue: viewings.filter(v => v.status === '待联系' && v.overdue).length,
+    viewTotal: rows.reduce((s, r) => s + r.viewCount, 0)
+  }
+}
+
+export function getListing(listingId) {
+  if (!canViewListings()) throw _lvError(`当前角色没有查看租售信息的权限（${LV_PERM_VIEW}）`, 403)
+  return delay(() => {
+    const l = _lvOf(listingId)
+    if (!l) return null
+    const row = _lvRow(l)
+    return {
+      ...row,
+      /* 详情是操作场景（审核要看、楼管要打给业主），这里给全号 */
+      ..._lvOwnerOf(l, true),
+      viewings: VIEWINGS.filter(v => v.listingId === listingId).map(_lvViewRow)
+    }
+  })
+}
+
+/* ---------------- 写 ---------------- */
+
+export function auditListing(listingId, { pass = true, reason = '' } = {}) {
+  if (!canAuditListings()) throw _lvError(`当前角色没有审核租售信息的权限（${LV_PERM_AUDIT}）`, 403)
+  const l = _lvOf(listingId)
+  if (!l) throw _lvError('挂牌不存在', 40440)
+  if (l.status !== '待审核') throw _lvError(`这条已经是「${l.status}」，不能重复审核`, 40940)
+  const why = String(reason || '').trim()
+  if (!pass && !why) throw _lvError('驳回必须写理由 —— 业主看得到这句，也会拿着它来问')
+  Object.assign(l, {
+    status: pass ? '已发布' : '已驳回',
+    rejectReason: pass ? '' : why,
+    auditedVersion: pass ? l.contentVersion : l.auditedVersion,
+    auditBy: currentOperator().name,
+    auditAt: _lvStamp()
+  })
+  track('listing_audit', { listingId, pass })
+  return _lvRow(l)
+}
+
+export function offlineListing(listingId, reason = '') {
+  if (!canAuditListings()) throw _lvError(`当前角色没有下架租售信息的权限（${LV_PERM_AUDIT}）`, 403)
+  const l = _lvOf(listingId)
+  if (!l) throw _lvError('挂牌不存在', 40440)
+  if (l.status !== '已发布') throw _lvError(`只有「已发布」的挂牌能下架，当前是「${l.status}」`, 40941)
+  const why = String(reason || '').trim()
+  if (!why) throw _lvError('下架必须写原因')
+  Object.assign(l, {
+    status: '已下架', offlineReason: why,
+    offlineBy: currentOperator().name, offlineAt: _lvStamp()
+  })
+  track('listing_offline', { listingId })
+  return _lvRow(l)
+}
+
+/**
+ * 改派责任楼管。
+ * 改的是**房源**而不是单条看房请求 —— 审核权、联系方式、后续看房请求都挂在
+ * stewardEmpId 上，只改请求会造成"审核归 A、微信是 B"。
+ */
+export function reassignListing(listingId, empId) {
+  if (!canAuditListings()) throw _lvError(`当前角色没有改派责任楼管的权限（${LV_PERM_AUDIT}）`, 403)
+  const l = _lvOf(listingId)
+  if (!l) throw _lvError('挂牌不存在', 40440)
+  if (!empId) throw _lvError('请选择新的责任楼管')
+  const e = employees.find(x => x.empId === empId && x.status !== '离职')
+  if (!e) throw _lvError('该员工不存在或已离职')
+  l.stewardEmpId = empId
+  track('listing_reassign', { listingId, empId })
+  return _lvRow(l)
+}
+
+/** 可改派的楼管：在职、岗位是楼栋管家 */
+export function listingStewardOpts() {
+  return employees
+    .filter(e => e.position === '楼栋管家' && e.status !== '离职')
+    .map(e => ({ value: e.empId, label: `${e.name} · ${orgNameOf(e.orgId)}` }))
+}
+
+/* ---------------- 看房请求 ---------------- */
+
+const _lvScopedViewings = () => {
+  const ids = new Set(_lvScopedListings().map(l => l.listingId))
+  return VIEWINGS.filter(v => ids.has(v.listingId))
+}
+
+export function queryViewings({ pageNo = 1, size = 20, filters = {} } = {}) {
+  if (!canViewListingsViewing()) throw _lvError(`当前角色没有查看看房请求的权限（${LV_PERM_VIEWING}）`, 403)
+  return delay(() => {
+    const list = _lvScopedViewings()
+      .filter(v => eq(v, filters.status, 'status'))
+      .filter(v => eq(v, filters.listingId, 'listingId'))
+      .filter(v => {
+        if (!filters.kw) return true
+        const l = _lvOf(v.listingId)
+        const h = l ? _lvHouseOf(l) : {}
+        return kwHit({ ...v, houseShort: h.houseShort || '', fullName: h.fullName || '' },
+          filters.kw, ['viewingId', 'name', 'phone', 'houseShort', 'fullName'])
+      })
+      .sort((a, b) => {
+        if ((a.status === '待联系') !== (b.status === '待联系')) return a.status === '待联系' ? -1 : 1
+        if (a.status === '待联系') return String(a.createdAt).localeCompare(String(b.createdAt))
+        return String(b.createdAt).localeCompare(String(a.createdAt))
+      })
+      .map(_lvViewRow)
+    const rows = filters.overdue ? list.filter(r => r.overdue) : list
+    return paged(rows, pageNo, size)
+  })
+}
+
+export function viewingStats() {
+  const rows = _lvScopedViewings().map(_lvViewRow)
+  return {
+    total: rows.length,
+    pending: rows.filter(r => r.status === '待联系').length,
+    overdue: rows.filter(r => r.status === '待联系' && r.overdue).length,
+    contacted: rows.filter(r => r.status === '已联系').length,
+    visited: rows.filter(r => r.status === '已带看').length,
+    closed: rows.filter(r => r.status === '已关闭').length
+  }
+}
+
+export function getViewing(viewingId) {
+  if (!canViewListingsViewing()) throw _lvError(`当前角色没有查看看房请求的权限（${LV_PERM_VIEWING}）`, 403)
+  const v = _lvViewOf(viewingId)
+  return v ? _lvViewRow(v) : null
+}
+
+/**
+ * 标记看房请求「已联系 / 已关闭」。
+ *
+ * 这是移动端唯一的核心动作（§12.4）：PC 只做超时监控，真正回电话的是手机上的人。
+ * **结果必须写** —— 下一个人接手时要能知道上次聊到哪了；
+ * 不写结果的话，同一个访客会被三个人各打一遍，而访客记住的是"物业老打电话骚扰"。
+ *
+ * 只允许从「待联系」转出：已联系过的不再重复标记，否则时间线会被覆盖成最后一次。
+ */
+export function markViewingContacted(viewingId, { status = '已联系', note = '', operator = '' } = {}) {
+  if (!canViewListingsViewing()) throw _lvError(`当前角色没有处理看房请求的权限（${LV_PERM_VIEWING}）`, 403)
+  const v = _lvViewOf(viewingId)
+  if (!v) throw _lvError('看房请求不存在', 40441)
+  if (v.status !== '待联系') throw _lvError(`这条已经是「${v.status}」，不用再标记`, 40942)
+  if (!['已联系', '已关闭'].includes(status)) throw _lvError('只能标成「已联系」或「已关闭」')
+  const why = String(note || '').trim()
+  if (!why) throw _lvError('要写一句联系结果 —— 下个人接手时得知道聊到哪了')
+  Object.assign(v, {
+    status,
+    handledBy: String(operator || '').trim() || currentOperator().name,
+    handledAt: _lvStamp(),
+    resultNote: why
+  })
+  track('viewing_contacted', { viewingId, status })
+  return _lvViewRow(v)
+}
+
+/**
+ * 维护本人的对外联系方式（微信号 + 二维码）。
+ *
+ * 不设"是否公开"开关：填了就是愿意展示，没填就不显示。
+ * 加开关只会多出"填了但关着"这种没人说得清的状态。
+ * 手机号不在这里 —— 它只在内部通讯录里，不对外展示（见文件头第 ② 条）。
+ */
+export function updateMyContact({ wechatId = '', contactQrUrl = '' } = {}, empId = '') {
+  const me = currentOperator()
+  const target = String(empId || me.empId)
+  /* 改别人的联系方式是 HR 的活；本人自助不需要任何权限码 */
+  if (target !== me.empId && !_hasPerm('e.org.edit')) {
+    throw _lvError('只能维护自己的联系方式', 403)
+  }
+  const e = employees.find(x => x.empId === target)
+  if (!e) throw _lvError('员工不存在', 40442)
+  const wx = String(wechatId || '').trim()
+  if (wx.length > 30) throw _lvError('微信号最多 30 个字符')
+  const qr = String(contactQrUrl || '').trim()
+  Object.assign(e, { wechatId: wx, contactQrUrl: qr })
+  track('my_contact_saved', { empId: target })
+  return { empId: e.empId, name: e.name, wechatId: wx, contactQrUrl: qr }
+}
+
+/** 读回本人联系方式（移动端「我的」页进页面先取一次） */
+export function myContact(empId = '') {
+  const me = currentOperator()
+  const e = employees.find(x => x.empId === String(empId || me.empId))
+  if (!e) return null
+  return {
+    empId: e.empId,
+    name: e.name,
+    position: e.position,
+    wechatId: e.wechatId || '',
+    contactQrUrl: e.contactQrUrl || ''
+  }
+}
+
+/* ---------- 初始化：模块加载时跑一次 ---------- */
+_lvSeed()

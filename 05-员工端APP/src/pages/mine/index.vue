@@ -90,6 +90,21 @@
         </view>
       </view>
 
+      <!-- 工具：和"个人"分开，通讯录看的不是自己的资料 -->
+      <view v-if="canContacts" class="card">
+        <view class="sec-hd">
+          <text class="sec-hd__t">工具</text>
+          <text class="sec-hd__d">在职同事的联系方式</text>
+        </view>
+        <view id="me-contacts" class="lnk" hover-class="lnk--hover" @tap="goContacts">
+          <view class="lnk__b">
+            <text class="lnk__t">通讯录</text>
+            <text class="lnk__d">按部门找人，直接拨号 / 复制号码</text>
+          </view>
+          <view class="lnk__chev" />
+        </view>
+      </view>
+
       <!-- 演示开关 -->
       <view class="card">
         <view class="sec-hd">
@@ -178,12 +193,20 @@ const selfEntries = computed(() => {
     list.push({ key: 'commission', label: '我的提成', desc: '按人工费计提，已收款才结', to: '/pages/payroll/commission' })
   }
   if (can(p, CAP.noticeRead)) list.push({ key: 'msg', label: '公告', desc: '本项目公告', tab: '/pages/msg/list' })
+  /* 对外联系方式：只有会出现在租售页的岗位（楼管 / 项目经理 / 客服）才给入口 */
+  if (can(p, CAP.listingView)) list.push({ key: 'contact', label: '我的联系方式', desc: '微信号与二维码，展示给看房者', to: '/pages/mine/contact' })
   return list
 })
 
 function go(e) {
   if (e.tab) uni.switchTab({ url: e.tab })
   else uni.navigateTo({ url: e.to })
+}
+
+const canContacts = computed(() => can(persona.value, CAP.contactsView))
+
+function goContacts() {
+  uni.navigateTo({ url: '/pages/contacts/index' })
 }
 
 const netOpts = [
