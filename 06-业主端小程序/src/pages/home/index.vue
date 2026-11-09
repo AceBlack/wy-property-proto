@@ -101,37 +101,51 @@
         <view class="steward__act" @tap.stop="toast('在线咨询 P1')"><text>消息</text></view>
       </view>
 
-      <!-- 社区活动 -->
+      <!--
+        社区（批次 81）：活动 + 公告 + 投票 + 闲置合成一条流。
+        原来是"活动横滑 + 公告三张"两块：活动少时那块就是一条空轨道。
+        合成之后活动少的时候由公告/投票/闲置补位，不需要"活动少就藏起来"的特例。
+      -->
       <view class="sec-hd home-sec">
-        <text class="sec-hd__t">社区活动</text>
-        <text class="sec-hd__d" @tap="goNeighbor('activity')">查看全部</text>
+        <text class="sec-hd__t">社区</text>
+        <text class="sec-hd__d" @tap="goNeighbor('notice')">全部</text>
       </view>
-      <scroll-view scroll-x class="acts">
-        <view v-for="a in activities" :key="a.activityId" class="act" @tap="goActivity(a.activityId)">
-          <Cover :cover="a.cover" h="150rpx" :badge="a.feeType" :label="a.category" />
-          <text class="act__t">{{ a.title }}</text>
-          <text class="act__d">{{ a.startAt.slice(5, 10) }} · {{ a.phase }}</text>
+
+      <view
+        v-for="f in feed"
+        :key="f.key"
+        :id="`feed-${f.key}`"
+        class="fd"
+        :class="{ 'fd--urgent': f.badge === '待签收' }"
+        @tap="openFeed(f)"
+      >
+        <view class="fd__hd">
+          <Tag :text="f.tag" size="sm" :color="toneOf(f)" />
+          <text v-if="f.badge" class="fd__badge" :class="`is-${f.badgeTone}`">{{ f.badge }}</text>
+          <text class="fd__at">{{ f.atText }}</text>
+        </view>
+        <text class="fd__t">{{ f.title }}</text>
+        <text class="fd__m">{{ f.meta }}</text>
+      </view>
+
+      <view v-if="!feed.length" class="fd__empty">
+        <text class="fd__empty-t">社区最近很安静</text>
+        <text class="fd__empty-d">公告、投票、活动和闲置都会出现在这里</text>
+      </view>
+
+      <!-- 周边服务：只做入口，不放商品卡、不带购买（生活频道本轮不接交易） -->
+      <view class="sec-hd home-sec">
+        <text class="sec-hd__t">周边服务</text>
+        <text class="sec-hd__d" @tap="goLife">进入生活</text>
+      </view>
+      <scroll-view scroll-x class="svc">
+        <view v-for="s in nearby" :key="s.serviceId" class="svc__i" @tap="goLife">
+          <text class="svc__n">{{ s.name }}</text>
+          <text class="svc__p">¥{{ s.price }}/{{ s.unit }}</text>
+          <text class="svc__s" :class="{ 'is-soon': s.status !== '可预约' }">{{ s.status === '可预约' ? '可预约' : '即将开放' }}</text>
         </view>
       </scroll-view>
-
-      <!-- 社区公告（邻里频道） -->
-      <view class="sec-hd home-sec">
-        <text class="sec-hd__t">社区公告</text>
-        <text class="sec-hd__d" @tap="goNeighbor('notice')">全部公告</text>
-      </view>
-      <view v-for="n in notices" :key="n.noticeId" class="pc" @tap="goNotice(n.noticeId)">
-        <view class="pc__hd">
-          <Tag :text="n.type" size="sm" color="var(--biz-primary)" />
-          <text v-if="!n.read" class="pc__unread">未读</text>
-          <text class="pc__at">{{ n.publishTime.slice(5, 10) }}</text>
-        </view>
-        <text class="pc__t">{{ n.title }}</text>
-        <text class="pc__d">{{ n.content }}</text>
-        <view class="pc__foot">
-          <text class="pc__m">{{ n.publisher }}</text>
-          <text class="pc__m">阅读 {{ n.readCount }}/{{ n.targetHouses }} 户</text>
-        </view>
-      </view>
+      <text class="svc__tip">服务由认证商家提供；本轮只展示，不下单、不支付。</text>
 
       <view class="hm__demo">
         <text class="demo-tip">演示</text>
@@ -151,7 +165,6 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Avatar from '@/components/Avatar.vue'
-import Cover from '@/components/Cover.vue'
 import Tag from '@/components/Tag.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import { app, isApproved, isPending, switchHouse } from '@/store/app'
@@ -164,7 +177,8 @@ import {
   residentsOf,
   unboundHouses
 } from '@/api/mp'
-import { activityFeed, noticeList } from '@/api/neighbor'
+import { communityFeed, NEARBY_LIMIT } from '@/api/home-feed'
+import { lifeHome } from '@/api/life'
 import { utilitySummary } from '@/api/utility'
 import { amount, money } from '@/utils/format'
 import { go, toast } from '@/utils/ui'
@@ -215,8 +229,11 @@ const unbound = computed(() => {
   ver.value
   return unboundHouses()
 })
-const activities = computed(() => activityFeed(4))
-const notices = computed(() => noticeList().slice(0, 3))
+const feed = computed(() => {
+  ver.value
+  return communityFeed(5)
+})
+const nearby = computed(() => lifeHome().hot.slice(0, NEARBY_LIMIT))
 const headerAddr = computed(() => (approved.value && house.value ? house.value.communityName : '智慧物业 · 业主服务'))
 const headerSub = computed(() => (approved.value ? `${app.session?.name || ''}，欢迎回家` : '未认证也可浏览社区内容'))
 
@@ -297,11 +314,29 @@ function goHouse() {
 function goRepairDetail(id) {
   go('/pages/repair/detail', { woId: id })
 }
-function goActivity(id) {
-  go('/pages/neighbor/activity', { id })
+/**
+ * 信息流一行点进去：四类各有自己的详情页。
+ * 以前是 goActivity / goNotice 两个函数，合成流之后按 kind 分派一处写清，
+ * 免得以后加"投票"再抄第三遍。
+ */
+function openFeed(f) {
+  if (f.kind === 'notice') return go('/pages/neighbor/notice', { id: f.id })
+  if (f.kind === 'activity') return go('/pages/neighbor/activity', { id: f.id })
+  if (f.kind === 'vote') return go('/pages/neighbor/vote', { id: f.id })
+  if (f.kind === 'item') return go('/pages/neighbor/secondhand', { id: f.id })
 }
-function goNotice(id) {
-  go('/pages/neighbor/notice', { id })
+
+/** 标签颜色按类型分，不按"第几条"分 —— 用户靠颜色认频道 */
+function toneOf(f) {
+  if (f.kind === 'activity') return 'var(--biz-accent-dark)'
+  if (f.kind === 'vote') return 'var(--biz-warning)'
+  if (f.kind === 'item') return '#0aa84f'
+  return 'var(--biz-primary)'
+}
+
+/** 生活是 tab 页，只能用 switchTab，navigateTo 会静默失败 */
+function goLife() {
+  uni.switchTab({ url: '/pages/life/index' })
 }
 function goNeighbor(tab) {
   uni.switchTab({ url: '/pages/neighbor/index' })
@@ -390,23 +425,35 @@ function callSteward() {
 .steward__act { padding: 8rpx 18rpx; border-radius: 999rpx; background: var(--biz-primary-light-9); color: var(--biz-primary); font-size: 21rpx; }
 
 .home-sec { margin: 32rpx 0 16rpx; }
-.acts { white-space: nowrap; }
-.act { display: inline-block; width: 300rpx; margin-right: 18rpx; vertical-align: top; }
-.act__t { display: block; margin-top: 12rpx; font-size: 25rpx; font-weight: 600; color: var(--biz-text-1); white-space: normal; line-height: 1.4; }
-.act__d { display: block; margin-top: 4rpx; font-size: 20rpx; color: var(--biz-text-3); }
 
-.pc { background: #fff; border-radius: 18rpx; padding: 22rpx 24rpx; box-shadow: var(--biz-shadow-card); }
-.pc + .pc { margin-top: 16rpx; }
-.pc__hd { display: flex; align-items: center; justify-content: space-between; }
-.pc__at { font-size: 20rpx; color: var(--biz-text-4); }
-.pc__unread { font-size: 18rpx; color: var(--biz-danger); background: #fff0f1; border-radius: 4rpx; padding: 1rpx 8rpx; }
-.pc__t { display: block; margin-top: 12rpx; font-size: 27rpx; font-weight: 600; color: var(--biz-text-1); line-height: 1.4; }
-.pc__d { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--biz-text-3); line-height: 1.55; }
-.pc__foot { display: flex; justify-content: space-between; margin-top: 12rpx; }
-.pc__m { font-size: 20rpx; color: var(--biz-text-4); }
 
 .hm__demo { margin-top: 30rpx; display: flex; gap: 12rpx; align-items: flex-start; }
 .hm__demo-d { flex: 1; font-size: 21rpx; color: var(--biz-text-4); line-height: 1.6; }
 
 
+
+/* 社区信息流（批次 81）：一行一条，靠左侧标签认频道，靠徽标认"要不要动手" */
+.fd { background: #fff; border-radius: 18rpx; padding: 22rpx 24rpx; box-shadow: var(--biz-shadow-card); }
+.fd + .fd { margin-top: 14rpx; }
+.fd--urgent { border-left: 6rpx solid var(--biz-danger); }
+.fd__hd { display: flex; align-items: center; gap: 10rpx; }
+.fd__badge { font-size: 18rpx; border-radius: 4rpx; padding: 2rpx 8rpx; }
+.fd__badge.is-danger { color: var(--biz-danger); background: #fff0f1; }
+.fd__badge.is-warn { color: var(--biz-warning); background: #fff6e8; }
+.fd__badge.is-primary { color: var(--biz-primary); background: var(--biz-primary-light-9); }
+.fd__at { margin-left: auto; font-size: 20rpx; color: var(--biz-text-4); }
+.fd__t { display: block; margin-top: 12rpx; font-size: 27rpx; font-weight: 600; color: var(--biz-text-1); line-height: 1.4; }
+.fd__m { display: block; margin-top: 8rpx; font-size: 21rpx; color: var(--biz-text-3); line-height: 1.5; }
+.fd__empty { background: #fff; border-radius: 18rpx; padding: 40rpx 24rpx; text-align: center; }
+.fd__empty-t { display: block; font-size: 26rpx; color: var(--biz-text-2); }
+.fd__empty-d { display: block; margin-top: 8rpx; font-size: 21rpx; color: var(--biz-text-4); }
+
+/* 周边服务：横滑入口，不做商品卡 */
+.svc { white-space: nowrap; }
+.svc__i { display: inline-block; width: 220rpx; margin-right: 14rpx; padding: 20rpx; border-radius: 16rpx; background: #fff; box-shadow: var(--biz-shadow-card); vertical-align: top; }
+.svc__n { display: block; font-size: 24rpx; font-weight: 600; color: var(--biz-text-1); white-space: normal; line-height: 1.35; }
+.svc__p { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--biz-danger); font-family: var(--biz-font-num); }
+.svc__s { display: block; margin-top: 6rpx; font-size: 19rpx; color: var(--biz-accent-dark); }
+.svc__s.is-soon { color: var(--biz-text-4); }
+.svc__tip { display: block; margin-top: 12rpx; font-size: 20rpx; color: var(--biz-text-4); }
 </style>

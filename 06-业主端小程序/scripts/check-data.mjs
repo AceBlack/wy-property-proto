@@ -15,6 +15,7 @@ import { refundAmountOf, refundRatioOf } from '../src/api/refund-rule.mjs'
 import { canEnroll, enrolledCount, phaseOf } from '../src/api/activity-rule.mjs'
 import { addMonths, expiryOf, nextExpire, nextMonthFirst, normalizePlate, usedThisMonth, validPlate } from '../src/api/park-rule.mjs'
 import { canEnrollMember, canSubmit, statusMeta, FACE_LIMIT_24H } from '../src/api/access-rule.mjs'
+import { buildFeed, FEED_LIMIT } from '../src/api/home-feed-rule.mjs'
 import { FORBIDDEN_FIELDS, PUBLIC_FIELDS, houseDerived, publicProjection } from '../src/api/listing-view.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -318,6 +319,70 @@ const mbZ = rawMembers.filter(m => m.ownerId === 'OW00001')
 add('人脸', '张建国家庭成员 2 人', mbZ.length, 2)
 add('人脸', '配偶已录脸（种子）', mbZ.find(m => m.memberId === 'MB00001')?.faceRegistered, true)
 add('人脸', '子女未核验（不能代录）', !!mbZ.find(m => m.memberId === 'MB00002')?.certified, false)
+
+/* ============================ 首页信息流（批次 81） ============================ */
+const fNotice = (id, extra = {}) => ({
+  noticeId: id, title: `公告${id}`, type: '停水停电', publisher: '物业',
+  publishTime: '2026-10-18 09:00', readCount: 100, targetHouses: 300,
+  signRequired: false, signed: false, read: false, top: false, ...extra
+})
+const fVote = (id, extra = {}) => ({
+  voteId: id, title: `投票${id}`, status: '进行中', voted: false,
+  endAt: '2026-10-25', deadlineText: '剩 5 天', ...extra
+})
+const fAct = (id, extra = {}) => ({
+  activityId: id, title: `活动${id}`, category: '亲子', phase: '报名中',
+  startAt: '2026-10-26', enrolled: 8, capacity: 30, ...extra
+})
+const fItem = (id, extra = {}) => ({
+  itemId: id, title: `闲置${id}`, price: 100, buildingName: '1栋',
+  wantCount: 2, publishAt: '2026-10-19 10:00', status: '已上架', ...extra
+})
+
+const feed1 = buildFeed({
+  notices: [fNotice('N1'), fNotice('N2', { type: '收费通知' }), fNotice('N3', { top: true, type: '收费通知' })],
+  votes: [fVote('V1')],
+  activities: [fAct('A1')],
+  items: [fItem('I1')]
+})
+add('首页流', '待签收公告排第一', feed1[0]?.badge, '待签收')
+add('首页流', '未投投票在活动之前', feed1.findIndex(r => r.kind === 'vote') < feed1.findIndex(r => r.kind === 'activity'), true)
+/* 公告配额 2 条：先给「待签收」，再给「置顶」—— 普通公告被挤出，这是有意的 */
+const capFeed = buildFeed({
+  notices: [fNotice('N1'), fNotice('N2', { type: '收费通知' }), fNotice('N3', { top: true, type: '收费通知' }), fNotice('N4', { type: '收费通知' })]
+})
+add('首页流', '公告配额内先给待签收与置顶（其余靠回填）', capFeed.slice(0, 2).map(r => r.title).join(','), '公告N1,公告N3')
+
+/* 待签收再多也不能把别的频道挤没 —— 那正是这一批要解决的问题 */
+const many = buildFeed({
+  notices: Array.from({ length: 10 }, (_, i) => fNotice(`N${i}`)),
+  votes: [fVote('V1')],
+  activities: [fAct('A1')],
+  items: [fItem('I1')]
+})
+add('首页流', '10 条待签收也不会挤掉投票/活动/闲置', new Set(many.map(r => r.kind)).size, 4)
+add('首页流', '收费通知不算待签收', buildFeed({ notices: [fNotice('N9', { type: '收费通知' })] })[0]?.badge !== '待签收', true)
+
+const dupe = buildFeed({ notices: [fNotice('N1', { top: true })] })
+add('首页流', '待签收 + 置顶的公告只出现一次', dupe.length, 1)
+
+add('首页流', '上限 5 条', buildFeed({
+  notices: [1, 2, 3, 4].map(i => fNotice(`N${i}`)),
+  votes: [fVote('V1'), fVote('V2')],
+  activities: [fAct('A1')],
+  items: [fItem('I1')]
+}).length, FEED_LIMIT)
+
+add('首页流', '投过的投票不进流', buildFeed({ votes: [fVote('V1', { voted: true })] }).length, 0)
+add('首页流', '空数据不出错', buildFeed({}).length, 0)
+
+/* 活动少时由别的频道补位 —— 这正是"活动少页面难看"的正解 */
+const fewActs = buildFeed({
+  notices: [1, 2, 3].map(i => fNotice(`N${i}`)),
+  activities: [fAct('A1')]
+})
+add('首页流', '只有 1 场活动时，其余位由公告补满', fewActs.length, 4)
+add('首页流', '活动少时流里仍只有 1 条活动', fewActs.filter(r => r.kind === 'activity').length, 1)
 
 /* ============================ 打印 ============================ */
 console.log('数据源：' + MOCK)

@@ -278,8 +278,10 @@ async function runSuite(base, tag) {
   /* ---------- 1. 游客态 ---------- */
   console.log('\n[1] 游客：不认证也能逛')
   check('首页出现「请绑定房屋」引导', await has('请绑定房屋'))
-  check('未认证也能看到社区活动', await has('社区活动'))
-  check('四宫格服务入口都在', (await has('生活缴费')) && (await has('报事报修')) && (await has('手机开门')) && (await has('我的车位')))
+  /* 批次 81：社区活动与公告合成一条流，游客看的是「社区」这一段而不是单独的横滑块 */
+  check('未认证也能看到社区流', !!(await page.$('[id^="feed-"]')) && (await has('社区')))
+  check('五宫格服务入口都在', (await has('生活缴费')) && (await has('报事报修')) && (await has('刷脸通行')) && (await has('我的车位')))
+  check('周边服务入口在（只展示不下单）', (await has('周边服务')) && (await has('不下单')))
   await shot('01-home-guest')
 
   console.log('\n[2] 邻里四频道（游客可浏览）')
@@ -405,32 +407,16 @@ async function runSuite(base, tag) {
   check('进入报修详情', await waitText('报修详情') || (await waitText('个人报修')))
   check('详情显示已支付', await has('已支付'))
   await shot('18-repair-detail')
-  await tap('#demo-add', 0, 1200)
-  check('出现待确认增项', await waitText('待确认'))
-  check('三段金额都在', (await has('原价')) && (await has('增项')) && (await has('确认后合计')))
-  await shot('19-repair-addon')
-  await tap('#wo-main', 0, 900)
-  if (await has('确认并入')) await tapText('确认并入')
-  await sleep(1200)
-  check('确认后合计并入 205', await has('¥205.00'))
-  check('出现差额补付入口', await visible('#wo-pay-link'))
-  await tap('#wo-pay-link', 0, 1600)
-  const addonPay = nums(await bodyText())[0]
-  check('补付 = 差额 80', Math.abs(addonPay - 80) < 0.01, `实际 ${addonPay}`)
-  await shot('20-pay-addon')
-  await tap('#pay-sim', 0, 1600)
-  await tapText('查看报修进度')
-  await sleep(1400)
-  check('补付后无待支付', !(await visible('#wo-pay-link')))
-  await tap('#wo-main', 0, 900)
-  check('评价弹层出现', await waitText('对本次服务满意吗'))
-  await tapText('很满意')
-  await tapText('收费透明')
-  await setInput('.ev__text', '师傅上门很快，价格和下单时看到的一致')
-  await shot('21-eval-sheet')
-  await tap('#eval-submit', 0, 1400)
-  check('评价写回详情', await waitText('我的评价'))
-  await shot('22-repair-evaluated')
+  /*
+   * 2026-11-08：删掉了「模拟加项」。
+   *
+   * 连带影响要说清楚：业主端再也无法把单子自己推到「已完工」，
+   * 所以**评价入口不会出现** —— 这正是真实行为（评价要等师傅完工，
+   * 完工由员工端 `POST /work-orders/{id}/finish` 推进）。
+   * 评价能力的覆盖交给 04 契约：`POST /work-orders/{id}/staff-eval`（未完工 409、重复评价 409）。
+   */
+  check('业主端没有「模拟加项」入口', !(await visible('#demo-add')) && !(await has('模拟加项')))
+  check('未完工的单没有评价入口', !(await has('对本次服务满意吗')) && !(await visible('#eval-submit')))
 
   /* ---------- 7. 公共报修（免认证、免费） ---------- */
   console.log('\n[7] 公共报修：登录即可，免费')
@@ -523,7 +509,7 @@ async function runSuite(base, tag) {
   check('想要已记录', (await has('已收藏')) || (await has('取消想要')))
   await shot('31-secondhand')
 
-  /* 闲置发布 → 审核中 → 模拟通过 */
+  /* 闲置发布 → 审核中（审核在员工端，业主端只等） */
   await goto('/pages/neighbor/item-publish')
   check('发布页有照片正误对照', await has('这张图能不能让陌生人找到你家'))
   await setInput('.field__input', '九成新婴儿推车 自提', 0)
@@ -535,9 +521,9 @@ async function runSuite(base, tag) {
   if (await has('知道了')) await tapText('知道了')
   await sleep(1200)
   check('发布后状态为待审核并给预计时长', (await has('待审核')) && (await has('24 小时')))
-  await tapText('模拟通过')
-  await sleep(900)
-  check('审核通过后已上架', await has('已上架'))
+  /* 审核在员工端做，业主端只能等 —— 原来的「模拟通过」能让业主自己审自己发布的内容 */
+  check('待审核状态下没有审核按钮', !(await has('模拟通过')) && !(await has('模拟驳回')))
+  check('写明由员工端审核', await has('不是发完就上架'))
   await shot('32-my-item')
 
   /* ---------- 13. 租售信息（游客可看，发布要业主） ---------- */
