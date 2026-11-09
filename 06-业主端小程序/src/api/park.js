@@ -61,11 +61,20 @@ export const expireOf = p => app.parkExpire[p.parkId] || p.expireDate || ''
 
 export const vehiclesOf = parkId => vehicles.filter(v => v.parkId === parkId)
 
-/** 车位管理费账单（按业主归集 —— 车位账单不带 parkId，分不到具体车位，见任务清单 H3） */
-export const parkBillsOf = () => {
+/**
+ * 车位管理费账单。
+ *
+ * 03 的账单**带 `parkId`**（1344 条全有），所以能精确到车位 —— 两个车位的业主不会串账。
+ * 04 的 fixtures 把 `parkId` 裁掉了（投影白名单没带上），那种情况退回"按业主归集"，
+ * 并在页面上如实说明。补齐 fixtures 是批次 82 的事。
+ */
+export const parkBillsOf = parkId => {
   const oid = ownerIdOf()
-  return bills
-    .filter(b => !b.houseId && b.ownerId === oid)
+  const all = bills.filter(b => !b.houseId && b.ownerId === oid)
+  /* 数据里一条 parkId 都没有 = 这份样例是裁剪过的，只能按业主收 */
+  const stripped = all.some(b => !b.parkId)
+  const rows = stripped || !parkId ? all : all.filter(b => b.parkId === parkId)
+  return rows
     .sort((a, b) => String(b.period).localeCompare(String(a.period)))
     .map(b => ({
       billId: b.billId,

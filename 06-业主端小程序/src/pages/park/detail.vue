@@ -90,8 +90,7 @@
             :last="i === Math.min(parkBills.length, 4) - 1"
           />
           <text class="pdk__note">
-            以上均为「{{ parkBills[0].itemName }}」。车位账单不挂房屋、也没有车位号，
-            这里按业主归集展示；缴费在「家庭账单」里一起付。
+            以上均为「{{ parkBills[0].itemName }}」，按本车位归集；缴费在「家庭账单」里一起付。
           </text>
         </view>
 
@@ -159,7 +158,7 @@ const logs = computed(() => (park.value ? changeLogsOf(park.value.parkId) : []))
 const pays = computed(() => (park.value ? paysOf(park.value.parkId) : []))
 const parkBills = computed(() => {
   ver.value
-  return parkBillsOf()
+  return park.value ? parkBillsOf(park.value.parkId) : []
 })
 
 const barHint = computed(() => {

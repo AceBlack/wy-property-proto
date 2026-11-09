@@ -296,6 +296,13 @@ add('换绑额度', '本月本车位算 2 次（9 月与别的车位不算）', 
 add('换绑额度', '下月恢复日', nextMonthFirst(TODAY), '2026-11-01')
 add('换绑额度', '12 月跨年', nextMonthFirst('2026-12-05'), '2027-01-01')
 
+/* 车位账单能精确到车位：03 的 bills 带 parkId，04 的 fixtures 裁掉了（批次 82 补） */
+const parkBillsAll = bills.filter(b => !b.houseId)
+add('车位账单', '全部带 parkId', parkBillsAll.filter(b => !b.parkId).length, 0)
+const parkById = new Map(parkings.map(p => [p.parkId, p]))
+add('车位账单', '账单与车位归属一致（不串）', parkBillsAll.filter(b => parkById.get(b.parkId)?.ownerId !== b.ownerId).length, 0)
+add('车位账单', '王浩然两个车位共 6 期', parkBillsAll.filter(b => b.ownerId === 'OW00003').length, 6)
+
 /* 一车一位：车位上的车牌与 vehicles 表里挂该车位的车牌必须一致 */
 const plateMismatch = parkings
   .filter(p => p.plateNo)
