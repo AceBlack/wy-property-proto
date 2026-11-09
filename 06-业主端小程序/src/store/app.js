@@ -67,6 +67,23 @@ export const app = reactive({
   membersAdded: cache.membersAdded || [],
   membersRemoved: cache.membersRemoved || [],
   /**
+   * 车位（批次 79）。
+   *
+   * 为什么覆盖字段而不是直接改 `parkings`：`@pc/mock` 的表是打包进 bundle 的，
+   * 直接改内存里的对象刷新就还原 —— 换过车牌、续过费的用户会看到"退回去了"。
+   * 所以本地写的三样都单独存：车牌覆盖 / 换绑记录 / 预缴流水；到期日同理。
+   */
+  parkPlates: cache.parkPlates || {}, // { parkId: plateNo }
+  parkExpire: cache.parkExpire || {}, // { parkId: 'YYYY-MM-DD' }
+  parkLogs: cache.parkLogs || [], // 换绑记录（含来源、状态）
+  parkPays: cache.parkPays || [], // 车位管理费预缴流水
+  /**
+   * 人脸（批次 80）：{ 'self:<手机号>' | 'member:<memberId>': { status, at, note, guardian } }
+   * 状态只由「提交」与「撤回」两处写；**生效只能由物业核验触发**，业主端不改它。
+   */
+  faces: cache.faces || {},
+  faceSubmits: cache.faceSubmits || [], // 24 小时限次用的提交流水
+  /**
    * 服务端快照（批 B）：接口模式下由 `api/remote.js` 的 hydrate() 填充，
    * 本地模式恒为空 → 选择器自动回落本地档案。
    * 单独放一个字段而不是散进 bills / houses：**退出登录时能一把清干净**。
@@ -138,6 +155,12 @@ export function persist() {
       repairs: app.repairs,
       membersAdded: app.membersAdded,
       membersRemoved: app.membersRemoved,
+      parkPlates: app.parkPlates,
+      parkExpire: app.parkExpire,
+      parkLogs: app.parkLogs,
+      parkPays: app.parkPays,
+      faces: app.faces,
+      faceSubmits: app.faceSubmits,
       remote: app.remote
     })
   } catch (e) {
@@ -215,6 +238,13 @@ export function login({ phone, personaId = '', token = '' }) {
   app.auth = { status: 'none', identity: '', reason: '', at: '', applicant: null }
   app.bindings = []
   app.activeHouseId = ''
+  /* 车位同理：换过车牌、续过费的记录属于上一个账号，跟着人走不跟着设备走 */
+  app.parkPlates = {}
+  app.parkExpire = {}
+  app.parkLogs = []
+  app.parkPays = []
+  app.faces = {}
+  app.faceSubmits = []
   persist()
 }
 

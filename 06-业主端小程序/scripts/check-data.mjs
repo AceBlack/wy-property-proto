@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url'
 import { matchIdentity } from '../src/api/identity-rule.mjs'
 import { refundAmountOf, refundRatioOf } from '../src/api/refund-rule.mjs'
 import { canEnroll, enrolledCount, phaseOf } from '../src/api/activity-rule.mjs'
+import { addMonths, expiryOf, nextExpire, nextMonthFirst, normalizePlate, usedThisMonth, validPlate } from '../src/api/park-rule.mjs'
+import { canEnrollMember, canSubmit, statusMeta, FACE_LIMIT_24H } from '../src/api/access-rule.mjs'
 import { FORBIDDEN_FIELDS, PUBLIC_FIELDS, houseDerived, publicProjection } from '../src/api/listing-view.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -27,6 +29,7 @@ const bills = read('bills')
 const workOrders = read('workOrders')
 const notices = read('notices')
 const members = read('members')
+const rawMembers = members
 const tenants = read('tenants')
 const prices = read('repairPrices')
 const posts = read('neighborPosts')
@@ -250,6 +253,71 @@ const rateBad = surveys.filter(s => {
   return (total / base) * 100 > 100.0001
 }).length
 add('投票', '参与率不超过 100%', rateBad, 0)
+
+/* ============================ 车位（批次 79） ============================ */
+/**
+ * 日期全部用上面那个写死的 TODAY（2026-10-20），不读演示时钟 ——
+ * 规则一旦被谁改成"用真实今天"，这些断言会在某天突然变红，那才是它该红的时候。
+ */
+const parkings = read('parkings')
+const vehicles = read('vehicles')
+
+const zhangParks = parkings.filter(p => p.ownerId === 'OW00001')
+const wangParks = parkings.filter(p => p.ownerId === 'OW00003')
+add('车位', '张建国名下车位', zhangParks.length, 1)
+add('车位', '张建国车位号', zhangParks[0]?.parkNo, 'B1-115')
+add('车位', '王浩然名下 2 个车位', wangParks.length, 2)
+
+add('车位到期', '剩 6 天 → 红', expiryOf('2026-10-26', TODAY).text, '剩 6 天')
+add('车位到期', '剩 6 天的档位', expiryOf('2026-10-26', TODAY).tone, 'danger')
+add('车位到期', '已过期 31 天', expiryOf('2026-09-19', TODAY).text, '已过期 31 天')
+add('车位到期', '还剩大半年 → 常态', expiryOf('2027-07-08', TODAY).tone, 'ok')
+add('车位到期', '没有到期日不算过期', expiryOf('', TODAY).tone, 'muted')
+
+add('预缴', '1-31 加一个月 = 2-28（不回绕到 3 月）', addMonths('2026-01-31', 1), '2026-02-28')
+add('预缴', '未过期从原到期日顺延', nextExpire('2026-10-26', TODAY, 3), '2027-01-26')
+add('预缴', '已过期从今天起算（不卖过期那段）', nextExpire('2026-09-19', TODAY, 3), '2027-01-20')
+add('预缴', '12 个月的金额 = 120 × 12', 120 * 12, 1440)
+
+add('车牌', '小写与空格自动规范', normalizePlate('川b sfv7d'), '川B·SFV7D')
+add('车牌', '不带间隔点也能过', validPlate('川BSFV7D'), true)
+add('车牌', '新能源 6 位能过', validPlate('川A·D12345'), true)
+add('车牌', '纯数字被拒', validPlate('1234567'), false)
+add('车牌', '少一位被拒', validPlate('川B·SFV7'), false)
+
+const logsForQuota = [
+  { parkId: 'PK1', at: '2026-10-03 10:00' },
+  { parkId: 'PK1', at: '2026-10-18 09:00' },
+  { parkId: 'PK2', at: '2026-10-18 09:00' },
+  { parkId: 'PK1', at: '2026-09-30 23:00' }
+]
+add('换绑额度', '本月本车位算 2 次（9 月与别的车位不算）', usedThisMonth(logsForQuota, 'PK1', TODAY), 2)
+add('换绑额度', '下月恢复日', nextMonthFirst(TODAY), '2026-11-01')
+add('换绑额度', '12 月跨年', nextMonthFirst('2026-12-05'), '2027-01-01')
+
+/* 一车一位：车位上的车牌与 vehicles 表里挂该车位的车牌必须一致 */
+const plateMismatch = parkings
+  .filter(p => p.plateNo)
+  .filter(p => {
+    const v = vehicles.find(x => x.parkId === p.parkId)
+    return v && v.plateNo !== p.plateNo
+  }).length
+add('车位', '车位车牌与车辆档案一致', plateMismatch, 0)
+
+/* ============================ 人脸（批次 80） ============================ */
+add('人脸', '五态文案齐全', ['未采集', '待核验', '已生效', '已驳回', '已冻结'].every(s => statusMeta(s).label === s), true)
+add('人脸', '已生效才说"可通行"', statusMeta('已生效').tone, 'ok')
+add('人脸', '待核验不是可用态', statusMeta('待核验').tone, 'warn')
+add('人脸', '待核验期间不允许重复提交', canSubmit({ status: '待核验', submits24h: 0 }).ok, false)
+add('人脸', '驳回后可重拍', canSubmit({ status: '已驳回', submits24h: 1 }).ok, true)
+add('人脸', '24 小时第 4 次被拦', canSubmit({ status: '未采集', submits24h: FACE_LIMIT_24H }).ok, false)
+add('人脸', '已核验成员可代录', canEnrollMember({ certified: true }).ok, true)
+add('人脸', '未核验成员不能代录', canEnrollMember({ certified: false }).ok, false)
+
+const mbZ = rawMembers.filter(m => m.ownerId === 'OW00001')
+add('人脸', '张建国家庭成员 2 人', mbZ.length, 2)
+add('人脸', '配偶已录脸（种子）', mbZ.find(m => m.memberId === 'MB00001')?.faceRegistered, true)
+add('人脸', '子女未核验（不能代录）', !!mbZ.find(m => m.memberId === 'MB00002')?.certified, false)
 
 /* ============================ 打印 ============================ */
 console.log('数据源：' + MOCK)

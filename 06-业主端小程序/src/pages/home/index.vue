@@ -144,31 +144,6 @@
 
     <!-- 切换房屋 -->
     <ActionSheet v-model:show="houseSheet" title="切换房屋" :sub="`共 ${houses.length} 套`" :actions="houseActions" @select="onPickHouse" />
-
-    <!-- 门禁钥匙（演示） -->
-    <Sheet v-model:show="doorSheet" title="门禁钥匙" sub="演示态：不出真实开门指令">
-      <view class="door">
-        <view class="door__qr">
-          <view v-for="i in 25" :key="i" class="door__px" :class="{ 'is-on': (i * 7) % 3 === 0 }" />
-        </view>
-        <text class="door__t">单元门 · {{ house?.fullName || '—' }}</text>
-        <text class="door__d">真实接入需对接门禁厂商（蓝牙/二维码/人脸），本轮只出占位码</text>
-        <view v-if="!can.door" class="banner banner--offline door__warn">
-          <view class="banner__ico"><text>!</text></view>
-          <text class="banner__t">您的租住资料尚未核验，门禁暂不可用</text>
-        </view>
-      </view>
-    </Sheet>
-
-    <!-- 我的车位（数据现成，先做只读） -->
-    <Sheet v-model:show="parkSheet" title="我的车位" sub="只读展示，续费与月卡在 P1">
-      <view v-for="p in parks" :key="p.parkId" class="park">
-        <text class="park__no">{{ p.parkNo }}</text>
-        <text class="park__d">{{ p.zone }} 区 · {{ p.category }} · 月租 ¥{{ p.feeStandard }}</text>
-        <text class="park__e">到期 {{ p.expireDate }}</text>
-      </view>
-      <Empty v-if="!parks.length" text="这套房没有绑定车位" />
-    </Sheet>
   </view>
 </template>
 
@@ -178,14 +153,10 @@ import { onShow } from '@dcloudio/uni-app'
 import Avatar from '@/components/Avatar.vue'
 import Cover from '@/components/Cover.vue'
 import Tag from '@/components/Tag.vue'
-import Sheet from '@/components/Sheet.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import Empty from '@/components/Empty.vue'
-import { parkings, vehicles } from '@pc/mock'
 import { app, isApproved, isPending, switchHouse } from '@/store/app'
 import {
   activeHouse,
-  boundHouseIds,
   debtSummary,
   myHouses,
   myOrders,
@@ -200,8 +171,6 @@ import { go, toast } from '@/utils/ui'
 import { can, gateLogin, gateOwner, gatePerm } from '@/utils/guard'
 
 const houseSheet = ref(false)
-const doorSheet = ref(false)
-const parkSheet = ref(false)
 const ver = ref(0)
 
 const approved = computed(() => {
@@ -248,11 +217,6 @@ const unbound = computed(() => {
 })
 const activities = computed(() => activityFeed(4))
 const notices = computed(() => noticeList().slice(0, 3))
-const parks = computed(() => {
-  const vid = new Set(vehicles.filter(v => v.ownerId && boundHouseIds().length && v.communityId === house.value?.communityId).map(v => v.parkId))
-  return parkings.filter(p => p.ownerId && (p.ownerId === app.bindings[0]?.ownerId || vid.has(p.parkId))).slice(0, 3)
-})
-
 const headerAddr = computed(() => (approved.value && house.value ? house.value.communityName : '智慧物业 · 业主服务'))
 const headerSub = computed(() => (approved.value ? `${app.session?.name || ''}，欢迎回家` : '未认证也可浏览社区内容'))
 
@@ -283,12 +247,13 @@ const services = computed(() => [
     run: () => go('/pages/repair/list')
   },
   {
+    /* 小区没有二维码闸机，实际是人脸识别通行 —— 这里给的是"我能不能刷脸"，不是开门指令（批次 80） */
     key: 'door',
-    icon: '门',
-    label: '手机开门',
+    icon: '脸',
+    label: '刷脸通行',
     bg: '#fff4e6',
     color: 'var(--biz-warning)',
-    run: () => (gateOwner('手机开门') ? (doorSheet.value = true) : null)
+    run: () => (gateOwner('刷脸通行') ? go('/pages/access/face') : null)
   },
   {
     key: 'park',
@@ -296,7 +261,8 @@ const services = computed(() => [
     label: '我的车位',
     bg: '#eef1ff',
     color: 'var(--biz-primary)',
-    run: () => (gateOwner('车位信息') ? (parkSheet.value = true) : null)
+    /* 车位从 Sheet 升级成独立页（批次 79）：要看车辆、月租与换绑记录，Sheet 放不下 */
+    run: () => (gateOwner('车位信息') ? go('/pages/park/index') : null)
   },
   {
     /* 租售信息：游客也能看列表与详情，所以**不挂门禁**（§13.3） */
@@ -442,16 +408,5 @@ function callSteward() {
 .hm__demo { margin-top: 30rpx; display: flex; gap: 12rpx; align-items: flex-start; }
 .hm__demo-d { flex: 1; font-size: 21rpx; color: var(--biz-text-4); line-height: 1.6; }
 
-.door { display: flex; flex-direction: column; align-items: center; }
-.door__qr { width: 300rpx; height: 300rpx; display: flex; flex-wrap: wrap; background: #fff; border: 2rpx solid var(--biz-border); border-radius: 16rpx; padding: 20rpx; }
-.door__px { width: 20%; height: 20%; }
-.door__px.is-on { background: var(--biz-text-1); }
-.door__t { margin-top: 20rpx; font-size: 26rpx; font-weight: 600; color: var(--biz-text-1); }
-.door__d { margin-top: 8rpx; font-size: 21rpx; color: var(--biz-text-4); text-align: center; line-height: 1.6; }
-.door__warn { width: 100%; margin-top: 18rpx; }
 
-.park { padding: 20rpx; border-radius: 16rpx; background: var(--biz-bg-fill); margin-bottom: 12rpx; }
-.park__no { font-size: 30rpx; font-weight: 700; color: var(--biz-text-1); font-family: var(--biz-font-num); }
-.park__d { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--biz-text-3); }
-.park__e { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--biz-text-4); }
 </style>

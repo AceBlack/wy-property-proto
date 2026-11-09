@@ -95,6 +95,34 @@
       }
     },
     {
+      "path": "pages/park/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的车位"
+      }
+    },
+    {
+      "path": "pages/park/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "车位详情"
+      }
+    },
+    {
+      "path": "pages/park/change",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "换绑车牌"
+      }
+    },
+    {
+      "path": "pages/access/face",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "刷脸通行"
+      }
+    },
+    {
       "path": "pages/house-sale/list",
       "style": {
         "navigationStyle": "custom",

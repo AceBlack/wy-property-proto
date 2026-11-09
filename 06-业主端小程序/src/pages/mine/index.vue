@@ -153,8 +153,8 @@ const grids = computed(() => [
   { key: 'repair', icon: '修', label: '报事报修', run: goRepair },
   { key: 'house', icon: '房', label: '我的房产', run: () => (gateOwner('我的房产') ? go('/pages/house/index') : null) },
   { key: 'util', icon: '水', label: '便民缴费', run: () => (gateOwner('便民缴费') ? go('/pages/utility/index') : null) },
-  { key: 'park', icon: '车', label: '我的车位', run: () => (gateOwner('车位信息') ? toast('车位详情在首页四宫格') : null) },
-  { key: 'door', icon: '门', label: '门禁钥匙', run: () => (gateOwner('门禁钥匙') ? toast('门禁钥匙在首页四宫格') : null) },
+  { key: 'park', icon: '车', label: '我的车位', run: () => (gateOwner('车位信息') ? go('/pages/park/index') : null) },
+  { key: 'door', icon: '脸', label: '刷脸通行', run: () => (gateOwner('刷脸通行') ? go('/pages/access/face') : null) },
   { key: 'family', icon: '家', label: '家庭账单', run: () => (gatePerm('bills', '家庭账单') ? go('/pages/bills/index') : null) },
   /* 租售信息是公开频道，但入口放在这里也合理；点了不拦（游客可直接看列表） */
   { key: 'sale', icon: '租', label: '租售信息', run: () => go('/pages/house-sale/list') }

@@ -13,8 +13,14 @@
           <view class="row__b">
             <text class="row__n">{{ m.name }}</text>
             <text class="row__d">{{ m.relation }} · {{ maskPhone(m.phone) }}</text>
+            <view class="mm__face">
+              <text class="mm__face-k">刷脸</text>
+              <Tag :text="faceLabel(m)" size="sm" :color="faceColor(m)" />
+              <text v-if="!m.certified" class="mm__face-d">核验后才能录</text>
+            </view>
           </view>
           <view class="row__acts">
+            <text v-if="m.certified" class="row__a" @tap="goFace(m)">录人脸</text>
             <text class="row__a" @tap="goForm('create')">编辑</text>
             <text class="row__a row__a--bad" @tap="remove(m)">解除</text>
           </view>
@@ -66,6 +72,7 @@ import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import Sheet from '@/components/Sheet.vue'
 import { removeMember } from '@/store/app'
+import { faceOf, memberKey } from '@/api/access'
 import { houseOf, residentsOf } from '@/api/mp'
 import { maskPhone } from '@/utils/format'
 import { go, toast } from '@/utils/ui'
@@ -87,6 +94,17 @@ onLoad(o => {
 onShow(() => {
   ver.value++
 })
+
+const faceLabel = m => faceOf(memberKey(m.memberId)).label
+const faceColor = m => {
+  const tone = faceOf(memberKey(m.memberId)).tone
+  return tone === 'ok' ? 'var(--biz-accent-dark)' : tone === 'danger' ? 'var(--biz-danger)' : tone === 'warn' ? 'var(--biz-warning)' : 'var(--biz-text-3)'
+}
+
+/** 帮家人录人脸：只对已核验成员开放（没核验就录脸等于给陌生人开门） */
+function goFace(m) {
+  go('/pages/access/face', { memberId: m.memberId, name: m.name })
+}
 
 function goForm(mode) {
   if (mode === 'invite') {
@@ -116,6 +134,9 @@ async function remove(m) {
 <style scoped>
 .page { min-height: 100vh; background: var(--biz-bg-page); }
 .body { padding: 20rpx 28rpx 50rpx; }
+.mm__face { margin-top: 6rpx; display: flex; align-items: center; gap: 10rpx; }
+.mm__face-k { font-size: 20rpx; color: var(--biz-text-4); }
+.mm__face-d { font-size: 20rpx; color: var(--biz-text-4); }
 .row { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 0; border-bottom: 2rpx solid var(--biz-border-light); }
 .row:last-of-type { border-bottom: none; }
 .row__b { flex: 1; min-width: 0; }
