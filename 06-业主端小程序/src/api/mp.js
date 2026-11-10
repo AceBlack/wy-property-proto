@@ -827,48 +827,6 @@ export async function confirmAddons(woId) {
   return orderOf(woId)
 }
 
-/**
- * 【演示态】模拟师傅现场加项。
- * 员工端把增项存在它自己的 store 里，两个工程运行时不通，业主端读不到 ——
- * 所以给一个显式入口，按约定形状写进 workOrders[].addons。真实环境由员工端写入，这个按钮要删。
- */
-export function demoAddAddon(woId, code = 'AD-D01', qty = 1) {
-  const wo = orderOf(woId)
-  if (!wo) throw new Error('工单不存在')
-  if (['已评价', '已关闭', '已取消'].includes(wo.status)) throw new Error('该单已结束，不能再加项')
-  const item = priceOfCode(code)
-  if (!item) throw new Error('增项价目不存在：' + code)
-  const fee = addonFee(item, qty)
-  const at = stamp()
-
-  writeAddons(woId, [
-    ...addonsOf(woId),
-    {
-      code: item.code,
-      name: item.name,
-      qty: Math.max(1, Number(qty) || 1),
-      material: fee.material,
-      labor: fee.labor,
-      total: fee.total,
-      at,
-      by: wo.assignee || '维修师傅',
-      confirmed: false,
-      confirmedAt: ''
-    }
-  ])
-
-  const patch = { status: '待确认' }
-  if (!wo.assignee) {
-    const emp = employees.find(e => e.position === '维修工' && e.orgId === `O-${wo.communityId}`) || null
-    patch.assignee = emp?.name || '维修师傅'
-    patch.assigneePhone = emp?.phone || ''
-  }
-  if (!wo.acceptTime) patch.acceptTime = at
-  if (!wo.arriveTime) patch.arriveTime = at
-  applyPatch(woId, patch)
-  return orderOf(woId)
-}
-
 export const EVAL_TAGS = ['准时上门', '穿着规范', '讲解清楚', '收拾干净', '收费透明', '态度好']
 export const EVAL_MOODS = [
   { score: 2, label: '不满意', icon: '☹' },

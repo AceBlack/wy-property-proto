@@ -110,12 +110,6 @@
         </view>
         <text v-if="wo.urgeCount" class="wd__urged">已催办 {{ wo.urgeCount }} 次 · 最近 {{ wo.urgedAt }}</text>
 
-        <!-- 演示：模拟加项 -->
-        <view v-if="canDemoAddon" class="wd__demo">
-          <text class="demo-tip">演示</text>
-          <text class="wd__demo-d">模拟师傅现场加一项（拆旧/清运 ¥80），写入 workOrders[].addons。</text>
-          <view id="demo-add" class="chip chip--demo" @tap="demoAdd"><text>模拟加项</text></view>
-        </view>
       </template>
     </view>
 
@@ -163,7 +157,6 @@ import {
   STATUS_TONE,
   confirmAddons,
   createOrderPay,
-  demoAddAddon,
   evaluateOrder,
   orderOf,
   stageOf
@@ -203,9 +196,6 @@ const statusText = computed(() => {
 const needPay = computed(() => !!(wo.value && wo.value.dueFee > 0 && !wo.value.pendingAddons.length))
 const canCancel = computed(() => wo.value && ['待派单', '已派单'].includes(wo.value.status))
 const canOperate = computed(() => wo.value && ['待派单', '已派单', '处理中'].includes(wo.value.status))
-const canDemoAddon = computed(
-  () => wo.value && ['待派单', '已派单', '处理中', '待确认'].includes(wo.value.status) && !wo.value.score
-)
 const mainAction = computed(() => {
   const w = wo.value
   if (!w) return null
@@ -289,15 +279,6 @@ async function submitEval() {
     toastErr(e.message || '评价失败')
   }
 }
-function demoAdd() {
-  try {
-    demoAddAddon(wo.value.woId, 'AD-D01', 1)
-    tick.value++
-    toastOk('已模拟 1 项现场增项')
-  } catch (e) {
-    toastErr(e.message || '加项失败')
-  }
-}
 function again() {
   uni.navigateTo({ url: `/pages/repair/create?scope=${wo.value?.isPublic ? 'public' : 'personal'}` })
 }
@@ -343,9 +324,6 @@ function again() {
 .wd__op { flex: 1; text-align: center; padding: 20rpx 0; border-radius: 16rpx; background: #fff; color: var(--biz-text-2); font-size: 24rpx; box-shadow: var(--biz-shadow-card); }
 .wd__op--bad { color: var(--biz-danger); }
 .wd__urged { display: block; margin-top: 14rpx; text-align: center; font-size: 20rpx; color: var(--biz-text-4); }
-
-.wd__demo { margin-top: 24rpx; display: flex; gap: 12rpx; align-items: center; flex-wrap: wrap; }
-.wd__demo-d { flex: 1; min-width: 340rpx; font-size: 21rpx; color: var(--biz-text-4); line-height: 1.55; }
 
 .ev__moods { display: flex; gap: 18rpx; }
 .ev__mood { flex: 1; padding: 22rpx 0; border-radius: 18rpx; background: var(--biz-bg-fill); display: flex; flex-direction: column; align-items: center; gap: 8rpx; border: 2rpx solid transparent; }

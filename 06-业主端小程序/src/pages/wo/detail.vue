@@ -8,8 +8,9 @@
   · 支付：未支付时给一张待支付订单，支付走模拟成功（不接真通道）。
   · 评价：写回 workOrders 的 score / evalTags / evaluate —— 与 PC、员工端同一组字段。
 
-  「模拟师傅加项」是**演示态**：员工端把增项存在它自己的 store 里，两个工程运行时不通，
-  业主端读不到；所以给一个显式入口，按约定形状写进 workOrders[].addons（详见 api/mp.js 注释）。
+  增项由**员工端现场加**（`POST /work-orders/{id}/addons`），业主端只做确认。
+  2026-11-08 删掉了原来的「模拟加项」按钮 —— 它能让业主给自己加一条收费项，
+  性质与"自己能审自己的发布"一样，不能留到交付。
 -->
 <template>
   <view class="page">
@@ -188,14 +189,6 @@
           <text v-if="wo.evaluate" class="wd__eval-text">{{ wo.evaluate }}</text>
         </view>
 
-        <!-- 演示入口 -->
-        <view v-if="canDemoAddon" class="wd__demo">
-          <text class="demo-tip">演示</text>
-          <text class="wd__demo-d">
-            模拟师傅现场加一项（拆旧 / 清运 ¥80），写入 workOrders[].addons 后本页出现"原价 / 增项 / 合计"三段。
-          </text>
-          <view id="demo-add" class="chip chip--demo" @tap="demoAdd"><text>模拟加项</text></view>
-        </view>
       </template>
     </view>
 
@@ -247,7 +240,6 @@ import {
   STATUS_TONE,
   confirmAddons,
   createOrderPay,
-  demoAddAddon,
   evaluateOrder,
   orderOf,
   timelineOf
@@ -278,9 +270,6 @@ const wo = computed(() => {
 })
 const nodes = computed(() => timelineOf(wo.value))
 const needPay = computed(() => !!(wo.value && wo.value.dueFee > 0 && !wo.value.pendingAddons.length))
-const canDemoAddon = computed(
-  () => wo.value && ['待派单', '已派单', '处理中', '待确认'].includes(wo.value.status) && !wo.value.score
-)
 /* 状态文案：还有待付时不能说"待评价"，业主会以为已经完事了 */
 const statusText = computed(() => {
   const w = wo.value
@@ -373,16 +362,6 @@ async function submitEval() {
     toastOk('评价已提交')
   } catch (e) {
     toastErr(e.message || '评价失败')
-  }
-}
-
-function demoAdd() {
-  try {
-    demoAddAddon(wo.value.woId, 'AD-D01', 1)
-    tick.value++
-    toastOk('已模拟 1 项现场增项')
-  } catch (e) {
-    toastErr(e.message || '加项失败')
   }
 }
 
@@ -589,21 +568,6 @@ function againRepair() {
 }
 
 /* ---------- 演示 ---------- */
-.wd__demo {
-  margin-top: 26rpx;
-  display: flex;
-  gap: 12rpx;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.wd__demo-d {
-  flex: 1;
-  min-width: 360rpx;
-  font-size: 21rpx;
-  color: var(--biz-text-4);
-  line-height: 1.55;
-}
 
 /* ---------- 评价弹层 ---------- */
 .ev__stars {

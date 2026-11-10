@@ -47,8 +47,6 @@
           </view>
 
           <view class="it__acts">
-            <view v-if="i.status === '待审核'" class="btn btn--sm btn--line" @tap="simAudit(i, true)"><text>模拟通过（演示）</text></view>
-            <view v-if="i.status === '待审核'" class="btn btn--sm btn--line" @tap="openReject(i)"><text>模拟驳回（演示）</text></view>
             <view v-if="i.status === '已上架'" class="btn btn--sm btn--line" @tap="offline(i)"><text>下架</text></view>
             <view v-if="['已驳回', '已下架'].includes(i.status)" class="btn btn--sm btn--primary" @tap="renew(i)"><text>重新提交</text></view>
             <view class="btn btn--sm btn--ghost" @tap="goItem(i.itemId)"><text>查看</text></view>
@@ -114,11 +112,6 @@
       </template>
     </view>
 
-    <!-- 驳回理由 -->
-    <Sheet v-model:show="rejectSheet" title="模拟驳回" sub="员工端驳回必须写理由，业主端原样展示">
-      <textarea v-model="rejectReason" class="textarea my__text" maxlength="60" placeholder="例如：照片拍到了门牌号，请重拍室内" placeholder-class="ph" />
-      <view id="reject-submit" class="btn btn--primary my__submit" @tap="doReject"><text>确认驳回</text></view>
-    </Sheet>
   </view>
 </template>
 
@@ -128,10 +121,8 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
-import Sheet from '@/components/Sheet.vue'
 import {
   cancelActivityEnroll,
-  demoAuditItem,
   myEnrollments,
   myItems,
   myRefundOf,
@@ -153,9 +144,6 @@ const TABS = [
 
 const tab = ref('item')
 const ver = ref(0)
-const rejectSheet = ref(false)
-const rejectReason = ref('')
-const rejectTarget = ref('')
 
 const items = computed(() => {
   ver.value
@@ -209,34 +197,6 @@ const backToNeighbor = tab => {
 const goActivityTab = () => backToNeighbor('activity')
 const goVoteTab = () => backToNeighbor('vote')
 
-function simAudit(i, pass) {
-  try {
-    demoAuditItem(i.itemId, pass)
-    ver.value++
-    toastOk(pass ? '已模拟通过，内容已上架' : '已驳回')
-  } catch (e) {
-    toastErr(e.message || '操作失败')
-  }
-}
-
-function openReject(i) {
-  rejectTarget.value = i.itemId
-  rejectReason.value = ''
-  rejectSheet.value = true
-}
-
-function doReject() {
-  const why = rejectReason.value.trim()
-  if (!why) return toast('驳回必须写理由')
-  try {
-    demoAuditItem(rejectTarget.value, false, why)
-    rejectSheet.value = false
-    ver.value++
-    toastOk('已驳回，理由会展示给业主')
-  } catch (e) {
-    toastErr(e.message || '操作失败')
-  }
-}
 
 function offline(i) {
   uni.showModal({

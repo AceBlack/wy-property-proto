@@ -664,29 +664,6 @@ export async function renewMyItem(itemId) {
   persist()
 }
 
-/**
- * 【演示】模拟物业审核。
- * 审核在员工端做（§12.7），业主端只读状态；没有员工端运行时联动，
- * 所以给一个显式按钮，让"通过 / 驳回（带理由）"两种结果都能演 —— 与模拟支付同一性质。
- */
-export function demoAuditItem(itemId, pass, reason = '') {
-  const why = String(reason || '').trim()
-  if (!pass && !why) throw new Error('驳回必须写理由')
-  app.itemPosts = app.itemPosts.map(i =>
-    i.itemId === itemId
-      ? {
-          ...i,
-          status: pass ? '已上架' : '已驳回',
-          rejectReason: pass ? '' : why,
-          reviewer: '物业服务中心（演示）',
-          reviewedAt: stamp(),
-          publishAt: pass ? stamp() : i.publishAt
-        }
-      : i
-  )
-  persist()
-}
-
 export async function toggleWant(itemId) {
   if (IS_API) {
     const r = await post(`/mp/neighbor/items/${itemId}/want`)
