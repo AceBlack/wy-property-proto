@@ -26,6 +26,8 @@ import {
   updateMyContact
 } from '@pc/utils/api'
 import { withRole, withRoleOf } from './neighbor'
+import { IS_API, get, loginAs, patch, post } from './client'
+import { persona as currentPersona } from '@/store/app'
 
 /**
  * 「已等 6 小时」这种话比时间戳有用：看房这条线靠的就是等多久。
@@ -65,31 +67,60 @@ function mine(row, p) {
  * 楼管没有 `n.items.audit`，只看到房源。
  */
 export async function listingAuditQueueOf(personaLike) {
-  /* 读用「全部项目」取全量，再自己按项目 / 责任楼管收 —— 见 withRoleOf 的注释 */
+  /*
+   * HTTP 模式：服务端已按角色收敛范围（总经理全部项目 / 项目经理本项目 / 楼管责任范围），
+   * 前端不再自己 `mine()` —— 两边各筛一遍，一旦规则不同就会出现"PC 有 5 条、手机 3 条"。
+   */
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    const r = await get(`/listings?status=${encodeURIComponent('待审核')}&size=100`)
+    return (r.rows || []).map(row => ({
+      ...row, wait: waitText(row.hoursWaiting), tone: row.overdue ? 'is-bad' : ''
+    }))
+  }
   const r = await withRoleOf('R-GM', () => queryListings({ size: 100, filters: { status: '待审核' } }))
   return r.rows
     .filter(row => mine(row, personaLike))
     .map(row => ({ ...row, wait: waitText(row.hoursWaiting), tone: row.overdue ? 'is-bad' : '' }))
 }
 
-export function listingOf(listingId) {
+export async function listingOf(listingId) {
+  if (IS_API) {
+    if (currentPersona.value?.id) await loginAs(currentPersona.value.id)
+    return get(`/listings/${listingId}`)
+  }
   return withRoleOf('R-GM', () => getListing(listingId))
 }
 
-export function audit(personaLike, listingId, { pass, reason = '' } = {}) {
+export async function audit(personaLike, listingId, { pass, reason = '' } = {}) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    if (!pass && !String(reason || '').trim()) throw new Error('驳回要写理由，业主会拿着通知来问')
+    return post(`/listings/${listingId}/audit`, { pass, reason: String(reason || '').trim() })
+  }
   return withRole(() => pcAuditListing(listingId, { pass, reason }))
 }
 
 /* ---------- 看房请求 ---------- */
 
 export async function viewingsOf(personaLike, { status = '待联系' } = {}) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    const qs = status ? `?status=${encodeURIComponent(status)}&size=100` : '?size=100'
+    const r = await get(`/listings/viewings${qs}`)
+    return (r.rows || []).map(row => ({ ...row, wait: waitText(row.hoursWaiting), tone: waitTone(row) }))
+  }
   const r = await withRoleOf('R-GM', () => queryViewings({ size: 100, filters: { status } }))
   return r.rows
     .filter(row => mine(row, personaLike))
     .map(row => ({ ...row, wait: waitText(row.hoursWaiting), tone: waitTone(row) }))
 }
 
-export function viewingOf(viewingId) {
+export async function viewingOf(viewingId) {
+  if (IS_API) {
+    if (currentPersona.value?.id) await loginAs(currentPersona.value.id)
+    return get(`/listings/viewings/${viewingId}`)
+  }
   return withRoleOf('R-GM', () => getViewing(viewingId))
 }
 
@@ -97,7 +128,11 @@ export function viewingOf(viewingId) {
  * 标记已联系 / 已关闭。
  * `note` 必填写在数据层（PC 也会拦）—— 下个人接手要知道聊到哪了。
  */
-export function contactViewing(personaLike, viewingId, { status = '已联系', note } = {}) {
+export async function contactViewing(personaLike, viewingId, { status = '已联系', note } = {}) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/listings/viewings/${viewingId}/contact`, { status, note: String(note || '') })
+  }
   return withRole(() => markViewingContacted(viewingId, { status, note, operator: personaLike?.name || '' }))
 }
 
@@ -109,11 +144,19 @@ export function contactViewing(personaLike, viewingId, { status = '已联系', n
  * 反而判成"改他人"。所以固定用宿主角色 + 显式传自己的 empId ——
  * 界面只会传登录人自己的 empId，这一点由调用方保证（见 mine 页）。
  */
-export function myContactOf(personaLike) {
+export async function myContactOf(personaLike) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return get('/listings/my-contact')
+  }
   return myContact(personaLike?.empId || '')
 }
 
-export function saveMyContact(personaLike, body) {
+export async function saveMyContact(personaLike, body) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return patch('/listings/my-contact', body)
+  }
   return updateMyContact(body, personaLike?.empId || '')
 }
 

@@ -12,7 +12,10 @@
     "prebuild:h5": "npm run check:schema",
     "verify:api": "node scripts/verify-api.mjs",
     "verify:wo": "node scripts/verify-wo.mjs",
-    "verify:oa": "node scripts/verify-oa.mjs"
+    "verify:oa": "node scripts/verify-oa.mjs",
+    "verify:building": "node scripts/verify-building.mjs",
+    "verify:neighbor": "node scripts/verify-neighbor.mjs",
+    "verify:listing": "node scripts/verify-listing.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5030420261029002",

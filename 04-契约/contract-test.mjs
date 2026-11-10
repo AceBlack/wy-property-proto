@@ -7535,6 +7535,50 @@ test('员工端工单：按身份分 tab，金额只算已确认的增项', asyn
   eq(after.data.fee.paid, 30, '已收金额同步')
 })
 
+test('员工端欠费：一户一行，跳过近 7 天已催，汇总不随筛选变', async () => {
+  token = await login('wang-lei')
+  const all = await call('GET', '/mobile/debts', { query: { skipRecent: 'false' } })
+  eq(all.status, 200, `楼管能取欠费（${all.message}）`)
+  assertSchema(all, 'MobileDebtsEnvelope', 'GET /mobile/debts')
+  assert(all.data.rows.length > 0, `应有欠费户（${all.data.rows.length}）`)
+
+  /* 一户一行：houseId 不能重复 */
+  const ids = all.data.rows.map(r => r.houseId)
+  eq(new Set(ids).size, ids.length, '一户一行（houseId 不重复）')
+
+  /* 每户欠费 = 该户各账之和 */
+  for (const r of all.data.rows.slice(0, 5)) {
+    near(r.debt, r.items.reduce((s2, x) => s2 + x.unpaid, 0), 0.01, `${r.houseName} 欠费 = 各账之和`)
+  }
+
+  /* 汇总按全范围：不筛的时候，合计应等于各行之和 */
+  const sumRows = all.data.rows.reduce((s2, r) => s2 + r.debt, 0)
+  near(all.data.summary.debtAmount, sumRows, 0.01, '欠费合计 = 各行之和')
+
+  /*
+   * 跳过近 7 天已催：这是催收页的核心口径 ——
+   * 不跳的话，楼管打开看到的全是"上周刚打过"的户。
+   */
+  const work = await call('GET', '/mobile/debts')
+  assert(work.data.rows.length <= all.data.rows.length,
+    `跳过后不应变多：${work.data.rows.length} vs ${all.data.rows.length}`)
+  assert(work.data.rows.every(r => !(r.lastCollect && r.gapDays < 7)),
+    '工作集里不能有 7 天内已催过的户')
+  near(work.data.summary.debtAmount, all.data.summary.debtAmount, 0.01,
+    '筛掉已催的户后，汇总合计不变（它按全范围算）')
+
+  /* 账龄筛选：留下来的每一户都得够老 */
+  const aging = await call('GET', '/mobile/debts', { query: { aging: '30', skipRecent: 'false' } })
+  assert(aging.data.rows.every(r => r.maxOverdue >= 30), '账龄≥30 的筛选要真的过滤')
+  assert(aging.data.rows.length <= all.data.rows.length, '筛选只会变少')
+
+  /* 一线没有楼栋权限：403，不是空列表 */
+  token = await login('zhou-ming')
+  const denied = await call('GET', '/mobile/debts')
+  eq(denied.status, 403, '一线看欠费要 403')
+  assert(String(denied.message).includes('a.stewards.view'), `说明缺哪个权限位：${denied.message}`)
+})
+
 test('员工端审批：待办按节点审批人判，不是按申请人', async () => {
   /* 项目经理徐悦：有待办（项目经理审批节点） */
   token = await login('xu-yue')

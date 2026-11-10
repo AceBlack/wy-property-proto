@@ -3777,6 +3777,50 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /mobile/debts:
+    get:
+      tags: [mobile]
+      operationId: mobileDebts
+      summary: 员工端欠费户与催收工作集
+      description: |
+        一个接口同时服务「楼栋首页的欠费户列表」和「催收页的工作集」——
+        两者是同一个东西（欠费户），差别只在筛选条件。拆成两条会出现
+        "首页显示 12 户、催收页显示 9 户"，用户会怀疑哪边算错了。
+
+        **按房屋聚合，不是按账单**：一户一行。楼管打电话是打给"这户"，
+        而不是打过期的水费和物业费各一次。
+
+        `skipRecent` 默认 **true**：跳过近 7 天已催过的户。
+        一屏全是"刚催过"的，等于把今天该打的电话淹掉。
+
+        `summary` 永远按**全范围**算，不随 `aging` / `item` 筛选变小 ——
+        否则"欠费合计"会跟着筛选条件跳动。
+      x-permission: a.stewards.view
+      parameters:
+        - name: buildingId
+          in: query
+          schema: { type: string }
+        - name: aging
+          in: query
+          description: 账龄下限（天），30 / 60
+          schema: { type: string }
+        - name: item
+          in: query
+          description: 费项，如 物业服务费 / 水费 / 电费
+          schema: { type: string }
+        - name: skipRecent
+          in: query
+          description: 是否跳过近 7 天已催的户，缺省 true
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileDebtsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /mobile/collections:
     post:
       tags: [mobile]
@@ -15009,6 +15053,78 @@ components:
                       title: { type: string }
                       memo: { type: string }
                       done: { type: boolean }
+
+    MobileDebtsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [summary, buildings, rows, total]
+              properties:
+                summary:
+                  type: object
+                  description: 按**全范围**统计，不随筛选变化
+                  properties:
+                    buildingCount: { type: integer }
+                    houseCount: { type: integer }
+                    billCount: { type: integer }
+                    payable: { type: number, description: 应收合计 }
+                    paid: { type: number, description: 已收合计 }
+                    rate: { type: number, description: '收缴率（百分数）；缺了页面 toFixed 会白屏' }
+                    debtHouseCount: { type: integer }
+                    debtHouses: { type: integer, description: 与 debtHouseCount 同值（旧字段名） }
+                    debtCount: { type: integer, description: 欠费账单条数（一户可能多张） }
+                    debtAmount: { type: number }
+                buildings:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      buildingId: { type: string }
+                      name: { type: string }
+                      floors: { type: integer }
+                      houses: { type: integer }
+                      houseCount: { type: integer }
+                      debtHouseCount: { type: integer }
+                      debtAmount: { type: number }
+                rows:
+                  type: array
+                  description: 一户一行（不是一账一行）
+                  items:
+                    type: object
+                    properties:
+                      houseId: { type: string }
+                      houseName: { type: string }
+                      buildingId: { type: string }
+                      ownerId: { type: string }
+                      ownerName: { type: string }
+                      phone: { type: string, description: 前端按岗位决定是否脱敏 }
+                      debt: { type: number, description: 该户欠费合计 = items 之和 }
+                      maxOverdue: { type: integer }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            billId: { type: string }
+                            itemName: { type: string }
+                            period: { type: string }
+                            unpaid: { type: number }
+                            overdueDays: { type: integer }
+                      lastCollect:
+                        type: object
+                        nullable: true
+                        description: 最近一次催缴；从没催过是 null（不是空对象）
+                        properties:
+                          at: { type: string }
+                          method: { type: string }
+                          status: { type: string }
+                          round: { type: integer }
+                          operator: { type: string }
+                      gapDays: { type: integer, description: '距上次催缴的天数；从未催过是 999' }
+                total: { type: integer }
 
     MobileApprovalListEnvelope:
       allOf:

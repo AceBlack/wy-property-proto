@@ -1601,3 +1601,253 @@ async function asPersona(idx, name) {
 
 **这不是让测试变松**：抛错会让套件更快地停在一个明确的位置，
 而不是拿一堆假错去误导下一轮的人。
+
+---
+
+## 二十四、楼栋域切到 HTTP（B 档第 4 站）
+
+### 24.1 契约的两处缺口
+
+| 缺口 | 具体 |
+|---|---|
+| 没有欠费接口 | 只有 `/houses/{id}` 和 `/mobile/houses/{id}/residents`，没有"我负责的楼栋欠了多少钱" |
+| 没有催收历史 | `collectionRecords`（186 条）只在 PC 侧，契约里没有 —— 工作集的"距上次催 N 天"会全是空 |
+
+补法：
+- `fixtures/collection-records.json`（P01 的 150 条），由 `gen:mobile` 生成；
+- `GET /mobile/debts?buildingId=&aging=&item=&skipRecent=`。
+
+### 24.2 一个接口服务两个页面
+
+楼栋首页的「欠费户列表」和催收页的「工作集」是**同一个东西**（欠费户），差别只在筛选。拆两条会出现
+"首页显示 12 户、催收页显示 9 户"，用户会怀疑哪边算错了。
+
+三条口径写在接口上：
+1. **按房屋聚合，不是按账单**：一户一行。楼管打电话是打给"这户"，不是打过期的水费和物业费各一次。
+2. **`skipRecent` 默认 true**，跳过近 7 天已催的户。一屏全是"刚催过"的，等于把今天该打的电话淹掉。
+3. **`summary` 永远按全范围算**，不随 `aging` / `item` 筛选变小 —— 否则"欠费合计"会跟着筛选条件跳动。
+
+**两个页面的 `skipRecent` 必须传不同的值**：首页要 `false`（全部欠费户）、工作集要 `true`。
+首页也跳的话，用户会以为"这几户已经缴清了"。
+
+### 24.3 05 侧
+
+只留**最近一次拉的结果**（`LAST_DEBT`），不做多份缓存：一个页面同一时刻只有一种筛选，
+多份反而要处理"这份是哪个筛选的"。切筛选时页面重新 `loadDebts(...)`，`ver++` 重算。
+
+批量催收走 `/mobile/collections/batch`，写完之后**必须重新拉一次** —— 刚催过的户会从工作集里消失。
+
+### 24.4 三个坑
+
+1. **`allowed` 少了 `ver` 依赖**：楼栋首页有个"只对楼栋管家开放"的锁屏，判定用
+   `scopeRowsCount() > 0`。HTTP 模式下这个值来自刚拉回来的数据，第一帧是 0 ——
+   不重算的话页面**一直停在锁屏上**，而下面几条 computed 都有 `ver`，看着像"数据到了但门没开"。
+2. **逐字段挑字段会漏**：`scopeSummary` 的 HTTP 分支我一开始只挑了 7 个字段，
+   漏掉 `rate`（收缴率），页面 `s.rate.toFixed(1)` 直接报 `undefined.toFixed` 白屏。
+   改成 `{ ...d.summary, buildings }` 整包透传，以后服务端加字段这里不用再改。
+3. **按费项筛要截断 items**：服务端一开始只过滤了行、没截断 `items`，
+   于是"选了水费，卡片上显示的却是水费+物业费的合计"——电话打过去报的数和业主查到的不一致。
+   已改成：筛费项时 `items` 只留该费项、`debt` 与 `maxOverdue` 也按该费项重算。
+
+### 24.5 验证
+
+| 项 | 结果 |
+|---|---|
+| `05 npm run verify:building`（HTTP） | **8/8** |
+| `04 npm test` | **275/275**（+1 条欠费断言） |
+| `05 npm run smoke`（mock） | **197/197** |
+| 契约规模 | 297 路径 / 342 接口 / 364 schema |
+
+```
+楼栋首页：8 栋 / 352 房 / 欠费 28 户 / ¥12,093.79（走 /mobile/debts?skipRecent=false）
+催收工作集：14 户（走 ?skipRecent=true，跳过近 7 天已催的）
+```
+
+新断言守的：一户一行（houseId 不重复）、每户欠费 = 各账之和、跳过后工作集不含 7 天内催过的、
+筛选变化时 `summary` 合计不变、一线看欠费 403 而不是空列表。
+
+### 24.6 下一轮
+
+剩下：**邻里 → 租售**（两个域都比楼栋轻）。邻里涉及待审/举报/活动/代报名，租售是房源审核与看房请求。
+
+楼栋域还有一半没切：房屋详情（`houseDetailOf`）、住户档案、业主标签、租户核验 ——
+这些是「住户档案」子域，和欠费不同源，建议单独一轮。
+
+---
+
+## 二十五、邻里域切到 HTTP（B 档第 5 站）—— 附带挖出权限字典的系统性漂移
+
+### 25.1 这个域契约零改动
+
+邻里的 PC 接口（`/neighbor/items`、`/neighbor/reports`、`/neighbor/activities`…）本来就是
+为「待审队列」设计的，权限码 `n.items.*` / `n.reports.*` / `n.activities.*` 与员工端的 `CAP` 完全对得上。
+
+所以**没有新增 `/mobile/neighbor/*`** —— 直接调 PC 接口，只补两层过滤（按登录人项目、只取待审/待处理）。
+
+### 25.2 但一跑就 403，挖出权限字典漂移
+
+HTTP 模式下汪磊（客服主管）的邻里待办是 **0 条**，控制台一片 403。
+
+查下来：**契约的角色授权里，所有角色一条 `n.*` 都没有**。而 PC seed 里 R-SEC / R-PM 是有完整邻里权限的。
+
+再一比对，问题是**系统性的**：
+
+| | PC seed | 契约 fixture |
+|---|---|---|
+| 权限码表 | 114 条 | **92 条**（落后 23 条：邻里、多经、开票设置…） |
+| 角色授权 | — | 13 个角色合计**少 106 条** |
+
+契约的 roles / permissions 停在 2026-10-30 的快照，之后 PC 陆续加了模块，契约没跟上。
+
+**修的顺序不能反**：先补**码表**（92 → 115），再补角色授权（+106）。
+反过来的话，角色会引用一批"码表里不存在"的权限，`/roles` 那条覆盖度断言会直接红
+（GM 应拿「全部权限位 - 执行类」，码表没补时算出来是 91，而实际授了 114）。
+
+补完自洽：GM = 115 − 1（`f.inspect.exec` 是执行类，通配 view/edit 覆盖不到）= 114 ✓
+
+> 这是第三次撞到同一类问题：R-SEC 没有工单权限、组织负责人表正职错人，现在又是邻里权限。
+> 共同点是**契约在"抄" PC 的时候只抄了当批新增的，没做全量对齐**。
+> 下次动 PC 的角色/组织数据，建议顺手跑一次全量 diff，而不是等某次切换才暴露。
+
+### 25.3 05 侧：页面几乎不用改
+
+邻里域原来就是 `await queryItems(...)` 的异步写法，所以只在 `neighbor.js` 里加 HTTP 分支，
+页面只需给三个写操作补 `await`（`pass` / `doReject` / `submit`）。
+
+| 函数 | 接口 |
+|---|---|
+| `todoOf` | `/neighbor/items?status=待审核` + `/neighbor/reports?status=待处理` |
+| `itemOf` / `reportOf` | `/neighbor/items/{id}` / `/neighbor/reports/{id}` |
+| `audit` / `offline` | `POST .../audit` / `POST .../offline` |
+| `handle` | `POST /neighbor/reports/{id}/handle` |
+
+服务端的详情直接返回行（不是包在 `{item}` 里），所以 `itemOf` 只是补两个派生字段（楼栋、等待时长）。
+
+### 25.4 验证
+
+| 项 | 结果 |
+|---|---|
+| `05 npm run verify:neighbor`（HTTP） | **8/8** |
+| `04 npm test` | **275/275** |
+| `05 npm run smoke`（mock） | **197/197** |
+
+```
+汪磊待办：待审 3 / 待处理 2 → 点进 SH0101 → 审核通过
+→ POST /neighbor/items/SH0101/audit → 回待办变成 待审 2
+```
+
+**「审完待办从 3 降到 2」这一条是关键**：它同时证明读走接口、写也走接口，
+而且服务端的状态变更真的反映到了列表上。
+
+### 25.5 下一轮
+
+剩 **租售**（房源审核 + 看房请求 + 联系方式揭示）。同样大概率能直接复用 PC 的 `/listing/*` 接口，
+权限码 `l.*` 也要先确认在契约里存在 —— 按上面这轮的教训，**先查码表和角色授权，再动手**。
+
+邻里域还剩活动部分没切（`activitiesOf` / `activityOf` / `enrollsOf` / `enroll` / `cancel` / `refund` / `checkin`）：
+活动涉及退款分档、名额校验、签到，规则比审核复杂，建议单独一轮。
+
+---
+
+## 二十六、租售域切到 HTTP（B 档第 6 站，最后一站）
+
+### 26.1 权限这次是齐的
+
+按上一轮的教训，动手前先查了码表与角色授权：
+
+- 码表里 `a.listings.view / a.listings.audit / a.listings.viewing` **三条都在**；
+- R-PM / R-STW 三条全有，R-SEC / R-ENG 没有 —— 与业务一致（租售归项目经理与楼栋管家）。
+
+**没有踩到邻里的坑**。上一轮把码表和角色授权补齐之后，这次直接可用了。
+
+### 26.2 契约零改动，而且范围收敛本来就对
+
+`/listings` 的 `description` 里写着「数据范围按角色收敛：总经理全部项目、项目经理本项目、
+楼管责任范围（按 houseIds）」—— 正是员工端要的。
+
+所以 05 侧的 `mine()`（前端按项目/责任楼管再筛一遍）在 HTTP 模式下**必须去掉**：
+两边各筛一遍，规则一旦不同就会出现"PC 有 5 条、手机 3 条"这种谁也说不清的问题。
+
+### 26.3 05 侧
+
+`listing.js` 只有 133 行 / 11 个导出，是六个域里最轻的。8 个函数加 HTTP 分支：
+
+| 函数 | 接口 |
+|---|---|
+| `listingAuditQueueOf` | `/listings?status=待审核`（范围由服务端收敛） |
+| `listingOf` | `/listings/{id}` |
+| `audit` | `POST /listings/{id}/audit` |
+| `viewingsOf` / `viewingOf` | `/listings/viewings?status=` / `/listings/viewings/{id}` |
+| `contactViewing` | `POST /listings/viewings/{id}/contact` |
+| `myContactOf` / `saveMyContact` | `GET` / `PATCH /listings/my-contact` |
+
+页面本来就是 `await` 形式，**一行没改**。
+
+有一个小坑：`listingOf` / `viewingOf` 没有 persona 参数（页面直链进来也可能调用），
+从 `@/store/app` 取当前身份 —— 确认过 `store/app.js` 不 import `listing.js`，不会成环。
+
+### 26.4 验证
+
+| 项 | 结果 |
+|---|---|
+| `05 npm run verify:listing`（HTTP） | **6/6** |
+| `04 npm test` | **275/275** |
+| `05 npm run smoke`（mock） | **197/197** |
+
+```
+莫瑞（楼栋管家）租售待审 3 条 → LS00001 → 通过 → POST /listings/LS00001/audit
+顺带验到：看房请求走 /listings/viewings?status=待联系
+```
+
+---
+
+## 二十七、B 档总览：六个域已全部切到 HTTP
+
+| 域 | 覆盖 | 验证脚本 | 契约改动 |
+|---|---|---|---|
+| 巡检 | 列表 → 详情 → 执行 → 打卡 → 转工单 | `verify:api` | 加 `plan` / `community`，补巡检计划 fixture |
+| 工单 | 列表 → 详情 → 抢单/放弃/完工/收款 | `verify:wo` | 新增 2 条 `/mobile/work-orders*`、收款流水、应收口径统一 |
+| 审批 | 三页签 → 详情 → 同意/驳回 → 发起 | `verify:oa` | 新增 2 条 `/mobile/approvals*`、审批种子、关系表对齐 |
+| 楼栋 | 欠费户 + 催收工作集 + 批量登记 | `verify:building` | 新增 `/mobile/debts`、催收历史 fixture |
+| 邻里 | 待办 → 闲置审核 → 举报处理 | `verify:neighbor` | **零改动**（PC 接口够用） |
+| 租售 | 待审 → 挂牌审核 → 看房请求 | `verify:listing` | **零改动** |
+
+**六条验证脚本，每条都验到「写操作真的落到服务端并且反映回列表」**，而不只是"页面能打开"。
+
+### 27.1 六轮下来反复出现的四类问题
+
+1. **契约落后于 PC**（最频繁）：权限码表少 23 条、角色授权少 106 条、组织负责人正职错人、
+   审批单一条种子都没有、催收历史只在 PC 侧。共同点是「抄 PC 时只抄当批新增的」。
+   **建议**：动 PC 的角色/组织/种子数据时顺手跑一次全量 diff。
+2. **服务端行形状与前端页面不一致**：`woId` vs `id`、`approvalId` vs `id`、
+   扁平 summary vs `s.buildings`。每次都要补一层 `adaptRow` —— 但这层**必须补**，
+   否则页面会以"卡片 id 是 undefined"这种形式坏掉，很难查。
+3. **computed 缺 `ver` 依赖**：HTTP 模式下数据是异步来的，第一帧为空。
+   `allowed` / `rows` / `s` 只要有一个没带 `ver`，就会出现"数据到了但门没开"。
+4. **"读写必须一起切"**：只切读不切写，写操作改本地种子、列表读接口，
+   用户抢完单回列表发现"还在池子里"。工单、审批、邻里、租售都是按这个原则做的。
+
+### 27.2 遗留
+
+| 项 | 说明 |
+|---|---|
+| 审批动作无权限校验 | `POST /oa/requests/{id}/action` 不校验"我是不是当前审批人"，任何人拿到 id 都能审 —— **安全问题**，改它会牵动 4-5 条既有测试的数据设计，建议单独一轮 |
+| 邻里活动未切 | 报名/退款分档/名额校验/签到，规则比审核复杂 |
+| 楼栋住户档案未切 | 房屋详情、住户、业主标签、租户核验 —— 与欠费不同源 |
+| 工单可抢单只有 1 张 | 契约 fixture 只有 120 条、P01 可抢 1 张（seed 有 8 张），演示前可能要补 |
+| store 里的本地写缓存 | `claims` / `addOns` / `pays` / `abandons` 在 HTTP 模式下已不写但仍留着（mock 路径要用） |
+
+### 27.3 怎么跑
+
+```bash
+# mock 模式（默认，演示用）
+cd 05-员工端APP && npm run dev:h5 && npm run smoke        # 197
+
+# HTTP 模式（验证接口形状）
+cd 04-契约 && node mock-server.mjs                         # 假服务 :4010
+cd 05-员工端APP && VITE_USE_API=true npm run dev:h5
+npm run verify:api && npm run verify:wo && npm run verify:oa \
+  && npm run verify:building && npm run verify:neighbor && npm run verify:listing
+```
+
+⚠️ 每条 verify 之前**都要重启假服务** —— 它是内存态，写操作会改数据，重跑会从"已改过"的状态开始。

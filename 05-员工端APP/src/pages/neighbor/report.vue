@@ -93,13 +93,13 @@ async function load() {
   d.value = await reportOf(reportId.value)
 }
 
-function submit() {
+async function submit() {
   if (!note.value.trim()) {
     toastErr('处理说明必填 —— 事后要能解释为什么这么判')
     return
   }
   try {
-    handle(persona.value, reportId.value, { action: action.value, note: note.value.trim() })
+    await handle(persona.value, reportId.value, { action: action.value, note: note.value.trim() })
     toastOk('已处理')
     setTimeout(() => uni.navigateBack(), 600)
   } catch (e) {

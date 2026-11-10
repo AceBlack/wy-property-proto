@@ -31,6 +31,7 @@ import {
   refundRatioOf
 } from '@pc/utils/api'
 import { currentRoleId, setRole } from '@pc/utils/auth'
+import { IS_API, get, loginAs, post } from './client'
 import { persona } from '@/store/app'
 
 /** 按登录人角色执行；同步/异步都还原（租售域也复用它，别再抄一份） */
@@ -122,6 +123,29 @@ export function buildingOf(houseCode) {
  */
 export async function todoOf({ items = true, reports = true } = {}) {
   const out = { items: [], reports: [], counts: { items: 0, reports: 0, total: 0 } }
+
+  /*
+   * HTTP 模式：PC 的 `/neighbor/items` 与 `/neighbor/reports` 本来就是给
+   * "待审队列"设计的（待审永远排最前），不用再造一层 `/mobile/*`。
+   * 两层过滤要补上：① 按登录人项目；② 只取待审/待处理。
+   */
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    if (items) {
+      const r = await get(`/neighbor/items?status=${encodeURIComponent('待审核')}&size=100&communityId=${cid()}`)
+      out.items = (r.rows || []).map(x => ({ ...x, building: buildingOf(x.sellerHouse), wait: waitText(x.publishAt) }))
+      out.counts.items = r.total || out.items.length
+    }
+    if (reports) {
+      const r = await get(`/neighbor/reports?status=${encodeURIComponent('待处理')}&size=100`)
+      out.reports = (r.rows || [])
+        .filter(x => !x.communityId || x.communityId === cid())
+        .map(x => ({ ...x, building: buildingOf(x.reporterHouse), wait: waitText(x.at) }))
+      out.counts.reports = out.reports.length
+    }
+    out.counts.total = out.counts.items + out.counts.reports
+    return out
+  }
   if (items) {
     const r = await queryItems({ size: 100, filters: { communityId: cid(), status: '待审核' } })
     out.items = r.rows
@@ -141,22 +165,42 @@ export async function todoOf({ items = true, reports = true } = {}) {
 /* ---------- 闲置审核 ---------- */
 
 export async function itemOf(itemId) {
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    const r = await get(`/neighbor/items/${itemId}`)
+    return { ...r, building: buildingOf(r.sellerHouse), wait: waitText(r.publishAt) }
+  }
   const i = await getItem(itemId)
   if (!i) return null
   return { ...i, building: buildingOf(i.sellerHouse), wait: waitText(i.publishAt) }
 }
 
-export function audit(personaLike, itemId, { pass, reason = '' } = {}) {
+export async function audit(personaLike, itemId, { pass, reason = '' } = {}) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    /* 驳回不写理由服务端会拒 —— 前端先拦一次，省得填完一屏再弹错 */
+    if (!pass && !String(reason || '').trim()) throw new Error('驳回要写理由，业主会拿着通知来问')
+    return post(`/neighbor/items/${itemId}/audit`, { pass, reason: String(reason || '').trim() })
+  }
   return auditItem(itemId, { pass, reason, operator: personaLike?.name || '' })
 }
 
-export function offline(personaLike, itemId, reason) {
+export async function offline(personaLike, itemId, reason) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/neighbor/items/${itemId}/offline`, { reason: String(reason || '').trim() })
+  }
   return offlineItem(itemId, reason, personaLike?.name || '')
 }
 
 /* ---------- 举报处理 ---------- */
 
 export async function reportOf(reportId) {
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    const r = await get(`/neighbor/reports/${reportId}`)
+    return { ...r, building: buildingOf(r.reporterHouse), wait: waitText(r.at) }
+  }
   const r = await queryReports({ size: 200, filters: { status: '待处理' } })
   const hit = r.rows.find(x => x.reportId === reportId)
   if (!hit) {
@@ -167,7 +211,13 @@ export async function reportOf(reportId) {
   return { ...hit, building: buildingOf(hit.reporterHouse), wait: waitText(hit.at) }
 }
 
-export function handle(personaLike, reportId, { action, note }) {
+export async function handle(personaLike, reportId, { action, note }) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    /* 处理说明必填 —— 事后要能解释为什么这么判 */
+    if (!String(note || '').trim()) throw new Error('处理说明必填，事后要能解释为什么这么判')
+    return post(`/neighbor/reports/${reportId}/handle`, { action, note: String(note).trim() })
+  }
   return handleReport(reportId, { action, note, operator: personaLike?.name || '' })
 }
 

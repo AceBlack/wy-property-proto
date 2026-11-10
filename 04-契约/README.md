@@ -7,16 +7,16 @@
 
 | 文件 | 作用 | 谁用 |
 |---|---|---|
-| `openapi.yaml` | OpenAPI 3.1 契约：**289 路径 / 333 接口 / 345 schema**、错误码、分页与信封约定、6 档数据范围语义 | 后端照着实现；前端生成类型；测试断言 |
+| `openapi.yaml` | OpenAPI 3.1 契约：**297 路径 / 342 接口 / 364 schema**、错误码、分页与信封约定、6 档数据范围语义 | 后端照着实现；前端生成类型；测试断言 |
 | `enums.json` | 枚举取值唯一来源（**30 个枚举**，多数从 seed 数据生成、报表与月结为静态声明；2026-11-02 新增 **serviceCategory（商业服务分类）与 publicRepairCategory（公共区域设施部位）** —— 两条维修线各一套分类维度；2026-11-02 第二批新增 **contractIncomeCategory（合同收入分类）与 woPointsStatus（工时积分状态）**） | 后端建字典表；前端校验；契约测试断言 |
 | `fixtures/*.json` | 契约样例（**34 条闲置 / 6 条举报 / 17 场活动 / 268 条报名（邻里四份由 `gen:neighbor` 生成）** / 60 业主 / 220 房屋 / 252 账单 / 160 流水 / 120 工单 / **80 租户 / 120 巡检任务 / 76 整改单 / 90 品质记录** / 80 员工 / 21 组织 / **15 角色** / **160 条工资（两期）** / 79 权限位 / **12 条业主标签** / 12 条访问日志 / 8 条导出日志 / 3 项目 / **10 条开票信息 + 5 个费用项目 + 1 套票据模板**） | 后端初始化数据；假服务数据源 |
 | `mock-server.mjs` | 按契约跑的假服务（端口 4010），**有真实业务语义** | 前端联调；后端对照行为 |
-| `contract-test.mjs` | **265 条**契约测试（结构 + 语义 + 业务不变量） | 后端交付验收；CI |
+| `contract-test.mjs` | **275 条**契约测试（结构 + 语义 + 业务不变量） | 后端交付验收；CI |
 | `scripts/gen-enums.mjs` | 从 `02-原型设计/mock/` 重新生成枚举 | 数据变更后同步 |
 | `scripts/gen-fixtures.mjs` | 从 seed 数据投影出契约样例（含 SLA 预计算、整改单派生） | ⚠️ **别随手跑**：它一次重写 8 份 fixture，且与仓库里的快照口径不一致（houses 756 → 160）。改单个 seed 时用专门脚本，见下一行 |
 | `scripts/fix-fixture-workorder-time.mjs` | 把契约工单 fixture 的时间与原型 seed 按 woId 对齐（只抄时间字段，不重算平移） | 改了 seed 里工单的时间后跑 |
 | `scripts/gen-neighbor-fixtures.mjs`（`npm run gen:neighbor`） | 把原型里**运行时种子**的邻里四份数据固化下来（照抄 `_nvSeedItems/_nvSeedActivities` 等，含 PRNG 种子） | 原型种子变了就重跑，别手改 |
-| `scripts/gen-mobile-fixtures.mjs`（`npm run gen:mobile`） | 员工端要用的**巡检模板 / 巡检计划 / 考勤 / 审批单据**四份样例（模板与计划都按 120 条任务的 id 对齐，缺一个执行页就是空表、缺计划则详情页的「来源计划 · 周期」永远是空的） | 任务/模板裁剪变了就重跑 |
+| `scripts/gen-mobile-fixtures.mjs`（`npm run gen:mobile`） | 员工端要用的**巡检模板 / 巡检计划 / 考勤 / 审批单据 / 催收记录**五份样例（模板与计划都按 120 条任务的 id 对齐，缺一个执行页就是空表、缺计划则详情页的「来源计划 · 周期」永远是空的） | 任务/模板裁剪变了就重跑 |
 
 接口范围（18 个域）：
 
@@ -523,7 +523,7 @@ VITE_API_MODE=http VITE_API_BASE=http://127.0.0.1:4010 npx vite --port 5175
 **实测（假服务）**
 
 ```
-角色列表    14 个 · R-GM 71/72 权限位（覆盖 99%）· userCount 与员工域按 roleId 筛选条数一致
+角色列表    14 个 · R-GM 114/115 权限位（覆盖 99%）· userCount 与员工域按 roleId 筛选条数一致
 角色详情    matrix 3 层（域→功能→操作）· GM 持有全部 5 类高敏 · 楼管也持有 a.sensitive.view
 降权        R-VIEW 去掉 a.vehicles.view → 200 applied=true · diff.removed=[a.vehicles.view] · 立即生效
 提权        R-CLN 加 a.sensitive.view → 202 applied=false · request.status=待审批 · 权限未变

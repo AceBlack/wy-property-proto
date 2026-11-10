@@ -918,5 +918,235 @@
     "op": "handle",
     "opName": "处理",
     "route": "/f/approval"
+  },
+  {
+    "code": "b.multiRevenue.view",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "multiRevenue",
+    "funcName": "多种经营收入",
+    "op": "view",
+    "opName": "查看",
+    "route": "/b/multi-revenue"
+  },
+  {
+    "code": "b.invoiceSet.view",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "invoiceSet",
+    "funcName": "开票设置",
+    "op": "view",
+    "opName": "查看",
+    "route": "/b/invoice-settings"
+  },
+  {
+    "code": "b.invoiceSet.edit",
+    "domain": "b",
+    "domainName": "B 费用",
+    "func": "invoiceSet",
+    "funcName": "开票设置",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/b/invoice-settings"
+  },
+  {
+    "code": "n.workbench.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "workbench",
+    "funcName": "邻里运营",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/workbench"
+  },
+  {
+    "code": "n.votes.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "votes",
+    "funcName": "投票管理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/votes"
+  },
+  {
+    "code": "n.votes.edit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "votes",
+    "funcName": "投票管理",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/n/votes"
+  },
+  {
+    "code": "n.activities.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.activities.edit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.activities.enroll",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "activities",
+    "funcName": "活动管理",
+    "op": "enroll",
+    "opName": "操作",
+    "route": "/n/activities"
+  },
+  {
+    "code": "n.items.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "items",
+    "funcName": "闲置审核",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/items"
+  },
+  {
+    "code": "n.items.audit",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "items",
+    "funcName": "闲置审核",
+    "op": "audit",
+    "opName": "操作",
+    "route": "/n/items"
+  },
+  {
+    "code": "n.reports.view",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "reports",
+    "funcName": "举报处理",
+    "op": "view",
+    "opName": "查看",
+    "route": "/n/reports"
+  },
+  {
+    "code": "n.reports.handle",
+    "domain": "n",
+    "domainName": "N 邻里运营",
+    "func": "reports",
+    "funcName": "举报处理",
+    "op": "handle",
+    "opName": "操作",
+    "route": "/n/reports"
+  },
+  {
+    "code": "c.assets.view",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "assets",
+    "funcName": "资产台账",
+    "op": "view",
+    "opName": "查看",
+    "route": "/c/assets"
+  },
+  {
+    "code": "c.assets.edit",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "assets",
+    "funcName": "资产台账",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/c/assets"
+  },
+  {
+    "code": "c.assetCats.view",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "assetCats",
+    "funcName": "资产分类",
+    "op": "view",
+    "opName": "查看",
+    "route": "/c/asset-categories"
+  },
+  {
+    "code": "c.assetCats.edit",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "assetCats",
+    "funcName": "资产分类",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/c/asset-categories"
+  },
+  {
+    "code": "e.oaFlow.view",
+    "domain": "e",
+    "domainName": "E 组织与权限",
+    "func": "oaFlow",
+    "funcName": "审批流配置",
+    "op": "view",
+    "opName": "查看",
+    "route": "/e/flow-config"
+  },
+  {
+    "code": "e.oaFlow.edit",
+    "domain": "e",
+    "domainName": "E 组织与权限",
+    "func": "oaFlow",
+    "funcName": "审批流配置",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/e/flow-config"
+  },
+  {
+    "code": "f.serviceItems.view",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "serviceItems",
+    "funcName": "商业服务项目",
+    "op": "view",
+    "opName": "查看",
+    "route": "/f/service-items"
+  },
+  {
+    "code": "f.serviceItems.edit",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "serviceItems",
+    "funcName": "商业服务项目",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/f/service-items"
+  },
+  {
+    "code": "f.woPoints.view",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "woPoints",
+    "funcName": "工时积分",
+    "op": "view",
+    "opName": "查看",
+    "route": "/f/wo-detail"
+  },
+  {
+    "code": "f.woPoints.edit",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "woPoints",
+    "funcName": "工时积分",
+    "op": "edit",
+    "opName": "操作",
+    "route": "/f/wo-detail"
   }
 ]

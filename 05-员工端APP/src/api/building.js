@@ -26,6 +26,59 @@ import {
   verifyTenant
 } from '@pc/utils/api'
 
+import { IS_API, get, loginAs, post } from './client'
+
+/* ---------- HTTP 模式：欠费与催收 ---------- */
+
+/*
+ * 一个页面同一时刻只有一种筛选，所以只留「最近一次拉的结果」，
+ * 不做多份缓存 —— 多份反而要处理"这份是哪个筛选的"这种问题。
+ * 切筛选时页面重新 `loadDebts(...)`，`ver++` 触发重算即可。
+ */
+let LAST_DEBT = null
+const EMPTY_DEBT = {
+  summary: { buildingCount: 0, houseCount: 0, payable: 0, paid: 0, debtHouseCount: 0, debtAmount: 0 },
+  buildings: [],
+  rows: []
+}
+
+export const debtsLoaded = () => !!LAST_DEBT
+export const invalidateDebts = () => { LAST_DEBT = null }
+export const lastDebt = () => LAST_DEBT || EMPTY_DEBT
+
+/**
+ * 拉欠费/催收数据。
+ * `query`: buildingId / aging / item / skipRecent
+ *
+ * 注意 `skipRecent`：楼栋首页要"全部欠费户"，催收页要"跳过近 7 天已催的"，
+ * 两个页面传的值不同 —— 传错了首页会少几户，且用户根本看不出来为什么。
+ */
+export async function loadDebts(personaLike, query = {}) {
+  if (!IS_API) return null
+  if (personaLike?.id) await loginAs(personaLike.id)
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(query)) {
+    if (v === undefined || v === null || v === '') continue
+    qs.set(k, String(v))
+  }
+  const d = await get(`/mobile/debts${qs.toString() ? '?' + qs.toString() : ''}`)
+  LAST_DEBT = d
+  return d
+}
+
+/**
+ * 批量登记催收。
+ * 走接口之后**必须重新拉一次**欠费数据 —— 刚催过的户会从工作集里消失
+ * （近 7 天不再默认勾选）。只写不重拉，页面会停在"还以为没催"的状态。
+ */
+export async function collectBatch(personaLike, { houseIds = [], method = '电话', note = '' } = {}) {
+  if (!IS_API) return null
+  if (personaLike?.id) await loginAs(personaLike.id)
+  const r = await post('/mobile/collections/batch', { houseIds, method, note })
+  invalidateDebts()
+  return r
+}
+
 const HOUSE_OF = new Map(houses.map(h => [h.houseId, h]))
 const OWNER_OF = new Map(owners.map(o => [o.ownerId, o]))
 const BUILDING_OF = new Map(buildings.map(b => [b.buildingId, b]))
@@ -37,9 +90,23 @@ export function scopeRows(empId) {
   return buildingStewards.filter(b => b.empId === empId)
 }
 
-export const scopeRowsCount = empId => scopeRows(empId).length
+export const scopeRowsCount = empId =>
+  IS_API ? (lastDebt().summary.buildingCount || 0) : scopeRows(empId).length
 
 export function scopeSummary(empId) {
+  /*
+   * HTTP 模式：服务端给的是扁平 summary + 单独的 buildings 数组，
+   * 页面读的是 `s.buildings`（数组）和 `s.houseCount` 等，这里拼回去。
+   */
+  if (IS_API) {
+    const d = lastDebt()
+    /*
+     * 整包透传，不逐字段挑 —— 之前只挑了 7 个，漏掉 `rate`（收缴率），
+     * 页面 `s.rate.toFixed(1)` 直接报 "undefined.toFixed" 白屏。
+     * 以后服务端加字段，这里不用再改。
+     */
+    return { ...d.summary, buildings: d.buildings || [] }
+  }
   const rows = scopeRows(empId)
   const ids = new Set(rows.map(r => r.buildingId))
   const myHouses = houses.filter(h => ids.has(h.buildingId))
@@ -73,6 +140,8 @@ export function scopeSummary(empId) {
  * 一户挂了 3 个月账，只该出现一行。
  */
 export function debtHouseholds(empId, { buildingId = '' } = {}) {
+  /* HTTP 模式：行已由服务端按范围与筛选算好（含上次催收与间隔） */
+  if (IS_API) return lastDebt().rows || []
   const ids = new Set(scopeRows(empId).map(r => r.buildingId))
   const list = bills.filter(b => {
     const h = HOUSE_OF.get(b.houseId)
@@ -270,6 +339,12 @@ export function daysSince(atText, nowText = DEMO.nowText) {
  * 并标出 canPick（7 天内催过的不默认选）。
  */
 export function collectWorkSet(empId, { aging = '', item = '', buildingId = '', skipRecent = true, localRecords = [], nowText } = {}) {
+  /*
+   * HTTP 模式：筛选（账龄 / 费项 / 跳过近 7 天已催）都在服务端做完了，
+   * 这里直接返回 —— 本地再筛一遍会和"页面传的参数"打架，
+   * 而且筛选规则一旦改动就会两处不一致。
+   */
+  if (IS_API) return lastDebt().rows || []
   const rows = debtHouseholds(empId, { buildingId })
   return rows
     .map(r => {

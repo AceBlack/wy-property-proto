@@ -112,10 +112,43 @@ const apRows = allApprovals
     flow: a.flow || []
   }))
 
+/* ---------- ⑤ 催收记录：契约侧原来一条都没有 ---------- */
+/*
+ * 员工端的催收工作集要显示「距上次催收 N 天」并默认跳过近 7 天已催的户。
+ * 没有这份数据，`gapDays` 全是"从未催过"，工作集就等于整个欠费名单 ——
+ * 楼管打开看到的是一屏"从没催过"的红字，跟真实工作节奏完全不符。
+ *
+ * 只取 P01（员工端四个演示身份都在 P01）。
+ */
+const collectRows = readSrc('collectionRecords.json')
+  .filter(r => r.communityId === 'P01')
+  .map(r => ({
+    recordId: r.recordId,
+    batchNo: r.batchNo,
+    round: r.round,
+    billId: r.billId,
+    period: r.period,
+    communityId: r.communityId,
+    houseId: r.houseId,
+    houseName: r.houseName,
+    ownerId: r.ownerId,
+    ownerName: r.ownerName,
+    itemName: r.itemName,
+    amount: r.amount,
+    overdueDays: r.overdueDays,
+    method: r.method,
+    status: r.status,
+    operator: r.operator,
+    collectTime: r.collectTime,
+    promiseDate: r.promiseDate || '',
+    remark: r.remark || ''
+  }))
+
 write('inspect-templates.json', templates)
 write('attendance.json', attendance)
 write('inspect-plans.json', plans)
 write('approvals.json', apRows)
+write('collection-records.json', collectRows)
 
 /* 自检：执行页要用的模板必须一张不缺 */
 const missing = [...used].filter(id => !templates.some(t => t.templateId === id))

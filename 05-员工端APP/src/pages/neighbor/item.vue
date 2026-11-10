@@ -107,9 +107,9 @@ async function load() {
   d.value = await itemOf(itemId.value)
 }
 
-function pass() {
+async function pass() {
   try {
-    audit(persona.value, itemId.value, { pass: true })
+    await audit(persona.value, itemId.value, { pass: true })
     toastOk('已通过，业主端可见')
     setTimeout(() => uni.navigateBack(), 600)
   } catch (e) {
@@ -121,11 +121,11 @@ function openReject() {
   rejectSheet.value = true
 }
 
-function doReject() {
+async function doReject() {
   /* 预设理由 + 补充说明一起写进去：只给预设，业主会看不懂 */
   const why = [reason.value, note.value.trim()].filter(Boolean).join('：')
   try {
-    audit(persona.value, itemId.value, { pass: false, reason: why })
+    await audit(persona.value, itemId.value, { pass: false, reason: why })
     rejectSheet.value = false
     toastOk('已驳回')
     setTimeout(() => uni.navigateBack(), 600)

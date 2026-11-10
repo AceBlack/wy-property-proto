@@ -187,7 +187,8 @@ import { DEMO } from '@/config/personas'
 import Sheet from '@/components/Sheet.vue'
 import Empty from '@/components/Empty.vue'
 import NoPerm from '@/components/NoPerm.vue'
-import { AGING_OPTS, ITEM_OPTS, collectWorkSet, makeBatchNo, maskPhone, scopeSummary } from '@/api/building'
+import { IS_API } from '@/api/client'
+import { AGING_OPTS, ITEM_OPTS, collectBatch, collectWorkSet, loadDebts, makeBatchNo, maskPhone, scopeSummary } from '@/api/building'
 import { CAP, can } from '@/config/personas'
 import { money } from '@/utils/format'
 import { addCollection, app, persona } from '@/store/app'
@@ -234,20 +235,32 @@ picked.value = {}
 const pickedRows = computed(() => rows.value.filter(r => picked.value[r.houseId]))
 const pickedTotal = computed(() => pickedRows.value.reduce((sum, r) => sum + r.debt, 0))
 
-onShow(() => {
-  ver.value++
-  if (!Object.keys(picked.value).length) picked.value = pickable()
-})
-
-function setAging(k) {
-  aging.value = k
+/**
+ * 催收工作集：跳过近 7 天已催的（默认），账龄与费项由服务端筛。
+ * 勾选状态在重新加载后要重算 —— 已催过的户不该再被默认勾上。
+ */
+async function loadWork() {
+  if (!persona.value?.empId) return
+  try {
+    await loadDebts(persona.value, { aging: aging.value, item: item.value, skipRecent: true })
+  } catch (e) {
+    toastErr(e?.message || '工作集加载失败')
+  }
   ver.value++
   picked.value = pickable()
 }
-function setItem(k) {
+
+onShow(async () => {
+  await loadWork()
+})
+
+async function setAging(k) {
+  aging.value = k
+  await loadWork()
+}
+async function setItem(k) {
   item.value = k
-  ver.value++
-  picked.value = pickable()
+  await loadWork()
 }
 function toggleSkip() {
   skipRecent.value = !skipRecent.value
@@ -279,9 +292,32 @@ function openSheet() {
   sheet.value = true
 }
 
-function doCreate() {
+async function doCreate() {
   const list = pickedRows.value
   if (!list.length) return
+
+  /* HTTP 模式：交给服务端生成批次，然后重新拉工作集 */
+  if (IS_API) {
+    try {
+      const r = await collectBatch(persona.value, {
+        houseIds: list.map(x => x.houseId),
+        method: method.value,
+        note: note.value.trim()
+      })
+      lastBatch.value = {
+        batchNo: r?.batchNo || '',
+        count: r?.count || list.length,
+        amount: pickedTotal.value,
+        method: method.value
+      }
+      sheet.value = false
+      await loadWork()
+    } catch (e) {
+      toastErr(e?.message || '生成失败')
+    }
+    return
+  }
+
   const batchNo = makeBatchNo(app.collections, DEMO.today)
   list.forEach(r => {
     addCollection({

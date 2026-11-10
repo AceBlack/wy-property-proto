@@ -1252,6 +1252,179 @@ const oaDoneBy = (u, a) =>
     (n.approvers || []).some(p => p.name === u.name && p.action !== '待处理')
   )
 
+/* ---------- 员工端欠费与催收 ---------- */
+
+/*
+ * 一个接口同时服务两个页面：
+ *   - 楼栋首页的「欠费户列表」（按楼栋筛选、只读）
+ *   - 催收页的「工作集」（按账龄/费项筛、默认跳过近 7 天已催）
+ *
+ * 为什么合成一条：两个页面的行是同一个东西（欠费户），差别只在筛选条件。
+ * 拆两条会出现"首页显示 12 户、催收页显示 9 户"，用户会怀疑哪边算错了。
+ */
+const collectionRecords = readJson('fixtures/collection-records.json')
+const BILL_DEBT = ['未缴', '部分缴', '逾期']
+const RECENT_DAYS = 7
+
+/** 这户最近一次催缴（PC 历史 + 移动端新登记的，取最新一条） */
+function lastCollectOf(houseId) {
+  const all = [
+    ...collectionRecords.filter(r => r.houseId === houseId)
+      .map(r => ({ at: r.collectTime, method: r.method, status: r.status, round: r.round, operator: r.operator })),
+    ...mobileCollections.filter(c => c.houseId === houseId)
+      .map(c => ({ at: c.at, method: c.method, status: c.result, round: 0, operator: c.by }))
+  ].filter(r => r.at).sort((a, b) => String(b.at).localeCompare(String(a.at)))
+  return all[0] || null
+}
+
+const daysGapOf = (from, to) => {
+  const a = new Date(String(from).replace(/-/g, '/'))
+  const b = new Date(String(to).replace(/-/g, '/'))
+  if (isNaN(a) || isNaN(b)) return 999
+  return Math.max(0, Math.floor((b - a) / 86400000))
+}
+
+on('GET', '/mobile/debts', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.stewardView, `缺少权限位 ${MT_PERM.stewardView}：无权查看欠费`)
+  const u = ctx.user
+  const sc = scope(u)
+  const bid = String(ctx.query.buildingId || '')
+  const aging = String(ctx.query.aging || '')
+  const item = String(ctx.query.item || '')
+  /* 默认跳过近 7 天已催：一屏全是"刚催过"的户，等于把今天该打的电话淹掉 */
+  const skipRecent = ctx.query.skipRecent === undefined ? true : String(ctx.query.skipRecent) === 'true'
+
+  const scopedHouses = houses.filter(h =>
+    sc.all || (sc.houses ? sc.houses.has(h.houseId) : sc.communities.has(h.communityId))
+  )
+  const houseIds = new Set(scopedHouses.map(h => h.houseId))
+
+  const debtBills = bills.filter(b =>
+    houseIds.has(b.houseId) &&
+    !['已作废', '已减免'].includes(b.status) &&
+    BILL_DEBT.includes(b.status) &&
+    (Number(b.unpaid) || 0) > 0 &&
+    (!bid || (HOUSE.get(b.houseId) || {}).buildingId === bid)
+  )
+
+  /* 按房屋聚合：一户一行，不是一账一行 —— 楼管打电话是打给"这户" */
+  const byHouse = new Map()
+  for (const b of debtBills) {
+    const key = b.houseId
+    if (!byHouse.has(key)) {
+      const h = HOUSE.get(key) || {}
+      const o = OWNER.get(b.ownerId) || {}
+      byHouse.set(key, {
+        houseId: key,
+        houseName: h.fullName || h.name || key,
+        buildingId: h.buildingId || '',
+        ownerId: b.ownerId,
+        ownerName: o.name || '',
+        phone: o.phone || '',
+        debt: 0,
+        maxOverdue: 0,
+        items: []
+      })
+    }
+    const row = byHouse.get(key)
+    row.debt = r2(row.debt + (Number(b.unpaid) || 0))
+    row.maxOverdue = Math.max(row.maxOverdue, Number(b.overdueDays) || 0)
+    row.items.push({
+      billId: b.billId,
+      itemName: b.itemName,
+      period: b.period,
+      unpaid: Number(b.unpaid) || 0,
+      overdueDays: Number(b.overdueDays) || 0
+    })
+  }
+
+  let rows = [...byHouse.values()].map(r => {
+    const last = lastCollectOf(r.houseId)
+    return {
+      ...r,
+      lastCollect: last,
+      gapDays: last ? daysGapOf(last.at, DATA_DATE) : 999
+    }
+  })
+
+  /*
+   * 按费项筛时**要截断 items**，不能只过滤行：
+   * 楼管选了「水费」，卡片上就该显示这户欠的水费，而不是水费+物业费的合计 ——
+   * 否则电话打过去报的数和业主查到的不一致。账龄同理，按该费项的逾期天数算。
+   */
+  if (item) {
+    rows = rows
+      .filter(r => r.items.some(x => x.itemName === item))
+      .map(r => {
+        const items = r.items.filter(x => x.itemName === item)
+        return {
+          ...r,
+          items,
+          debt: r2(items.reduce((s2, x) => s2 + (Number(x.unpaid) || 0), 0)),
+          maxOverdue: items.reduce((s2, x) => Math.max(s2, Number(x.overdueDays) || 0), 0)
+        }
+      })
+  }
+  if (aging) {
+    const min = Number(aging) || 0
+    rows = rows.filter(r => r.maxOverdue >= min)
+  }
+  if (skipRecent) rows = rows.filter(r => !(r.lastCollect && r.gapDays < RECENT_DAYS))
+
+  rows.sort((a, b) => b.debt - a.debt)
+
+  /* 汇总永远按**全范围**算，不因为筛了账龄就变小 —— 否则"欠费合计"会随筛选跳动 */
+  const validScopedBills = bills.filter(b =>
+    houseIds.has(b.houseId) && !['已作废', '已减免'].includes(b.status)
+  )
+  const payable = r2(validScopedBills.reduce((s2, b) => s2 + (Number(b.payable) || 0), 0))
+  const paid = r2(validScopedBills.reduce((s2, b) => s2 + (Number(b.paidAmount) || 0), 0))
+  const allDebtRows = [...byHouse.values()]
+  const debtAmount = r2(allDebtRows.reduce((s2, r) => s2 + r.debt, 0))
+
+  const byBuilding = new Map()
+  for (const h of scopedHouses) {
+    const k = h.buildingId || ''
+    if (!byBuilding.has(k)) {
+      const bd = buildings.find(x => x.buildingId === k) || {}
+      byBuilding.set(k, {
+        buildingId: k,
+        name: bd.name || h.buildingName || k,
+        /* 页面要显示"11 层 / 44 户"，缺了这两项卡片会显示 0 */
+        floors: Number(bd.floorCount) || 0,
+        houses: Number(bd.houseCount) || 0,
+        houseCount: 0,
+        debtHouseCount: 0,
+        debtAmount: 0
+      })
+    }
+    byBuilding.get(k).houseCount += 1
+  }
+  for (const r of allDebtRows) {
+    const x = byBuilding.get(r.buildingId)
+    if (x) { x.debtHouseCount += 1; x.debtAmount = r2(x.debtAmount + r.debt) }
+  }
+
+  return {
+    summary: {
+      buildingCount: byBuilding.size,
+      houseCount: scopedHouses.length,
+      billCount: validScopedBills.length,
+      payable,
+      paid,
+      /* 收缴率：页面直接拿它做 toFixed，缺了会白屏（"undefined.toFixed"） */
+      rate: payable ? r2((paid / payable) * 100) : 0,
+      debtHouseCount: allDebtRows.length,
+      debtHouses: allDebtRows.length,
+      debtCount: allDebtRows.reduce((n, r) => n + r.items.length, 0),
+      debtAmount
+    },
+    buildings: [...byBuilding.values()].sort((a, b) => b.debtAmount - a.debtAmount),
+    rows,
+    total: rows.length
+  }
+})
+
 on('GET', '/mobile/approvals', (ctx) => {
   requirePerm(ctx.user, MT_PERM.approvalHandle, `缺少权限位 ${MT_PERM.approvalHandle}：无权处理审批`)
   const u = ctx.user

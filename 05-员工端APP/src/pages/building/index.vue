@@ -169,13 +169,13 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Sheet from '@/components/Sheet.vue'
 import Empty from '@/components/Empty.vue'
 import NoPerm from '@/components/NoPerm.vue'
-import { COLLECT_METHODS, COLLECT_RESULTS, debtHouseholds, maskPhone, scopeRowsCount, scopeSummary } from '@/api/building'
+import { COLLECT_METHODS, COLLECT_RESULTS, debtHouseholds, loadDebts, maskPhone, scopeRowsCount, scopeSummary } from '@/api/building'
 import { money } from '@/utils/format'
 import { DEMO, CAP, can } from '@/config/personas'
 import { addCollection, app, collectionsOf, persona } from '@/store/app'
@@ -198,7 +198,12 @@ const nextOpts = [
   { label: '暂不设', value: '' }
 ]
 
-const allowed = computed(() => can(persona.value, CAP.building) && !!persona.value?.empId && scopeRowsCount(persona.value.empId) > 0)
+/*
+ * 必须带 `ver` 依赖：HTTP 模式下 `scopeRowsCount` 读的是刚拉回来的数据，
+ * 第一帧是 0 —— 不重算的话页面会一直停在「只对楼栋管家开放」的锁屏上，
+ * 而下面几条 computed 都有 `ver`，看起来像"数据到了但门没开"。
+ */
+const allowed = computed(() => (ver.value, can(persona.value, CAP.building) && !!persona.value?.empId && scopeRowsCount(persona.value.empId) > 0))
 const s = computed(() => (ver.value, persona.value?.empId ? scopeSummary(persona.value.empId) : { buildings: [], houseCount: 0, debtHouses: 0, rate: 0, debtAmount: 0, debtCount: 0 }))
 const rows = computed(() => (ver.value, persona.value?.empId ? debtHouseholds(persona.value.empId, { buildingId: buildingId.value }) : []))
 const cur = computed(() => rows.value.find(r => r.houseId === curId.value) || null)
@@ -206,13 +211,30 @@ const logs = computed(() => (ver.value, curId.value ? collectionsOf(curId.value)
 
 const lastOf = houseId => collectionsOf(houseId)[0] || null
 
-onShow(() => {
+/**
+ * 楼栋首页看的是**全部欠费户**（skipRecent: false）——
+ * 工作集才跳过近 7 天已催的，首页跳了会让人以为"这几户已经缴清了"。
+ */
+async function loadScope() {
+  if (!persona.value?.empId) return
+  try {
+    await loadDebts(persona.value, { buildingId: buildingId.value, skipRecent: false })
+  } catch (e) {
+    toastErr(e?.message || '楼栋数据加载失败')
+  }
+  ver.value++
+}
+
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  ver.value++
+  await loadScope()
 })
+
+/* 切楼栋要重新拉：服务端按 buildingId 筛，前端不再自己过滤 */
+watch(buildingId, () => loadScope())
 
 function openHouse(h) {
   curId.value = h.houseId
