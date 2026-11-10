@@ -9,7 +9,8 @@
     "test": "node contract-test.mjs",
     "gen:enums": "node scripts/gen-enums.mjs",
     "gen:fixtures": "node scripts/gen-fixtures.mjs",
-    "gen:neighbor": "node scripts/gen-neighbor-fixtures.mjs"
+    "gen:neighbor": "node scripts/gen-neighbor-fixtures.mjs",
+    "gen:mobile": "node scripts/gen-mobile-fixtures.mjs"
   },
   "dependencies": {
     "yaml": "^2.9.1"

@@ -121,8 +121,8 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
-import { getInspectTaskDetail } from '@/api/mobile'
-import { app, syncPending } from '@/store/app'
+import { taskDetailOf } from '@/api/mobile'
+import { app, persona, syncPending } from '@/store/app'
 import { toastErr, toastOk } from '@/utils/ui'
 
 const taskId = ref('')
@@ -132,7 +132,7 @@ onLoad(async options => {
   taskId.value = options.taskId || ''
   if (!app.lastSubmit || app.lastSubmit.taskId !== taskId.value) {
     /* 刷新或直链进入：用任务自身的落库结果兜底，不编数字 */
-    const d = await getInspectTaskDetail(taskId.value)
+    const d = await taskDetailOf(taskId.value, persona.value)
     if (d?.task) fallback.value = d.task
   }
 })

@@ -109,8 +109,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Tag from '@/components/Tag.vue'
 import Cell from '@/components/Cell.vue'
-import { STATUS_COLOR, communityAddressOf, communityNameOf, getInspectTaskDetail, orgNameOf } from '@/api/mobile'
-import { app, getCheckin } from '@/store/app'
+import { STATUS_COLOR, communityAddressOf, communityNameOf, orgNameOf, taskDetailOf } from '@/api/mobile'
+import { app, getCheckin, persona } from '@/store/app'
 import { timeState } from '@/utils/deadline'
 import { toast } from '@/utils/ui'
 
@@ -122,7 +122,7 @@ const community = ref(null)
 
 onLoad(async options => {
   taskId.value = options.taskId || ''
-  const d = await getInspectTaskDetail(taskId.value)
+  const d = await taskDetailOf(taskId.value, persona.value)
   if (!d?.task) {
     toast('任务不存在')
     return

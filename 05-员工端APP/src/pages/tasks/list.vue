@@ -126,7 +126,7 @@ import TaskCard from '@/components/TaskCard.vue'
 import Empty from '@/components/Empty.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import { DEMO, PERSONAS, roleBadge } from '@/config/personas'
-import { TASK_TABS, kpiOf, listForTab, tabCounts } from '@/api/mobile'
+import { TASK_TABS, kpiOf, listForTab, loadTasks, tabCounts } from '@/api/mobile'
 import { app, isPending, login, persona, syncPending } from '@/store/app'
 import { toast, toastErr, toastOk } from '@/utils/ui'
 
@@ -157,10 +157,18 @@ const switchActions = computed(() =>
   }))
 )
 
-onShow(() => {
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
+  }
+  /* HTTP 模式下先取数再 ver++：派生函数是同步的，它们读的是模块级数组，
+     不先填好数据就重算会得到空列表（而且看起来像"这个人没有任务"）。
+     mock 模式下 loadTasks 直接返回，这一行等于没做。 */
+  try {
+    await loadTasks(persona.value)
+  } catch (e) {
+    toastErr(e.message || '任务加载失败')
   }
   ver.value++
 })

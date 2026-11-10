@@ -1,0 +1,130 @@
+[
+  {
+    "planId": "IP01",
+    "name": "保洁责任区日检",
+    "cycle": "每日",
+    "post": "保洁",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP02",
+    "name": "保安夜间巡更",
+    "cycle": "每日",
+    "post": "保安",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP03",
+    "name": "电梯日常点检",
+    "cycle": "每周",
+    "post": "工程",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP04",
+    "name": "消防设施月检",
+    "cycle": "每月",
+    "post": "工程",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP05",
+    "name": "配电房周检",
+    "cycle": "每周",
+    "post": "工程",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP06",
+    "name": "二次供水巡检",
+    "cycle": "每月",
+    "post": "工程",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP07",
+    "name": "绿化养护巡检",
+    "cycle": "每周",
+    "post": "环境",
+    "communityId": "P02",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP08",
+    "name": "垃圾房消杀检查",
+    "cycle": "每日",
+    "post": "环境",
+    "communityId": "P02",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP09",
+    "name": "地下车库安全巡检",
+    "cycle": "每日",
+    "post": "保安",
+    "communityId": "P02",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP10",
+    "name": "商业公区品质巡检",
+    "cycle": "每日",
+    "post": "客服",
+    "communityId": "P03",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP11",
+    "name": "屋面与外墙季度检查",
+    "cycle": "每季",
+    "post": "工程",
+    "communityId": "P01",
+    "taskType": "执行"
+  },
+  {
+    "planId": "IP13",
+    "name": "环境组达标监督",
+    "cycle": "每周",
+    "post": "环境",
+    "communityId": "P01",
+    "taskType": "监督"
+  },
+  {
+    "planId": "IP14",
+    "name": "安保组达标监督",
+    "cycle": "每周",
+    "post": "安保",
+    "communityId": "P01",
+    "taskType": "监督"
+  },
+  {
+    "planId": "IP15",
+    "name": "环境组达标监督",
+    "cycle": "每周",
+    "post": "环境",
+    "communityId": "P02",
+    "taskType": "监督"
+  },
+  {
+    "planId": "IP16",
+    "name": "安保组达标监督",
+    "cycle": "每周",
+    "post": "安保",
+    "communityId": "P02",
+    "taskType": "监督"
+  },
+  {
+    "planId": "IP17",
+    "name": "环境组达标监督",
+    "cycle": "每周",
+    "post": "环境",
+    "communityId": "P03",
+    "taskType": "监督"
+  }
+]

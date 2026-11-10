@@ -95,6 +95,20 @@ async function waitText(needle, timeout = 9000) {
   return false
 }
 
+/**
+ * 等某个元素出现。
+ * `visible()` 是"此刻在不在"，页面还在渲染时会直接判 false ——
+ * 操作完立刻断言就会偶发失败（负载高时尤其明显）。要断言"操作后应该有"就用这个。
+ */
+async function waitFor(sel, timeout = 4000) {
+  const t0 = Date.now()
+  while (Date.now() - t0 < timeout) {
+    if (await page.evaluate(s => !!document.querySelector(s), sel)) return true
+    await sleep(200)
+  }
+  return false
+}
+
 async function tapText(needle, { exact = false } = {}) {
   const clicked = await page.evaluate(
     (needle, exact) => {
@@ -196,10 +210,23 @@ function collectErrors() {
 }
 
 /** 用登录页切身份：换人即换权限 */
+/**
+ * 切身份。
+ *
+ * 原来只 `return waitText(name)` —— 调用方不看返回值，于是**切换失败时静默继续**：
+ * 后面一整段都用错的身份跑，报出来的是"一线看不到邻里入口（其实看得到）"这种
+ * 莫名其妙的话，一条真错变成八条假错。
+ *
+ * 现在最多重试 3 次（负载高时首屏确实会慢到 5 秒以上），
+ * 仍然失败就**明确记一条并抛错**，让失败点落在切换本身，而不是后续断言。
+ */
 async function asPersona(idx, name) {
-  await goto('/pages/login/index')
-  await tapSel('.pcard', idx, 1300)
-  return waitText(name)
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await goto('/pages/login/index')
+    await tapSel('.pcard', idx, 1300 + attempt * 600)
+    if (await waitText(name, 6000)) return
+  }
+  throw new Error(`身份切换失败：期望「${name}」，重试 3 次页面都没显示`)
 }
 
 async function settleLocation() {
@@ -226,7 +253,7 @@ async function main() {
   /* ---------- 1. 登录 ---------- */
   console.log('\n[1] 登录 / 四个身份')
   await goto('/pages/login/index')
-  check('登录页渲染', (await waitText('员工端')) && (await has('演示日期 2026-10-20')))
+  check('登录页渲染', (await waitText('员工端')) && (await has('演示日期 2026-10-21')))
   const names = ['周明', '汪磊', '莫瑞', '徐悦']
   const found = await Promise.all(names.map(n => has(n)))
   check('四个身份都在', (await count('.pcard')) === 4 && found.every(Boolean))
@@ -639,9 +666,9 @@ async function main() {
   await goto('/pages/mine/index')
   await tapSel('#net-offline', 0, 700)
   await goto('/pages/tasks/list')
-  check('列表顶部出现断网提示', await has('当前离线'))
+  check('列表顶部出现断网提示', await waitText('当前离线', 4000))
   await tapSel('.tc', 0, 1100)
-  check('详情页也提示离线', await has('当前离线'))
+  check('详情页也提示离线', await waitText('当前离线', 4000))
   await tapSel('#act-btn', 0, 1400)
   if (await waitText('无法定位', 4000)) await tapSel('#locate-manual', 0, 700)
   if (await visible('.scan__input')) await typeInto('.scan__input', 'B1-西坡道')
@@ -655,7 +682,7 @@ async function main() {
   check('断网提交进本地队列', await waitText('已存本机'))
   await shot('26-offline-submit')
   await goto('/pages/mine/index')
-  check('我的页列出待同步', await visible('#sync-now'))
+  check('我的页列出待同步', await waitFor('#sync-now', 4000))
   await tapSel('#net-online', 0, 2500)
   check('回网后自动同步、队列清空', !(await visible('#sync-now')))
 
@@ -858,6 +885,129 @@ async function main() {
   check('一线看不到看房请求卡', !(await visible('#mod-viewing')))
   await goto('/pages/mine/index')
   check('一线没有联系方式入口', !(await visible('#me-contact')))
+
+  /* ---------- 18. 消息 · 按类型分类 ---------- */
+  console.log('\n[18] 消息 · 待办提醒 + 公告分类')
+  await goto('/pages/msg/list')
+  await sleep(1200)
+
+  const chipTexts = () => page.evaluate(() =>
+    [...document.querySelectorAll('.chip')].map(c => c.innerText.replace(/\s+/g, ' ').trim())
+  )
+  const groupHeads = () => page.evaluate(() =>
+    [...document.querySelectorAll('.grp__hd')].map(g => g.innerText.replace(/\s+/g, ' ').trim())
+  )
+
+  /* ========== 待办提醒（有待办时默认落在这里） ========== */
+  const chipsR = await chipTexts()
+  const mHead = chipsR[0]?.match(/^待办\s*(\d+)$/)
+  check('页签首位是「待办」且带数量', !!mHead, chipsR[0] || '')
+
+  const groups = await groupHeads()
+  check('一线只有工单与巡检两组',
+    groups.length === 2 && groups[0].includes('工单') && groups[1].includes('巡检'), groups.join(' | '))
+
+  /*
+   * 待办条数**不写死**：前面几段跑过提交巡检、抢单、审核房源，条数到这一步已经不是初始值了
+   * （第一版写死 21，实测变 17）。这里守的是内部一致性 ——
+   * 顶部数字必须等于各组之和，否则就是"上面说 21、列表里只有 13"那种糊弄。
+   */
+  const headTotal = mHead ? Number(mHead[1]) : -1
+  const groupNums = groups.map(g => Number((g.match(/(\d+)\s*$/) || [])[1] || 0))
+  const groupSum = groupNums.reduce((a, b) => a + b, 0)
+  check('顶部待办数 = 各组条数之和', headTotal === groupSum, `顶部 ${headTotal} vs 各组 ${groupSum}`)
+
+  /* 每组封顶 5：卡片数 = Σmin(n,5)，多一张少一张都说明截断逻辑错了 */
+  const expectCards = groupNums.reduce((a, n) => a + Math.min(n, 5), 0)
+  check('卡片数 = 每组封顶 5 之和', (await count('.rm')) === expectCards,
+    `实际 ${await count('.rm')} vs 期望 ${expectCards}（各组 ${groupNums.join('/')}）`)
+  /* 「还有 N 条」只在某组真的超过 5 时才出现 */
+  check('超 5 条的组才有「还有 N 条」',
+    (await count('.grp__more')) === groupNums.filter(n => n > 5).length,
+    `各组 ${groupNums.join('/')}`)
+  await shot('42-msg-remind')
+
+  /*
+   * 工单列表与任务列表在 tabBar 上，只能用 switchTab 跳。
+   * 用 navigateTo 会**静默失败** —— 页面上表现成"点了没反应"，
+   * 而这类 bug 不会报错，只能靠点一下看 URL 变没变来抓。
+   */
+  if (await count('.grp__more')) {
+    await tapSel('.grp__more', 0, 1500)
+    check('「还有 N 条」跳到了工单列表', page.url().includes('/pages/wo/list'),
+      page.url().split('#')[1] || '(未跳转)')
+    await goto('/pages/msg/list')
+    await sleep(900)
+  }
+
+  /*
+   * 楼管必须也能看到待办：他的活是房源审核 + 看房回电。
+   * 只做工单/巡检/审批的话他登录后是 0 —— 那这功能对一半身份无效（第一版就是这样）。
+   */
+  await asPersona(2, '莫瑞')
+  await goto('/pages/msg/list')
+  await sleep(1500)
+  const moGroupsB = await groupHeads()
+  /*
+   * 这里**不断言"还剩几条"**：上面的租售段已经把莫瑞的待审房源审完了（一条通过、一条驳回），
+   * 到这一步待办是 0 才是对的。要守的是**权限过滤** ——
+   * 他没有 f.inspect.view 也没有 f.approval.handle，那两个组就不该出现。
+   */
+  check('楼管的待办里没有巡检与审批',
+    !moGroupsB.some(g => g.includes('巡检') || g.includes('审批')), moGroupsB.join(' | '))
+  check('楼管的待办只可能来自邻里与租售',
+    moGroupsB.every(g => g.includes('邻里') || g.includes('租售')), moGroupsB.join(' | '))
+
+  /* 回到周明，后面的段落按一线视角断言 */
+  await asPersona(0, '周明')
+  await goto('/pages/msg/list')
+  await sleep(1000)
+
+  /* ========== 公告分类 ========== */
+  /* 页签第 0 位是「待办」，所以公告是第 1 位 */
+  await tapSel('[id^="ntab-"]', 1, 900)
+  const chips = await chipTexts()
+  check('页签 8 项（待办 + 全部公告 + 6 类）', chips.length === 8, chips.join(' | '))
+
+  /*
+   * 公告 28 = 本项目已发布 21 + 集团已发布 7。
+   * 这个数字同时是"越权"的守卫：种子里有 12 条草稿 / 待审核 / 已过期 / 已撤回，
+   * 只要有一条漏进来，数字就不再是 28。
+   */
+  check('公告页签 28 条（本项目 21 + 集团 7）', chips[1]?.includes('28'), chips[1] || '')
+  const unread0 = await page.evaluate(() =>
+    document.querySelector('.hd__r .hd__n')?.innerText.trim() || ''
+  )
+  check('公告未读 28（本机还没读过任何一条）', unread0 === '28', `实际 ${unread0}`)
+
+  /*
+   * 负向守卫用 **ID** 而不是标题：种子里"关于启用新版业主 App 的公告"有 6 条，
+   * 其中 3 条是已发布、本该显示 —— 拿标题判会直接把正确行为判成 bug。
+   * 这里逐条查"该藏的有没有露出来"：待审核 1 / 草稿 1 / 已撤回 1。
+   */
+  const hiddenIds = ['NT0077', 'NT0014', 'NT0054']
+  const leaked = []
+  for (const id of hiddenIds) if (await count(`#nt-${id}`)) leaked.push(id)
+  check('待审核 / 草稿 / 已撤回的公告一条都没露出来', leaked.length === 0, leaked.join(','))
+  check('集团公告带「集团」标记', (await count('.msg__grp')) > 0)
+
+  /* 切「停水停电」（第 0 位是待办、第 1 位是公告，类型从第 2 位起）：列表只剩这一类 */
+  await tapSel('[id^="ntab-"]', 2, 800)
+  const types = await page.evaluate(() =>
+    [...document.querySelectorAll('.msg__type')].map(e => e.innerText.trim())
+  )
+  check('切类型后只剩该类', types.length > 0 && types.every(t => t === '停水停电'), types.join(','))
+
+  /* 回公告，展开第一条 → 已读 +1 */
+  await tapSel('[id^="ntab-"]', 1, 700)
+  await tapSel('.msg', 0, 700)
+  const unread1 = await page.evaluate(() =>
+    document.querySelector('.hd__r .hd__n')?.innerText.trim() || ''
+  )
+  check('展开一条后未读 27', unread1 === '27', `实际 ${unread1}`)
+  check('展开的那条不再有未读竖条',
+    (await count('.msg.is-unread')) === 27, `未读卡片 ${await count('.msg.is-unread')}`)
+  await shot('41-msg-types')
 
   console.log('\n[13] 与 PC 数字对齐')
   await goto('/pages/mine/index')

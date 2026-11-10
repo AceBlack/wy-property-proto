@@ -38,6 +38,12 @@ function validate(value, schema, at = '$', errors = []) {
   if (Array.isArray(schema.allOf)) {
     for (const s of schema.allOf) validate(value, s, at, errors)
   }
+  /*
+   * `nullable: true` 要显式放行 —— 契约里从第一批就在用（设备购买日期、价目价格），
+   * 但校验器一直没实现，等于这些字段的 null 一出现就报"类型应为 object"。
+   * 语义按 OpenAPI 3.0：nullable 只放开 null，其它约束（enum / required / items）照旧。
+   */
+  if (value === null && schema.nullable) return errors
   const t = schema.type
   if (t) {
     const want = Array.isArray(t) ? t : [t]
@@ -6881,20 +6887,12 @@ test('契约与实现：每条契约接口都要在假服务里注册', async ()
    * 每加一条都要写清原因；不写原因的白名单三个月后没人敢删。
    */
   const KNOWN_GAP = new Set([
-    /* 员工端 APP（05）仍直读 03 的 mock，没走假服务 —— `/mobile/*` 这两条与
-       那 19 条 move-post 是同一个原因：手机上做的事，假服务还没接。
-       **业主端（`/mp/*`）第 78 批已全部落地，所以这份白名单里不再有 mp。** */
-    'GET /mobile/tasks/{}/exec', 'POST /mobile/tasks/{}/checkin',
-    'POST /inspect-tasks/{}/work-orders',
-    'POST /work-orders/{}/accept', 'POST /work-orders/{}/transfer', 'POST /work-orders/{}/finish',
-    'POST /work-orders/{}/staff-eval', 'POST /work-orders/{}/claim', 'POST /work-orders/{}/dispatch',
-    'POST /work-orders/{}/arrive', 'POST /work-orders/{}/abandon',
-    'POST /work-orders/{}/addons', 'POST /work-orders/{}/addons/confirm',
-    'POST /work-orders/{}/payment-qr', 'POST /work-orders/{}/payments',
-    'POST /attendance/{}/confirm', 'POST /attendance/{}/appeal',
-    'POST /mobile/collections', 'POST /mobile/collections/batch',
-    'GET /mobile/commission', 'GET /mobile/pricing',
-    'GET /mobile/houses/{}/residents'
+    /*
+     * 2026-11-08：`/mobile/*`（5 条）与巡检 / 工单 / 考勤写接口（17 条）已全部落地，
+     * 这份白名单**现在是空的**。
+     * 留着它的理由：真遇到"暂时做不到"时有地方记，而不是用来长期挂账 ——
+     * 挂久了没人记得为什么挂，下次改动就会当成"本来就没有"。
+     */
   ])
 
   const missing = []
@@ -6918,6 +6916,558 @@ test('契约与实现：每条契约接口都要在假服务里注册', async ()
   }
   const extra = [...impl].filter(k => !specKeys.has(k))
   eq(extra.length, 0, `这些接口实现了但契约里没有：\n      ${extra.join('\n      ')}`)
+})
+
+/* ============================ 员工端（mobile） ============================ */
+
+test('执行页聚合：一屏一请求，监督任务带责任员工候选', async () => {
+  token = await login('pm')
+
+  /* 执行任务：有模板检查项，没有责任员工候选 */
+  const list = (await call('GET', '/inspect-tasks', { query: { taskType: '执行', status: '待执行', communityId: 'P01', size: 50 } })).data.rows
+  const t = list[0]
+  const r = await call('GET', `/mobile/tasks/${t.taskId}/exec`)
+  eq(r.status, 200, '执行页 HTTP 状态')
+  assertSchema(r, 'MobileExecEnvelope', 'GET /mobile/tasks/{id}/exec')
+  eq(r.data.template.fields.length > 0, true, '模板带检查项（空表就说明模板没关联上）')
+  assert(r.data.template.fields.every(f => f.label && f.type), '每个检查项都有名称与类型')
+  eq(r.data.workers.length, 0, '执行任务没有责任员工候选')
+  assert(!!r.data.communityName, '带项目名，不让前端拿 id 猜')
+
+  /*
+   * plan / community 是详情页要的（「来源计划 · 周期」「项目名 + 地址」）。
+   * 少了它们，详情页只能拿任务上的 planName 凑，cycle 永远是空的 ——
+   * 而 PC 侧这三个是一起给的，移动端不该为了两个字段再打两次接口。
+   */
+  assert(r.data.plan && r.data.plan.planId, '带来源计划')
+  assert(!!r.data.plan.name, '计划要有名字')
+  assert(['每日', '每周', '每月', '每季'].includes(r.data.plan.cycle),
+    `计划周期要在四选一里，实际「${r.data.plan.cycle}」`)
+  assert(r.data.community && r.data.community.communityId === t.communityId, '社区与任务同项目')
+  assert(!!r.data.community.address, '带项目地址（详情页要显示"去哪儿干活"）')
+
+  /* 监督任务：候选按被检班组，且排除组长本人 */
+  const sup = (await call('GET', '/inspect-tasks', { query: { taskType: '监督', communityId: 'P01', size: 50 } })).data.rows[0]
+  const r2 = await call('GET', `/mobile/tasks/${sup.taskId}/exec`)
+  eq(r2.status, 200, '监督任务执行页')
+  assert(Array.isArray(r2.data.workers), '监督任务要带 workers 数组（哪怕为空）')
+  /* ⚠️ 数据限制：契约 employees 只抽了 80 人，P01 的监督任务全落在 O-P01-T4，
+     而该组在抽样里 0 人 —— 所以这里候选必然是空数组。真实数据（120 人）下才有值。
+     实现上不做兜底（不拿全项目员工冒充被检班组），空就返回空。 */
+  eq(r2.data.workers.some(w => w.name === sup.executor), false, '候选里不含组长本人')
+
+  const miss = await call('GET', '/mobile/tasks/IT_NOT_EXIST/exec')
+  eq(miss.status, 404, '不存在的任务 404')
+})
+
+test('打卡：降级是正式能力，人工打卡必须写原因并进复核队列', async () => {
+  token = await login('pm')
+  const t = (await call('GET', '/inspect-tasks', { query: { taskType: '执行', status: '待执行', communityId: 'P01', size: 50 } })).data.rows[0]
+
+  const badType = await call('POST', `/mobile/tasks/${t.taskId}/checkin`, { body: { type: '瞎写' } })
+  eq(badType.status, 422, '打卡方式必须在四选一里')
+
+  /* 关键口径：拿不到定位 → 人工打卡 + 待复核；不写原因等于把复核的人蒙在鼓里 */
+  const noReason = await call('POST', `/mobile/tasks/${t.taskId}/checkin`, { body: { type: '人工打卡' } })
+  eq(noReason.status, 422, '人工打卡不写原因被拒')
+  assert(String(noReason.message).includes('原因'), `说明为什么：${noReason.message}`)
+
+  const ok = await call('POST', `/mobile/tasks/${t.taskId}/checkin`, {
+    body: { type: '人工打卡', manual: true, reason: '地下室无信号，定位失败' }
+  })
+  eq(ok.status, 200, `打卡成功（${ok.message}）`)
+  eq(ok.data.status, '执行中', '任务转执行中')
+  eq(ok.data.checkinType, '人工打卡', '记人工打卡，不是 GPS围栏')
+  eq(ok.data.needReview, true, '打上待复核标记')
+  eq(ok.data.checkinReason, '地下室无信号，定位失败', '降级原因落库')
+
+  const again = await call('POST', `/mobile/tasks/${t.taskId}/checkin`, { body: { type: 'NFC' } })
+  eq(again.status, 409, '重复打卡被拒')
+})
+
+test('巡检转单：source 固定、回写 refWoId、但不改任务状态', async () => {
+  token = await login('pm')
+  const t = (await call('GET', '/inspect-tasks', { query: { taskType: '执行', status: '执行中', communityId: 'P01', size: 50 } })).data.rows[0]
+  const before = t.status
+
+  const noTitle = await call('POST', `/inspect-tasks/${t.taskId}/work-orders`, {
+    body: { itemLabel: '消火栓', type: '公共区域维修', priority: '紧急', title: '', description: 'x' }
+  })
+  eq(noTitle.status, 422, '标题必填')
+
+  const ok = await call('POST', `/inspect-tasks/${t.taskId}/work-orders`, {
+    body: {
+      itemLabel: '消火栓', reason: '消防设施', type: '公共区域维修', priority: '紧急',
+      title: '3 栋消火栓压力不足', description: '压力表指针在红区，需加压测试', photos: 2
+    }
+  })
+  eq(ok.status, 200, `转单成功（${ok.message}）`)
+  assertSchema(ok, 'WorkOrderEnvelope', 'POST /inspect-tasks/{id}/work-orders')
+  eq(ok.data.source, '巡检转单', 'source 由服务端固定，不吃客户端传值')
+  eq(ok.data.status, '待派单', '新单待派单')
+  eq(ok.data.slaHours, 8, '紧急单 8 小时（特急 4 / 普通 24）')
+  eq(ok.data.priority, '紧急', '紧急度落库')
+
+  const after = await call('GET', `/inspect-tasks/${t.taskId}`)
+  eq(after.data.status, before, '任务状态不变 —— 还得提交执行结果，否则完成率与异常数漏统计')
+  eq(after.data.refWoId, ok.data.woId, 'refWoId 回写，工单详情能回连')
+})
+
+test('工单流转：抢单池只收商业服务单，已派给别人的接不了', async () => {
+  token = await login('pm')
+
+  /* 公共区域维修是本职工作量，不参与抢单 */
+  const pub = (await call('GET', '/work-orders', { query: { status: '待派单', type: '公共区域维修', size: 50 } })).data.rows[0]
+  const claimPub = await call('POST', `/work-orders/${pub.woId}/claim`)
+  eq(claimPub.status, 409, '公共区域维修单不能抢')
+  assert(String(claimPub.message).includes('商业服务'), `说明原因：${claimPub.message}`)
+
+  /* 商业服务单可以抢 */
+  const biz = (await call('GET', '/work-orders', { query: { status: '待派单', type: '商业服务', size: 50 } })).data.rows[0]
+  const claim = await call('POST', `/work-orders/${biz.woId}/claim`)
+  eq(claim.status, 200, `商业服务单抢到手（${claim.message}）`)
+  eq(claim.data.status, '处理中', '抢单即处理中')
+  eq(claim.data.dispatchMode, '抢单', '记来源抢单')
+  assert(!!claim.data.acceptTime, '记受理时间（SLA 从这里起算）')
+
+  const again = await call('POST', `/work-orders/${biz.woId}/claim`)
+  eq(again.status, 409, '同一张单不能重复抢')
+
+  /* 已派给别人的单：项目经理是 FULL（有派单权）所以能接；换个没派单权的账号就得拒 */
+  const assigned = (await call('GET', '/work-orders', { query: { status: '已派单', size: 50 } })).data.rows
+    .find(w => w.assignee)
+  const jump = await call('POST', `/work-orders/${assigned.woId}/finish`, { body: { remark: '直接完工试试' } })
+  eq(jump.status, 409, '跳步完工被拒（必须先接单到场）')
+  eq(jump.code, 40930, '用 40930')
+
+  /* 楼管的活是欠费催收，他连 `f.workorders.edit` 都没有 —— 连接单这一步都到不了 */
+  token = await login('steward')
+  const other = (await call('GET', '/work-orders', { query: { status: '已派单', size: 50 } })).data.rows[0]
+  const r = await call('POST', `/work-orders/${other.woId}/accept`)
+  eq(r.status, 403, '楼管不能接工单')
+  assert(String(r.message).includes('f.workorders.edit'), `说明缺哪个权限：${r.message}`)
+})
+
+test('派单与转单：转单只换人、回到已派单并清空受理时间', async () => {
+  token = await login('pm')
+  const pend = (await call('GET', '/work-orders', { query: { status: '待派单', size: 50 } })).data.rows[0]
+
+  const badTo = await call('POST', `/work-orders/${pend.woId}/dispatch`, { body: { to: '查无此人' } })
+  eq(badTo.status, 422, '派给不存在的人被拒')
+
+  const disp = await call('POST', `/work-orders/${pend.woId}/dispatch`, { body: { to: '段淼然', note: '就近处理' } })
+  eq(disp.status, 200, `派单成功（${disp.message}）`)
+  eq(disp.data.status, '已派单', '派单后等对方接')
+  eq(disp.data.assignee, '段淼然', '处理人落库')
+  eq(disp.data.acceptTime, '', '还没接，受理时间为空')
+
+  const trans = await call('POST', `/work-orders/${disp.data.woId}/transfer`, { body: { to: '曹杰', note: '他熟悉这块' } })
+  eq(trans.status, 200, `转单成功（${trans.message}）`)
+  eq(trans.data.status, '已派单', '转单不改流程节点')
+  eq(trans.data.assignee, '曹杰', '换成新的人')
+  assert(String(trans.data.remark).includes('转给曹杰'), `转单原因写进 remark，便于追责（实际：${trans.data.remark}）`)
+})
+
+test('加项闸门：未到场不能加，未确认的增项不能完工', async () => {
+  token = await login('pm')
+  /* 还没到场的单 */
+  const notArrived = (await call('GET', '/work-orders', { query: { status: '已派单', size: 50 } })).data.rows[0]
+  const early = await call('POST', `/work-orders/${notArrived.woId}/addons`, { body: { code: 'AD-D01' } })
+  eq(early.status, 409, '没到场不能加项 —— 增项必须是现场发现的问题')
+
+  /* 处理中且已到场的单 */
+  const doing = (await call('GET', '/work-orders', { query: { status: '处理中', size: 50 } })).data.rows[0]
+  await call('POST', `/work-orders/${doing.woId}/arrive`)
+  const add = await call('POST', `/work-orders/${doing.woId}/addons`, { body: { code: 'AD-D01', qty: 2 } })
+  eq(add.status, 200, `加项成功（${add.message}）`)
+  const added = add.data.addons[add.data.addons.length - 1]
+  eq(added.confirmed, false, '新加的项默认未确认')
+  eq(added.qty, 2, '数量落库')
+  eq(added.total, (added.material + added.labor), '小计 = 材料 + 人工')
+
+  const blocked = await call('POST', `/work-orders/${doing.woId}/finish`, { body: { remark: '修好了' } })
+  eq(blocked.status, 409, '有未确认增项时不让完工')
+  assert(String(blocked.message).includes('增项'), `说明卡在哪：${blocked.message}`)
+
+  const confirm = await call('POST', `/work-orders/${doing.woId}/addons/confirm`, { body: { confirmedBy: '业主当面确认' } })
+  eq(confirm.status, 200, '确认增项')
+  eq(confirm.data.addons.every(a => a.confirmed), true, '全部已确认')
+
+  const fin = await call('POST', `/work-orders/${doing.woId}/finish`, { body: { remark: '更换角阀并试压，已无渗漏' } })
+  eq(fin.status, 200, `完工成功（${fin.message}）`)
+  eq(fin.data.status, '已完工', '状态转已完工')
+  assert(!!fin.data.finishTime, '记完工时间')
+
+  const noRemark = await call('POST', `/work-orders/${fin.data.woId}/finish`, { body: { remark: '' } })
+  eq(noRemark.status, 409, '已完工的单不能再完工')
+})
+
+test('收款：免费单没有收款码，超额与挂账都要拦', async () => {
+  token = await login('pm')
+
+  const free = (await call('GET', '/work-orders', { query: { status: '处理中', size: 50 } })).data.rows
+    .find(w => w.feeType === '免费')
+  const noQr = await call('POST', `/work-orders/${free.woId}/payment-qr`)
+  eq(noQr.status, 422, '免费单不出收款码')
+
+  const fee = (await call('GET', '/work-orders', { query: { status: '处理中', size: 50 } })).data.rows
+    .find(w => w.feeType === '收费' && w.payStatus !== '已支付')
+  assert(!!fee, '有未支付的收费单')
+  const qr = await call('POST', `/work-orders/${fee.woId}/payment-qr`)
+  eq(qr.status, 200, `出码成功（${qr.message}）`)
+  eq(qr.data.amount > 0, true, '金额来自工单，不是前端传的')
+  assert(String(qr.data.qrUrl).includes(fee.woNo), '二维码内容带工单号，能对上账')
+  eq(qr.data.channels.length, 2, '微信 / 支付宝两个渠道')
+
+  const over = await call('POST', `/work-orders/${fee.woId}/payments`, {
+    body: { amount: qr.data.amount + 100, method: '微信支付' }
+  })
+  eq(over.status, 422, '多收被拒（不能收超过应收）')
+
+  const hang = await call('POST', `/work-orders/${fee.woId}/payments`, {
+    body: { amount: qr.data.amount, method: '挂账' }
+  })
+  eq(hang.status, 422, '挂账必须写原因')
+
+  const paid = await call('POST', `/work-orders/${fee.woId}/payments`, {
+    body: { amount: qr.data.amount, method: '扫码'.replace('扫码', '支付宝') }
+  })
+  eq(paid.status, 200, `收款成功（${paid.message}）`)
+  eq(paid.data.payStatus, '已支付', '付清转已支付')
+  near(paid.data.paidAmount, qr.data.amount, '已收金额与码上金额一致')
+})
+
+/* ---------------- 员工端（05）账号 ---------------- */
+
+/*
+ * 这四个账号是员工端「切身份」时真正登录的账号。
+ * 单独建、不复用 pm / steward 的原因写在 mock-server 的账号注释里：
+ * 复用的后果不是少几条数据，而是**工单经办人记错人**。
+ */
+const MOBILE_USERS = [
+  { username: 'zhou-ming', name: '周明', roleId: 'R-ENG', empId: '' },
+  { username: 'wang-lei', name: '汪磊', roleId: 'R-SEC', empId: 'EM0018' },
+  { username: 'mo-rui', name: '莫瑞', roleId: 'R-STW', empId: 'EM0027' },
+  { username: 'xu-yue', name: '徐悦', roleId: 'R-PM', empId: 'EM0008' }
+]
+
+test('员工端四个身份：账号对得上人，权限与角色字典逐条相同', async () => {
+  /* 权威清单从权限矩阵读（GM 视角），不读 fixture 文件本身 */
+  token = await login('gm')
+  const roleCodes = {}
+  for (const c of MOBILE_USERS) roleCodes[c.roleId] = await grantCodesOf(c.roleId)
+
+  for (const c of MOBILE_USERS) {
+    const r = await call('POST', '/auth/login', {
+      body: { username: c.username, password: '123456' }, auth: false
+    })
+    eq(r.status, 200, `${c.username} 能登录：${r.message}`)
+    eq(r.data.user.name, c.name, `${c.username} 的姓名`)
+    eq(r.data.user.roleId, c.roleId, `${c.username} 的角色`)
+    eq(r.data.user.empId, c.empId, `${c.username} 的工号`)
+
+    /* 权限必须与角色授权逐条一致：另写一份清单的结果是"PC 能点、手机 403"，
+       而且没人知道该信哪份 —— steward 账号就这么落后过一次。 */
+    const want = roleCodes[c.roleId]
+    assert(want.length > 0, `${c.roleId} 应有授权`)
+    eq(r.data.user.permissions.length, want.length,
+      `${c.username} 权限条数应等于 ${c.roleId} 的授权条数（不许手写第二份）`)
+    for (const code of want) {
+      assert(r.data.user.permissions.includes(code), `${c.username} 缺 ${code}`)
+    }
+  }
+})
+
+test('员工端工单：按身份分 tab，金额只算已确认的增项', async () => {
+  /* 一线：有可抢、没有待派（待派是项目经理和客服的事） */
+  token = await login('zhou-ming')
+  const r1 = await call('GET', '/mobile/work-orders', { query: { tab: 'grab' } })
+  eq(r1.status, 200, `一线能取工单（${r1.message}）`)
+  assertSchema(r1, 'MobileWorkOrderListEnvelope', 'GET /mobile/work-orders')
+  const keys1 = r1.data.tabs.map(t => t.key)
+  assert(keys1.includes('grab'), '一线有「可抢」页签')
+  assert(!keys1.includes('dispatch'), '一线没有「待派」页签')
+  assert(r1.data.rows.every(w => w.type === '商业服务' && w.feeType === '收费'),
+    '抢单池只有商业服务里的收费单（公区单没提成，抢了白干）')
+  assert(r1.data.rows.every(w => w.commission > 0), '抢单卡片必须给出提成，这是师傅唯一动机')
+
+  /* 项目经理：有待派 */
+  token = await login('xu-yue')
+  const r2 = await call('GET', '/mobile/work-orders', { query: { tab: 'dispatch' } })
+  eq(r2.status, 200, '项目经理能取待派')
+  assert(r2.data.tabs.some(t => t.key === 'dispatch' && t.count > 0), '项目经理有「待派」页签')
+
+  /*
+   * 客服主管：也有待派，但**只有公区单** —— 付费单指派会直接吃掉师傅的提成，
+   * 05 的 canDispatch 早就这么限了，服务端不能只靠前端按钮灰着。
+   */
+  token = await login('wang-lei')
+  const r3 = await call('GET', '/mobile/work-orders', { query: { tab: 'dispatch' } })
+  eq(r3.status, 200, '客服主管能取待派')
+  assert(r3.data.rows.length > 0, `客服的待派不应为空（${r3.data.rows.length}）`)
+  assert(r3.data.rows.every(w => w.type === '公共区域维修'),
+    `客服只见公区单，混进了：${[...new Set(r3.data.rows.map(w => w.type))].join(',')}`)
+
+  /* 详情：金额只算已确认的增项；settled 跟着收款状态走 */
+  token = await login('zhou-ming')
+  const w = (await call('GET', '/mobile/work-orders', { query: { tab: 'grab' } })).data.rows[0]
+  const d = await call('GET', `/mobile/work-orders/${w.woId}`)
+  eq(d.status, 200, '工单详情')
+  assertSchema(d, 'MobileWorkOrderDetailEnvelope', 'GET /mobile/work-orders/{woId}')
+  eq(d.data.fee.due, d.data.fee.total, '应收与 total 同口径')
+  assert(d.data.fee.total >= d.data.fee.baseTotal, 'total 不小于单额（增项只会往上加）')
+  const pendingInList = d.data.addons.filter(a => !a.confirmed).length
+  eq(d.data.addonSum.pending, pendingInList, 'pending 数的是未确认的条数')
+  eq(d.data.settled, d.data.fee.payStatus === '已支付', 'settled 与收款状态一致')
+
+  const miss = await call('GET', '/mobile/work-orders/WO_NOT_EXIST')
+  eq(miss.status, 404, '不存在的工单 404')
+
+  /*
+   * 应收只算**已确认**的增项。
+   *
+   * 不写死单号：种子里 WO000001 的那条未确认增项，会被业主端测试先确认掉
+   * （`POST /mp/orders/WO000001/addons/confirm`），写死就变成"只在某个执行顺序下成立"。
+   * 改成验**恒等式**：所有带增项的单，due 必须等于「单额 + 已确认增项之和」，
+   * 与有没有未确认的无关 —— 这比挑一张单更严。
+   */
+  /* 假服务的 size 上限是 100，想拿全 120 条得翻两页 —— 传 120 会被 400 拒 */
+  const allWo = []
+  for (const pageNo of [1, 2]) {
+    const pg = await call('GET', '/work-orders', { query: { size: 100, pageNo } })
+    eq(pg.status, 200, `取工单第 ${pageNo} 页`)
+    allWo.push(...pg.data.rows)
+  }
+  const withAddon = allWo.filter(w => (w.addons || []).length)
+  assert(withAddon.length > 0, '种子里要有带增项的工单')
+  for (const w of withAddon.slice(0, 5)) {
+    const d = await call('GET', `/mobile/work-orders/${w.woId}`)
+    const confirmed = d.data.addons.filter(a => a.confirmed).reduce((sum, a) => sum + a.total, 0)
+    near(d.data.fee.due, d.data.fee.baseTotal + confirmed, 0.01,
+      `${w.woId} 应收 = 单额 + 已确认增项（未确认的不算）`)
+  }
+
+  /* 有未确认增项时，那笔钱此刻收不进来 —— 业主还没点头 */
+  const pendRow = withAddon.find(w => (w.addons || []).some(a => !a.confirmed))
+  if (pendRow) {
+    const pd = await call('GET', `/mobile/work-orders/${pendRow.woId}`)
+    const unpaid = pd.data.fee.due - pd.data.fee.paid
+    if (unpaid <= 0) {
+      const over = await call('POST', `/work-orders/${pendRow.woId}/payments`, {
+        body: { amount: 1, method: '现金' }
+      })
+      eq(over.status, 422, '已结清的单再收 1 块也要被拒')
+    }
+  }
+
+  /* 收款要记流水：只给汇总金额，事后说不清"谁收的、什么时候收的" */
+  const before = (await call('GET', '/mobile/work-orders/WO000054')).data.pays.length
+  const pay = await call('POST', '/work-orders/WO000054/payments', {
+    body: { amount: 30, method: '现金' }
+  })
+  eq(pay.status, 200, '登记一笔收款')
+  const after = await call('GET', '/mobile/work-orders/WO000054')
+  eq(after.data.pays.length, before + 1, '收款流水多一条')
+  eq(after.data.pays.at(-1).amount, 30, '流水金额对得上')
+  assert(!!after.data.pays.at(-1).by, '流水要记收款人')
+  eq(after.data.fee.paid, 30, '已收金额同步')
+})
+
+test('员工端审批：待办按节点审批人判，不是按申请人', async () => {
+  /* 项目经理徐悦：有待办（项目经理审批节点） */
+  token = await login('xu-yue')
+  const r1 = await call('GET', '/mobile/approvals', { query: { tab: 'todo' } })
+  eq(r1.status, 200, `项目经理能取待办（${r1.message}）`)
+  assertSchema(r1, 'MobileApprovalListEnvelope', 'GET /mobile/approvals')
+  eq(r1.data.tabs.length, 3, '三个页签：待我处理 / 我发起 / 我办过')
+  assert(r1.data.rows.length > 0, `项目经理应有待办（${r1.data.rows.length}）`)
+  assert(r1.data.rows.every(a => a.applicant !== '徐悦'), '待办里不能有自己发起的单')
+
+  /* 客服主管汪磊：他的待办来自「客服主管*」节点，靠负责人关系表解出来 */
+  token = await login('wang-lei')
+  const r2 = await call('GET', '/mobile/approvals', { query: { tab: 'todo' } })
+  eq(r2.status, 200, '客服主管能取待办')
+  assert(r2.data.rows.length > 0,
+    `客服主管应有待办（${r2.data.rows.length}）—— 0 条通常说明负责人关系表里 T1 正职不是他`)
+
+  /* 一线没有审批权：403 而不是空列表（空列表会让人以为"刚好没有"） */
+  token = await login('zhou-ming')
+  const r3 = await call('GET', '/mobile/approvals', { query: { tab: 'todo' } })
+  eq(r3.status, 403, '一线看审批要 403')
+  assert(String(r3.message).includes('f.approval.handle'), `说明缺哪个权限位：${r3.message}`)
+
+  /* 详情：target 给结论，canHandle 给判定 */
+  token = await login('xu-yue')
+  const todo = (await call('GET', '/mobile/approvals', { query: { tab: 'todo' } })).data.rows
+  const d = await call('GET', `/mobile/approvals/${todo[0].approvalId}`)
+  eq(d.status, 200, '审批详情')
+  assertSchema(d, 'MobileApprovalDetailEnvelope', 'GET /mobile/approvals/{id}')
+  assert(['leader', 'sign', 'role', 'unsupported'].includes(d.data.target.kind),
+    `target.kind 合法：${d.data.target.kind}`)
+  eq(d.data.canHandle, true, '我能办的单 canHandle=true')
+  assert(d.data.timeline.length > 0, '带时间线')
+  assert(d.data.timeline.some(n => n.action === '待处理'), '时间线里有待处理节点')
+
+  /* 我办过的：flow 里得有我的处理痕迹 */
+  const done = (await call('GET', '/mobile/approvals', { query: { tab: 'done' } })).data.rows
+  for (const a of done.slice(0, 3)) {
+    const dd = await call('GET', `/mobile/approvals/${a.approvalId}`)
+    const touched = dd.data.timeline.some(n =>
+      n.handler === '徐悦' || (n.approvers || []).some(p => p.name === '徐悦')
+    )
+    assert(touched, `${a.approvalId} 出现在「我办过」里，但时间线没有我的痕迹`)
+  }
+
+  const miss = await call('GET', '/mobile/approvals/AP_NOT_EXIST')
+  eq(miss.status, 404, '不存在的审批单 404')
+})
+
+test('员工端数据范围：一线按姓名取任务、楼管按房屋，越权一律 403', async () => {
+  /*
+   * 周明不在 120 人名册里（计划上的运营设定值，empId 为空）。
+   * 所以一线任务只能按 executor 姓名取 —— 实现上给 `?executor=` 过滤，
+   * 而不是"整个项目都下发、前端自己筛"：后者一屏 109 条，手机上没法看。
+   */
+  token = await login('zhou-ming')
+  const mine = await call('GET', '/inspect-tasks', { query: { executor: '周明', size: 100 } })
+  eq(mine.status, 200, `周明能取自己的任务（${mine.message}）`)
+  eq(mine.data.total, 22, '周明名下 22 条任务（与 fixture 一致）')
+  assert(mine.data.rows.every(t => t.executor === '周明'),
+    'executor 过滤要真生效，不能把整个项目的任务都下发再让前端筛')
+
+  /* 不带 executor 时范围仍要收住：原来这里漏成了"看得见 P02 的任务"，
+     因为 inScopeHouse 收到 undefined 会默认放行（详见 taskFilter 注释） */
+  const noExec = await call('GET', '/inspect-tasks', { query: { size: 100 } })
+  eq(noExec.status, 200, '周明能取项目内任务')
+  assert(noExec.data.rows.every(t => t.communityId === 'P01'),
+    `只看得到 P01 的任务，混进了：${[...new Set(noExec.data.rows.map(t => t.communityId))].join(',')}`)
+  console.log(`    · 周明可见 ${noExec.data.total} 条（全在 P01，共 120 条里）`)
+
+  /* 他没有 n.items.audit —— 一线不审闲置，这条是"越权要 403"的样本 */
+  const audit = await call('POST', '/neighbor/items/SH0001/audit', { body: { pass: true } })
+  eq(audit.status, 403, '一线不能审核闲置')
+  assert(String(audit.message).includes('n.items.audit'), `说明缺哪个码：${audit.message}`)
+
+  /* 莫瑞：范围按自己名下的房屋算，不是"整个翡翠城" */
+  token = await login('mo-rui')
+  const wo = await call('GET', '/work-orders', { query: { size: 100 } })
+  eq(wo.status, 200, '楼管能取工单')
+  eq(wo.data.total, 4, '楼管只看到自己 154 套房名下的 4 条工单')
+  /* 工单行不带 stewardEmpId，能验的是"范围外的单没混进来"：
+     P01 全项目工单 109 条，收敛到 4 条说明按房屋算过，不是按项目。 */
+  assert(wo.data.total < 109, '楼管的范围要比项目经理窄得多')
+
+  /* 越界：查别的项目要 403，不是静默返回空列表 */
+  const other = await call('GET', '/work-orders', { query: { communityId: 'P02' } })
+  eq(other.status, 403, '楼管查 P02 被拒')
+  assert(String(other.message).includes('数据范围'), `说明越界原因：${other.message}`)
+
+  /* 派单与审批是两个码：客服主管有审批、没有派单。为了"顺手"合并的话，
+     汪磊就能把单派给别人 —— 而他没有维修排班的判断依据。 */
+  token = await login('gm')
+  const secCodes = await grantCodesOf('R-SEC')
+  assert(secCodes.includes('f.approval.handle'), '客服主管有审批处理权')
+  /*
+   * 客服要看工单：业主打电话问"什么时候来修"，答不上来只能瞎编。
+   * 原来 R-SEC 一条 `f.workorders.*` 都没有，而员工端的 `canDispatch`
+   * 早就允许客服派公区单 —— 权限字典跟不上业务规则。
+   *
+   * **派单范围由业务规则限**（客服只派公区、付费单只有项目经理能派），
+   * 不靠"不给这个码"来实现：码是"能不能进这个动作"，范围是另一层。
+   */
+  assert(secCodes.includes('f.workorders.view'), '客服主管能看工单')
+  assert(secCodes.includes('f.workorders.dispatch'), '客服主管能派单（范围限定在公区，由业务规则管）')
+  const pmCodes = await grantCodesOf('R-PM')
+  assert(pmCodes.includes('f.workorders.dispatch') && pmCodes.includes('f.rectify.recheck'),
+    '项目经理能派单、能整改复核')
+})
+
+test('考勤与提成：只能动本人，在途单列，价目不下发成本', async () => {
+  /* 考勤：确认与申诉都是「本人」动作 —— 主管看别人的考勤是另一条链路，不能借这个接口代确认 */
+  token = await login('gm')
+  const att = await call('POST', '/attendance/AT00003/confirm')
+  eq(att.status, 200, `本人能确认自己的考勤（${att.message}）`)
+  eq(att.data.status, '已确认', '状态转已确认')
+
+  const twice = await call('POST', '/attendance/AT00003/confirm')
+  eq(twice.status, 409, '重复确认被拒')
+  eq(twice.code, 40935, '用 40935')
+
+  const noReason = await call('POST', '/attendance/AT00003/appeal', { body: {} })
+  eq(noReason.status, 422, '申诉不写理由被拒')
+
+  const ap = await call('POST', '/attendance/AT00003/appeal', {
+    body: { reason: '10-15 那天在外勤，不是迟到' }
+  })
+  eq(ap.status, 200, `申诉提交成功（${ap.message}）`)
+  eq(ap.data.appealCount, 1, '申诉次数 +1')
+  eq(ap.data.appealResult, '待处理', '等主管复核')
+
+  /* 换个账号动别人的考勤：403，不是"静默成功" */
+  token = await login('steward')
+  const other = await call('POST', '/attendance/AT00003/confirm')
+  eq(other.status, 403, '不能确认别人的考勤')
+
+  /* 提成：只按人工费计提；已结与在途分开。楼管没有 c.payroll.self，换项目经理读 */
+  token = await login('pm')
+  const cm = await call('GET', '/mobile/commission')
+  eq(cm.status, 200, '提成接口 HTTP 状态')
+  assert(cm.data.rate > 0, '带计提比例')
+  assert(!!cm.data.settleNo, '带结算单号（次月随工资并入）')
+  eq(cm.data.settledCount + cm.data.pendingCount, cm.data.count, '已结 + 在途 = 总数')
+  eq(cm.data.rows.every(r => r.commission === Math.round(r.labor * cm.data.rate) / 100), true,
+    '提成 = 人工费 × 比例（材料费是成本，不计提）')
+  console.log(`    · 提成：已结 ¥${cm.data.settled} / 在途 ¥${cm.data.pending}（${cm.data.count} 单）`)
+
+  /* 价目是公开信息：业主端下单也要读，别加权限码；但成本与提成不给一线 */
+  const price = await call('GET', '/mobile/pricing')
+  eq(price.status, 200, '价目公开可读')
+  assert(price.data.length > 0, '有价目')
+  for (const k of ['materialCost', 'laborCost', 'cost']) {
+    eq(k in price.data[0], false, `价目不下发 ${k}（成本与提成不给一线看）`)
+  }
+  assert(price.data.every(p => p.code && p.name && typeof p.material === 'number'), '价目字段齐全')
+})
+
+test('住户与催收：手机号脱敏，责任范围外拒收', async () => {
+  token = await login('pm')
+
+  const house = (await call('GET', '/work-orders', { query: { communityId: 'P01', size: 20 } })).data.rows.find(w => w.houseId)
+  const res = await call('GET', `/mobile/houses/${house.houseId}/residents`)
+  eq(res.status, 200, '住户接口 HTTP 状态')
+  eq(res.data.houseId, house.houseId, '回的是这套房')
+  for (const t of res.data.tenants) {
+    assert(String(t.phone).includes('****'), `租户手机号必须脱敏（${t.phone}）`)
+    eq('idCard' in t, false, '租户不下发证件号')
+    eq('rent' in t, false, '租户不下发租金')
+  }
+  for (const m of res.data.members) {
+    assert(String(m.phone).includes('****'), `成员手机号必须脱敏（${m.phone}）`)
+    eq('idCard' in m, false, '成员不下发证件号')
+  }
+
+  /* 催收：方式 / 结果必须四选一，无欠费的房不收 */
+  const noMethod = await call('POST', '/mobile/collections', {
+    body: { houseId: house.houseId, method: '瞎写', result: '承诺还款' }
+  })
+  eq(noMethod.status, 422, '跟进方式必须在四选一里')
+
+  const debtHouse = (await call('GET', '/bills', { query: { status: '未缴', size: 1 } })).data.rows[0]
+  const ok = await call('POST', '/mobile/collections', {
+    body: { houseId: debtHouse.houseId, method: '电话', result: '承诺还款', note: '说月底发工资一起交', nextAt: '3 天后' }
+  })
+  eq(ok.status, 200, `登记催收成功（${ok.message}）`)
+  eq(ok.data.houseId, debtHouse.houseId, '记清是哪套房')
+  assert(ok.data.debtAmount > 0, '带出这套房的欠费，现场不用再算一遍')
+  assert(!!ok.data.at && !!ok.data.by, '记时间与经办人')
+
+  const batch = await call('POST', '/mobile/collections/batch', {
+    body: { houseIds: [debtHouse.houseId, 'H_NOT_EXIST'], method: '短信' }
+  })
+  eq(batch.status, 200, '批量催缴接口可用')
+  eq(batch.data.count, 1, '成功的算 1 条')
+  eq(batch.data.failed.length, 1, '不存在的房进 failed，不是整体失败')
+  assert(!!batch.data.batchNo, '给批次号，便于回查这一批发了什么')
 })
 
 /* ============================ 跑 ============================ */

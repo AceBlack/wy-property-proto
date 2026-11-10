@@ -132,8 +132,8 @@ import NavBar from '@/components/NavBar.vue'
 import Cell from '@/components/Cell.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import { WOCREATE_PRIORITY, WOCREATE_TYPES, createFromInspection } from '@/api/wo'
-import { communityNameOf, execData, taskOf } from '@/api/mobile'
-import { app, getDraft } from '@/store/app'
+import { communityNameOf, execData, loadTaskExec, taskOf } from '@/api/mobile'
+import { app, getDraft, persona } from '@/store/app'
 import { toastErr, toastOk } from '@/utils/ui'
 
 const TYPES = WOCREATE_TYPES
@@ -155,9 +155,10 @@ const communityLabel = computed(() => communityNameOf(task.value?.communityId))
 const slaHours = computed(() => (priority.value === '特急' ? 4 : priority.value === '紧急' ? 8 : 24))
 const canSubmit = computed(() => !!description.value.trim())
 
-onLoad(options => {
+onLoad(async options => {
   taskId.value = options.taskId || ''
   itemLabel.value = options.item ? decodeURIComponent(options.item) : ''
+  await loadTaskExec(taskId.value, persona.value)
   task.value = taskOf(taskId.value)
   const d = execData(taskId.value)
   const fields = d.template?.fields || []

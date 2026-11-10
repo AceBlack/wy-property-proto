@@ -56,12 +56,12 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Segmented from '@/components/Segmented.vue'
 import Empty from '@/components/Empty.vue'
-import { BIZ_TYPE_TONE, countsOf, listFor } from '@/api/oa'
+import { BIZ_TYPE_TONE, countsOf, listFor, loadApprovals } from '@/api/oa'
 import { app, persona } from '@/store/app'
 import { CAP, can } from '@/config/personas'
 
@@ -100,12 +100,31 @@ function goApply() {
   uni.navigateTo({ url: '/pages/oa/apply' })
 }
 
-onShow(() => {
+/**
+ * 先拉当前页签的数据再重算。HTTP 模式下 listFor/countsOf 读缓存，
+ * 不 await 这一下，ver++ 触发的是空数组 —— 页面会闪一下"没有待办"。
+ */
+async function loadList(tabKey) {
+  if (!tabKey) return
+  try {
+    await loadApprovals(persona.value, tabKey)
+  } catch (e) {
+    toastErr(e?.message || '审批加载失败')
+  }
+  ver.value++
+}
+
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  ver.value++
+  await loadList(tab.value || 'todo')
+})
+
+/* 三个页签各自一份数据（计数与行同一次快照） */
+watch(tab, (v, o) => {
+  if (v && v !== o) loadList(v)
 })
 
 const statusClass = s => (s === '已通过' ? 'is-ok' : s === '已驳回' ? 'is-ng' : s === '审批中' ? 'is-doing' : '')

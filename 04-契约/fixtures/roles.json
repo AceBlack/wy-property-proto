@@ -8,7 +8,7 @@
     "positions": [
       "总经理"
     ],
-    "permCount": 85,
+    "permCount": 91,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -48,14 +48,17 @@
       "b.payments.view",
       "b.tempCharges.edit",
       "b.tempCharges.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.edit",
       "c.contracts.view",
       "c.employees.edit",
       "c.employees.view",
       "c.notices.edit",
+      "c.notices.read",
       "c.notices.view",
       "c.payroll.edit",
+      "c.payroll.self",
       "c.payroll.view",
       "c.workbench.view",
       "d.alarms.edit",
@@ -78,6 +81,7 @@
       "e.permApprove.view",
       "e.permLog.view",
       "e.reports.view",
+      "f.approval.handle",
       "f.inspect.view",
       "f.inspectPlans.edit",
       "f.inspectPlans.view",
@@ -97,10 +101,12 @@
       "f.qualityRecords.edit",
       "f.qualityRecords.view",
       "f.rectify.edit",
+      "f.rectify.recheck",
       "f.rectify.view",
       "f.supFinding.view",
       "f.woDetail.edit",
       "f.woDetail.view",
+      "f.workorders.dispatch",
       "f.workorders.edit",
       "f.workorders.view"
     ]
@@ -114,7 +120,7 @@
     "positions": [
       "项目经理"
     ],
-    "permCount": 50,
+    "permCount": 56,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -146,10 +152,13 @@
       "b.invoices.edit",
       "b.payments.view",
       "b.tempCharges.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.view",
       "c.notices.edit",
+      "c.notices.read",
       "c.notices.view",
+      "c.payroll.self",
       "d.alarms.view",
       "d.devices.view",
       "d.iotDash.view",
@@ -158,6 +167,7 @@
       "e.audit.view",
       "e.downloads.view",
       "e.reports.view",
+      "f.approval.handle",
       "f.inspect.view",
       "f.inspectPlans.view",
       "f.inspectTasks.edit",
@@ -168,10 +178,12 @@
       "f.qualityRecords.edit",
       "f.qualityRecords.view",
       "f.rectify.edit",
+      "f.rectify.recheck",
       "f.rectify.view",
       "f.supFinding.view",
       "f.woDetail.edit",
       "f.woDetail.view",
+      "f.workorders.dispatch",
       "f.workorders.edit",
       "f.workorders.view"
     ]
@@ -185,7 +197,7 @@
     "positions": [
       "客服专员"
     ],
-    "permCount": 17,
+    "permCount": 20,
     "domains": [
       "A 房产与业主",
       "E 组织与权限",
@@ -200,7 +212,10 @@
       "a.sensitive.view",
       "a.tenants.view",
       "a.vehicles.view",
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "e.downloads.view",
       "f.inspect.exec",
       "f.inspect.view",
@@ -220,7 +235,7 @@
     "positions": [
       "收银员"
     ],
-    "permCount": 19,
+    "permCount": 22,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -244,7 +259,10 @@
       "b.payments.view",
       "b.tempCharges.edit",
       "b.tempCharges.view",
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "e.downloads.view"
     ]
   },
@@ -258,7 +276,7 @@
       "财务主管",
       "会计"
     ],
-    "permCount": 21,
+    "permCount": 24,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -282,8 +300,11 @@
       "b.payments.view",
       "b.tempCharges.edit",
       "b.tempCharges.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "c.payroll.view",
       "e.downloads.view",
       "e.reports.view"
@@ -299,7 +320,7 @@
       "财务主管",
       "财务经理"
     ],
-    "permCount": 28,
+    "permCount": 31,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -323,8 +344,11 @@
       "b.payments.view",
       "b.tempCharges.edit",
       "b.tempCharges.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "c.payroll.view",
       "e.accessLog.view",
       "e.audit.view",
@@ -346,14 +370,17 @@
     "positions": [
       "维修工"
     ],
-    "permCount": 13,
+    "permCount": 16,
     "domains": [
       "D 物联",
       "E 组织与权限",
       "F 现场运营"
     ],
     "perms": [
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "d.alarms.edit",
       "d.alarms.view",
       "d.devices.edit",
@@ -380,14 +407,17 @@
     "positions": [
       "品质专员"
     ],
-    "permCount": 23,
+    "permCount": 26,
     "domains": [
       "D 物联",
       "E 组织与权限",
       "F 现场运营"
     ],
     "perms": [
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "d.alarms.view",
       "d.devices.view",
       "d.iotDash.view",
@@ -421,7 +451,7 @@
     "positions": [
       "人事专员"
     ],
-    "permCount": 17,
+    "permCount": 20,
     "domains": [
       "A 房产与业主",
       "C 办公协同",
@@ -429,12 +459,15 @@
     ],
     "perms": [
       "a.sensitive.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.edit",
       "c.contracts.view",
       "c.employees.edit",
       "c.employees.view",
+      "c.notices.read",
       "c.payroll.edit",
+      "c.payroll.self",
       "c.payroll.view",
       "e.accessLog.view",
       "e.audit.view",
@@ -456,7 +489,7 @@
     "positions": [
       "楼栋管家"
     ],
-    "permCount": 20,
+    "permCount": 23,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -478,7 +511,10 @@
       "a.tenants.view",
       "b.bills.view",
       "b.payments.view",
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "e.downloads.view",
       "f.woDetail.edit",
       "f.woDetail.view",
@@ -498,7 +534,7 @@
       "安保主管",
       "环境主管"
     ],
-    "permCount": 20,
+    "permCount": 24,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -514,12 +550,18 @@
       "a.vehicles.view",
       "b.bills.view",
       "b.payments.view",
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "d.alarms.view",
       "d.devices.view",
       "d.iotDash.view",
       "d.passRecords.view",
       "e.downloads.view",
+      "f.workorders.dispatch",
+      "f.workorders.view",
+      "f.approval.handle",
       "f.inspect.exec",
       "f.inspect.view",
       "f.inspectTasks.view",
@@ -539,14 +581,17 @@
       "保洁员",
       "绿化员"
     ],
-    "permCount": 10,
+    "permCount": 13,
     "domains": [
       "D 物联",
       "E 组织与权限",
       "F 现场运营"
     ],
     "perms": [
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "d.devices.view",
       "e.downloads.view",
       "f.inspect.exec",
@@ -567,7 +612,7 @@
     "positions": [
       "保安"
     ],
-    "permCount": 13,
+    "permCount": 16,
     "domains": [
       "A 房产与业主",
       "D 物联",
@@ -576,7 +621,10 @@
     ],
     "perms": [
       "a.vehicles.view",
+      "c.attendance.self",
       "c.contacts.view",
+      "c.notices.read",
+      "c.payroll.self",
       "d.alarms.view",
       "d.devices.view",
       "d.passRecords.view",
@@ -599,7 +647,7 @@
     "positions": [
       "人事助理"
     ],
-    "permCount": 9,
+    "permCount": 12,
     "domains": [
       "A 房产与业主",
       "C 办公协同",
@@ -607,11 +655,14 @@
     ],
     "perms": [
       "a.sensitive.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.edit",
       "c.contracts.view",
       "c.employees.edit",
       "c.employees.view",
+      "c.notices.read",
+      "c.payroll.self",
       "e.downloads.view",
       "e.org.view",
       "e.reports.view"
@@ -624,7 +675,7 @@
     "dataScope": "全部项目",
     "communities": [],
     "positions": [],
-    "permCount": 45,
+    "permCount": 49,
     "domains": [
       "A 房产与业主",
       "B 费用",
@@ -649,10 +700,13 @@
       "b.feeItems.view",
       "b.monthClose.view",
       "b.payments.view",
+      "c.attendance.self",
       "c.contacts.view",
       "c.contracts.view",
       "c.employees.view",
+      "c.notices.read",
       "c.notices.view",
+      "c.payroll.self",
       "c.payroll.view",
       "c.workbench.view",
       "d.alarms.view",
@@ -668,6 +722,7 @@
       "e.permApprove.view",
       "e.permLog.view",
       "e.reports.view",
+      "f.approval.handle",
       "f.inspect.view",
       "f.inspectPlans.view",
       "f.inspectTasks.view",

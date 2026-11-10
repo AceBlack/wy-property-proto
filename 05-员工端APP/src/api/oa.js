@@ -12,6 +12,39 @@
  */
 import { approvals, employees } from '@pc/mock'
 import { OA_FORM_DEFS } from '@pc/utils/oa'
+import { IS_API, get, loginAs, post } from './client'
+
+/* ---------- HTTP 模式下的缓存（与巡检 / 工单同一套） ---------- */
+
+/*
+ * 三个页签的行从 `/mobile/approvals?tab=` 拿，一次请求给全页签计数 + 当前 tab 的行 ——
+ * 分三次请求会出现"待办说 2 条、点进去只有 1 条"这种自相矛盾的画面。
+ */
+const AP_LIST = { tabs: [], rows: {}, loaded: false }
+const AP_DETAIL = new Map()
+
+export const invalidateOa = () => {
+  AP_LIST.loaded = false
+  AP_DETAIL.clear()
+}
+
+export async function loadApprovals(persona, tab = 'todo') {
+  if (!IS_API) return
+  if (persona?.id) await loginAs(persona.id)
+  const d = await get(`/mobile/approvals?tab=${tab}`)
+  AP_LIST.tabs = d.tabs || []
+  AP_LIST.rows[tab] = d.rows || []
+  AP_LIST.loaded = true
+}
+
+export async function loadApprovalDetail(approvalId, persona) {
+  if (!IS_API) return null
+  if (persona?.id) await loginAs(persona.id)
+  const d = await get(`/mobile/approvals/${approvalId}`)
+  AP_DETAIL.set(approvalId, d)
+  return d
+}
+
 import {
   activeLeadersOf,
   approvalAction,
@@ -85,6 +118,17 @@ export function nodeActor(a) {
 /** 我能不能处理这一单 */
 export function canHandle(persona, a) {
   if (!persona || !a) return { ok: false, why: '未登录' }
+  /*
+   * HTTP 模式直接用服务端的判定 —— 页面显示的按钮和服务端放不放行必须是同一个结论。
+   * 本地再算一遍会因为"负责人关系表"的差异（比如正职空缺落代理）而分叉。
+   */
+  if (IS_API) {
+    const d = a.approvalId ? AP_DETAIL.get(a.approvalId) : null
+    if (!d) return { ok: false, why: '正在加载' }
+    if (d.canHandle) return { ok: true, why: '' }
+    if (a.applicant === persona.name) return { ok: false, why: '不能审批自己提交的单据' }
+    return { ok: false, why: '当前节点不是你审批' }
+  }
   const t = targetOf(a)
   if (t.kind === 'none' || t.kind === 'done') return { ok: false, why: t.why }
   if (t.kind === 'unsupported') return { ok: false, why: t.why }
@@ -143,7 +187,33 @@ export function rowOf(a) {
  * 待我处理 / 我发起 / 我办过
  * 「我办过」用 flow（含会签名单）里的处理人反查。
  */
+/**
+ * 服务端行 → 页面认识的形状。
+ *
+ * 服务端给 `approvalId / approvalNo / currentNode`，页面用 `id / no / node / nodeLabel`
+ * 外加会签进度。不补这层，`open(r)` 会跳到 `?id=undefined`，整页看着像没数据。
+ * 只做字段改名与推导，状态与金额仍以服务端为准。
+ */
+function adaptRow(a) {
+  const node = (a.flow || []).find(n => n.action === '待处理') || null
+  const approvers = node?.approvers || []
+  return {
+    ...a,
+    id: a.approvalId,
+    no: a.approvalNo,
+    node: a.currentNode,
+    nodeLabel: a.currentNode,
+    signMode: node?.signMode || 'single',
+    signDone: approvers.filter(p => p.action !== '待处理').length,
+    signTotal: approvers.length,
+    amount: Number(a.amount) || 0,
+    urgency: a.urgency || '普通',
+    waitHours: Number(a.waitHours) || 0
+  }
+}
+
 export function listFor(persona, tab = 'todo') {
+  if (IS_API) return (AP_LIST.rows[tab] || []).map(adaptRow)
   const all = approvals
   if (tab === 'todo') {
     return all
@@ -164,13 +234,37 @@ export function listFor(persona, tab = 'todo') {
     .sort((a, b) => String(b.applyTime).localeCompare(String(a.applyTime)))
 }
 
-export const countsOf = persona => ({
-  todo: listFor(persona, 'todo').length,
-  applied: listFor(persona, 'applied').length,
-  done: listFor(persona, 'done').length
-})
+export const countsOf = persona => {
+  if (IS_API) {
+    const out = { todo: 0, applied: 0, done: 0 }
+    for (const t of AP_LIST.tabs) out[t.key] = t.count
+    return out
+  }
+  return {
+    todo: listFor(persona, 'todo').length,
+    applied: listFor(persona, 'applied').length,
+    done: listFor(persona, 'done').length
+  }
+}
 
 export function detailOf(id) {
+  if (IS_API) {
+    const d = AP_DETAIL.get(id)
+    if (!d) return null
+    /*
+     * 服务端已经算好了 actor / target / sign / timeline，这里原样透出。
+     * 页面读的就是这四个字段，不需要在 HTTP 分支里再算一遍 ——
+     * 算两遍必然会和"服务端认为的"不一致，那种不一致最难查。
+     */
+    return {
+      raw: d.approval,
+      row: adaptRow(d.approval),
+      actor: d.actor,
+      target: d.target,
+      sign: d.sign,
+      timeline: d.timeline || []
+    }
+  }
   const a = approvals.find(x => x.approvalId === id)
   if (!a) return null
   const actor = nodeActor(a)
@@ -217,7 +311,15 @@ export function transferCandidates(a) {
  * 会签节点不能覆盖 handler：approvalAction 已按"我签的那一份"写好了处理人，
  * 覆盖会把名单第一个人的名字写上去，看起来像别人签的。
  */
-export function act(persona, approvalId, action, { comment = '', to = '' } = {}) {
+export async function act(persona, approvalId, action, { comment = '', to = '' } = {}) {
+  if (IS_API) {
+    const verb = action === 'approve' ? '同意' : action === 'reject' ? '驳回' : ''
+    /* 服务端只实现了同意 / 驳回：转办与加签点在 HTTP 模式下会变成"点了没反应"，明确告诉他们 */
+    if (!verb) throw new Error('转办与加签请在 PC 端操作，移动端只处理同意 / 驳回')
+    await post(`/oa/requests/${approvalId}/action`, { action: verb, comment })
+    invalidateOa()
+    return { ok: true }
+  }
   const a = approvals.find(x => x.approvalId === approvalId)
   if (!a) throw new Error('审批单不存在')
   const guard = canHandle(persona, a)
@@ -281,7 +383,12 @@ export const amountFieldOf = bizType => (applyDefOf(bizType)?.fields || []).find
  *   ② 名册里一线执行人可能不在册（周明就不在），角色 → 岗位 → 第一个人不一定是他，
  *      所以建完把提报人字段回填成登录人。审批人解析仍按 PC 规则走，不改。
  */
-export function submitApply(persona, { bizType, formData = {}, files = [] } = {}) {
+export async function submitApply(persona, { bizType, formData = {}, files = [] } = {}) {
+  if (IS_API) {
+    const created = await post('/oa/requests', { bizType, formData, files })
+    invalidateOa()
+    return created
+  }
   if (!applyDefOf(bizType)) throw new Error('不支持的单据类型')
   const prevRole = currentRoleId.value
   setRole(persona.roleId || prevRole)

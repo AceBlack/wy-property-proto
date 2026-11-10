@@ -280,6 +280,16 @@
     "route": "/c/payroll"
   },
   {
+    "code": "c.payroll.self",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "payroll",
+    "funcName": "工资表",
+    "op": "self",
+    "opName": "本人",
+    "route": "/c/payroll"
+  },
+  {
     "code": "c.contracts.view",
     "domain": "c",
     "domainName": "C 办公协同",
@@ -317,6 +327,16 @@
     "funcName": "公告通知",
     "op": "edit",
     "opName": "操作",
+    "route": "/c/notices"
+  },
+  {
+    "code": "c.notices.read",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "notices",
+    "funcName": "公告通知",
+    "op": "read",
+    "opName": "阅读",
     "route": "/c/notices"
   },
   {
@@ -550,6 +570,16 @@
     "route": "/f/workorders"
   },
   {
+    "code": "f.workorders.dispatch",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "workorders",
+    "funcName": "工单列表",
+    "op": "dispatch",
+    "opName": "指派",
+    "route": "/f/work-orders"
+  },
+  {
     "code": "f.woDetail.view",
     "domain": "f",
     "domainName": "F 现场运营",
@@ -730,6 +760,16 @@
     "route": "/f/rectify"
   },
   {
+    "code": "f.rectify.recheck",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "rectify",
+    "funcName": "整改闭环",
+    "op": "recheck",
+    "opName": "复核",
+    "route": "/f/rectify"
+  },
+  {
     "code": "f.supFinding.view",
     "domain": "f",
     "domainName": "F 现场运营",
@@ -830,6 +870,16 @@
     "route": "/c/contacts"
   },
   {
+    "code": "c.attendance.self",
+    "domain": "c",
+    "domainName": "C 办公协同",
+    "func": "attendance",
+    "funcName": "考勤",
+    "op": "self",
+    "opName": "本人",
+    "route": "/c/attendance"
+  },
+  {
     "code": "a.listings.view",
     "domain": "a",
     "domainName": "A 房产与业主",
@@ -858,5 +908,15 @@
     "op": "viewing",
     "opName": "看房请求",
     "route": "/a/listings"
+  },
+  {
+    "code": "f.approval.handle",
+    "domain": "f",
+    "domainName": "F 现场运营",
+    "func": "approval",
+    "funcName": "业务审批",
+    "op": "handle",
+    "opName": "处理",
+    "route": "/f/approval"
   }
 ]

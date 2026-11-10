@@ -18,21 +18,30 @@
       "name": "翡翠城",
       "enabled": true,
       "grabArriveMinutes": 15,
-      "abandonLimit": 3
+      "abandonLimit": 3,
+      "commissionRate": 0.35,
+      "minCommission": 8,
+      "materialsChargedAtCost": true
     },
     {
       "communityId": "P02",
       "name": "星光天地",
       "enabled": true,
       "grabArriveMinutes": 20,
-      "abandonLimit": 3
+      "abandonLimit": 3,
+      "commissionRate": 0.32,
+      "minCommission": 8,
+      "materialsChargedAtCost": true
     },
     {
       "communityId": "P03",
       "name": "锦绣家园",
       "enabled": true,
       "grabArriveMinutes": 20,
-      "abandonLimit": 2
+      "abandonLimit": 2,
+      "commissionRate": 0.3,
+      "minCommission": 8,
+      "materialsChargedAtCost": true
     }
   ],
   "items": [

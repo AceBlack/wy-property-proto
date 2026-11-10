@@ -8,6 +8,7 @@
  * （PC 侧 b.bills.edit 只给收银/财务，管家只有 b.bills.view）。
  */
 import { bills, buildingStewards, buildings, collectionRecords, houses, members, ownerTags, owners, tenants } from '@pc/mock'
+import { DEMO } from '@/config/personas'
 import {
   HOUSE_PROPERTY_OPTS,
   HOUSE_USE_OPTS,
@@ -257,7 +258,7 @@ export function lastCollectOf(houseId, localRecords = []) {
 }
 
 /** 7 天内催过？以演示时钟为基准，不用系统当天（mock 日期都在 10 月） */
-export function daysSince(atText, nowText = '2026-10-20 10:00') {
+export function daysSince(atText, nowText = DEMO.nowText) {
   const a = toDate(atText)
   const n = toDate(nowText)
   if (!a || !n) return 999
@@ -297,7 +298,7 @@ export function collectWorkSet(empId, { aging = '', item = '', buildingId = '', 
 }
 
 /** 生成催缴批次：一条记录对一户（不按账单拆），带 batchNo 便于按批次追溯 */
-export function makeBatchNo(existing = [], today = '2026-10-20') {
+export function makeBatchNo(existing = [], today = DEMO.today) {
   const stampText = `CJ${today.replace(/-/g, '')}`
   const used = existing.filter(b => String(b.batchNo || '').startsWith(stampText)).length
   return `${stampText}-${String(used + 1).padStart(2, '0')}`

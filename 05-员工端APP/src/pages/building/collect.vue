@@ -183,6 +183,7 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
+import { DEMO } from '@/config/personas'
 import Sheet from '@/components/Sheet.vue'
 import Empty from '@/components/Empty.vue'
 import NoPerm from '@/components/NoPerm.vue'
@@ -281,7 +282,7 @@ function openSheet() {
 function doCreate() {
   const list = pickedRows.value
   if (!list.length) return
-  const batchNo = makeBatchNo(app.collections, '2026-10-20')
+  const batchNo = makeBatchNo(app.collections, DEMO.today)
   list.forEach(r => {
     addCollection({
       houseId: r.houseId,

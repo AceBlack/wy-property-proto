@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Segmented from '@/components/Segmented.vue'
@@ -98,7 +98,7 @@ import Empty from '@/components/Empty.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import NoPerm from '@/components/NoPerm.vue'
 import { CAP, DEMO, PERSONAS, can } from '@/config/personas'
-import { canGrab, claim, commissionSummary, countsOf, listFor, tabsFor } from '@/api/wo'
+import { canGrab, claim, commissionSummary, countsOf, listFor, loadWorkOrders, tabsFor } from '@/api/wo'
 import { projectParam } from '@/api/pricing'
 import { money } from '@/utils/format'
 import { app, login, persona } from '@/store/app'
@@ -156,14 +156,42 @@ const switchActions = computed(() =>
   PERSONAS.map(p => ({ label: `${p.name} · ${p.post}`, desc: p.desc, value: p.id, active: p.id === app.personaId }))
 )
 
-onShow(() => {
+/**
+ * 拉当前页签的数据再重算。
+ * HTTP 模式下 `listFor` / `tabsFor` 读的是缓存，所以必须先 await 这一次请求，
+ * 否则 ver++ 触发的重算读到的是空数组 —— 页面会闪一下空白。
+ */
+async function loadList(tabKey) {
+  if (!tabKey) return
+  try {
+    await loadWorkOrders(persona.value, tabKey)
+  } catch (e) {
+    toastErr(e?.message || '工单加载失败')
+  }
+  ver.value++
+}
+
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  ver.value++
-  /* 身份切换后原页签可能不存在（比如从维修工切到项目经理），回落到第一个 */
-  if (!tabs.value.some(t => t.key === tab.value)) tab.value = fallbackTab.value
+  /*
+   * 顺序不能反：HTTP 模式下 `tabs` 只有拉过一次才有内容，
+   * 拿空数组去判断"当前页签是否还有效"，结论永远是 false ——
+   * 会被回落到写死的 mine，而一线根本没有"我的"单，页面就空着。
+   * 先拉一次拿到真实页签，再决定要不要换。
+   */
+  await loadList(tab.value || fallbackTab.value)
+  if (!tabs.value.some(t => t.key === tab.value)) {
+    const first = tabs.value[0]?.key
+    if (first) tab.value = first   /* 改 tab 会触发下面的 watch 再拉一次 */
+  }
+})
+
+/* 切页签要换一份数据：每个 tab 的行是独立拉的（页签计数与行同一次快照） */
+watch(tab, (v, old) => {
+  if (v && v !== old) loadList(v)
 })
 
 function openSwitch() {
@@ -188,14 +216,15 @@ function open(w) {
 }
 
 /** 抢单：失败文案直接来自数据层（409 语义），并刷新池子 */
-function doGrab(w) {
+async function doGrab(w) {
   try {
-    claim(w.id, persona.value)
-    ver.value++
+    await claim(w.id, persona.value)
     tab.value = 'mine'
+    await loadList('mine')
     toastOk(`抢到了 · ${w.no}，15 分钟内到场`)
   } catch (e) {
-    ver.value++
+    await loadList(tab.value || 'grab')
+    /* 抢失败多半是被别人抢走了：重新拉一次池子，那张单会自己消失 */
     toastErr(e?.message || '抢单失败')
   }
 }

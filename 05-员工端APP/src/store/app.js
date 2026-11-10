@@ -43,6 +43,8 @@ export const app = reactive({
   pays: cache.pays || [],
   /** 弃单统计：{ [name]: [{ woId, at }] } */
   abandons: cache.abandons || {},
+  /** 已读公告 id：消息页靠它算「未读 N」。P0 没有已读回执接口，只能记在本地 */
+  readNotices: cache.readNotices || [],
   /** 最近一次提交结果，提交页读取（不落盘，刷新即失效） */
   lastSubmit: null,
   syncing: false
@@ -68,11 +70,23 @@ export function persist() {
       claims: app.claims,
       addOns: app.addOns,
       pays: app.pays,
-      abandons: app.abandons
+      abandons: app.abandons,
+      readNotices: app.readNotices
     })
   } catch (e) {
     /* 缓存写失败不阻断演示 */
   }
+}
+
+/** 标记一条公告已读。可重复调用（展开、切页签都会走），已读的就不再写盘 */
+export function markNoticeRead(noticeId) {
+  if (!noticeId || app.readNotices.includes(noticeId)) return
+  app.readNotices.push(noticeId)
+  persist()
+}
+
+export function isNoticeRead(noticeId) {
+  return app.readNotices.includes(noticeId)
 }
 
 export function login(personaId) {

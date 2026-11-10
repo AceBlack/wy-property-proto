@@ -9,7 +9,10 @@
     "check:data": "node scripts/check-data.mjs",
     "smoke": "node scripts/smoke.mjs",
     "check:schema": "node scripts/check-schema.mjs",
-    "prebuild:h5": "npm run check:schema"
+    "prebuild:h5": "npm run check:schema",
+    "verify:api": "node scripts/verify-api.mjs",
+    "verify:wo": "node scripts/verify-wo.mjs",
+    "verify:oa": "node scripts/verify-oa.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5030420261029002",

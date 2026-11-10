@@ -143,7 +143,7 @@ import NavBar from '@/components/NavBar.vue'
 import Cell from '@/components/Cell.vue'
 import Sheet from '@/components/Sheet.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import { BIZ_TYPE_TONE, act, canHandle, detailOf, transferCandidates } from '@/api/oa'
+import { BIZ_TYPE_TONE, act, canHandle, detailOf, loadApprovalDetail, transferCandidates } from '@/api/oa'
 import { app, persona } from '@/store/app'
 import { toastErr, toastOk } from '@/utils/ui'
 
@@ -199,12 +199,23 @@ onMounted(() => {
   // #endif
 })
 
-onShow(() => {
+/** 拉详情再重算：HTTP 模式下 detailOf 读缓存，不先 await 首帧是空的 */
+async function loadDetail() {
+  if (!id.value) return
+  try {
+    await loadApprovalDetail(id.value, persona.value)
+  } catch (e) {
+    toastErr(e?.message || '审批加载失败')
+  }
+  ver.value++
+}
+
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  ver.value++
+  await loadDetail()
 })
 
 function openSheet(m) {
@@ -228,16 +239,16 @@ function pickTransfer(name) {
   sheet.value = true
 }
 
-function doAct() {
+async function doAct() {
   const isReject = mode.value === 'reject'
   if (isReject && !comment.value.trim()) {
     toastErr('驳回要写原因')
     return
   }
   try {
-    act(persona.value, id.value, mode.value, { comment: comment.value.trim(), to: transferTo.value })
+    await act(persona.value, id.value, mode.value, { comment: comment.value.trim(), to: transferTo.value })
     sheet.value = false
-    ver.value++
+    await loadDetail()
     toastOk(isReject ? '已驳回' : mode.value === 'transfer' ? `已转办给 ${transferTo.value}` : '已通过')
     setTimeout(() => uni.navigateBack(), 700)
   } catch (e) {

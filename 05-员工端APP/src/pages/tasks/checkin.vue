@@ -143,8 +143,8 @@ import NavBar from '@/components/NavBar.vue'
 import Steps from '@/components/Steps.vue'
 import Cell from '@/components/Cell.vue'
 import { DEMO } from '@/config/personas'
-import { checkIn, communityNameOf, execData } from '@/api/mobile'
-import { app, getCheckin, saveCheckin } from '@/store/app'
+import { checkIn, communityNameOf, execData, loadTaskExec } from '@/api/mobile'
+import { app, getCheckin, persona, saveCheckin } from '@/store/app'
 import { clockText, timeState } from '@/utils/deadline'
 import { toast, toastErr, toastOk } from '@/utils/ui'
 
@@ -163,8 +163,9 @@ const locState = ref('idle')
 const failReason = ref('')
 const loc = ref(null)
 
-onLoad(options => {
+onLoad(async options => {
   taskId.value = options.taskId || ''
+  await loadTaskExec(taskId.value, persona.value)
   const d = execData(taskId.value)
   task.value = d.task
   itemCount.value = (d.template?.fields || []).length

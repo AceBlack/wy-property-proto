@@ -4,9 +4,16 @@
  * 为什么要「演示日期」：mock 里巡检任务的 scheduledDate 落在 2026-09-14 ~ 2026-10-21，
  * 审批 / 整改 / 工单的日期也在 10 月，如果直接用系统当天，「今日」「剩余时间」全都不对。
  * 所以全 App 统一用 DEMO.today 作为「今天」，界面上明确标出这个日期，不假装是真实今天。
+ *
+ * **日期跟随 PC，不在这里另写一个**（2026-11-08 收口）：
+ * 原来这里硬写 '2026-10-20'，而 PC 的 `utils/format.TODAY` 与假服务的 `DATA_DATE` 都是 '2026-10-21'。
+ * 差一天的后果不是"显示不同"，而是同一场活动在两端阶段不同（AC0015 的报名截止日正好卡在 10-20）、
+ * 打卡日期与工单超时各算一天。现在从 PC 导入，PC 改日期员工端自动跟，不会再有第二次分叉。
  */
+import { TODAY } from '@pc/utils/format'
+
 export const DEMO = {
-  today: '2026-10-20',
+  today: TODAY,
   /** 演示时刻：卡在这一天的 10:00 —— 09:00 的监督任务已超时、14:00 的执行任务还剩 4 小时 */
   nowTime: '10:00',
   get nowText() {
@@ -29,7 +36,7 @@ export const stamp = () => DEMO.nowText
  *   c.attendance.self     考勤本人查询（一线没有任何 c.employees.* 权限）
  *   c.payroll.self        工资条本人查询（PC 的 c.payroll.view 是全表，不能给一线）
  *   f.approval.handle     业务审批处理（PC 的 87 条审批只有 currentNode 岗位名，没有权限位）
- *   f.wo.dispatch         指派他人（项目经理/客服把单派给维修工）
+ *   f.workorders.dispatch 指派他人（项目经理把单派给维修工；与工单列表同一个 func，权限矩阵不新增行）
  *   f.rectify.recheck     整改复核（PC 侧品质督导做，项目经理也有权）
  */
 export const CAP = {
@@ -37,7 +44,7 @@ export const CAP = {
   inspExec: 'f.inspect.exec',
   woView: 'f.workorders.view',
   woEdit: 'f.workorders.edit',
-  woDispatch: 'f.wo.dispatch',
+  woDispatch: 'f.workorders.dispatch',
   approve: 'f.approval.handle',
   rectify: 'f.rectify.edit',
   recheck: 'f.rectify.recheck',

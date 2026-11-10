@@ -176,6 +176,53 @@ date / datetime / select / file）→ 底部实时显示**审批路径**（节�
 `communityId` + `stewardEmpId` 自己收（PC 的 `_lvScopedListings()` 对本部门 / 责任范围会因
 `communities` / `houseIds` 为空直接返回空列表）；写切登录人角色，否则经办人记错人。
 
+## 三之七、消息：待办提醒在前，公告按类型分类
+
+一屏公告列表既没有分类也没有"要我干什么"，和公告栏没区别。现在第一个页签是**待办**（有活时也是默认落点），
+后面才是公告的类型页签。
+
+### 待办：五个来源，不重写判断
+
+聚合在 `src/api/inbox.js`，**只做索引**——"什么算待办"的规则仍在各域。复述一遍的后果是
+"消息里 3 条、进工单页 5 条"，用户不知道信哪个。
+
+| 来源 | 取什么 | 权限 |
+|---|---|---|
+| 工单 | 抢单池（可抢的付费单）+ 我处理中**已超时**的 | `f.workorders.view` |
+| 巡检 | 待执行 + 逾期（`listForTab(name,'todo')` 的 pinned 与 groups 两段都要） | `f.inspect.view` |
+| 审批 | 待我处理（`oa.listFor(persona,'todo')`） | `f.approval.handle` |
+| 邻里 | 闲置待审 + 举报待处理 | `n.items.audit` / `n.reports.handle` |
+| 租售 | 房源待审（逐条）+ 看房待回（**汇总一条**） | `a.listings.audit` / `a.listings.viewing` |
+
+四条关键决策：
+
+- **必须五个来源**。只做工单/巡检/审批的话，楼管登录后待办是 **0** —— 他的活（房源审核、看房回电）
+  一条都不在里面，等于这功能对一半身份无效。第一版就是这样，实测才发现。
+- **待办不进「未读数」**：顶部两个数字分开（待办 N / 公告未读 M）。要处理的与要阅知的混成一个数会被忽略。
+- **待办不做已读**：处理掉就消失。套用公告那套已读逻辑会造出"读了但没办"的僵尸提醒。
+- **看房请求汇总一条**，其他逐条：看房的处置是在列表页逐条做的、没有单条详情，
+  列 5 个相同入口只会把别的待办挤下去。
+
+每组封顶 5 条 +「还有 N 条」跳到该域列表页，不把消息页拉成一条无限长列表。
+
+### 公告：按类型分类
+
+| 决策 | 依据 |
+|---|---|
+| 页签 = 全部公告 + 6 类，**只列有内容的类型** | 本项目没有「收费通知」时还摆一个 0 的页签，点进去是空态，纯属让人多点一次 |
+| 类型顺序按「影响当下」排 | 停水停电 / 维修施工在前，政策公示在后；PC 的 `NOTICE_TYPES` 是同一组值，只是这里多定了顺序与配色 |
+| chips 横向滚动，**不复用 Segmented** | 页签会随身份变成 7～8 项，平分每项约 50rpx，"停水停电"四个字放不下 |
+| 未读 = 本地已读集合的补集 | P0 没有已读回执接口，`readNotices` 存本机；**展开即已读**（这个 App 里「看」的唯一动作就是展开） |
+| 未读用「左侧竖条 + 圆点」，不只靠加粗 | 一条一条扫过去时，竖条是最容易看到的信号 |
+
+顺带修掉两处口径错误（都是"给员工看了不该看的"）：
+- 原来**不过滤 `status`**，草稿 4 条 / 待审核 9 条 / 已撤回 2 条会被下发 —— 这是越权，不是显示问题；
+- 原来 `communityId === 本项目` 把 **10 条集团公告**（`communityId` 为空）全过滤掉了，员工永远收不到集团通知；
+- `noticeTotal` 数的 `notices.length` = 106 条含草稿，头部「全公司公告总数」这个数字本身就是错的。
+
+现在 P01 员工可见 **28 条**（本项目已发布 21 + 集团 7），6 个类型都有内容。
+
+
 ## 四、这台手机上「权限」是怎么表达的
 
 移动端不是把 PC 菜单缩小，而是**按能力装配**：没权限的模块不出现，直接进 URL 会被权限门挡住并说明原因（`NoPerm` 组件）。
@@ -210,11 +257,57 @@ npm run build:h5     # 产物 dist/build/h5
 ```bash
 npm run check:schema # @pc 字段契约（缺字段退出码 1，build:h5 前自动跑）
 npm run check:data   # 44 项：PC 对齐 5 数 + 各模块基数 + 19 条口径守卫（含抢单池纯度、价目不缺口、标签引用可解析）
-npm run smoke        # 181 项断言，四身份 × 五模块逐屏点一遍，截图存 screenshots/
+npm run smoke        # 197 项断言，四身份 × 五模块逐屏点一遍，截图存 screenshots/
 ```
 
 `smoke.mjs` 默认打 `http://localhost:5199`，也可 `--base http://localhost:5211` 打构建产物。
-**开发与构建产物两种模式都跑过：181/181，零 console 错误。**
+**开发与构建产物两种模式都跑过：197/197，零 console 错误。**
+
+### 接假服务（HTTP 模式，可选）
+
+默认走本地种子（`@pc/mock`），演示不受影响。要验证"接口形状真能支撑这些页面"，另开终端：
+
+```bash
+cd 04-契约 && npm run mock          # 假服务 :4010
+cd 05-员工端APP && VITE_USE_API=true npm run dev:h5
+npm run verify:api                  # 断言：登录 → 取数 → 渲染，数字与契约一致
+```
+
+现状：**巡检与工单两个域已切通**。
+
+| 域 | 切到哪一步 | 验证 |
+|---|---|---|
+| 巡检 | 整条链：列表 → 详情 → 逐项执行 → 打卡 → 转工单 | `npm run verify:api` |
+| 工单 | 列表 + 详情 + **抢单/放弃（读写一起切）** | `npm run verify:wo` |
+| 审批 | 三个页签 + 详情 + **同意/驳回 + 发起申请** | `npm run verify:oa` |
+
+工单这块和巡检不一样：**必须读写一起切**。只切读不切写，写操作改的是本地种子、
+列表读的是接口 —— 用户抢完单回列表发现"还在池子里"。所以 `wo.js` 里
+读走缓存、写改 async（12 个动作），页面加 `await`。
+
+| 页面 | 接口 |
+|---|---|
+| 任务列表 | `GET /inspect-tasks?executor=姓名`（页签 4/1/17 合计 22 条，与契约一致） |
+| 任务详情 | `GET /mobile/tasks/{id}/exec`（模板 + **来源计划含周期** + **项目地址**） |
+| 逐项执行 | 同一份数据，命中详情页缓存，**不再发请求** |
+| 打卡 / 转工单 | 同一份数据 + `POST /mobile/tasks/{id}/checkin`、`POST /inspect-tasks/{id}/work-orders` |
+
+其余域（楼栋、邻里、租售）仍走种子 —— 下一步按域推进，见交接单 **§15.7**。
+
+**执行页为什么用「预加载 + 同步读缓存」而不是把 `execData` 改成 async**：
+exec / checkin / wo-create 三个页面都是进页面时同步取一次再算检查项，改成 async 要连初始化一起改；
+缓存版只需在 `onLoad` 开头加一行 `await loadTaskExec(...)`。代价是一个只在页面生命周期内有值的 Map。
+
+三个坑记在这里，省得重复踩：
+- 假服务的 `size` 上限是 **100**，传 200 会被 400 拒掉；`loadTasks` 因此写成分页循环；
+- 演示身份的**账号与契约测试账号是两套**（`zhou-ming` 等 4 个 vs `gm`/`pm`/`steward`/`staff`），
+  合并会让工单经办人记错人；
+- `mobile.js` / `wo.js` **不能 import store**（`store/app.js` 已经 import 了它们的写函数），
+  否则成环 —— 需要身份时由页面把 `persona.value` 传进去；
+- **跑 smoke 前先确认 5199 上没有 HTTP 模式的 dev**：smoke 会复用已在跑的 5199，
+  如果那上面是 `VITE_USE_API=true` 起的，mock 断言会全挂并刷 `ERR_CONNECTION_REFUSED`，
+  看着像代码坏了。同一个坑还有反面：假服务是**内存态**，`verify:wo` 跑一次就改了数据，
+  重跑前必须重启假服务。
 
 数据侧（改动 mock 后必做）：
 
@@ -225,7 +318,7 @@ bash tools/sync-mock.sh --check          # 只比对，不一致退出码 1（�
 cd 03-原型 && npm run check && npm run e2e   # PC 静态自检 + 54 页冒烟
 ```
 
-契约侧（`04-契约`）：`npm test` → **204/204 通过**（243 路径 / 277 接口 / 299 schema，员工端只消费其中 mobile / neighbor / listings 三段）。
+契约侧（`04-契约`）：`npm test` → **263/263 通过**（285 路径 / 329 接口 / 341 schema，员工端只消费其中 mobile / neighbor / listings 三段）。
 
 ---
 
@@ -246,7 +339,8 @@ cd 03-原型 && npm run check && npm run e2e   # PC 静态自检 + 54 页冒烟
       rectify/(list detail)   整改闭环
       building/(index house tenant collect)  欠费与催收 / 业主房屋（标签 · 住户）/ 租户核验 / 批量催缴
       attendance/ payroll/(index commission) finance/   自助、提成结算单、只读看板
-      msg/ mine/
+      msg/             消息：待办提醒（工单/巡检/审批/邻里/租售）+ 公告按 6 类分页签
+  mine/
     api/
       mobile.js     巡检数据层（PC 规则 + 移动端专有取数）
       oa.js         审批节点规则（谁能审）+ 动作
@@ -256,6 +350,10 @@ cd 03-原型 && npm run check && npm run e2e   # PC 静态自检 + 54 页冒烟
       rectify.js    整改三动作 + 可提交 / 可复核判定
       hr.js         考勤（月度确认 / 申诉）、工资条（本人）
       finance.js    费用只读看板
+      neighbor.js   邻里（闲置 / 举报 / 活动 / 代报名），读写都走 withRole
+      listing.js    租售（房源审核 / 看房回拨 / 本人联系方式）
+      inbox.js      消息待办聚合：五个来源只做索引，不重写各域判断
+      client.js     HTTP 客户端（VITE_USE_API 开关，默认关闭）
     components/     NavBar / Tag / Cell / Empty / Steps / Sheet / ActionSheet / PhotoPicker / TaskCard / Segmented / NoPerm
                     EnrollSheet（活动代报名表单，列表与详情共用）
     store/app.js    登录人 / 网络 / 待同步 / 草稿 / 打卡 / 催收 / 转单关联 / 抢单 / 增项 / 收款
@@ -264,7 +362,7 @@ cd 03-原型 && npm run check && npm run e2e   # PC 静态自检 + 54 页冒烟
     styles/         tokens.css（只含 --biz-*）、app.css
     static/preview.html  多屏画廊（独立静态页，构建后同样可用）
     pages.json      页面栈 + 5 个 tabBar（uni 的「路由」，不是 vue-router）
-  scripts/          check-data.mjs / check-schema.mjs / smoke.mjs / probe.mjs
+  scripts/          check-data.mjs / check-schema.mjs / smoke.mjs / verify-api.mjs / probe.mjs
   screenshots/      逐屏截图（55 张）
 ```
 

@@ -1164,6 +1164,66 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/OaFormDef' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /mobile/approvals:
+    get:
+      tags: [mobile]
+      operationId: mobileApprovalList
+      summary: 员工端审批列表（待我处理 / 我发起 / 我办过）
+      description: |
+        不能用 `/oa/requests` 代替：那是**「我的申请」**视角，而员工端第一个页签是
+        「待我处理」，要按**节点审批人**判，跟申请人无关。
+
+        判定规则（与 `05/src/api/oa.js` 的 `canHandle` 必须一致，否则会出现
+        "页面说待你审批、点进去服务端说不是你"）：
+
+        1. 节点名 → 组织 → 负责人关系表的**在期正职**；正职空缺落**代理**；**副职不参与单签**
+        2. 会签看名单里有没有我
+        3. 不能审自己提交的单
+        4. 只看本项目
+      x-permission: f.approval.handle
+      parameters:
+        - name: tab
+          in: query
+          schema: { type: string, enum: [todo, applied, done], default: todo }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileApprovalListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /mobile/approvals/{approvalId}:
+    get:
+      tags: [mobile]
+      operationId: mobileApprovalDetail
+      summary: 员工端审批详情（当前节点 / 会签进度 / 时间线）
+      description: |
+        `target` 是「这一单该谁办」的结论，页面据此决定底部按钮显示什么：
+
+        - `kind=leader` 单人节点，看 `signer`（关系表解出的在期正职或代理）
+        - `kind=sign` 会签节点，看 `approvers` 与 `progress`
+        - `kind=unsupported` 移动端不办（如合同初审），`why` 直接显示给用户
+        - `kind=done` 已结束
+
+        `canHandle` 是服务端对**当前登录人**的判定，页面不要自己再算一遍。
+      x-permission: f.approval.handle
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileApprovalDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /oa/requests:
     get:
       tags: [oa]
@@ -3657,6 +3717,65 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /mobile/work-orders:
+    get:
+      tags: [mobile]
+      operationId: mobileWorkOrderList
+      summary: 员工端工单列表（按 tab 分组，页签与计数一次给全）
+      description: |
+        员工端不按「全量分页 + 前端筛选」取工单，而是**按身份能做的事分组**：
+        可抢（一线维修）/ 待派（项目经理、客服主管）/ 我的（处理中）/ 已完成。
+
+        为什么一次给全 tabs 与 rows：四个 tab 各请求一次不但慢，
+        四次响应之间还会互相矛盾 —— 抢单池刚少一张、"我的"还没更新，
+        用户看到"抢了但我的里没有"。所以页签计数与当前 tab 的行来自**同一次快照**。
+
+        页签只列当前身份真有的：一线没有"待派"，客服主管的"待派"只有公区单。
+      x-permission: f.workorders.view
+      parameters:
+        - name: tab
+          in: query
+          description: 缺省 mine
+          schema: { type: string, enum: [grab, dispatch, mine, done], default: mine }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileWorkOrderListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /mobile/work-orders/{woId}:
+    get:
+      tags: [mobile]
+      operationId: mobileWorkOrderDetail
+      summary: 员工端工单详情聚合（费用 / 增项 / 提成 / 时间线）
+      description: |
+        一屏一请求：管理端详情只回工单行与时间线，而移动端详情页还要
+        **费用构成、增项清单、提成、评价**。
+
+        两条金额口径必须分清：
+
+        - `fee.total` = 单额 + **已确认**的增项。未确认的增项不能算进应收 ——
+          否则师傅会去要一笔业主根本没认的钱。
+        - `addonSum.pending` 却要数**全部**未确认的：它是"还有几笔等业主点头"，
+          不是金额。
+
+        `settled` = 已收款才结提成。完工未收款是**在途**，不能算进当月收入。
+      x-permission: f.workorders.view
+      parameters:
+        - $ref: '#/components/parameters/woId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileWorkOrderDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /mobile/collections:
     post:
@@ -14623,6 +14742,216 @@ components:
                       memo: { type: string }
                       done: { type: boolean }
 
+    MobileApprovalListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [tabs, tab, rows]
+              properties:
+                tabs:
+                  type: array
+                  items:
+                    type: object
+                    required: [key, label, count]
+                    properties:
+                      key: { type: string, enum: [todo, applied, done] }
+                      label: { type: string }
+                      count: { type: integer }
+                tab: { type: string, enum: [todo, applied, done] }
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/OaRequest' }
+
+    MobileApprovalDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [approval, actor, target, sign, canHandle, timeline]
+              properties:
+                approval: { $ref: '#/components/schemas/OaRequest' }
+                actor:
+                  type: object
+                  description: 当前节点摘要（页面顶部显示"卡在谁那里"）
+                  properties:
+                    label: { type: string }
+                    kind: { type: string }
+                    signer: { type: object, nullable: true }
+                    orgId: { type: string }
+                target:
+                  type: object
+                  description: |
+                    「这一单该谁办」。kind 决定底部按钮：leader（等某人）/ sign（会签）/
+                    unsupported（移动端不办）/ done（已结束）/ none（不存在）。
+                  properties:
+                    kind: { type: string, enum: [leader, sign, unsupported, done, none, role] }
+                    label: { type: string }
+                    why: { type: string }
+                    orgId: { type: string }
+                    signer: { type: object, nullable: true }
+                    approvers: { type: array, items: { type: object } }
+                    signMode: { type: string }
+                    progress:
+                      type: object
+                      properties:
+                        done: { type: integer }
+                        total: { type: integer }
+                sign:
+                  type: object
+                  nullable: true
+                  description: 只有会签节点才给，单人节点是 null（不显示空壳）
+                  properties:
+                    mode: { type: string }
+                    progress:
+                      type: object
+                      properties:
+                        done: { type: integer }
+                        total: { type: integer }
+                    approvers: { type: array, items: { type: object } }
+                canHandle:
+                  type: boolean
+                  description: 服务端对当前登录人的判定，页面不要自己再算
+                timeline:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      index: { type: integer }
+                      node: { type: string }
+                      handler: { type: string }
+                      action: { type: string }
+                      time: { type: string }
+                      comment: { type: string }
+                      done: { type: boolean }
+                      signMode: { type: string }
+                      approvers: { type: array, items: { type: object } }
+
+    MobileWorkOrderListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [tabs, tab, rows]
+              properties:
+                tabs:
+                  type: array
+                  description: 当前身份真有的页签（一线没有"待派"）；计数与 rows 来自同一次快照
+                  items:
+                    type: object
+                    required: [key, label, count]
+                    properties:
+                      key: { type: string, enum: [grab, dispatch, mine, done] }
+                      label: { type: string }
+                      count: { type: integer }
+                tab: { type: string, enum: [grab, dispatch, mine, done] }
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/WorkOrder' }
+
+    MobileWorkOrderDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [workOrder, price, fee, addons, pays, addonSum, commission, settled, timeline]
+              properties:
+                workOrder: { $ref: '#/components/schemas/WorkOrder' }
+                price:
+                  type: object
+                  description: 下单时的价目快照。`dictPrice` 与 `total` 不同说明后台调过价
+                  properties:
+                    code: { type: string }
+                    name: { type: string }
+                    material: { type: number }
+                    labor: { type: number }
+                    total: { type: number }
+                    dictPrice: { type: number }
+                fee:
+                  type: object
+                  description: |
+                    金额口径：`total` = 单额 + **已确认**的增项。
+                    未确认的增项不能算进应收 —— 否则师傅会去要一笔业主没认的钱。
+                  properties:
+                    type: { type: string }
+                    material: { type: number }
+                    labor: { type: number }
+                    total: { type: number }
+                    baseTotal: { type: number }
+                    prepaid: { type: boolean }
+                    payStatus: { type: string }
+                    paid: { type: number }
+                    due: { type: number }
+                    payMethod: { type: string }
+                    hangReason: { type: string }
+                addons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code: { type: string }
+                      name: { type: string }
+                      qty: { type: number }
+                      material: { type: number }
+                      labor: { type: number }
+                      total: { type: number }
+                      at: { type: string }
+                      by: { type: string }
+                      confirmed: { type: boolean }
+                pays:
+                  type: array
+                  description: |
+                    收款流水。移动端收款是**现场动作**（扫码 / 现金 / 挂账），
+                    事后对账全靠这张表 —— 只给 `paidAmount` 汇总是不够的。
+                    没记流水就说不清"这笔钱谁收的、什么时候收的"。
+                  items:
+                    type: object
+                    properties:
+                      at: { type: string }
+                      amount: { type: number }
+                      method: { type: string, description: '微信支付 / 支付宝 / POS刷卡 / 现金 / 挂账' }
+                      by: { type: string, description: '收款人（员工姓名）' }
+                      transNo: { type: string }
+                      reason: { type: string, description: '挂账时必填' }
+                addonSum:
+                  type: object
+                  description: |
+                    金额只汇总已确认的（调用方按需取）；`pending` 数**全部**未确认的 ——
+                    它回答"还有几笔等业主点头"，不是金额。
+                  properties:
+                    material: { type: number }
+                    labor: { type: number }
+                    total: { type: number }
+                    pending: { type: integer }
+                    count: { type: integer }
+                commission: { type: number, description: '按人工费 × 项目比例；材料费不参与' }
+                settled: { type: boolean, description: '已收款才结提成；完工未收款算在途' }
+                ownerEval:
+                  type: object
+                  nullable: true
+                  properties:
+                    score: { type: number }
+                    tags: { type: array, items: { type: string } }
+                    text: { type: string }
+                staffEval: { type: object, nullable: true }
+                timeline:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      at: { type: string }
+                      action: { type: string }
+                      by: { type: string }
+                      memo: { type: string }
+
     MobileExecEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'
@@ -14630,7 +14959,7 @@ components:
           properties:
             data:
               type: object
-              required: [task, template]
+              required: [task, template, plan, community]
               properties:
                 task: { $ref: '#/components/schemas/InspectTask' }
                 template:
@@ -14652,6 +14981,31 @@ components:
                           options:
                             type: array
                             items: { type: string }
+                plan:
+                  type: object
+                  nullable: true
+                  description: |
+                    来源巡检计划。详情页要显示「来源计划 · 周期」。
+
+                    计划被删除（或任务来自临时计划）时给 **null**，不要给空对象 ——
+                    前端 `p ? `, p.name : '—'` 的判断依赖 null，空对象会渲染成「— · undefined」。
+                  properties:
+                    planId: { type: string }
+                    name: { type: string }
+                    cycle: { type: string, description: '每日 / 每周 / 每月 / 每季' }
+                    post: { type: string }
+                community:
+                  type: object
+                  nullable: true
+                  description: |
+                    所属项目。详情页要显示项目名与地址（"去哪儿干活"是这个页面第二重要的信息）。
+
+                    与 `communityName` 并存是**有意的**：执行页只显示项目名、不需要请求第二个接口，
+                    详情页要地址。两个字段都由服务端给，前端不拼。
+                  properties:
+                    communityId: { type: string }
+                    name: { type: string }
+                    address: { type: string }
                 communityName: { type: string }
                 workers:
                   type: array

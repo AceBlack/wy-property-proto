@@ -181,8 +181,8 @@ import Steps from '@/components/Steps.vue'
 import Tag from '@/components/Tag.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import { INSPECT_ISSUE_REASONS, STATUS_COLOR, communityNameOf, execData, orgNameOf, respCandidates, submitInspectResult } from '@/api/mobile'
-import { app, clearDraft, getDraft, inspectWoOf, isPending, saveDraft, stageSubmission } from '@/store/app'
+import { INSPECT_ISSUE_REASONS, STATUS_COLOR, communityNameOf, execData, loadTaskExec, orgNameOf, respCandidates, submitInspectResult } from '@/api/mobile'
+import { app, clearDraft, getDraft, inspectWoOf, isPending, persona, saveDraft, stageSubmission } from '@/store/app'
 import { demoNow } from '@/config/personas'
 import { fullTimeText, timeState } from '@/utils/deadline'
 import { toast, toastErr, toastOk } from '@/utils/ui'
@@ -197,8 +197,10 @@ const restoredAt = ref('')
 const respSheet = ref(false)
 const respIdx = ref(-1)
 
-onLoad(options => {
+onLoad(async options => {
   taskId.value = options.taskId || ''
+  /* HTTP 模式下先把这一屏的数据拉下来，下面的 execData 才读得到（mock 模式是空操作） */
+  await loadTaskExec(taskId.value, persona.value)
   const d = execData(taskId.value)
   task.value = d.task
   template.value = d.template

@@ -21,6 +21,44 @@ import { WO_TYPES, createWorkOrder, woSlaState } from '@pc/utils/api'
 import { stamp } from '@/config/personas'
 import { addAbandon, addAddon, addonsOf, abandonsOf, claimOf, confirmAddons, dropClaim, linkInspectWo, paysOf, saveClaim, savePay } from '@/store/app'
 import { addonFee, commissionOf, projectParam, round2, snapshotOf } from '@/api/pricing'
+import { IS_API, get, loginAs, post, patch } from './client'
+
+/* ---------- HTTP 模式下的缓存（与巡检域同一套思路） ---------- */
+
+/*
+ * 工单域和巡检不一样：它**必须读写一起切**。
+ * 只切读不切写，写操作改的是本地种子、列表读的是接口 ——
+ * 用户抢完单回列表发现"还在池子里"。
+ *
+ * 读用「预加载 + 同步读缓存」，写改成 async（页面 await）：
+ * 读函数被 computed 大量调用，改 async 要连模板的重算逻辑一起动；
+ * 写函数每页只有一两处，加 await 成本最低。
+ */
+const LIST_CACHE = { tabs: [], rows: {}, loaded: false }
+const DETAIL_CACHE = new Map()
+
+/** 写操作后清缓存：下一次 onShow / refresh 会重新拉，避免"抢了单但列表没变" */
+export const invalidateWo = () => {
+  LIST_CACHE.loaded = false
+  DETAIL_CACHE.clear()
+}
+
+export async function loadWorkOrders(persona, tab = 'mine') {
+  if (!IS_API) return
+  if (persona?.id) await loginAs(persona.id)
+  const d = await get(`/mobile/work-orders?tab=${tab}`)
+  LIST_CACHE.tabs = d.tabs || []
+  LIST_CACHE.rows[tab] = d.rows || []
+  LIST_CACHE.loaded = true
+}
+
+export async function loadWoDetail(woId, persona) {
+  if (!IS_API) return null
+  if (persona?.id) await loginAs(persona.id)
+  const d = await get(`/mobile/work-orders/${woId}`)
+  DETAIL_CACHE.set(woId, d)
+  return d
+}
 
 const DONE = ['已完工', '已关闭', '已评价']
 /** 商业服务 = 付费入户维修（PC 第 47 批把「入户维修」改名为「商业服务」） */
@@ -143,6 +181,8 @@ export function poolOf(persona) {
 }
 
 export function tabsFor(persona) {
+  /* HTTP 模式：页签与计数来自 /mobile/work-orders 的同一次快照 */
+  if (IS_API) return LIST_CACHE.tabs
   const t = []
   if (canGrab(persona)) t.push({ key: 'grab', label: '可抢', count: grabPool(persona).length })
   if (canDispatch(persona)) t.push({ key: 'dispatch', label: '待派', count: dispatchPool(persona).length })
@@ -151,7 +191,55 @@ export function tabsFor(persona) {
   return t
 }
 
+/**
+ * 把服务端行适配成页面认识的形状。
+ *
+ * 服务端给的是 `woId / woNo / totalWithAddon`，而页面用的是 `id / no / total`
+ * 外加两个配色（priorityTone / statusTone）。不补这一层，
+ * 卡片 id 会是 `wo-card-undefined`、点进去是 `?id=undefined` —— 整个列表看着像没数据。
+ *
+ * 这里只做**字段改名与配色映射**，金额和业务判断一律用服务端给的：
+ * 什么算待办、应收怎么算，仍然只有服务端一处定义。
+ */
+function adaptRow(w, persona) {
+  const addonTotal = Math.max(0, Number(w.totalWithAddon || 0) - Number(w.totalFee || 0))
+  return {
+    ...w,
+    id: w.woId,
+    no: w.woNo,
+    title: w.title,
+    type: w.type,
+    category: w.category,
+    priority: w.priority,
+    priorityTone: PRIORITY_TONE[w.priority] || 'var(--biz-text-3)',
+    status: w.status,
+    statusTone: WO_TONE[w.status] || 'var(--biz-text-3)',
+    houseName: w.houseName || '公区',
+    ownerName: w.ownerName || '',
+    createTime: w.createTime,
+    assignee: w.assignee || '',
+    mode: w.dispatchMode || '后台指派',
+    serviceName: w.serviceName || w.category || '',
+    isOverdue: !!w.isOverdue,
+    score: w.score || 0,
+    mine: w.assignee === persona?.name,
+    /* SLA 剩余时间由前端按 slaDueAt 现算，服务端只给到期时刻 */
+    slaLeft: '',
+    slaBreached: !!w.slaBreached,
+    feeType: w.feeType,
+    total: Number(w.totalWithAddon || w.totalFee || 0),
+    labor: Number(w.laborFee || 0) + addonTotal,
+    commission: Number(w.commission || 0),
+    paid: w.payStatus === '已支付',
+    payStatus: w.payStatus || '',
+    addonCount: w.addonCount || 0,
+    addonPending: w.addonPending || 0,
+    grabLeft: ''
+  }
+}
+
 export function listFor(persona, tab = 'mine') {
+  if (IS_API) return (LIST_CACHE.rows[tab] || []).map(w => adaptRow(w, persona))
   if (tab === 'grab') return grabPool(persona).map(w => rowOf(w, persona))
   if (tab === 'dispatch') return dispatchPool(persona).map(w => rowOf(w, persona))
   if (tab === 'mine') return myOpen(persona).map(w => rowOf(w, persona))
@@ -160,6 +248,14 @@ export function listFor(persona, tab = 'mine') {
 
 /** 兼容旧调用：countsOf 现在给到 4 个页签 */
 export const countsOf = persona => {
+  if (IS_API) {
+    /* 页面读的是 pool / doing / done 三个旧名字，接口给的是 grab / mine / done */
+    const out = { pool: 0, doing: 0, done: 0 }
+    for (const t of LIST_CACHE.tabs) out[t.key] = t.count
+    out.pool = out.grab || 0
+    out.doing = out.mine || 0
+    return out
+  }
   const tabs = tabsFor(persona)
   const out = { pool: grabPool(persona).length, doing: myOpen(persona).length, done: myDone(persona).length }
   tabs.forEach(t => (out[t.key] = t.count))
@@ -234,6 +330,44 @@ export function grabLeftText(w) {
 }
 
 export function detailOf(woId, persona) {
+  /*
+   * HTTP 模式：详情来自 /mobile/work-orders/{id}（一屏一请求）。
+   * 这里把服务端的扁平结构**还原成页面认识的那套形状** —— 页面用的是 `row` / `fee` /
+   * `addons` / `commission` 这些名字，接口给的是 `workOrder` + 同名费用块。
+   * 映射集中在这一个函数里，页面一行都不用改。
+   */
+  if (IS_API) {
+    const d = DETAIL_CACHE.get(woId)
+    if (!d) return null
+    /*
+     * `raw` 给业务判断用（canDispatch 读它），`row` 必须走适配层 ——
+     * 页面靠 `row.mine` 决定要不要显示"放弃/到场"，直接用原始 workOrder
+     * 会是 undefined，按钮整排不渲染（看着像没权限）。
+     */
+    const w = d.workOrder
+    return {
+      raw: w,
+      row: adaptRow(w, persona),
+      description: w.description || '',
+      images: w.images || 0,
+      ownerPhone: w.ownerPhone || '',
+      assigneePhone: w.assigneePhone || '',
+      acceptTime: w.acceptTime || '',
+      arriveTime: w.arriveTime || '',
+      finishTime: w.finishTime || '',
+      slaHours: w.slaHours || 0,
+      price: d.price,
+      fee: d.fee,
+      addons: d.addons || [],
+      addonSum: d.addonSum,
+      commission: d.commission || 0,
+      settled: !!d.settled,
+      pays: d.pays || [],
+      ownerEval: d.ownerEval,
+      staffEval: d.staffEval,
+      timeline: d.timeline || []
+    }
+  }
   const w = workOrders.find(x => x.woId === woId)
   if (!w) return null
   const addon = addonSum(woId)
@@ -286,7 +420,13 @@ function must(woId) {
  * 抢单：先到先得。
  * 这里刻意抛「已被 X 抢走」而不是静默失败 —— 后台是条件更新，前端 409 后必须刷新池子。
  */
-export function claim(woId, persona) {
+export async function claim(woId, persona) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/claim`)
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (!canGrab(persona)) throw new Error('你的岗位不在抢单范围（只有维修工能抢单）')
   if (w.communityId !== persona?.communityId) throw new Error('跨项目的工单不能抢')
@@ -302,7 +442,14 @@ export function claim(woId, persona) {
 }
 
 /** 到场：抢到后必须在时限内点这一下，超时会被标迟到（不阻断，但要留痕） */
-export function arrive(woId, persona) {
+export async function arrive(woId, persona) {
+  if (IS_API) {
+    const r = await post(`/work-orders/${woId}/arrive`, { remark: '' })
+    invalidateWo()
+    /* late 由服务端按 SLA 判；拿不到就当作没超时，页面文案会退化成"已到场打卡" */
+    return { ...r, late: !!r?.late }
+  }
+
   const w = must(woId)
   if (w.assignee !== persona?.name) throw new Error('这单不在你手上')
   const left = grabLeftText(w)
@@ -313,7 +460,14 @@ export function arrive(woId, persona) {
 }
 
 /** 放弃：抢了不到场就放弃，记一次弃单；超过项目配置的次数当天不能再抢 */
-export function abandon(woId, persona) {
+export async function abandon(woId, persona) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/abandon`, { reason: '现场无法处理' })
+    invalidateWo()
+    const q = grabQuota(persona)
+    return { ok: true, used: q.used, limit: q.limit }
+  }
+
   const w = must(woId)
   if (w.assignee !== persona?.name) throw new Error('这单不在你手上')
   const param = projectParam(w.communityId)
@@ -328,7 +482,13 @@ export function abandon(woId, persona) {
 
 /* ---------------- 派单 ---------------- */
 
-export function dispatchTo(woId, toName, persona, note = '') {
+export async function dispatchTo(woId, toName, persona, note = '') {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/dispatch`, { to: toName, note })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (!canDispatch(persona, w)) {
     throw new Error(w.feeType === '收费' ? '付费单只有项目经理能指派' : '你没有派单权限')
@@ -374,7 +534,13 @@ export function dispatchTargets(persona, woId) {
 
 /* ---------------- 完工 / 增项 / 收款 ---------------- */
 
-export function addAddonItem(woId, code, qty, persona, item) {
+export async function addAddonItem(woId, code, qty, persona, item) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/addons`, { code, qty })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (w.assignee !== persona?.name) throw new Error('这单不在你手上')
   if (w.status !== '处理中') throw new Error('接单后才能加增项')
@@ -395,7 +561,13 @@ export function addAddonItem(woId, code, qty, persona, item) {
 }
 
 /** 业主确认增项：业主端未建，这里模拟"业主当面/扫码确认"，确认后才合并进订单 */
-export function ownerConfirmAddons(woId) {
+export async function ownerConfirmAddons(woId) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/addons/confirm`, { confirmedBy: '业主当面确认' })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   confirmAddons(woId)
   const sum = addonSum(woId, true)
@@ -411,7 +583,15 @@ export function ownerConfirmAddons(woId) {
  * 有未确认增项时**不能直接完工**：金额还没被业主认，先把确认做完，
  * 否则会出现"单子结了、钱多了一截没人认"的扯皮。
  */
-export function finish(woId, { remark = '', photos = 0, persona } = {}) {
+export async function finish(woId, { remark = '', photos = 0, persona } = {}) {
+  if (IS_API) {
+    /* 前端也拦一次：服务端会拒，但填完一屏再弹错是浪费现场时间 */
+    if (!String(remark).trim()) throw new Error('完工要写处理结果')
+    await post(`/work-orders/${woId}/finish`, { remark: String(remark).trim(), photos: Number(photos) || 0 })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (w.assignee !== persona?.name) throw new Error('这单不在你手上')
   if (!['处理中', '已派单'].includes(w.status)) throw new Error('先接单再完工')
@@ -426,7 +606,18 @@ export function finish(woId, { remark = '', photos = 0, persona } = {}) {
 }
 
 /** 收款：移动端只出收款码，不经手现金 */
-export function payByQr(woId, persona, method = '微信支付') {
+export async function payByQr(woId, persona, method = '微信支付') {
+  if (IS_API) {
+    /* 全额收款：应收 − 已收。服务端会拒超额，所以金额必须现算，不能写死单额 */
+    const d = await loadWoDetail(woId, persona)
+    const due = Number(d?.fee?.due) || 0
+    const paid = Number(d?.fee?.paid) || 0
+    if (due - paid <= 0) throw new Error('已经收过了')
+    await post(`/work-orders/${woId}/payments`, { amount: Math.round((due - paid) * 100) / 100, method })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = workOrders.find(x => x.woId === woId)
   if (!w) throw new Error('工单不存在')
   if (w.feeType !== '收费') throw new Error('这单不收费')
@@ -445,7 +636,20 @@ export function payByQr(woId, persona, method = '微信支付') {
 }
 
 /** 挂账：业主不在家/企业客户月结，必须写原因 */
-export function hangUp(woId, reason) {
+export async function hangUp(woId, reason) {
+  if (IS_API) {
+    if (!String(reason || '').trim()) throw new Error('挂账要写原因')
+    const d = DETAIL_CACHE.get(woId)
+    const left = Math.max(0, (Number(d?.fee?.due) || 0) - (Number(d?.fee?.paid) || 0))
+    await post(`/work-orders/${woId}/payments`, {
+      amount: Math.round(left * 100) / 100,
+      method: '挂账',
+      reason: String(reason).trim()
+    })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = workOrders.find(x => x.woId === woId)
   if (!w) throw new Error('工单不存在')
   if (!String(reason || '').trim()) throw new Error('挂账要写清原因')
@@ -524,7 +728,13 @@ export function grabQuota(persona) {
 
 /* ---------------- 转单（保留） ---------------- */
 
-export function accept(woId, persona) {
+export async function accept(woId, persona) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/accept`, { to: persona?.name || '' })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (w.status === '处理中') throw new Error('这单已经在处理了')
   if (w.assignee && w.assignee !== persona.name && persona.roleId !== 'R-PM') {
@@ -536,7 +746,13 @@ export function accept(woId, persona) {
   return { ...w }
 }
 
-export function transfer(woId, toName, note = '') {
+export async function transfer(woId, toName, note = '') {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/transfer`, { to: toName, note: String(note || '') })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = must(woId)
   if (!toName) throw new Error('请选择转给谁')
   w.status = '已派单'
@@ -548,7 +764,13 @@ export function transfer(woId, toName, note = '') {
 
 export const STAFF_EVAL_TAGS = ['业主配合', '家中无人', '需二次上门', '现场无法进入', '非本专业问题']
 
-export function rateOwner(woId, { score = 5, tags = [], note = '' } = {}) {
+export async function rateOwner(woId, { score = 5, tags = [], note = '' } = {}) {
+  if (IS_API) {
+    await post(`/work-orders/${woId}/staff-eval`, { score, tags, note: String(note || '') })
+    invalidateWo()
+    return { ok: true }
+  }
+
   const w = workOrders.find(x => x.woId === woId)
   if (!w) throw new Error('工单不存在')
   if (!DONE.includes(w.status)) throw new Error('完工后才能回评')

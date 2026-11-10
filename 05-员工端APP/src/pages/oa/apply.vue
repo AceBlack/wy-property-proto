@@ -186,6 +186,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
+import { DEMO } from '@/config/personas'
 import Sheet from '@/components/Sheet.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import { APPLY_DEFS, amountFieldOf, applyDefOf, checkApplyForm, nextHandlerOf, previewFlowOf, submitApply } from '@/api/oa'
@@ -196,7 +197,7 @@ import { communities } from '@pc/mock'
 const defs = APPLY_DEFS
 const bizType = ref(defs[0]?.bizType || '')
 
-const today = '2026-10-20'
+const today = DEMO.today
 
 const curDef = computed(() => applyDefOf(bizType.value))
 const fields = computed(() => curDef.value?.fields || [])
@@ -289,7 +290,7 @@ const branchHint = computed(() => {
 })
 
 /* ---------- 提交 ---------- */
-function submit() {
+async function submit() {
   const bad = checkApplyForm(bizType.value, form)
   if (bad) {
     toastErr(bad)
@@ -305,7 +306,7 @@ function submit() {
     }))
   )
   try {
-    const ap = submitApply(persona.value, { bizType: bizType.value, formData: { ...form }, files: allFiles })
+    const ap = await submitApply(persona.value, { bizType: bizType.value, formData: { ...form }, files: allFiles })
     const next = nextHandlerOf(ap)
     done.no = ap.approvalNo
     done.title = ap.title

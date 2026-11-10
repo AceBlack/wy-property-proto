@@ -351,6 +351,7 @@ import {
   canGrab,
   claim,
   detailOf,
+  loadWoDetail,
   dispatchTargets as targetsOf,
   dispatchTo,
   finish,
@@ -478,8 +479,23 @@ const dispatchTargets = computed(() => (id.value ? targetsOf(persona.value, id.v
 /* 已指派的人还在等接单时，这个按钮就是「改派」，别让项目经理以为没派出去 */
 const dispatchLabel = computed(() => (d.value?.row?.assignee ? '改派' : '派给维修工'))
 
-onLoad(o => {
+/**
+ * 拉详情再重算。HTTP 模式下 `detailOf` 读的是缓存，
+ * 不先 await 这一下，页面首帧会是空的（金额、增项、时间线全没有）。
+ */
+async function loadDetail() {
+  if (!id.value) return
+  try {
+    await loadWoDetail(id.value, persona.value)
+  } catch (e) {
+    toastErr(e?.message || '工单加载失败')
+  }
+  ver.value++
+}
+
+onLoad(async o => {
   id.value = o.id || ''
+  await loadDetail()
 })
 
 /* 同路由换 id 时 uni 的 H5 路由复用组件（与业主房屋、审批详情同一个坑）：监听 hash 同步 */
@@ -491,7 +507,7 @@ onMounted(() => {
     const next = decodeURIComponent(m[1])
     if (next !== id.value) {
       id.value = next
-      ver.value++
+      loadDetail()
     }
   }
   syncFromHash()
@@ -500,43 +516,45 @@ onMounted(() => {
   // #endif
 })
 
-onShow(() => {
+onShow(async () => {
   if (!app.personaId) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
-  ver.value++
+  await loadDetail()
 })
 
-function refresh() {
-  ver.value++
+/** 写操作之后统一走这里：先把最新详情拉回来，再触发重算 */
+async function refresh() {
+  await loadDetail()
 }
 
-function doGrab() {
+async function doGrab() {
   try {
-    claim(id.value, persona.value)
-    refresh()
+    await claim(id.value, persona.value)
+    await refresh()
     toastOk(`抢到了，${arriveLimit.value} 分钟内到场`)
   } catch (e) {
-    refresh()
+    /* 失败也要刷新：多半是被别人抢走了，页面该显示"已派给 XX" */
+    await refresh()
     toastErr(e?.message || '抢单失败')
   }
 }
 
-function doArrive() {
+async function doArrive() {
   try {
-    const r = arrive(id.value, persona.value)
-    refresh()
+    const r = await arrive(id.value, persona.value)
+    await refresh()
     toastOk(r.late ? '已到场（超时，已记录迟到）' : '已到场打卡')
   } catch (e) {
     toastErr(e?.message || '打卡失败')
   }
 }
 
-function doAbandon() {
+async function doAbandon() {
   try {
-    const r = abandon(id.value, persona.value)
-    refresh()
+    const r = await abandon(id.value, persona.value)
+    await refresh()
     toastErr(`已放弃，退回抢单池（今日弃单 ${r.used}/${r.limit}）`)
     setTimeout(() => uni.navigateBack(), 600)
   } catch (e) {
@@ -552,11 +570,11 @@ function openDispatch() {
   dispatchSheet.value = true
 }
 
-function doDispatch(name) {
+async function doDispatch(name) {
   try {
-    dispatchTo(id.value, name, persona.value, '客服受理后指派')
+    await dispatchTo(id.value, name, persona.value, '客服受理后指派')
     dispatchSheet.value = false
-    refresh()
+    await refresh()
     toastOk(`已派给 ${name}，等他接单`)
   } catch (e) {
     toastErr(e?.message || '派单失败')
@@ -569,34 +587,34 @@ function openFinish() {
   finishSheet.value = true
 }
 
-function addThis(item) {
+async function addThis(item) {
   try {
-    addAddonItem(id.value, item.code, 1, persona.value, priceOfCode(item.code) || item)
-    refresh()
+    await addAddonItem(id.value, item.code, 1, persona.value, priceOfCode(item.code) || item)
+    await refresh()
   } catch (e) {
     toastErr(e?.message || '添加失败')
   }
 }
 
-function doOwnerConfirm() {
+async function doOwnerConfirm() {
   try {
-    ownerConfirmAddons(id.value)
-    refresh()
+    await ownerConfirmAddons(id.value)
+    await refresh()
     toastOk('业主已确认，增项合并到本单')
   } catch (e) {
     toastErr(e?.message || '确认失败')
   }
 }
 
-function doFinish() {
+async function doFinish() {
   if (!finishRemark.value.trim()) {
     toastErr('完工要写处理结果')
     return
   }
   try {
-    finish(id.value, { remark: finishRemark.value.trim(), photos: finishPhotos.value.length, persona: persona.value })
+    await finish(id.value, { remark: finishRemark.value.trim(), photos: finishPhotos.value.length, persona: persona.value })
     finishSheet.value = false
-    refresh()
+    await refresh()
     toastOk('已完工')
   } catch (e) {
     toastErr(e?.message || '完工失败')
@@ -607,11 +625,11 @@ function openPay() {
   paySheet.value = true
 }
 
-function doPay() {
+async function doPay() {
   try {
-    payByQr(id.value, persona.value, '微信支付')
+    await payByQr(id.value, persona.value, '微信支付')
     paySheet.value = false
-    refresh()
+    await refresh()
     toastOk('业主已支付，提成转入已结')
   } catch (e) {
     toastErr(e?.message || '收款失败')
@@ -623,11 +641,11 @@ function openHang() {
   hangSheet.value = true
 }
 
-function doHang(reason) {
+async function doHang(reason) {
   try {
-    hangUp(id.value, reason)
+    await hangUp(id.value, reason)
     hangSheet.value = false
-    refresh()
+    await refresh()
     toastOk(`已挂账：${reason}`)
   } catch (e) {
     toastErr(e?.message || '挂账失败')
@@ -642,10 +660,10 @@ function openTransfer() {
   transferSheet.value = true
 }
 
-function doTransfer(name) {
+async function doTransfer(name) {
   try {
-    transfer(id.value, name, '现场情况不匹配')
-    refresh()
+    await transfer(id.value, name, '现场情况不匹配')
+    await refresh()
     toastOk(`已转给 ${name}`)
   } catch (e) {
     toastErr(e?.message || '转单失败')
@@ -671,11 +689,11 @@ function toggleTag(t) {
   else rateTags.value.push(t)
 }
 
-function doRate() {
+async function doRate() {
   try {
-    rateOwner(id.value, { score: rateScore.value, tags: rateTags.value, note: rateNote.value.trim() })
+    await rateOwner(id.value, { score: rateScore.value, tags: rateTags.value, note: rateNote.value.trim() })
     rateSheet.value = false
-    refresh()
+    await refresh()
     toastOk('已记录')
   } catch (e) {
     toastErr(e?.message || '保存失败')

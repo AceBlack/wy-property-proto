@@ -289,14 +289,24 @@ const qualityRows = read('qualityChecks.json').slice(0, 90).map(q => ({
   _ver: 1
 }))
 
-/* ---------- 员工（只为把责任楼管的名字解出来，不做人事模块契约） ---------- */
+/* ---------- 员工 ---------- */
+/*
+ * ⚠️ 这里原来只投影 5 个字段（empId/name/position/orgId/status），注释写的是
+ * "只为把责任楼管的名字解出来，不做人事模块契约"。**但契约里有一整套员工测试**
+ * —— 掩码、薪资不下发、揭示留痕、改档案版本冲突，全靠 empNo / phone / idCard /
+ * empType / manager 这些字段。跑一次 `npm run gen:fixtures` 就会把 29 个字段的
+ * employees.json 砍成 7 个，然后那 8 条测试一起红，报的是"empNo 缺失"，
+ * 看起来像接口写错了，实际是生成脚本把它删了。
+ *
+ * 所以现在是整条透传，只补两个派生字段。
+ */
 const empRows = read('employees.json').slice(0, 80).map(e => ({
-  ...pick(e, ['empId', 'name', 'position', 'orgId', 'status']),
+  ...e,
   /* 租售信息对外展示的联系方式（第 69 批）：只有楼栋管家对外，其他岗位留空。
      缺了这两个字段，假服务返回的 stewardWechat 永远是空的，
      「业主能看到楼管微信吗」这条就没法验。 */
-  wechatId: e.position === '楼栋管家' ? `wx_${String(e.phone || '').slice(-4)}` : '',
-  contactQrUrl: ''
+  wechatId: e.wechatId || (e.position === '楼栋管家' ? `wx_${String(e.phone || '').slice(-4)}` : ''),
+  contactQrUrl: e.contactQrUrl || ''
 }))
 write('employees.json', empRows)
 

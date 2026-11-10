@@ -6,7 +6,9 @@
  * 这里用同一份 fixtures 实现真实语义，让前端在 `VITE_API_MODE=http` 下就能暴露真问题。
  *
  * 启动：node mock-server.mjs [port]     默认 4010
- * 账号：gm / pm / steward，密码随意（例：123456）
+ * 账号：契约测试用 gm / pm / steward / staff；员工端（05）用 zhou-ming / wang-lei / mo-rui / xu-yue。
+ *       密码都是 123456。两套账号不合并 —— 契约测试要的是「某角色 + 某数据范围」的稳定样本，
+ *       员工端要的是「某个具体的人」，混用会让工单经办人记错人。
  *
  * 硬约束（与契约一致，改这里必须同步 openapi.yaml）：
  *   - 统一信封 { code, message, data }；错误码五位
@@ -78,6 +80,25 @@ const stewardEmpId = Object.entries(stewardCount).sort((a, b) => b[1] - a[1])[0]
 const stewardsHouses = houses.filter(h => h.stewardEmpId === stewardEmpId).map(h => h.houseId)
 const stewardCommunities = [...new Set(houses.filter(h => h.stewardEmpId === stewardEmpId).map(h => h.communityId))]
 
+/* 角色 → 权限码。员工端账号用它取授权，**不手写第二个权限清单**：
+   手写过一次（下面的 steward），后来 R-STW 加了租售三条，手写的那份就落后了，
+   表现为"PC 能点、手机端 403"，查起来像权限码拼错。
+   原来这个 map 定义在文件很靠后的位置（权限矩阵那一节），账号段读不到；
+   在这里提前定义，后面那处改成复用，不建第二份。 */
+const ROLE_PERMS = new Map(roles.map(r => [r.roleId, new Set(r.perms || [])]))
+const permsOf = roleId => ROLE_PERMS.get(roleId) || new Set()
+
+/** 按 empId 现算责任范围：房屋从 fixtures 推，别写死（样例一变就是"楼管什么都看不到"） */
+function scopeOfEmp(empId) {
+  const mine = houses.filter(h => h.stewardEmpId === empId)
+  return {
+    houseIds: mine.map(h => h.houseId),
+    communities: [...new Set(mine.map(h => h.communityId))]
+  }
+}
+
+const MO_RUI_SCOPE = scopeOfEmp('EM0027')
+
 const USERS = {
   gm: {
     password: '123456', empId: 'EM0001', name: '韦秀兰',
@@ -113,6 +134,49 @@ const USERS = {
     roleId: 'R-ENG', roleName: '工程维修',
     permissions: ['c.payroll.view', 'f.workorders.view', 'c.contacts.view'],
     dataScope: '仅本人'
+  },
+
+  /*
+   * 员工端（05-员工端APP）的四个演示身份。
+   *
+   * 为什么单独四个，不复用上面的 pm / steward：
+   *   `pm` 是杜若曦（EM0010），`steward` 是贺文博（EM0031，房屋最多的那位）——
+   *   而 App 上演示的是徐悦（EM0008）与莫瑞（EM0027）。
+   *   复用的后果不是"少几条数据"，而是**经办人记错人**：莫瑞回拨看房电话，
+   *   工单里留下的是"贺文博已联系"，业主打过去找到的是另一个人。
+   *
+   * 权限一律从 `ROLE_PERMS` 取，与 PC 同一份字典：
+   *   两处各写一份的结果是"PC 能点的按钮手机上 403"，而且没人知道该信哪份。
+   *
+   * `zhou-ming` 的 empId 为空是**数据事实**：周明不在 120 人名册里（计划上的运营设定值）。
+   * 所以一线视角按姓名取任务（`?executor=周明`），不编一个工号出来。
+   */
+  'zhou-ming': {
+    password: '123456', empId: '', name: '周明',
+    roleId: 'R-ENG', roleName: '工程维修',
+    permissions: [...permsOf('R-ENG')],
+    /* 「仅本人」+ communities：范围是靠 communities 算的，dataScope 只是标签。
+       只写 dataScope 不写 communities，scope() 会得到空集合 —— 什么都看不到 */
+    dataScope: '仅本人', communities: ['P01']
+  },
+  'wang-lei': {
+    password: '123456', empId: 'EM0018', name: '汪磊',
+    roleId: 'R-SEC', roleName: '部门经理',
+    permissions: [...permsOf('R-SEC')],
+    dataScope: '本部门', communities: ['P01']
+  },
+  'mo-rui': {
+    password: '123456', empId: 'EM0027', name: '莫瑞',
+    roleId: 'R-STW', roleName: '楼栋管家',
+    permissions: [...permsOf('R-STW')],
+    dataScope: '责任范围',
+    communities: MO_RUI_SCOPE.communities, houseIds: MO_RUI_SCOPE.houseIds
+  },
+  'xu-yue': {
+    password: '123456', empId: 'EM0008', name: '徐悦',
+    roleId: 'R-PM', roleName: '项目经理',
+    permissions: [...permsOf('R-PM')],
+    dataScope: '本项目', communities: ['P01']
   }
 }
 
@@ -306,6 +370,30 @@ function woRow(w) {
     _ver: verOf('wo', w.woId)
   }
 }
+
+/**
+ * 增项汇总。`onlyConfirmed` 只算业主已确认的（**金额口径**）；
+ * `pending` 永远数全部未确认的 —— 它回答"还有几笔等业主点头"，不是金额。
+ */
+function woAddonSum(w, onlyConfirmed = false) {
+  const all = Array.isArray(w.addons) ? w.addons : []
+  const list = onlyConfirmed ? all.filter(a => a.confirmed) : all
+  return {
+    material: r2(list.reduce((s, a) => s + (Number(a.material) || 0), 0)),
+    labor: r2(list.reduce((s, a) => s + (Number(a.labor) || 0), 0)),
+    total: r2(list.reduce((s, a) => s + (Number(a.total) || 0), 0)),
+    pending: all.filter(a => !a.confirmed).length,
+    count: all.length
+  }
+}
+
+/*
+ * 应收 = 单额 + **已确认**增项。
+ * 未确认的算进去，师傅就会去要一笔业主根本没认的钱 —— 这是现场最容易起冲突的地方。
+ * 收款、详情、提成三处必须用同一个式子，不能各算各的。
+ */
+const woDueOf = w => r2(Number(w.totalFee || 0) + woAddonSum(w, true).total)
+
 
 /* ------------------------------ 租户 / 巡检 / 整改 派生 ------------------------------ */
 /**
@@ -994,7 +1082,11 @@ function woFilter(u, q) {
  *
  * 本期边界：批准即结束，不落业务结果。
  */
-const oaRequests = []          /* 内存态：OA 单不进 fixtures，跑了才有 */
+/*
+ * 审批单原来只有一个空数组（"跑了才有"），于是员工端审批页切到 HTTP 后三个页签全是 0。
+ * 现在读种子（P01 的 42 条），POST 创建的单继续往同一个数组里 push。
+ */
+const oaRequests = readJson('fixtures/approvals.json')
 let AP_SEQ = 100               /* 从 100 起，避免与样例里的 AP0009x 撞号 */
 const oaFlows = OA_FLOW_DEFS.map(f => ({
   ...f,
@@ -1088,6 +1180,115 @@ on('GET', '/oa/requests', (ctx) => {
     .filter(a => !q.kw || `${a.title}${a.approvalNo}`.toLowerCase().includes(String(q.kw).toLowerCase()))
     .map(oaRow)
   return page(list, q)
+})
+
+/* ---------- 员工端审批（列表 / 详情聚合） ---------- */
+
+/*
+ * 为什么不能直接用 `/oa/requests`：那是**"我的申请"**视角（按 status/bizType/kw 筛），
+ * 而员工端第一个页签是「待我处理」—— 要按**节点审批人**判，跟申请人无关。
+ *
+ * 判定规则与 `05/src/api/oa.js` 的 `canHandle` 必须一模一样，否则会出现
+ * "页面说待你审批、点进去服务端说不是你"。这里照抄那四条纪律：
+ *   ① 节点名 → 组织 → 负责人关系表的**在期正职**（空缺落代理，副职不参与单签）
+ *   ② 会签看名单里有没有我
+ *   ③ 不能审自己提交的单
+ *   ④ 只看本项目
+ */
+const OA_TEAM_OF_LABEL = { 工程主管: 'T2', 客服主管: 'T1', 环境主管: 'T4', 安保主管: 'T3' }
+const OA_MOBILE_UNSUPPORTED = [{ key: '合同初审', why: '合同审批在 PC 端办理（含合同正文与附件），移动端只处理业务单据' }]
+
+const oaPendingNode = a => (a.flow || []).find(n => n.action === '待处理') || null
+
+/** 这一单"该谁办"。kind: done / unsupported / sign（会签）/ leader（单人节点）/ role */
+function oaTargetOf(a) {
+  if (!a) return { kind: 'none', why: '单据不存在' }
+  if (!['待审批', '审批中'].includes(a.status)) return { kind: 'done', why: `单据已${a.status}` }
+
+  const cur = String(a.currentNode || '')
+  const unsupported = OA_MOBILE_UNSUPPORTED.find(x => cur.includes(x.key))
+  if (unsupported) return { kind: 'unsupported', label: unsupported.key, why: unsupported.why }
+
+  const node = oaPendingNode(a)
+  const approvers = node?.approvers || []
+  const signMode = node?.signMode || 'single'
+  const progress = { done: approvers.filter(p => p.action !== '待处理').length, total: approvers.length }
+
+  let orgId = ''
+  for (const [label, team] of Object.entries(OA_TEAM_OF_LABEL)) {
+    if (cur.includes(label)) { orgId = `O-${a.communityId}-${team}`; break }
+  }
+  if (!orgId && /项目经理|部门负责人/.test(cur)) orgId = `O-${a.communityId}`
+  const signer = orgId ? rankingLeader(orgId) : null
+
+  if (approvers.length) return { kind: 'sign', label: cur, orgId, signer, approvers, signMode, progress }
+  if (orgId) return { kind: 'leader', label: cur, orgId, signer, approvers, signMode, progress }
+  return { kind: 'role', label: cur, orgId, signer, approvers, signMode, progress }
+}
+
+/** 我能不能办这一单 */
+function oaCanHandle(u, a) {
+  const t = oaTargetOf(a)
+  if (t.kind === 'none' || t.kind === 'done' || t.kind === 'unsupported') return false
+  if (a.applicant === u.name) return false
+  if (a.communityId && !inScopeCommunity(u, a.communityId)) return false
+  if (t.kind === 'sign') return t.approvers.some(p => p.name === u.name && p.action === '待处理')
+  /* 单人节点只认关系表解出来的那个人；正职空缺落到代理，副职不参与 */
+  return !!t.signer && t.signer.name === u.name
+}
+
+/** 我办过的：flow 里有我的处理痕迹（含会签名单） */
+const oaDoneBy = (u, a) =>
+  (a.flow || []).some(n =>
+    (n.handler === u.name && n.action && n.action !== '待处理') ||
+    (n.approvers || []).some(p => p.name === u.name && p.action !== '待处理')
+  )
+
+on('GET', '/mobile/approvals', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.approvalHandle, `缺少权限位 ${MT_PERM.approvalHandle}：无权处理审批`)
+  const u = ctx.user
+  const tab = String(ctx.query.tab || 'todo')
+
+  const pools = {
+    todo: oaRequests.filter(a => oaCanHandle(u, a)),
+    applied: oaRequests.filter(a => a.applicant === u.name),
+    done: oaRequests.filter(a => oaDoneBy(u, a))
+  }
+  const LABEL = { todo: '待我处理', applied: '我发起', done: '我办过' }
+  if (!pools[tab]) throw bad(`tab 只能是 todo / applied / done，收到「${tab}」`)
+
+  return {
+    tabs: ['todo', 'applied', 'done'].map(k => ({ key: k, label: LABEL[k], count: pools[k].length })),
+    tab,
+    rows: pools[tab].map(oaRow)
+  }
+})
+
+on('GET', '/mobile/approvals/{approvalId}', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.approvalHandle, `缺少权限位 ${MT_PERM.approvalHandle}：无权处理审批`)
+  const a = oaRequests.find(x => x.approvalId === ctx.params.approvalId)
+  if (!a) throw notFound('审批单不存在')
+  if (a.communityId && !inScopeCommunity(ctx.user, a.communityId)) throw forbidden('这张单不在你的数据范围内')
+
+  const t = oaTargetOf(a)
+  return {
+    approval: oaRow(a),
+    actor: { label: t.label || '', kind: t.kind, signer: t.signer || null, orgId: t.orgId || '' },
+    target: t,
+    sign: t.kind === 'sign' ? { mode: t.signMode, progress: t.progress, approvers: t.approvers } : null,
+    canHandle: oaCanHandle(ctx.user, a),
+    timeline: (a.flow || []).map((n, i) => ({
+      index: i + 1,
+      node: n.node,
+      handler: n.handler || '',
+      action: n.action || '待处理',
+      time: n.time || '',
+      comment: n.comment || '',
+      done: !!n.action && n.action !== '待处理',
+      signMode: n.signMode || 'single',
+      approvers: n.approvers || []
+    }))
+  }
 })
 
 on('POST', '/oa/requests', (ctx) => {
@@ -3191,6 +3392,14 @@ on('POST', '/work-orders', (ctx) => {
     score: 0, isPublic: type === '公共区域维修', slaHours: p.priority === '特急' ? 4 : (p.priority === '紧急' ? 8 : 24),
     _ver: 1
   }
+  /*
+   * 建单就算 SLA 到期：漏了这三个字段，列表里的「剩余时间」整列是空的，
+   * 而 `WorkOrder` schema 把它们标成了 required —— 契约测试会直接红在"缺字段"上。
+   * 与巡检转单那条路径保持同一套算法。
+   */
+  wo.slaDueAt = slaDueOf(wo.createTime, wo.slaHours)
+  wo.slaUsedHours = 0
+  wo.slaBreached = false
   workOrders.unshift(wo)
   resetSvcCache()
   return woRow(wo)
@@ -3430,8 +3639,19 @@ on('POST', '/tenants/batch-verify', (ctx) => {
 /* ---------------- inspect tasks ---------------- */
 function taskFilter(u, q) {
   return inspectTasks
-    .filter(t => inScopeHouse(u, houses.find(h => h.communityId === t.communityId && inScopeHouse(u, h.houseId))?.houseId)
-      || inScopeCommunity(u, t.communityId))
+    /*
+     * 巡检任务是**项目级**的（没有 houseId 字段），范围只看社区。
+     *
+     * 这里原来还套了一层 `inScopeHouse(u, houses.find(...)?.houseId)`，想表达
+     * "任务可能挂到某套房上"。但 `find` 找不到时 `?.houseId` 是 undefined，
+     * 而 `inScopeHouse` 对"没有 houseId"的实体默认**放行**（那是给集团级实体用的口径）——
+     * 于是范围判断整体恒真：周明（只有 P01）的列表里混进了 P02 的任务。
+     * 实测：`GET /inspect-tasks?size=5` 第一条是 P02 钱秀芳的单。
+     *
+     * 楼管按房屋限定，但他没有 f.inspect.view，压根走不到这里；
+     * 所以直接按社区判，语义更窄也更对。
+     */
+    .filter(t => inScopeCommunity(u, t.communityId))
     .filter(t => {
       if (q.communityId && t.communityId !== q.communityId) return false
       if (!eq(t.taskType, q.taskType)) return false
@@ -5775,9 +5995,9 @@ const SENSITIVE_RULES = [
   { code: 'a.stewards.edit', why: '能改楼栋责任范围——等于能自己扩大可见范围' }
 ]
 
-/** 角色生效权限：保存后的覆盖优先（默认取 fixture 的 perms） */
-const ROLE_PERMS = new Map(roles.map(r => [r.roleId, new Set(r.perms || [])]))
-const permsOf = roleId => ROLE_PERMS.get(roleId) || new Set()
+/* 角色生效权限：保存后的覆盖优先（默认取 fixture 的 perms）。
+   变量本身定义在文件开头（账号段之前要用），这里只留说明，别再声明一次 ——
+   重复声明是 SyntaxError，整个假服务起不来，而报错只在启动时出现一次。 */
 
 const PERM_REQUESTS = []
 const PERM_LOGS = []
@@ -6904,7 +7124,14 @@ const INV_SOURCES = ['手动', '业主', '租户']
 const invR2 = n => Math.round((Number(n) || 0) * 100) / 100
 const invNotFound = msg => new ApiError(404, 40401, msg)
 const invState = msg => new ApiError(409, 40927, msg)
-const nowText = () => '2026-11-06 10:00'
+/**
+ * 「现在几点」—— 必须从 `DATA_DATE` 派生，不能另写一个日期。
+ *
+ * 原来这里是写死的 '2026-11-06 10:00'，而全套 fixtures 的"当下"是 10-21：
+ * 于是新写的工单时间戳落在 11-06、数据里的单子全在 10-21，差半个月。
+ * 单看一条不觉得，连着看就是"受理时间早于创建时间"这类脏数据（§13.4 第 1 条同一件事）。
+ */
+const nowText = () => `${DATA_DATE} 10:00`
 
 const invItemRow = x => ({ ...x, usageCount: 0 })
 const invProfileRow = x => ({ ...x, usageCount: 0 })
@@ -10297,6 +10524,822 @@ on('POST', '/mp/listings/{listingId}/deal', (ctx) => {
   return mpLsRow(l)
 })
 
+/* ------------------------------ 员工端（mobile） ------------------------------ */
+/*
+ * 这一段的接口在契约里早写好了（第 42 批），假服务一直没实现，白名单 `KNOWN_GAP` 挂了 22 条。
+ * 现在补上，原则与其它域一致：**语义要真**，别做成"改个字段就返回 200"。
+ *
+ * 三处最容易写错、也最容易在联调时被掩盖的地方：
+ *   ① 打卡的"降级"是正式能力 —— 拿不到定位必须记「人工打卡 + 待复核」，
+ *      静默算正常打卡等于把这道防线取消；
+ *   ② 工单状态机是单向的：待派单 → 已派单 → 处理中 → 已完工，跳步必拒；
+ *   ③ 提成只按**人工费**计提，材料费是成本；并且「在途」要单独返回。
+ */
+const inspectTemplates = readJson('fixtures/inspect-templates.json')
+const inspectPlans = readJson('fixtures/inspect-plans.json')
+const PLAN_BY_ID = new Map(inspectPlans.map(p => [p.planId, p]))
+const attendances = readJson('fixtures/attendance.json')
+const houseMembers = readJson('fixtures/members.json')
+/* 增项价目与工单收费项目是两份：`serviceItems` 是下单用的服务项目，
+   `repair-prices.addons` 是现场加项价目，`projects` 是项目参数（含弃单上限） */
+const repairPriceBook = readJson('fixtures/repair-prices.json')
+const addonPrices = repairPriceBook.addons || []
+const projectParams = repairPriceBook.projects || []
+
+const MT_PERM = {
+  inspView: 'f.inspect.view',
+  inspExec: 'f.inspect.exec',
+  woView: 'f.workorders.view',
+  woEdit: 'f.workorders.edit',
+  woDispatch: 'f.workorders.dispatch',
+  attSelf: 'c.attendance.self',
+  payrollSelf: 'c.payroll.self',
+  stewardView: 'a.stewards.view',
+  ownersView: 'a.owners.view',
+  approvalHandle: 'f.approval.handle'
+}
+
+/*
+ * 提成比例：来自项目参数 `repairPrices.projects[].commissionRate`。
+ *
+ * 契约 fixture 原来没有这一项，所以这里硬编码了 35 —— 于是 P02（32%）与 P03（30%）
+ * 的提成一直按 35% 算，多算了。fixture 已补齐（0.35 / 0.32 / 0.30），改成按单取。
+ * **只按人工费计提** —— 材料费是成本，按总额提成等于把成本分给个人。
+ */
+const COMMISSION_RATE_PCT_DEFAULT = 35
+const projOf = communityId => projectParams.find(p => p.communityId === communityId) || null
+/** 返回**百分比**（35），不是小数 —— 契约对外一直用百分比，前端也照这个显示 */
+const commissionPctOf = communityId => {
+  const r = projOf(communityId)?.commissionRate
+  return Number.isFinite(r) ? Math.round(r * 100) : COMMISSION_RATE_PCT_DEFAULT
+}
+
+/** 单套房的欠费：催收跟进里要看的是"这户欠多少"，不是"这个业主名下总共欠多少" */
+const houseDebt = houseId => r2(bills
+  .filter(b => b.houseId === houseId && ['未缴', '部分缴', '逾期'].includes(b.status))
+  .reduce((s, b) => s + (b.unpaid || 0), 0))
+
+/** 受理时限到期时间：建单时间 + slaHours 小时（格式与 fixtures 一致：YYYY-MM-DD HH:mm） */
+function slaDueOf(createTime, hours) {
+  const d = new Date(String(createTime).replace(/-/g, '/'))
+  d.setHours(d.getHours() + Number(hours || 24))
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const woOf = id => workOrders.find(w => w.woId === id) || null
+const taskOf = id => inspectTasks.find(t => t.taskId === id) || null
+const templateOf = id => inspectTemplates.find(t => t.templateId === id) || null
+
+/** 工单状态机：只允许这些「从 → 到」，跳步一律 409 */
+const WO_FLOW = {
+  accept: { from: ['待派单', '已派单'], to: '处理中' },
+  arrive: { from: ['处理中'], to: '处理中' },
+  finish: { from: ['处理中'], to: '已完工' },
+  abandon: { from: ['处理中'], to: '待派单' }
+}
+function woGuard(w, action, label) {
+  const f = WO_FLOW[action]
+  if (!f.from.includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单不能${label}（要先${f.from.join(' 或 ')}）`)
+  }
+}
+
+/* ---------- 巡检：执行页聚合 + 打卡 ---------- */
+
+on('GET', '/mobile/tasks/{taskId}/exec', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.inspView, `缺少权限位 ${MT_PERM.inspView}：无权查看巡检任务`)
+  const t = taskOf(ctx.params.taskId)
+  if (!t) throw notFound('巡检任务不存在')
+  if (!inScopeCommunity(ctx.user, t.communityId)) throw forbidden('这条任务不在你的数据范围内')
+
+  const tpl = templateOf(t.templateId)
+  /* 责任员工候选只对监督任务有意义：被检班组的在职员工，排除组长本人 */
+  const workers = isSupervise(t)
+    ? employees
+      .filter(e => e.status !== '离职' && e.orgId === t.executorOrgId && e.name !== t.executor)
+      .map(e => ({ name: e.name, label: `${e.name} · ${e.position}` }))
+    : []
+  /*
+   * plan 与 community 是详情页要的（「来源计划 · 周期」「项目名 + 地址」），
+   * 执行页只要 communityName。三者一起给，是为了让一屏一请求成立 ——
+   * 详情页不必为了两个字段再打两次接口（PC 侧就是查三次）。
+   *
+   * 缺失时给 **null** 而不是空对象：详情页写的是 `p ? ... : '—'`，
+   * 空对象会渲染成「— · undefined」。
+   */
+  const plan = t.planId ? PLAN_BY_ID.get(t.planId) || null : null
+  const c = communities.find(x => x.communityId === t.communityId) || null
+  return {
+    task: inspectRow(t),
+    template: tpl
+      ? { ...tpl, fields: tpl.fields.map(f => ({ ...f })) }
+      /* 模板缺失时给 null 而不是空对象：执行页据此报"模板已下线"，不是一个没有检查项的空表 */
+      : null,
+    plan: plan ? { planId: plan.planId, name: plan.name, cycle: plan.cycle, post: plan.post } : null,
+    community: c ? { communityId: c.communityId, name: c.name, address: c.address } : null,
+    communityName: communityNameOf(t.communityId),
+    workers
+  }
+})
+
+on('POST', '/mobile/tasks/{taskId}/checkin', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.inspExec, `缺少权限位 ${MT_PERM.inspExec}：无权执行巡检任务`)
+  const t = taskOf(ctx.params.taskId)
+  if (!t) throw notFound('巡检任务不存在')
+  if (!inScopeCommunity(ctx.user, t.communityId)) throw forbidden('这条任务不在你的数据范围内')
+  if (t.status === '已完成') throw new ApiError(409, 40931, '任务已完成，不能再打卡')
+  if (t.status === '执行中') throw new ApiError(409, 40931, '任务已经在执行中，重复打卡没有意义')
+
+  const body = ctx.body || {}
+  const type = String(body.type || '')
+  if (!['GPS围栏', 'NFC', '扫码', '人工打卡'].includes(type)) {
+    throw invalid(`打卡方式只能是 GPS围栏 / NFC / 扫码 / 人工打卡，收到「${type}」`)
+  }
+  /* 降级是正式能力：拿不到定位就记人工打卡 + 待复核，并且必须写原因 */
+  const manual = !!body.manual || type === '人工打卡'
+  const reason = String(body.reason || '').trim()
+  if (manual && !reason) throw invalid('人工打卡要写原因 —— 复核的人得知道为什么没定位')
+
+  Object.assign(t, {
+    status: '执行中',
+    checkedIn: true,
+    checkinType: manual ? '人工打卡' : type,
+    checkinAt: nowText(),
+    needReview: manual,
+    checkinReason: reason,
+    checkinGps: String(body.gps || ''),
+    checkinAccuracy: body.accuracy === undefined ? null : Number(body.accuracy)
+  })
+  bumpVer('task', t.taskId)
+  return inspectRow(t)
+})
+
+/* ---------- 巡检异常转工单 ---------- */
+
+on('POST', '/inspect-tasks/{taskId}/work-orders', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.inspExec, `缺少权限位 ${MT_PERM.inspExec}：无权从巡检转单`)
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权建工单`)
+  const t = taskOf(ctx.params.taskId)
+  if (!t) throw notFound('巡检任务不存在')
+  const p = ctx.body || {}
+  for (const k of ['itemLabel', 'type', 'priority', 'title', 'description']) {
+    if (!String(p[k] || '').trim()) throw invalid(`${k} 必填`)
+  }
+  if (!['公共区域维修', '报事', '投诉建议', '其他'].includes(p.type)) {
+    throw invalid('转单类型只能是 公共区域维修 / 报事 / 投诉建议 / 其他')
+  }
+  if (!['特急', '紧急', '普通'].includes(p.priority)) throw invalid('紧急度只能是 特急 / 紧急 / 普通')
+
+  const seq = workOrders.length + 1
+  const wo = {
+    woId: 'WO' + String(seq).padStart(6, '0'),
+    woNo: 'BX2026' + String(seq).padStart(5, '0'),
+    communityId: t.communityId,
+    houseId: '', houseName: '',
+    ownerId: '', ownerName: '',
+    type: p.type,
+    category: String(p.reason || '').trim() || '巡检发现',
+    /* source 不由客户端指定：固定「巡检转单」，详情页靠它回连 */
+    source: '巡检转单',
+    priority: p.priority,
+    status: '待派单',
+    title: String(p.title).trim(),
+    description: `${String(p.description).trim()}（来源：${t.taskId} · ${p.itemLabel}）`,
+    dispatchMode: '待派单',
+    assignee: '',
+    createTime: nowText(),
+    acceptTime: '', arriveTime: '', finishTime: '',
+    /* SLA 到期时间在建单时算死：移动端只显示倒计时，不自己算（算错就是"还剩 2 小时"其实早超了） */
+    feeType: '免费',
+    payStatus: '无需支付',
+    score: 0,
+    isPublic: p.type === '公共区域维修',
+    slaHours: p.priority === '特急' ? 4 : (p.priority === '紧急' ? 8 : 24),
+    materialFee: 0, laborFee: 0, totalFee: 0, serviceCost: 0,
+    priceCode: '', serviceName: '',
+    place: String(p.place || '').trim() || `${t.post}责任区 · 巡检点位`,
+    photos: Number(p.photos) || 0,
+    refTaskId: t.taskId,
+    addons: [], paidAmount: 0, _ver: 1
+  }
+  wo.slaDueAt = slaDueOf(wo.createTime, wo.slaHours)
+  wo.slaUsedHours = 0
+  wo.slaBreached = false
+  workOrders.unshift(wo)
+  /* 只回写 refWoId，**不改任务状态** —— 任务还得提交执行结果，否则完成率与异常数漏统计 */
+  t.refWoId = wo.woId
+  bumpVer('task', t.taskId)
+  resetSvcCache()
+  return woRow(wo)
+})
+
+/* ---------- 工单流转 ---------- */
+
+on('POST', '/work-orders/{woId}/claim', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权抢单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (!inScopeCommunity(ctx.user, w.communityId)) throw forbidden('这张工单不在你的数据范围内')
+  /* 抢单池只有商业服务单：公共区域维修是本职工作量，不参与抢单与提成 */
+  if (w.type !== '商业服务') {
+    throw new ApiError(409, 40936, `「${w.type}」不参与抢单 —— 抢单池只收商业服务单`)
+  }
+  if (!['待派单', '已派单'].includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单不能抢`)
+  }
+  if (w.assignee && w.assignee !== ctx.user.name) {
+    throw new ApiError(409, 40931, `这单已派给「${w.assignee}」，不能抢`)
+  }
+  Object.assign(w, {
+    status: '处理中',
+    assignee: ctx.user.name,
+    dispatchMode: '抢单',
+    acceptTime: nowText()
+  })
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/dispatch', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woDispatch, `缺少权限位 ${MT_PERM.woDispatch}：无权派单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (!inScopeCommunity(ctx.user, w.communityId)) throw forbidden('这张工单不在你的数据范围内')
+  const to = String(ctx.body?.to || '').trim()
+  if (!to) throw invalid('要指定处理人')
+  const emp = employees.find(e => e.name === to && e.status !== '离职')
+  if (!emp) throw invalid(`「${to}」不在在职员工名册里`)
+  if (!['待派单', '已派单'].includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单不能再派`)
+  }
+  Object.assign(w, {
+    status: '已派单',
+    assignee: to,
+    dispatchMode: '人工派单',
+    acceptTime: '',
+    remark: [w.remark, ctx.body?.note].filter(Boolean).join(' | ')
+  })
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/accept', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权接单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (!inScopeCommunity(ctx.user, w.communityId)) throw forbidden('这张工单不在你的数据范围内')
+  woGuard(w, 'accept', '接')
+  /* 已派给别人的单不能接：除非有派单权（主管可以代接） */
+  if (w.assignee && w.assignee !== ctx.user.name && !hasPerm(ctx.user, MT_PERM.woDispatch)) {
+    throw new ApiError(409, 40931, `这单已派给「${w.assignee}」，你接不了`)
+  }
+  Object.assign(w, { status: '处理中', assignee: ctx.user.name, acceptTime: nowText() })
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/transfer', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权转单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  const to = String(ctx.body?.to || '').trim()
+  if (!to) throw invalid('要指定转给谁')
+  if (!employees.some(e => e.name === to && e.status !== '离职')) throw invalid(`「${to}」不在在职员工名册里`)
+  if (to === w.assignee) throw invalid('转给当前处理人没有意义')
+  if (!['待派单', '已派单', '处理中'].includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单不能转单`)
+  }
+  /* 转单只换人、不推进节点：回到「已派单」等对方接，acceptTime 清空 */
+  Object.assign(w, {
+    status: '已派单',
+    assignee: to,
+    acceptTime: '',
+    remark: [w.remark, `转给${to}${ctx.body?.note ? '：' + ctx.body.note : ''}`].filter(Boolean).join(' | ')
+  })
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/arrive', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权到场打卡`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  woGuard(w, 'arrive', '到场')
+  if (w.arriveTime) throw new ApiError(409, 40931, '已经打过到场卡了')
+  w.arriveTime = nowText()
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/finish', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权完工`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  woGuard(w, 'finish', '完工')
+  const remark = String(ctx.body?.remark || '').trim()
+  /* 处理结果业主看得到，不写等于让业主自己猜修没修好 */
+  if (!remark) throw invalid('处理结果必填 —— 业主看得到这一句')
+  /* 未确认的增项不能完工：否则结算金额与业主认可的金额不一致 */
+  const unconfirmed = (w.addons || []).filter(a => !a.confirmed)
+  if (unconfirmed.length) {
+    throw new ApiError(409, 40933, `有 ${unconfirmed.length} 条增项还没经业主确认，先确认再完工`)
+  }
+  Object.assign(w, {
+    status: '已完工',
+    finishTime: nowText(),
+    remark,
+    photos: ctx.body?.photos === undefined ? (w.photos || 0) : Number(ctx.body.photos)
+  })
+  if (ctx.body?.arrivedAt && !w.arriveTime) w.arriveTime = ctx.body.arrivedAt
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/staff-eval', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权评价`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  const score = Number(ctx.body?.score)
+  if (!Number.isInteger(score) || score < 1 || score > 5) throw invalid('评分是 1–5 的整数')
+  if (!['已完工', '已评价'].includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单还不能评价（先完工）`)
+  }
+  if (w.status === '已评价') throw new ApiError(409, 40934, '这张单已经评价过了')
+  Object.assign(w, {
+    status: '已评价',
+    score,
+    staffEvalTags: Array.isArray(ctx.body?.tags) ? ctx.body.tags : [],
+    staffEvalNote: String(ctx.body?.note || '').trim()
+  })
+  bumpVer('wo', w.woId)
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/abandon', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权弃单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  woGuard(w, 'abandon', '弃单')
+  /* 每日弃单上限来自**项目参数**（每个项目一条）；超了必须走主管改派，不能自己丢掉 */
+  const limit = Number((projectParams.find(p => p.communityId === w.communityId) || {}).abandonLimit) || 3
+  const used = workOrders.filter(x => x.abandonedBy === ctx.user.name && x.abandonAt
+    && String(x.abandonAt).slice(0, 10) === DATA_DATE).length
+  if (used >= limit) throw new ApiError(409, 40932, `今天已弃单 ${used} 次，达到上限 ${limit}，请联系主管改派`)
+  Object.assign(w, {
+    status: '待派单',
+    assignee: '',
+    acceptTime: '',
+    abandonedBy: ctx.user.name,
+    abandonAt: nowText(),
+    abandonReason: String(ctx.body?.reason || '').trim()
+  })
+  bumpVer('wo', w.woId)
+  return { ...woRow(w), used: used + 1, limit }
+})
+
+on('POST', '/work-orders/{woId}/addons', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权加项`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  const code = String(ctx.body?.code || '').trim()
+  if (!code) throw invalid('要选增项编码')
+  const item = serviceItems.find(s => s.code === code) || addonPrices.find(r => r.code === code)
+  if (!item) throw notFound(`增项「${code}」不在价目表里`)
+  if (!w.acceptTime) throw new ApiError(409, 40933, '还没接单，不能加项')
+  if (!w.arriveTime) throw new ApiError(409, 40933, '还没到场，不能加项 —— 增项必须是现场发现的问题')
+  if (!['处理中'].includes(w.status)) {
+    throw new ApiError(409, 40930, `「${w.status}」的工单不能再加项`)
+  }
+  const qty = Math.max(1, Number(ctx.body?.qty) || 1)
+  const addon = {
+    code: item.code,
+    name: item.name,
+    qty,
+    material: r2((item.material || 0) * qty),
+    labor: r2((item.labor || 0) * qty),
+    total: r2(((item.material || 0) + (item.labor || 0)) * qty),
+    at: nowText(),
+    by: ctx.user.name,
+    confirmed: false
+  }
+  w.addons = [...(w.addons || []), addon]
+  bumpVer('wo', w.woId)
+  resetSvcCache()
+  return woRow(w)
+})
+
+on('POST', '/work-orders/{woId}/addons/confirm', (ctx) => {
+  /* 业主端的确认接口；员工端只用「当面确认」，所以在 confirmedBy 里标来源 */
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  const list = w.addons || []
+  if (!list.length) throw new ApiError(409, 40935, '这张单没有增项')
+  const code = String(ctx.body?.code || '').trim()
+  const hit = code ? list.filter(a => a.code === code) : list
+  if (code && !hit.length) throw notFound(`没有编码为「${code}」的增项`)
+  const pending = hit.filter(a => !a.confirmed)
+  if (!pending.length) throw new ApiError(409, 40935, '这些增项已经确认过了')
+  pending.forEach(a => {
+    a.confirmed = true
+    a.confirmedAt = nowText()
+    a.confirmedBy = String(ctx.body?.confirmedBy || '').trim() || ctx.user.name
+  })
+  bumpVer('wo', w.woId)
+  resetSvcCache()
+  return woRow(w)
+})
+
+/* ---------- 收款（移动端只出收款码，不经手现金） ---------- */
+
+on('POST', '/work-orders/{woId}/payment-qr', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权生成收款码`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (w.feeType !== '收费') throw new ApiError(422, 42207, '免费工单没有收款码')
+  if (w.payStatus === '已支付') throw new ApiError(409, 40937, '这张单已经付过了')
+  const amount = r2(Number(w.totalFee || 0) + (w.addons || []).reduce((s, a) => s + (a.total || 0), 0))
+  if (amount <= 0) throw new ApiError(422, 42207, '金额为 0，不能生成收款码')
+  return {
+    woId: w.woId,
+    amount,
+    /* 原型不接支付网关：二维码内容是一个可读的凭据串，前端只负责展示 */
+    qrUrl: `pay://wy/${w.woNo}?amount=${amount}`,
+    expireAt: `${DATA_DATE} 23:59`,
+    channels: ['微信支付', '支付宝']
+  }
+})
+
+on('POST', '/work-orders/{woId}/payments', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woEdit, `缺少权限位 ${MT_PERM.woEdit}：无权登记收款`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  const amount = Number(ctx.body?.amount)
+  if (!(amount > 0)) throw invalid('金额必须大于 0')
+  const method = String(ctx.body?.method || '')
+  if (!['微信支付', '支付宝', 'POS刷卡', '现金', '挂账'].includes(method)) {
+    throw invalid('收款方式只能是 微信支付 / 支付宝 / POS刷卡 / 现金 / 挂账')
+  }
+  if (method === '挂账' && !String(ctx.body?.reason || '').trim()) {
+    throw invalid('挂账必须写原因 —— 否则这笔钱永远挂在账上没人追')
+  }
+  /*
+   * 应收只算**已确认**的增项（与详情、提成同一个式子）。
+   * 原来这里含全部增项 —— 业主没点头的那笔也能收，现场必吵架。
+   */
+  const due = woDueOf(w)
+  const paid = r2((w.paidAmount || 0) + amount)
+  if (paid > due) throw invalid(`收款 ${amount} 超过应收 ${r2(due - (w.paidAmount || 0))}`)
+  w.paidAmount = paid
+  w.payStatus = paid >= due ? '已支付' : (method === '挂账' ? '已挂账' : '未支付')
+  /*
+   * 记流水。原来只累加 `paidAmount`，员工端"本次收了几笔、谁收的"无从查起 ——
+   * 而移动端的收款是**现场动作**，事后对账全靠这张表。
+   */
+  if (!Array.isArray(w.payments)) w.payments = []
+  w.payments.push({
+    at: nowText(),
+    amount,
+    method,
+    by: ctx.user.name,
+    transNo: String(ctx.body?.transNo || ''),
+    reason: String(ctx.body?.reason || '').trim()
+  })
+  w.payMethod = method
+  if (ctx.body?.transNo) w.transNo = String(ctx.body.transNo)
+  if (method === '挂账') w.hangReason = String(ctx.body.reason).trim()
+  bumpVer('wo', w.woId)
+  resetSvcCache()
+  return woRow(w)
+})
+
+/* ---------- 考勤自助 ---------- */
+
+const attOf = id => attendances.find(a => a.attId === id) || null
+const myAtt = (u, a) => {
+  const me = EMP.get(u.empId)
+  if (!me) return false
+  return a.empId === me.empId
+}
+
+on('POST', '/attendance/{attId}/confirm', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.attSelf, `缺少权限位 ${MT_PERM.attSelf}：无权确认考勤`)
+  const a = attOf(ctx.params.attId)
+  if (!a) throw notFound('考勤记录不存在')
+  /* 「本人」是真口径：主管看别人的考勤是另一条链路，不能借这个接口代确认 */
+  if (!myAtt(ctx.user, a)) throw forbidden('只能确认本人的考勤')
+  if (a.status === '已确认') throw new ApiError(409, 40935, '这个月已经确认过了')
+  Object.assign(a, { status: '已确认', confirmAt: nowText(), confirmBy: ctx.user.name })
+  return a
+})
+
+on('POST', '/attendance/{attId}/appeal', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.attSelf, `缺少权限位 ${MT_PERM.attSelf}：无权申诉考勤`)
+  const a = attOf(ctx.params.attId)
+  if (!a) throw notFound('考勤记录不存在')
+  if (!myAtt(ctx.user, a)) throw forbidden('只能申诉本人的考勤')
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!reason) throw invalid('申诉要写清楚哪一项不对')
+  if (reason.length > 120) throw invalid('申诉理由最多 120 字')
+  a.appealCount = (a.appealCount || 0) + 1
+  a.appealResult = '待处理'
+  a.appealReason = reason
+  a.appealAt = nowText()
+  return { attId: a.attId, appealCount: a.appealCount, appealResult: a.appealResult }
+})
+
+/* ---------- 催收跟进（楼管现场记录） ---------- */
+
+const mobileCollections = []
+
+on('POST', '/mobile/collections', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.stewardView, `缺少权限位 ${MT_PERM.stewardView}：无权登记催收`)
+  const p = ctx.body || {}
+  const h = HOUSE.get(String(p.houseId || ''))
+  if (!h) throw notFound('房屋不存在')
+  if (!inScopeHouse(ctx.user, h.houseId)) throw forbidden('这套房不在你的责任范围内')
+  if (!['电话', '上门', '短信', '微信'].includes(p.method)) throw invalid('跟进方式只能是 电话 / 上门 / 短信 / 微信')
+  if (!['承诺还款', '家中无人', '拒缴', '已说明情况'].includes(p.result)) {
+    throw invalid('跟进结果只能是 承诺还款 / 家中无人 / 拒缴 / 已说明情况')
+  }
+  const row = {
+    id: `CJ${String(mobileCollections.length + 1).padStart(4, '0')}`,
+    houseId: h.houseId,
+    houseName: h.fullName,
+    ownerId: h.ownerId,
+    method: p.method,
+    result: p.result,
+    note: String(p.note || '').trim(),
+    nextAt: String(p.nextAt || '').trim(),
+    at: nowText(),
+    by: ctx.user.name,
+    debtAmount: houseDebt(h.houseId)
+  }
+  mobileCollections.unshift(row)
+  return row
+})
+
+on('POST', '/mobile/collections/batch', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.stewardView, `缺少权限位 ${MT_PERM.stewardView}：无权批量催缴`)
+  const ids = ctx.body?.houseIds
+  if (!Array.isArray(ids) || !ids.length) throw bad('houseIds 不能为空')
+  const method = String(ctx.body?.method || '')
+  if (!['短信', '微信', '电话'].includes(method)) throw invalid('批量方式只能是 短信 / 微信 / 电话')
+  const ok = []
+  const failed = []
+  for (const id of [...new Set(ids)]) {
+    const h = HOUSE.get(id)
+    if (!h) { failed.push({ houseId: id, reason: '房屋不存在' }); continue }
+    if (!inScopeHouse(ctx.user, h.houseId)) { failed.push({ houseId: id, reason: '超出责任范围' }); continue }
+    const debt = houseDebt(h.houseId)
+    if (debt <= 0) { failed.push({ houseId: id, reason: '这套房没有欠费' }); continue }
+    mobileCollections.unshift({
+      id: `CJ${String(mobileCollections.length + 1).padStart(4, '0')}`,
+      houseId: h.houseId, houseName: h.fullName, ownerId: h.ownerId,
+      method, result: '已说明情况', note: String(ctx.body?.note || '').trim(),
+      nextAt: '', at: nowText(), by: ctx.user.name, debtAmount: r2(debt), batch: true
+    })
+    ok.push(id)
+  }
+  const batchNo = `CJ${DATA_DATE.replace(/-/g, '')}-${String(mobileCollections.filter(c => c.batch).length).padStart(2, '0')}`
+  return { batchNo, count: ok.length, failed, total: [...new Set(ids)].length }
+})
+
+/* ---------- 我的提成 ---------- */
+
+on('GET', '/mobile/commission', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.payrollSelf, `缺少权限位 ${MT_PERM.payrollSelf}：无权查看提成`)
+  const me = EMP.get(ctx.user.empId)
+  const name = me ? me.name : ctx.user.name
+  const period = String(ctx.query.period || DATA_DATE.slice(0, 7))
+  /* 只有收了钱的单才结提成：完工未收款是「在途」，这一项必须单独返回 */
+  const mine = workOrders
+    .filter(w => w.assignee === name && w.feeType === '收费')
+    .filter(w => ['已完工', '已评价'].includes(w.status))
+    .map(w => {
+      const labor = r2((w.laborFee || 0) + (w.addons || []).reduce((s, a) => s + (a.labor || 0), 0))
+      const pct = commissionPctOf(w.communityId)
+      return {
+        woId: w.woId,
+        woNo: w.woNo,
+        category: w.category,
+        total: r2((w.totalFee || 0) + (w.addons || []).reduce((s, a) => s + (a.total || 0), 0)),
+        labor,
+        rate: pct,
+        commission: r2(labor * pct / 100),
+        settled: w.payStatus === '已支付',
+        payStatus: w.payStatus || '未支付'
+      }
+    })
+  const settled = r2(mine.filter(x => x.settled).reduce((s, x) => s + x.commission, 0))
+  const pending = r2(mine.filter(x => !x.settled).reduce((s, x) => s + x.commission, 0))
+  return {
+    settleNo: `TC${period.replace('-', '')}-01`,
+    settleDay: '次月 10 日随工资发放',
+    period,
+    rate: commissionPctOf(mine[0]?.communityId),
+    count: mine.length,
+    settledCount: mine.filter(x => x.settled).length,
+    pendingCount: mine.filter(x => !x.settled).length,
+    settled,
+    pending,
+    rows: mine
+  }
+})
+
+on('GET', '/mobile/pricing', (ctx) => {
+  /* 价目是公开信息（业主端下单也要看），这里**不要**加权限码 —— 加了业主端就查不到价格 */
+  return serviceItems.map(s => ({
+    code: s.code,
+    category: s.category,
+    name: s.name,
+    trade: s.trade,
+    material: s.material,
+    labor: s.labor,
+    unit: s.unit,
+    minutes: s.minutes,
+    enabled: !!s.enabled
+  }))
+})
+
+/* ---------- 房屋住户（业主 + 租户 + 家庭成员） ---------- */
+
+/* ---------- 员工端工单：列表 + 详情聚合 ---------- */
+
+/*
+ * 为什么单独两条 `/mobile/*` 而不是直接用 `/work-orders`：
+ *   `/work-orders` 是**管理端**视角（全量分页、按项目/状态筛选），
+ *   而员工端要的是「按 tab 分组 + 页签计数 + 提成」一次给全 ——
+ *   四个 tab 各请求一次不但慢，四次响应之间还可能互相矛盾（抢单池刚少一张、
+ *   我的列表还没更新），用户看到"抢了但我的里没有"。
+ */
+
+/** 抢单池资格：一线维修岗 + 项目开启 + 商业服务 + 收费 + 待派单未指派 */
+function woGrabPool(u) {
+  if (!u || u.roleId !== 'R-ENG') return []
+  const p = projOf(u.communities?.[0])
+  if (p && p.enabled === false) return []
+  return workOrders.filter(w =>
+    w.communityId === u.communities?.[0] &&
+    w.type === '商业服务' &&
+    w.feeType === '收费' &&
+    w.status === '待派单' &&
+    !w.assignee
+  )
+}
+
+/**
+ * 待派池。
+ *   - 项目经理：本项目所有待派/已派单（付费单点名派、公区单指派）
+ *   - 客服主管：**只有公区单** —— 付费单指派会直接吃掉师傅的提成，
+ *     05 的 `canDispatch` 早就这么限了，服务端要跟着限，不能只靠前端按钮灰着。
+ */
+function woDispatchPool(u) {
+  if (!u) return []
+  const mine = workOrders.filter(w =>
+    w.communityId === u.communities?.[0] && ['待派单', '已派单'].includes(w.status)
+  )
+  if (u.roleId === 'R-PM') return mine
+  if (u.roleId === 'R-SEC') return mine.filter(w => w.type === '公共区域维修')
+  return []
+}
+
+const woMineOpen = u => workOrders.filter(w =>
+  w.assignee === u.name && !['已完工', '已评价', '已关闭', '已取消'].includes(w.status)
+)
+
+const woMineDone = u => workOrders.filter(w =>
+  w.assignee === u.name && ['已完工', '已评价'].includes(w.status)
+)
+
+/**
+ * 移动端行：在管理端 `woRow` 之上补三个只有移动端看的字段。
+ * 列表卡片上一眼要看到"这单能挣多少"，管理端表格不需要。
+ */
+function mobileWoRow(w) {
+  const addon = woAddonSum(w)
+  const labor = r2((Number(w.laborFee) || 0) + addon.labor)
+  return {
+    ...woRow(w),
+    totalWithAddon: r2((Number(w.totalFee) || 0) + addon.total),
+    addonCount: addon.count,
+    addonPending: addon.pending,
+    commission: w.feeType === '收费' ? r2(labor * commissionPctOf(w.communityId) / 100) : 0
+  }
+}
+
+on('GET', '/mobile/work-orders', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woView, `缺少权限位 ${MT_PERM.woView}：无权查看工单`)
+  const u = ctx.user
+  const tab = String(ctx.query.tab || 'mine')
+
+  /* 页签与计数一次给全：只列**当前身份真有**的页签（一线没有"待派"） */
+  const pools = {
+    grab: woGrabPool(u),
+    dispatch: woDispatchPool(u),
+    mine: woMineOpen(u),
+    done: woMineDone(u)
+  }
+  const LABEL = { grab: '可抢', dispatch: '待派', mine: '我的', done: '已完成' }
+  const tabs = ['grab', 'dispatch', 'mine', 'done']
+    .filter(k => k === 'mine' || k === 'done' || pools[k].length || k === tab)
+    .map(k => ({ key: k, label: LABEL[k], count: pools[k].length }))
+
+  if (!pools[tab]) throw bad(`tab 只能是 grab / dispatch / mine / done，收到「${tab}」`)
+
+  return {
+    tabs,
+    tab,
+    rows: pools[tab].map(mobileWoRow)
+  }
+})
+
+on('GET', '/mobile/work-orders/{woId}', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.woView, `缺少权限位 ${MT_PERM.woView}：无权查看工单`)
+  const w = woOf(ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (!inScopeCommunity(ctx.user, w.communityId)) throw forbidden('这张工单不在你的数据范围内')
+
+  const addon = woAddonSum(w)
+  const done = woAddonSum(w, true)
+  const labor = r2((Number(w.laborFee) || 0) + done.labor)
+  const dict = w.priceCode ? serviceItems.find(s => s.code === w.priceCode) : null
+
+  return {
+    workOrder: mobileWoRow(w),
+    price: {
+      code: w.priceCode || '',
+      name: w.serviceName || (dict ? dict.name : '') || w.category || '',
+      material: Number(w.materialFee) || 0,
+      labor: Number(w.laborFee) || 0,
+      total: Number(w.totalFee) || 0,
+      /* 字典当前价：与下单快照不同说明后台调过价，页面要提示"按下单时价格结算" */
+      dictPrice: dict ? r2((Number(dict.material) || 0) + (Number(dict.labor) || 0)) : 0
+    },
+    fee: {
+      type: w.feeType,
+      material: r2((Number(w.materialFee) || 0) + done.material),
+      labor,
+      total: woDueOf(w),
+      baseTotal: Number(w.totalFee) || 0,
+      prepaid: !!w.prepaid,
+      payStatus: w.payStatus || '',
+      paid: r2(Number(w.paidAmount) || 0),
+      due: woDueOf(w),
+      payMethod: w.payMethod || '',
+      hangReason: w.hangReason || ''
+    },
+    addons: (w.addons || []).map(a => ({ ...a })),
+    pays: (w.payments || []).map(x => ({ ...x })),
+    addonSum: addon,
+    commission: w.feeType === '收费' ? r2(labor * commissionPctOf(w.communityId) / 100) : 0,
+    /* 已收款才结提成：完工未收款算在途，这一项前端要分开显示 */
+    settled: w.payStatus === '已支付',
+    ownerEval: w.score ? { score: w.score, tags: [...(w.evalTags || [])], text: w.evaluate || '' } : null,
+    staffEval: w.staffEval || null,
+    timeline: [
+      { at: w.createTime, action: '创建', by: w.ownerName || '业主', memo: w.source || '' },
+      w.acceptTime ? { at: w.acceptTime, action: '接单', by: w.assignee || '', memo: '' } : null,
+      w.arriveTime ? { at: w.arriveTime, action: '到场', by: w.assignee || '', memo: '' } : null,
+      w.finishTime ? { at: w.finishTime, action: '完工', by: w.assignee || '', memo: w.remark || '' } : null
+    ].filter(Boolean)
+  }
+})
+
+on('GET', '/mobile/houses/{houseId}/residents', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.ownersView, `缺少权限位 ${MT_PERM.ownersView}：无权查看住户`)
+  const h = HOUSE.get(ctx.params.houseId)
+  if (!h) throw notFound('房屋不存在')
+  if (!inScopeHouse(ctx.user, h.houseId)) throw forbidden('这套房不在你的数据范围内')
+
+  const tenantsOfHouse = tenants
+    .filter(t => t.houseId === h.houseId && t.status !== '已搬离')
+    .map(t => ({
+      name: t.name,
+      /* 手机号脱敏：这一屏会被投屏，全号摆一屏迟早出事 */
+      phone: maskPhone(t.phone),
+      relation: t.relation || '',
+      leaseStart: t.leaseStart,
+      leaseEnd: t.leaseEnd,
+      residents: Number(t.residents) || 0,
+      verifyStatus: t.verifyStatus,
+      certified: !!t.certified,
+      faceRegistered: !!t.faceRegistered,
+      source: t.source || ''
+    }))
+  const membersOfHouse = houseMembers
+    .filter(m => m.ownerId === h.ownerId && m.liveTogether !== false)
+    .map(m => ({
+      name: m.name,
+      relation: m.relation,
+      phone: maskPhone(m.phone),
+      certified: !!m.certified,
+      faceRegistered: !!m.faceRegistered,
+      appUser: !!m.appUser
+    }))
+  return { houseId: h.houseId, houseName: h.fullName, tenants: tenantsOfHouse, members: membersOfHouse }
+})
+
 /* ------------------------------ HTTP ------------------------------ */
 const CORS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -10784,6 +11827,7 @@ if (isMain) {
     console.log(`契约假服务已启动：http://127.0.0.1:${port}`)
     console.log(`数据：${owners.length} 业主 / ${houses.length} 房屋 / ${bills.length} 账单 / ${payments.length} 流水 / ${workOrders.length} 工单`)
     console.log(`邻里：${neighborItems.length} 闲置 / ${neighborReports.length} 举报 / ${neighborActivities.length} 活动 / ${neighborEnrolls.length} 报名`)
-    console.log(`账号：gm（全部项目）/ pm（本项目 P01）/ steward（责任范围 ${stewardCommunities.join(',')} · ${(EMP.get(stewardEmpId) || {}).name}），密码 123456`)
+    console.log(`契约测试账号：gm（全部项目）/ pm（本项目 P01）/ steward（责任范围 ${stewardCommunities.join(',')} · ${(EMP.get(stewardEmpId) || {}).name}）/ staff（仅本人）`)
+    console.log('员工端账号：zhou-ming 周明 / wang-lei 汪磊 / mo-rui 莫瑞 / xu-yue 徐悦，密码 123456')
   })
 }
