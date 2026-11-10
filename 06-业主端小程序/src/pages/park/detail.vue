@@ -8,7 +8,11 @@
   <view class="page">
     <NavBar title="车位详情" :subtitle="park?.parkNo || ''" />
     <view class="body" :class="{ 'body--with-foot': park }">
-      <Empty v-if="loaded && !park" text="车位不存在" sub="可能已过户或被物业收回" />
+      <Empty
+        v-if="loaded && !park"
+        :text="loadErr ? '车位信息加载失败' : '车位不存在'"
+        :sub="loadErr ? '退出重进可重试' : '可能已过户或被物业收回'"
+      />
 
       <template v-if="park">
         <!-- 车位本身 -->
@@ -37,7 +41,7 @@
               <Tag :text="v.authStatus" size="sm" :color="v.authStatus === '正常' ? 'var(--biz-accent-dark)' : 'var(--biz-danger)'" />
             </view>
             <text class="pdk__car-d">{{ v.color }} · {{ v.brand }} · {{ v.vehicleType }} · {{ v.inOutType }}</text>
-            <text class="pdk__car-d">IC 卡 ****{{ String(v.cardNo || '').slice(-4) }}</text>
+            <text class="pdk__car-d">IC 卡 ****{{ v.cardNoTail }}</text>
           </view>
           <Empty v-if="!cars.length" text="这个车位还没绑车牌" sub="换绑一次即可绑定，道闸 5 分钟内同步" />
         </view>
@@ -135,7 +139,7 @@ import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import {
-  RENEW_MONTHS, changeGuard, changeLogsOf, expiryOf, myParkings,
+  RENEW_MONTHS, changeGuard, changeLogsOf, expiryOf, loadParking, myParkings,
   parkBillsOf, paysOf, quotaOf, renew, renewAmount, renewPreview, vehiclesOf
 } from '@/api/park'
 import { go, confirm, toastErr, toastOk } from '@/utils/ui'
@@ -144,17 +148,27 @@ import { gateOwner } from '@/utils/guard'
 const parkId = ref('')
 const renewSheet = ref(false)
 const loaded = ref(false)
+const loadErr = ref(false)
 const ver = ref(0)
 
 const park = computed(() => {
   ver.value
   return myParkings().find(p => p.parkId === parkId.value) || null
 })
-const cars = computed(() => (park.value ? vehiclesOf(park.value.parkId) : []))
+/* 这三处都要显式读 `ver`：接口模式下数据是 loadParking 异步塞进 remote 的，
+   而 remote 是普通对象（不是 ref），computed 追踪不到它 —— 只读 park 的话，
+   park 的引用没变，车辆与记录就永远是首次渲染时的空数组（"0 辆 · 还没有换绑记录"）。 */
+const cars = computed(() => {
+  ver.value
+  return park.value ? vehiclesOf(park.value.parkId) : []
+})
 const exp = computed(() => (park.value ? expiryOf(park.value) : { date: '', days: null, tone: 'muted', text: '' }))
 const guard = computed(() => (park.value ? changeGuard(park.value.parkId) : { ok: false, quota: { used: 0, limit: 1, left: 0 }, reasons: [] }))
 const quota = computed(() => (park.value ? quotaOf(park.value.parkId) : { used: 0, limit: 1, left: 0 }))
-const logs = computed(() => (park.value ? changeLogsOf(park.value.parkId) : []))
+const logs = computed(() => {
+  ver.value
+  return park.value ? changeLogsOf(park.value.parkId) : []
+})
 const pays = computed(() => (park.value ? paysOf(park.value.parkId) : []))
 const parkBills = computed(() => {
   ver.value
@@ -182,7 +196,13 @@ onLoad(opts => {
   gateOwner('车位信息')
 })
 
-onShow(() => {
+onShow(async () => {
+  try {
+    if (parkId.value) await loadParking(parkId.value)
+    loadErr.value = false
+  } catch (e) {
+    loadErr.value = true
+  }
   ver.value++
   loaded.value = true
 })

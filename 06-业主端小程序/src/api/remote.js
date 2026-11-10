@@ -17,7 +17,7 @@
  *   3. **60 秒内不重复拉**：`onShow` 会频繁触发，每次都打四个请求没必要；
  *      需要立刻刷新时传 `force=true`（缴费成功、绑定成功后）。
  */
-import { IS_API, get } from './client'
+import { IS_API, get, post } from './client'
 import { app, persist } from '@/store/app'
 
 const TTL = 60 * 1000
@@ -149,6 +149,24 @@ export const fetchBuildings = communityId =>
   cached(`catalog:b:${communityId}`, `/mp/communities/${communityId}/buildings`).then(r => r.rows || [])
 export const fetchRoomGroups = buildingId =>
   cached(`catalog:r:${buildingId}`, `/mp/buildings/${buildingId}/rooms`).then(r => r.groups || [])
+
+/* ---------------- 车位（批次 82） ----------------
+ * **不做 5 分钟缓存**：换绑成功后必须立刻看到新记录，缓存等于让业主"刷了没变"。
+ * 页面在 onShow 里重拉一次，请求量很小（一个业主最多三五个车位）。
+ */
+export const fetchParkings = () => get('/mp/parkings')
+export const fetchParkingDetail = parkId => get(`/mp/parkings/${parkId}`)
+export const fetchParkingLogs = parkId => get(`/mp/parkings/${parkId}/logs`).then(r => r.rows || [])
+export const fetchParkBills = parkId => get('/mp/bills', { parkId }).then(r => r.rows || [])
+export const postPlateChange = (parkId, data) => post(`/mp/parkings/${parkId}/plate`, data)
+
+/* ---------------- 人脸（批次 83） ----------------
+ * 人脸状态会因核验而变，同样不缓存：业主点开就看，看到的就是此刻的状态。
+ */
+export const fetchAccessFaces = () => get('/mp/access/faces')
+export const postFaceSubmit = data => post('/mp/access/faces', data || {})
+export const postMemberFaceSubmit = (memberId, data) => post(`/mp/access/faces/members/${memberId}`, data || {})
+export const postFaceWithdraw = faceId => post(`/mp/access/faces/${faceId}/withdraw`)
 
 export const remoteOrders = () => app.remote?.orders?.rows || null
 export const remoteOrderOf = woId => (app.remote?.orders?.rows || []).find(w => w.woId === woId) || null

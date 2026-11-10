@@ -16,12 +16,67 @@
 import { members as rawMembers, owners, tenants } from '@pc/mock'
 import { activeBinding, app, identity, persist } from '@/store/app'
 import { DEMO, demoNow, stamp } from '@/config/demo'
+import { IS_API } from './client'
+import { fetchAccessFaces, postFaceSubmit, postMemberFaceSubmit, postFaceWithdraw } from './remote'
 import { canEnrollMember, canSubmit, statusMeta, STATUS_AFTER_SUBMIT } from './access-rule.mjs'
 
 const DAY = 86400000
 
 export const selfKey = () => `self:${app.session?.phone || ''}`
 export const memberKey = memberId => `member:${memberId}`
+
+/* ============================ 接口模式的内存态 ============================ */
+
+/**
+ * 人脸状态**不缓存到 localStorage**：它随时会因为物业核验而变，
+ * 存下来就会出现"后台已经通过、业主端还显示待核验"这种最难解释的错。
+ * 每次进页面拉一次就够（一个业主三五个成员）。
+ *
+ * `data === null` 表示还没拉过，页面用 `faceLoaded()` 区分"还没回来"与"真的没有"。
+ */
+const remote = { data: null }
+
+export const faceLoaded = () => !IS_API || remote.data !== null
+
+export async function loadFaces() {
+  if (!IS_API) return
+  remote.data = await fetchAccessFaces()
+}
+
+/** 服务端视图 → 页面视图。文案与色调还是走 statusMeta，前端不另写一套 */
+const mapSelf = s => ({
+  key: selfKey(),
+  faceId: s.faceId || '',
+  status: s.status,
+  at: s.updatedAt || s.submittedAt || '',
+  note: s.note || '',
+  guardian: s.guardian || '',
+  name: s.name,
+  role: s.role,
+  readOnly: !!s.readOnly,
+  readOnlyWhy: s.readOnlyWhy || '',
+  remain: s.remain24h ?? 0,
+  canSubmitRemote: s.canSubmit !== false,
+  why: s.why || '',
+  ...statusMeta(s.status)
+})
+
+const mapMember = m => ({
+  key: memberKey(m.memberId),
+  faceId: m.faceId || '',
+  memberId: m.memberId,
+  name: m.name,
+  relation: m.relation || '其他',
+  certified: !!m.certified,
+  status: m.status,
+  at: m.updatedAt || m.submittedAt || '',
+  note: m.note || '',
+  guardian: m.guardian || '',
+  remain: m.remain24h ?? 0,
+  canEnroll: !!m.canEnroll,
+  why: m.why || '',
+  ...statusMeta(m.status)
+})
 
 /** 本地种子：从物业档案的 faceRegistered 推初始状态（接口化后由服务端给） */
 function seedOf(key) {
@@ -67,6 +122,7 @@ export function submitsIn24h(key) {
  * 不是权限不够，是"谁对他负责"的问题：租客的门禁是物业发的。
  */
 export function selfFace() {
+  if (IS_API) return mapSelf(remote.data?.self || { status: '未采集', name: '', role: identity.value || '业主', readOnly: false })
   const key = selfKey()
   const rec = faceOf(key)
   const role = identity.value || '业主'
@@ -85,6 +141,7 @@ export function selfFace() {
  * 家属登录时不展示：家属是被协助的一方，不该看到别人（含自己以外）的人脸状态。
  */
 export function familyFaces() {
+  if (IS_API) return (remote.data?.members || []).map(mapMember)
   if (identity.value !== '业主') return []
   const oid = activeBinding.value?.ownerId || ''
   if (!oid) return []
@@ -106,7 +163,21 @@ export function familyFaces() {
 }
 
 /** 提交采集：只写"待核验"，生效由物业核验动作决定（后台 H4） */
-export function submitFace(key, { guardian = false } = {}) {
+export async function submitFace(key, { guardian = false } = {}) {
+  if (IS_API) {
+    const memberId = key.startsWith('member:') ? key.slice(7) : ''
+    /* 本人提交不需要（也不该带）监护人同意；成员提交必须带，服务端会再判一次 */
+    const r = memberId
+      ? await postMemberFaceSubmit(memberId, { guardian })
+      : await postFaceSubmit({ consent: true })
+    if (memberId) {
+      const list = remote.data?.members || []
+      remote.data = { ...remote.data, members: list.map(m => (m.memberId === memberId ? r : m)) }
+      return mapMember(r)
+    }
+    remote.data = { ...remote.data, self: r }
+    return mapSelf(r)
+  }
   const cur = faceOf(key)
   const gate = canSubmit({ status: cur.status, submits24h: submitsIn24h(key) })
   if (!gate.ok) throw new Error(gate.why)
@@ -127,7 +198,24 @@ export function submitFace(key, { guardian = false } = {}) {
 }
 
 /** 撤回：停用并等物业删除影像件（原型只改状态） */
-export function withdrawFace(key) {
+export async function withdrawFace(key) {
+  if (IS_API) {
+    const memberId = key.startsWith('member:') ? key.slice(7) : ''
+    const list = remote.data?.members || []
+    const faceId = memberId ? list.find(m => m.memberId === memberId)?.faceId : remote.data?.self?.faceId
+    if (!faceId) throw new Error('还没有录入人脸')
+    const r = await postFaceWithdraw(faceId)
+    /* 撤回返回的是公共字段（没有 readOnly / canEnroll），合并时保留原条目的其它键 */
+    if (memberId) {
+      const prev = list.find(m => m.memberId === memberId) || {}
+      const merged = { ...prev, ...r }
+      remote.data = { ...remote.data, members: list.map(m => (m.memberId === memberId ? merged : m)) }
+      return mapMember(merged)
+    }
+    const merged = { ...(remote.data?.self || {}), ...r }
+    remote.data = { ...remote.data, self: merged }
+    return mapSelf(merged)
+  }
   const cur = faceOf(key)
   if (cur.status === '未采集') throw new Error('还没有录入人脸')
   app.faces[key] = { status: '未采集', at: stamp(), note: `已撤回，原状态「${cur.status}」`, guardian: '' }

@@ -111,7 +111,7 @@ import Cell from '@/components/Cell.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import {
-  changeGuard, changePlate, expiryOf, myParkings, normalizePlate, plateOf, quotaOf
+  changeGuard, changePlate, expiryOf, loadParking, myParkings, normalizePlate, plateOf, quotaOf
 } from '@/api/park'
 import { identity, isRealname } from '@/store/app'
 import { back, toastErr } from '@/utils/ui'
@@ -129,8 +129,16 @@ const park = computed(() => {
 })
 const currentPlate = computed(() => (park.value ? plateOf(park.value) : ''))
 const exp = computed(() => (park.value ? expiryOf(park.value) : { date: '' }))
-const guard = computed(() => (park.value ? changeGuard(park.value.parkId) : { ok: false, reasons: [] }))
-const quota = computed(() => (park.value ? quotaOf(park.value.parkId) : { limit: 1, used: 0 }))
+/* 与详情页同理：接口模式下数据是异步塞进普通对象 remote 的，
+   只依赖 `park`（引用不变）不会重算 —— 直接输网址进来会一直显示"额度 0/1"。 */
+const guard = computed(() => {
+  ver.value
+  return park.value ? changeGuard(park.value.parkId) : { ok: false, reasons: [] }
+})
+const quota = computed(() => {
+  ver.value
+  return park.value ? quotaOf(park.value.parkId) : { limit: 1, used: 0 }
+})
 
 /** 四条条件拆开渲染：guard 只回"哪条不满足"，页面需要"每条的名称" */
 const checks = computed(() => {
@@ -150,7 +158,14 @@ onLoad(opts => {
   gateOwner('车位信息')
 })
 
-onShow(() => {
+onShow(async () => {
+  /* 从详情进来时缓存已经有了，但直接输网址进来没有 —— 拉一次再算四条前置，
+     否则接口模式下会先按"没有这个车位"把页面判成不可用 */
+  try {
+    if (parkId.value) await loadParking(parkId.value)
+  } catch (e) {
+    toastErr(e?.message || '车位信息加载失败')
+  }
   ver.value++
   loaded.value = true
 })
@@ -159,12 +174,19 @@ function onInput(e) {
   plate.value = normalizePlate(e?.detail?.value ?? '')
 }
 
-function submit() {
-  if (!canSubmit.value) return
+const submitting = ref(false)
+
+async function submit() {
+  if (!canSubmit.value || submitting.value) return
+  submitting.value = true
   try {
-    done.value = changePlate(parkId.value, plate.value)
+    done.value = await changePlate(parkId.value, plate.value)
   } catch (e) {
+    /* 接口模式下 409 的 message 本身就是给业主看的话术（"本月已换 1 次，下月 1 日恢复"），
+       直接显示，不要再套一层"换绑失败" */
     toastErr(e?.message || '换绑失败')
+  } finally {
+    submitting.value = false
   }
 }
 

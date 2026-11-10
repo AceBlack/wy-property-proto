@@ -12,6 +12,7 @@
     <NavBar title="刷脸通行" :subtitle="subtitle" />
     <view class="body">
       <Empty v-if="loaded && !approved" text="认证后可查看刷脸信息" sub="人脸只对本小区已认证住户开放" />
+      <Empty v-else-if="loaded && loadErr" text="人脸信息加载失败" sub="退出重进可重试；急用请联系物业服务中心" />
 
       <template v-else-if="approved">
         <!-- 本人 -->
@@ -110,13 +111,14 @@ import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import Sheet from '@/components/Sheet.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
-import { accessSummary, familyFaces, selfFace, submitFace, withdrawFace } from '@/api/access'
+import { accessSummary, familyFaces, loadFaces, selfFace, submitFace, withdrawFace } from '@/api/access'
 import { isApproved } from '@/store/app'
 import { activeHouse } from '@/api/mp'
 import { confirm, toastErr, toastOk } from '@/utils/ui'
 
 const ver = ref(0)
 const loaded = ref(false)
+const loadErr = ref(false)
 const sheet = ref(false)
 const photos = ref([])
 const guardian = ref(false)
@@ -146,7 +148,14 @@ onLoad(opts => {
   if (mid) openEnroll({ key: `member:${mid}`, name: String(opts?.name || '家人'), member: true })
 })
 
-onShow(() => {
+onShow(async () => {
+  /* 人脸状态随时会因为物业核验而变，每次进页面拉一次（接口模式），不做本地缓存 */
+  try {
+    await loadFaces()
+    loadErr.value = false
+  } catch (e) {
+    loadErr.value = true
+  }
   ver.value++
   loaded.value = true
 })
@@ -158,13 +167,13 @@ function openEnroll(t) {
   sheet.value = true
 }
 
-function submitEnroll() {
+async function submitEnroll() {
   if (!photos.value.length) {
     toastErr('请先拍照（或选择"模拟一张"）')
     return
   }
   try {
-    submitFace(target.value.key, { guardian: guardian.value })
+    await submitFace(target.value.key, { guardian: guardian.value })
     sheet.value = false
     ver.value++
     toastOk('已提交，等物业核验')
@@ -181,7 +190,7 @@ async function withdraw(key) {
   })
   if (!ok) return
   try {
-    withdrawFace(key)
+    await withdrawFace(key)
     ver.value++
     toastOk('已撤回')
   } catch (e) {

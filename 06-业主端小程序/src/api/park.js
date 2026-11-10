@@ -18,6 +18,8 @@
 import { bills, parkings, vehicles } from '@pc/mock'
 import { activeBinding, app, identity, isRealname, persist } from '@/store/app'
 import { DEMO, stamp } from '@/config/demo'
+import { IS_API } from './client'
+import { fetchParkings, fetchParkingDetail, fetchParkingLogs, fetchParkBills, postPlateChange } from './remote'
 import {
   daysBetween, expiryOf as expiryRule, nextExpire, nextMonthFirst,
   normalizePlate, usedThisMonth, validPlate
@@ -36,6 +38,51 @@ export const RENEW_MONTHS = [3, 6, 12]
 const ownerIdOf = () => activeBinding.value?.ownerId || ''
 const today = () => DEMO.today
 
+/* ============================ 〇、接口模式的内存态 ============================ */
+
+/**
+ * 车位在接口模式下**不做缓存水合**（不像账单那样登录时预拉）：
+ * 它最多三五个车位，页面进来时拉一次就够；而换绑成功后必须立刻看到新记录，
+ * 缓存等于让业主"明明换了，退出来再进去还是老车牌"。
+ *
+ * `rows === null` 表示"还没拉过"。页面靠 `parkLoaded()` 区分
+ * **"还没回来"** 与 **"真的没有车位"** —— 不区分就会先闪一句"暂无车位"再被数据填上。
+ */
+const remote = {
+  rows: null,
+  limit: PLATE_LIMIT,
+  period: '',
+  resetAt: '',
+  detail: {}, // parkId → { parking, vehicles }
+  logs: {},   // parkId → rows
+  bills: {}   // parkId → rows
+}
+
+export const parkLoaded = () => !IS_API || remote.rows !== null
+
+/** 拉车位列（页面 onShow 调；本地模式下什么都不做） */
+export async function loadParkings() {
+  if (!IS_API) return
+  const d = await fetchParkings()
+  remote.rows = d.rows || []
+  remote.limit = Number(d.limit) || PLATE_LIMIT
+  remote.period = d.period || ''
+  remote.resetAt = d.resetAt || ''
+}
+
+/** 拉一个车位的详情 / 记录 / 账单（三项一起，页面一次 await 就够） */
+export async function loadParking(parkId) {
+  if (!IS_API) return
+  const [detail, logs, billRows] = await Promise.all([
+    fetchParkingDetail(parkId),
+    fetchParkingLogs(parkId),
+    fetchParkBills(parkId)
+  ])
+  remote.detail[parkId] = detail
+  remote.logs[parkId] = logs
+  remote.bills[parkId] = billRows
+}
+
 /* ============================ 一、归属 ============================ */
 
 /**
@@ -45,6 +92,9 @@ const today = () => DEMO.today
  * 车位归属与缴费都是业主的事，把业主的车位摆给租客看只会多一次误会。
  */
 export function myParkings() {
+  /* 接口模式只认服务端给的车位。没拉到之前返回空数组 ——
+     页面用 parkLoaded() 区分"还没回来"与"真的没有"，不会先闪一句"暂无车位" */
+  if (IS_API) return remote.rows || []
   const oid = ownerIdOf()
   if (!oid) return []
   if (identity.value === '租客') return []
@@ -53,13 +103,26 @@ export function myParkings() {
 
 export const parkingOf = parkId => myParkings().find(p => p.parkId === parkId) || null
 
-/** 当前车牌：本地换绑过的优先（刷新后仍生效） */
-export const plateOf = p => app.parkPlates[p.parkId] || p.plateNo || ''
+/**
+ * 当前车牌。接口模式下服务端就是唯一来源（换绑后它自己会变），
+ * 本地模式才需要 `app.parkPlates` 这份"刷新后仍生效"的覆盖。
+ */
+export const plateOf = p => (IS_API ? p.plateNo || '' : (app.parkPlates[p.parkId] || p.plateNo || ''))
 
-/** 当前到期日：预缴过的优先 */
-export const expireOf = p => app.parkExpire[p.parkId] || p.expireDate || ''
+/** 当前到期日。接口模式下 = 管理费已缴至的账期末，服务端给什么就是什么 */
+export const expireOf = p => (IS_API ? p.expireDate || '' : (app.parkExpire[p.parkId] || p.expireDate || ''))
 
-export const vehiclesOf = parkId => vehicles.filter(v => v.parkId === parkId)
+/**
+ * 车位上的车。两种模式都**只给卡号后四位**（`cardNoTail`）：
+ * 完整 IC 卡号能复制去开闸，页面不需要它，本地这段代码也不该留着它 ——
+ * 页面只认一个字段，接口模式与本地模式才不会显示成两种样子。
+ */
+export const vehiclesOf = parkId => {
+  if (IS_API) return remote.detail[parkId]?.vehicles || []
+  return vehicles
+    .filter(v => v.parkId === parkId)
+    .map(({ cardNo, ...rest }) => ({ ...rest, cardNoTail: String(cardNo || '').slice(-4) }))
+}
 
 /**
  * 车位管理费账单。
@@ -69,6 +132,21 @@ export const vehiclesOf = parkId => vehicles.filter(v => v.parkId === parkId)
  * 并在页面上如实说明。补齐 fixtures 是批次 82 的事。
  */
 export const parkBillsOf = parkId => {
+  if (IS_API) {
+    /* 服务端已经按 parkId 过滤好了（`/mp/bills?parkId=`），这里只做视图映射 */
+    return (remote.bills[parkId] || [])
+      .slice()
+      .sort((a, b) => String(b.period).localeCompare(String(a.period)))
+      .map(b => ({
+        billId: b.billId,
+        period: b.period,
+        itemName: b.itemName || '车位管理费',
+        payable: Number(b.payable) || 0,
+        unpaid: Number(b.unpaid) || 0,
+        status: b.status,
+        isDebt: ['未缴', '部分缴', '逾期'].includes(b.status) && (Number(b.unpaid) || 0) > 0
+      }))
+  }
   const oid = ownerIdOf()
   const all = bills.filter(b => !b.houseId && b.ownerId === oid)
   /* 数据里一条 parkId 都没有 = 这份样例是裁剪过的，只能按业主收 */
@@ -114,11 +192,18 @@ const SEED_LOGS = [
 ]
 
 export function changeLogsOf(parkId) {
+  if (IS_API) return (remote.logs[parkId] || []).slice()
   return [...app.parkLogs.filter(l => l.parkId === parkId), ...SEED_LOGS.filter(l => l.parkId === parkId)]
     .sort((a, b) => String(b.at).localeCompare(String(a.at)))
 }
 
 export function quotaOf(parkId) {
+  if (IS_API) {
+    /* 次数由服务端算（它按「最后一次物业重置」划界），客户端不自己数记录 */
+    const used = Number(parkingOf(parkId)?.usedThisMonth) || 0
+    const limit = remote.limit || PLATE_LIMIT
+    return { limit, used, left: Math.max(0, limit - used), month: remote.period }
+  }
   const used = usedThisMonth(changeLogsOf(parkId), parkId, today())
   return { limit: PLATE_LIMIT, used, left: Math.max(0, PLATE_LIMIT - used), month: today().slice(0, 7) }
 }
@@ -154,7 +239,7 @@ export function changeGuard(parkId) {
  * 换绑：**不经物业审核，但必须留痕**。
  * 返回记录，调用方用它渲染成功态（含"道闸同步"的承诺）。
  */
-export function changePlate(parkId, rawPlate) {
+export async function changePlate(parkId, rawPlate, reason = '') {
   const g = changeGuard(parkId)
   if (!g.ok) {
     const e = new Error(g.reasons[0].text)
@@ -168,6 +253,22 @@ export function changePlate(parkId, rawPlate) {
   /* 同一业主的另一个车位已用这个车牌：一辆车不能占两个车位 */
   const dup = myParkings().find(p => p.parkId !== parkId && plateOf(p) === plate)
   if (dup) throw new Error(`${plate} 已绑在 ${dup.parkNo} 上，一辆车不能占两个车位`)
+
+  if (IS_API) {
+    /* 上面的校验只是为了"按钮提前置灰、错误话术更短"。
+       真正算数的是服务端：额度、到期、归属都在它那里判，客户端拦不住改包的人。
+       它抛的 409 带业务码，页面直接显示 message（文案本身就是给业主看的）。 */
+    const r = await postPlateChange(parkId, { plateNo: plate, reason })
+    remote.detail[parkId] = { ...(remote.detail[parkId] || {}), parking: r.parking }
+    remote.rows = (remote.rows || []).map(p => (p.parkId === parkId ? r.parking : p))
+    remote.logs[parkId] = [r.log, ...(remote.logs[parkId] || [])]
+    /* 车牌同时改了车位与车辆，详情里那一份也要跟上，否则再进详情还是老牌 */
+    const det = remote.detail[parkId]
+    if (det?.vehicles?.length) {
+      det.vehicles = det.vehicles.map(v => ({ ...v, plateNo: plate }))
+    }
+    return r.log
+  }
 
   const log = {
     logId: `PKL${String(app.parkLogs.length + 2).padStart(4, '0')}`,
@@ -211,6 +312,17 @@ export function renew(parkId, months) {
   const p = parkingOf(parkId)
   if (!p) throw new Error('这个车位不在您名下')
   if (identity.value !== '业主') throw new Error('只有产权业主可以预缴车位管理费')
+  /**
+   * 接口模式下**不假装能续费**。
+   *
+   * 续费的本质是「生成一张车位管理费账单 → 支付 → 账期顺延」，
+   * 而批次 82 只落了车位四件套（列表 / 详情 / 换绑 / 记录），没有"按车位出账"的接口。
+   * 在这里写一条本地流水会让服务端的到期日不动 —— 页面显示已续到 12 月、
+   * 后台显示 10 月到期，两边各说各话，比直接提示"去缴费"糟得多。
+   */
+  if (IS_API) {
+    throw new Error('车位管理费请在「家庭账单」里缴纳，缴完后账期自动顺延')
+  }
   const n = Number(months) || 0
   if (!RENEW_MONTHS.includes(n)) throw new Error('预缴月数只能选 3 / 6 / 12')
 

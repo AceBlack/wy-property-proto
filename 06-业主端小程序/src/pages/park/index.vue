@@ -11,8 +11,8 @@
     <view class="body">
       <Empty
         v-if="loaded && !list.length"
-        text="名下暂无车位"
-        sub="已购 / 已租车位由物业在车位台账登记，业主端不提供自助认领"
+        :text="loadErr ? '车位信息加载失败' : '名下暂无车位'"
+        :sub="loadErr ? '下拉或退出重进可重试；长期打不开请联系物业服务中心' : '已购 / 已租车位由物业在车位台账登记，业主端不提供自助认领'"
       />
 
       <view
@@ -52,12 +52,15 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import Empty from '@/components/Empty.vue'
 import Tag from '@/components/Tag.vue'
-import { PLATE_LIMIT, expiryOf, myParkings, plateOf, vehiclesOf } from '@/api/park'
+import { PLATE_LIMIT, expiryOf, loadParkings, myParkings, plateOf, vehiclesOf } from '@/api/park'
 import { identity } from '@/store/app'
 import { go } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
 
 const loaded = ref(false)
+/* 接口模式下"拉不到"与"真的没有"是两件事：都显示"名下暂无车位"，
+   业主会以为物业把他的车位弄丢了 */
+const loadErr = ref(false)
 const ver = ref(0)
 
 const list = computed(() => {
@@ -80,8 +83,14 @@ onLoad(() => {
   gateOwner('车位信息')
 })
 
-onShow(() => {
+onShow(async () => {
   /* 从换绑 / 预缴页回来要重算：两者都会改车牌与到期日 */
+  try {
+    await loadParkings()
+    loadErr.value = false
+  } catch (e) {
+    loadErr.value = true
+  }
   ver.value++
   loaded.value = true
 })

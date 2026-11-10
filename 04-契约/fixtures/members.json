@@ -7,7 +7,9 @@
     "phone": "17619030789",
     "idCard": "510194010361628168",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "已生效",
+    "faceUpdatedAt": "2026-03-12 14:30"
   },
   {
     "memberId": "MB00002",
@@ -17,7 +19,9 @@
     "phone": "17521030244",
     "idCard": "510181051621669049",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00003",
@@ -27,7 +31,9 @@
     "phone": "17996601955",
     "idCard": "510167021889985689",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00004",
@@ -37,7 +43,9 @@
     "phone": "15274759593",
     "idCard": "510194032260412802",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00005",
@@ -47,7 +55,9 @@
     "phone": "19032025009",
     "idCard": "510195051268645013",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00006",
@@ -57,7 +67,9 @@
     "phone": "17153719042",
     "idCard": "510164041749299186",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00007",
@@ -67,7 +79,9 @@
     "phone": "18600029760",
     "idCard": "510187092521489996",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00008",
@@ -77,7 +91,9 @@
     "phone": "19696462132",
     "idCard": "510180062790279694",
     "certified": false,
-    "liveTogether": false
+    "liveTogether": false,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00009",
@@ -87,7 +103,9 @@
     "phone": "19746513127",
     "idCard": "510197021018389804",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00010",
@@ -97,7 +115,9 @@
     "phone": "17420977080",
     "idCard": "510169022316004704",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00011",
@@ -107,7 +127,9 @@
     "phone": "13803892062",
     "idCard": "510162072689447855",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00012",
@@ -117,7 +139,9 @@
     "phone": "15635473514",
     "idCard": "510163051016311250",
     "certified": false,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   },
   {
     "memberId": "MB00013",
@@ -127,6 +151,8 @@
     "phone": "13822228352",
     "idCard": "510197111284051145",
     "certified": true,
-    "liveTogether": true
+    "liveTogether": true,
+    "faceStatus": "未采集",
+    "faceUpdatedAt": ""
   }
 ]

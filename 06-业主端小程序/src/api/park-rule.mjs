@@ -81,7 +81,20 @@ export const validPlate = raw => PLATE_RE.test(normalizePlate(raw))
  */
 export function usedThisMonth(logs, parkId, today) {
   const m = String(today || '').slice(0, 7)
-  return (logs || []).filter(l => l.parkId === parkId && String(l.at || '').slice(0, 7) === m).length
+  const mine = (logs || [])
+    .filter(l => l.parkId === parkId && String(l.at || '').slice(0, 7) === m)
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  /**
+   * **以最后一次「物业重置」为界**，重置之前的记录不计入。
+   *
+   * 与后台 H2 同一口径：业主把车牌填错，客服重置一次，不该同时占掉他下个月的名额。
+   * 所以重置不是"把计数清零"，而是插一条分界线 —— 记录本身要留着，
+   * 那是留痕的意义（出纠纷时能证明"什么时候、谁、改成什么"）。
+   * 两端各写一套的话，接口模式与本地模式在"重置之后"就会给出不同的剩余次数。
+   */
+  const lastReset = [...mine].reverse().find(l => l.source === '物业重置')
+  const from = lastReset ? mine.indexOf(lastReset) + 1 : 0
+  return mine.slice(from).filter(l => l.source !== '物业重置').length
 }
 
 /** 下月 1 日（提示"什么时候恢复"用，别只写"下月"） */

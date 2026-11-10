@@ -44,6 +44,10 @@ const qualityChecks = readJson('fixtures/quality-checks.json')
 const communities = readJson('fixtures/communities.json')
 const buildings = readJson('fixtures/buildings.json')
 const units = readJson('fixtures/units.json')
+/* 车位三件套（批次 82）：只导了 60 位业主名下的 45 个车位，见 gen-park-fixtures.mjs */
+const parkings = readJson('fixtures/parkings.json')
+const vehicles = readJson('fixtures/vehicles.json')
+const parkingChangeLogs = readJson('fixtures/parking-change-logs.json')
 const contracts = readJson('fixtures/contracts.json')
 const notices = readJson('fixtures/notices.json')
 const orgs = readJson('fixtures/orgs.json')
@@ -740,6 +744,10 @@ on('PATCH', '/owners/{ownerId}', (ctx) => {
     throw invalid('结婚纪念日格式应为 YYYY-MM-DD')
   }
   if (field === 'phone') {
+    /* 列表下发的是掩码（138****8001），把掩码当明文提交必须拒 ——
+       否则它会被原样落库，这个业主从此登录不了业主端（登录按明文手机号找档案）。
+       这不是防"恶意"，是防"前端把展示值回填到输入框"这个最常见的实现错误。 */
+    if (!/^1\d{10}$/.test(String(value))) throw invalid('手机号须为 11 位明文，掩码值不能提交')
     const dup = owners.find(x => x.ownerId !== o.ownerId && x.phone === value)
     if (dup) throw conflictUnique(`手机号「${value}」已存在，不能重复录入`)
   }
@@ -8643,6 +8651,8 @@ on('GET', '/neighbor/activities/{activityId}/enrolls/stats', (ctx) => {
 const mpTokens = new Map()
 const MP_TTL = 2 * 3600
 const members = readJson('fixtures/members.json')
+/* 人脸申请单（批次 83）：唯一真相；members.faceStatus 是它的投影 */
+const faces = readJson('fixtures/access-faces.json')
 
 const MP_ROLE = { OWNER: '业主', MEMBER: '家属', TENANT: '租客' }
 
@@ -8988,6 +8998,8 @@ function mpBillList(sess, q = {}) {
   return bills
     .filter(b => (b.houseId ? ids.has(b.houseId) : b.ownerId === sess.ownerId))
     .filter(b => !q.houseId || b.houseId === String(q.houseId))
+    /* houseId 与 parkId 互斥：车位账单不挂房，两个一起传按房源账单处理 */
+    .filter(b => !q.parkId || b.parkId === String(q.parkId))
     .filter(b => !q.period || b.period === String(q.period))
     .filter(b => !q.status || b.status === String(q.status))
     .filter(b => String(q.onlyDebt) !== 'true' || mpIsDebt(b))
@@ -9183,9 +9195,388 @@ on('POST', '/mp/houses/{houseId}/tenants', (ctx) => {
   return { ...row, phone: maskPhone(row.phone), idCard4: row.idCard4 }
 })
 
+/* ============================ 车位（批次 82） ============================ */
+
+/**
+ * 每车位每自然月的自助换绑上限。
+ *
+ * 真实系统从参数表 `park.plateChangeLimit` 读（后台 `/e/config` 可改、可人工重置），
+ * 假服务没有配置中心，用常量 —— 只在这里写一处，页面与用例都读它返回的值，
+ * 不在前端复制一份"每月 1 次"。
+ */
+const MP_PLATE_LIMIT = 1
+
+const PARK = new Map(parkings.map(p => [p.parkId, p]))
+
+/** 车牌归一化：与业主端 `park-rule.mjs` 同一口径（去空格横线、转大写、补间隔点） */
+const PLATE_RE = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z][A-Z0-9]{5,6}$/
+const mpNormalizePlate = raw => String(raw || '')
+  .toUpperCase()
+  .replace(/[\s-]/g, '')
+  .replace(/^([京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-Z])(?![·])/, '$1·')
+const mpPlateValid = raw => PLATE_RE.test(mpNormalizePlate(raw).replace(/·/g, ''))
+
+const mpPeriod = () => DATA_DATE.slice(0, 7)
+const mpHourMinute = () => {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+/** 额度重置日：演示数据"当下"的下月 1 日 */
+function mpQuotaResetAt() {
+  const [y, m] = DATA_DATE.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10)
+}
+
+/**
+ * 本月该车位已换绑次数：**以最后一次「物业重置」为界**，重置之前的记录不计入。
+ *
+ * 业主把车牌填错，客服重置一次，不该同时占掉他下个月的名额 ——
+ * 所以重置不是把计数清零，而是插一条分界线（记录本身要留着，那是留痕的意义）。
+ */
+function mpParkUsedThisMonth(parkId) {
+  const month = mpPeriod()
+  const mine = parkingChangeLogs
+    .filter(r => r.parkId === parkId && String(r.at || '').slice(0, 7) === month)
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  const lastReset = [...mine].reverse().find(r => r.source === '物业重置')
+  const from = lastReset ? mine.indexOf(lastReset) + 1 : 0
+  return mine.slice(from).filter(r => r.source !== '物业重置').length
+}
+
+/**
+ * 取一个"我的车位"。两种失败分开：
+ *   404 车位不存在（在谁名下都不存在）；
+ *   403 车位存在但不在我名下 —— **不能回 404**，业主刚在自己列表里见过这个号。
+ */
+function mpMyParking(sess, parkId) {
+  const p = PARK.get(String(parkId || ''))
+  if (!p) throw notFound('车位不存在')
+  if (p.ownerId !== sess.ownerId) throw forbidden('这个车位不在您名下')
+  return p
+}
+
+function mpParkingRow(p) {
+  return {
+    parkId: p.parkId,
+    parkNo: p.parkNo,
+    zone: p.zone,
+    parkType: p.parkType,
+    category: p.category,
+    area: p.area,
+    status: p.status,
+    plateNo: p.plateNo,
+    bindStatus: p.bindStatus,
+    feeStandard: p.feeStandard,
+    /* 到期日 = 管理费已缴至的账期末，唯一真相；不在这里按"今天"改成状态词 */
+    expireDate: p.expireDate,
+    chargePile: !!p.chargePile,
+    vehicleCount: vehicles.filter(v => v.parkId === p.parkId).length,
+    usedThisMonth: mpParkUsedThisMonth(p.parkId)
+  }
+}
+
+/** 车辆视图：**完整 IC 卡号不下发**，只给后四位（完整卡号可以复制去开闸） */
+const mpVehicleRow = v => ({
+  vehicleId: v.vehicleId,
+  plateNo: v.plateNo,
+  vehicleType: v.vehicleType,
+  brand: v.brand,
+  color: v.color,
+  cardNoTail: v.cardNoTail,
+  authStatus: v.authStatus,
+  inOutType: v.inOutType
+})
+
+on('GET', '/mp/parkings', (ctx) => {
+  const me = mpOf(ctx)
+  const rows = parkings
+    .filter(p => p.ownerId === me.ownerId)
+    .sort((a, b) => String(a.parkNo).localeCompare(String(b.parkNo)))
+    .map(mpParkingRow)
+  return { rows, limit: MP_PLATE_LIMIT, period: mpPeriod(), resetAt: mpQuotaResetAt() }
+})
+
+on('GET', '/mp/parkings/{parkId}', (ctx) => {
+  const me = mpOf(ctx)
+  const p = mpMyParking(me, ctx.params.parkId)
+  return {
+    parking: mpParkingRow(p),
+    vehicles: vehicles.filter(v => v.parkId === p.parkId).map(mpVehicleRow)
+  }
+})
+
+on('POST', '/mp/parkings/{parkId}/plate', (ctx) => {
+  const me = mpOf(ctx)
+  const p = mpMyParking(me, ctx.params.parkId)
+
+  /* 四条前置：车位在本人名下（上面已判）、业主本人、已实名、管理费未到期、额度还有。
+     顺序有意把「身份」放最前 —— 家属点进来先看到"只对产权业主开放"，
+     而不是"次数用完了"，后者会让他以为换个账号就行。 */
+  if (me.identity !== MP_ROLE.OWNER) {
+    throw forbidden('换绑只对产权业主开放；家属或租客请联系业主或管家')
+  }
+  if (!me.realname) throw forbidden('请先完成实名认证再换绑车牌')
+  if (String(p.expireDate) < DATA_DATE) {
+    throw new ApiError(409, 40930, `车位管理费已于 ${p.expireDate} 到期，续费后才能换绑`)
+  }
+
+  const plateNo = mpNormalizePlate(ctx.body?.plateNo)
+  if (!mpPlateValid(plateNo)) throw invalid('车牌格式不对，例如 川B·SFV7D')
+  if (plateNo === p.plateNo) throw invalid('与原车牌相同，无需换绑')
+
+  /* 同一个牌不能同时挂在本人两个车位上 —— 道闸侧认牌不认车位，会重复计费 */
+  const clash = parkings.find(x => x.ownerId === me.ownerId && x.parkId !== p.parkId && x.plateNo === plateNo)
+  if (clash) throw new ApiError(409, 40931, `该车牌已绑在您的车位 ${clash.parkNo} 上，请先解绑那一个`)
+
+  if (mpParkUsedThisMonth(p.parkId) >= MP_PLATE_LIMIT) {
+    throw new ApiError(409, 40929, `本月该车位已换绑 ${MP_PLATE_LIMIT} 次，下月 1 日恢复；如填错请联系管家重置`)
+  }
+
+  const log = {
+    logId: 'PL' + String(parkingChangeLogs.length + 1).padStart(5, '0'),
+    parkId: p.parkId,
+    parkNo: p.parkNo,
+    fromPlate: p.plateNo,
+    toPlate: plateNo,
+    source: '业主自助',
+    operatorName: me.name,
+    /* 车牌识别系统（第三方）尚未对接：一律「待同步」，**不假装有回执** */
+    vendorStatus: '待同步',
+    at: `${DATA_DATE} ${mpHourMinute()}`,
+    reason: String(ctx.body?.reason || '').slice(0, 100)
+  }
+  parkingChangeLogs.push(log)
+
+  /* 车位本体与车辆表一起改 —— 只改一处，详情页会出现"车位是新牌、车辆是老牌" */
+  const v = vehicles.find(x => x.parkId === p.parkId)
+  if (v) v.plateNo = plateNo
+  p.plateNo = plateNo
+  p.bindStatus = '已绑定'
+
+  return {
+    log,
+    parking: mpParkingRow(p),
+    limit: MP_PLATE_LIMIT,
+    period: mpPeriod(),
+    resetAt: mpQuotaResetAt()
+  }
+})
+
+on('GET', '/mp/parkings/{parkId}/logs', (ctx) => {
+  const me = mpOf(ctx)
+  const p = mpMyParking(me, ctx.params.parkId)
+  const rows = parkingChangeLogs
+    .filter(r => r.parkId === p.parkId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .map(r => ({
+      logId: r.logId,
+      parkId: r.parkId,
+      parkNo: r.parkNo,
+      fromPlate: r.fromPlate,
+      toPlate: r.toPlate,
+      source: r.source,
+      operatorName: r.operatorName,
+      vendorStatus: r.vendorStatus,
+      at: r.at,
+      reason: r.reason
+    }))
+  return { rows }
+})
+
+/* ============================ 人脸 / 刷脸通行（批次 83） ============================ */
+
+/**
+ * 人脸申请单是**唯一真相**，`members.faceStatus` 是它的投影。
+ *
+ * 五态里「未采集」不落记录 —— 没有申请单就是没采集。为"字段齐全"造一条空记录，
+ * 后面每个查询都要额外判断"这条记录算不算数"，迟早有人判错。
+ *
+ * 「已生效」只能由物业核验触发（后台 H4 的面核工作台），
+ * 这里**没有任何"直接置为生效"的入口** —— 包括 `autoApprove` 这类看起来人畜无害的参数。
+ */
+const FACE_LIMIT_24H = 3
+let faceSeq = faces.length
+/** 提交流水（内存，不进 fixtures）：只用来算 24 小时限次 */
+const faceSubmits = []
+
+const faceKeyOf = (ownerId, memberId) => (memberId ? `m:${memberId}` : `o:${ownerId}`)
+
+/** 某主体"当前那一条"：取该主体最后一条申请（数组顺序即创建顺序） */
+function faceLatestOf(ownerId, memberId) {
+  const key = String(memberId || '')
+  const rows = faces.filter(f => f.ownerId === ownerId && String(f.memberId || '') === key)
+  return rows.length ? rows[rows.length - 1] : null
+}
+
+/**
+ * 能不能提交。返回的 `status` 是**派生**的：有申请单就取它的状态，没有就是「未采集」。
+ * 注意「已驳回」与「已冻结」都允许重新提交 —— 驳回是让你改，冻结是让你想清楚了再来。
+ */
+function faceGate(ownerId, memberId, { readOnly = false } = {}) {
+  const cur = faceLatestOf(ownerId, memberId)
+  const status = cur ? cur.status : '未采集'
+  const key = faceKeyOf(ownerId, memberId)
+  const recent = faceSubmits.filter(x => x.key === key && Date.now() - x.ts < 86400000).length
+  const remain = Math.max(0, FACE_LIMIT_24H - recent)
+  if (readOnly) return { status, canSubmit: false, why: '租客的人脸由物业维护', remain: 0 }
+  if (status === '待核验') {
+    return { status, canSubmit: false, why: '物业正在核验，通过或驳回后才能重新提交', remain }
+  }
+  if (remain <= 0) {
+    return { status, canSubmit: false, why: `24 小时内最多提交 ${FACE_LIMIT_24H} 次，请明天再试`, remain }
+  }
+  return { status, canSubmit: true, why: '', remain }
+}
+
+/** 主体通用视图（本人与成员共用的那部分） */
+function faceBaseView(f, ownerId, memberId) {
+  const g = faceGate(ownerId, memberId)
+  return {
+    faceId: f ? f.faceId : '',
+    status: g.status,
+    submittedAt: f ? f.submittedAt : '',
+    updatedAt: f ? (f.auditAt || f.submittedAt) : '',
+    /* 驳回原因与冻结原因都要让业主看见 —— 那是他下一步动作的唯一依据 */
+    note: f ? (f.status === '已驳回' ? f.rejectReason : (f.note || f.frozenReason || '')) : '',
+    canSubmit: g.canSubmit,
+    why: g.why,
+    remain24h: g.remain,
+    guardian: f ? (f.guardian || '') : ''
+  }
+}
+
+const firstHouseOf = ownerId => (houses.find(h => h.ownerId === ownerId) || {}).houseId || ''
+
+function mpFaceSelf(me) {
+  /* 租客只读：人脸在租约核验时由物业录（`POST /tenants/{id}/face`），业主端不给入口 */
+  if (me.identity === MP_ROLE.TENANT) {
+    const t = tenants.find(x => x.tenantId === me.tenantId)
+    return {
+      faceId: '',
+      name: me.name,
+      role: '租客',
+      status: t && t.faceRegistered ? '已生效' : '未采集',
+      submittedAt: '', updatedAt: '', note: '',
+      canSubmit: false,
+      why: '租客的人脸由物业在核验租约时录入',
+      readOnly: true,
+      readOnlyWhy: '租客的人脸由物业在核验租约时录入，业主端只读',
+      remain24h: 0,
+      guardian: ''
+    }
+  }
+  const memberId = me.identity === MP_ROLE.MEMBER ? me.memberId : ''
+  const f = faceLatestOf(me.ownerId, memberId)
+  return {
+    ...faceBaseView(f, me.ownerId, memberId),
+    name: me.name,
+    role: me.identity,
+    readOnly: false,
+    readOnlyWhy: ''
+  }
+}
+
+function mpFaceMemberRow(me, m) {
+  const f = faceLatestOf(me.ownerId, m.memberId)
+  const base = faceBaseView(f, me.ownerId, m.memberId)
+  return {
+    ...base,
+    memberId: m.memberId,
+    name: m.name,
+    relation: m.relation || '其他',
+    certified: !!m.certified,
+    /* 未核验的成员不能代录：没核验就录脸，等于填个名字就能给别人开门 */
+    canEnroll: !!m.certified && base.canSubmit,
+    why: m.certified ? base.why : '成员资料待物业核验，核验后才能帮他录人脸'
+  }
+}
+
+/** 写一条新的待核验申请。旧的那条不动 —— 驳回与撤回的历史要留着 */
+function mpFacePush(me, { memberId = '', guardian = false } = {}) {
+  const g = faceGate(me.ownerId, memberId)
+  if (!g.canSubmit) {
+    if (g.status === '待核验') throw new ApiError(409, 40932, '物业正在核验，通过或驳回后才能重新提交')
+    throw new ApiError(409, 40933, `24 小时内最多提交 ${FACE_LIMIT_24H} 次，请明天再试`)
+  }
+  const prev = faceLatestOf(me.ownerId, memberId)
+  const m = memberId ? members.find(x => x.memberId === memberId) : null
+  faceSeq += 1
+  const row = {
+    faceId: 'FC' + String(faceSeq).padStart(5, '0'),
+    subjectType: memberId ? '家属' : '业主',
+    ownerId: me.ownerId,
+    memberId,
+    houseId: (prev && prev.houseId) || firstHouseOf(me.ownerId),
+    name: memberId ? (m ? m.name : me.name) : me.name,
+    relation: memberId ? (m ? (m.relation || '其他') : '家属') : '本人',
+    status: '待核验',
+    submittedAt: `${DATA_DATE} ${mpHourMinute()}`,
+    auditAt: '', auditBy: '', rejectReason: '', frozenReason: '',
+    guardian: guardian ? `${me.name}（监护人，代同意）` : '',
+    /* 重新采集时旧人脸继续有效 —— 不写这句，业主会以为自己这会儿刷不了门 */
+    note: prev && prev.status === '已生效' ? '新照片核验期间，原人脸继续有效' : '',
+    images: 2
+  }
+  faces.push(row)
+  faceSubmits.push({ key: faceKeyOf(me.ownerId, memberId), ts: Date.now() })
+  return row
+}
+
+on('GET', '/mp/access/faces', (ctx) => {
+  const me = mpOf(ctx)
+  /* 家属只能看自己：成员列表对他恒为空 —— 家属之间是平级关系，谁也代表不了谁 */
+  const list = me.identity === MP_ROLE.OWNER
+    ? members.filter(m => m.ownerId === me.ownerId).map(m => mpFaceMemberRow(me, m))
+    : []
+  return { self: mpFaceSelf(me), members: list }
+})
+
+on('POST', '/mp/access/faces', (ctx) => {
+  const me = mpOf(ctx)
+  if (me.identity === MP_ROLE.TENANT) throw forbidden('租客的人脸由物业在核验租约时录入，暂不能自助提交')
+  const memberId = me.identity === MP_ROLE.MEMBER ? me.memberId : ''
+  mpFacePush(me, { memberId, guardian: false })
+  return mpFaceSelf(me)
+})
+
+on('POST', '/mp/access/faces/members/{memberId}', (ctx) => {
+  const me = mpOf(ctx)
+  if (me.identity !== MP_ROLE.OWNER) throw forbidden('只有业主能替家庭成员录入人脸')
+  const m = members.find(x => x.memberId === ctx.params.memberId)
+  if (!m) throw notFound('家庭成员不存在')
+  if (m.ownerId !== me.ownerId) throw forbidden('这个成员不属于您')
+  if (!m.certified) {
+    throw new ApiError(409, 40934, '成员资料还没有通过物业核验，核验后才能帮他录人脸')
+  }
+  if (ctx.body?.guardian !== true) {
+    throw invalid('代家人录入必须勾选监护人代同意')
+  }
+  mpFacePush(me, { memberId: m.memberId, guardian: true })
+  return mpFaceMemberRow(me, m)
+})
+
+on('POST', '/mp/access/faces/{faceId}/withdraw', (ctx) => {
+  const me = mpOf(ctx)
+  const f = faces.find(x => x.faceId === ctx.params.faceId)
+  if (!f) throw notFound('人脸申请不存在')
+  if (f.ownerId !== me.ownerId) throw forbidden('这不是您的申请')
+  /* 家属不能撤成员的人脸：他能看见成员就已经是让步了 */
+  if (f.memberId && me.identity !== MP_ROLE.OWNER) throw forbidden('只有业主能撤回家庭成员的人脸')
+  if (f.status === '已冻结') throw new ApiError(409, 40935, '这条人脸已经撤回过了')
+
+  f.status = '已冻结'
+  f.frozenReason = '本人主动撤回，影像件将在 30 天内删除'
+  f.note = ''
+  f.auditAt = `${DATA_DATE} ${mpHourMinute()}`
+  f.auditBy = me.name
+  return { ...faceBaseView(f, f.ownerId, f.memberId), name: f.name }
+})
+
 on('GET', '/mp/bills', (ctx) => {
   const me = mpOf(ctx)
   const q = ctx.query || {}
+  /* 按车位查：先确认这个车位是本人的（否则 = 窥探别人的缴费记录） */
+  if (q.parkId) mpMyParking(me, q.parkId)
   /* 带 houseId 查别人的房：直接 403，不当成"没数据"返回空数组 ——
      空数组会让业主以为"这套房没账单"，实际上是没权限 */
   if (q.houseId && !mpBound(me).has(String(q.houseId))) {

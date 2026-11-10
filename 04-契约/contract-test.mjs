@@ -390,8 +390,13 @@ test('乐观锁：正常修改后版本递增', async () => {
 test('唯一约束：手机号重复 → 409 / 40902', async () => {
   const list = await call('GET', '/owners', { query: { size: 2 } })
   const [a, b] = list.data.rows
-  const r = await call('PATCH', `/owners/${b.ownerId}`, { body: { field: 'phone', value: a.phone.replace(/\*/g, '1') } })
-  /* 掩码值拿去改本身会触发格式外的比较，这里直接用详情里的明文更准确 */
+  /* 列表给的是掩码（138****8001）。**原样提交**必须被拒 —— 以前这条不断言返回值，
+     而且把星号替换成 1 再提交（13811118001 恰好是个合法号），结果真把 OW00002 的
+     手机号改掉了，这个业主从此登录一律 404。
+     注意这条用例顺带证明了「只校验格式」不够：掩码洗成合法号后格式是对的，
+     能挡住它的只有"拿不到明文就别改"这个原则 —— 真实前端不该有替换星号的代码。 */
+  const r = await call('PATCH', `/owners/${b.ownerId}`, { body: { field: 'phone', value: a.phone } })
+  eq(r.status, 422, '掩码值不能当手机号提交')
   const da = await call('GET', `/owners/${a.ownerId}`)
   const r2 = await call('PATCH', `/owners/${b.ownerId}`, { body: { field: 'phone', value: da.data.owner.phone } })
   eq(r2.status, 409, 'HTTP 状态')
@@ -5825,6 +5830,259 @@ test('选房三级：小区 / 楼栋 / 房间都只回答"这是哪一间"', asy
   eq(back.data.communityId, 'P01', '落在同一个项目')
 })
 
+/* ============================ 车位（批次 82） ============================ */
+
+test('车位：只给我名下的，额度按车位不按业主', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/parkings'))
+  eq(r.status, 200, '我的车位')
+  assertSchema(r, 'MpParkingListEnvelope', 'GET /mp/parkings')
+  eq(r.data.limit, 1, '每车位每自然月 1 次')
+  eq(r.data.period, '2026-10', '周期是演示数据当月')
+  eq(r.data.resetAt, '2026-11-01', '额度下月 1 日重置')
+  eq(r.data.rows.length, 1, '张建国 1 个车位')
+
+  const p = r.data.rows[0]
+  assertSchema(p, 'MpParking', '车位')
+  eq(p.parkNo, 'B1-115', '车位号')
+  eq(p.usedThisMonth, 0, '本月还没换过')
+  eq(p.vehicleCount, 1, '绑了 1 辆车')
+  eq(p.expireDate, '2026-10-26', '到期日 = 管理费已缴至')
+  eq('ownerId' in p, false, '不下发 ownerId —— 都是自己的，给出去只方便别人比对')
+
+  /* 两个车位的人：额度按车位算，不是按人算 —— 换两个车位是两件事 */
+  const w = await mpReady('13700137003', '王浩然', '3572')
+  const r2 = await withMp(w.tok, () => call('GET', '/mp/parkings'))
+  eq(r2.data.rows.length, 2, '王浩然 2 个车位')
+  eq(r2.data.rows.every(x => x.usedThisMonth === 0), true, '两个车位各自有 1 次额度')
+  eq(r2.data.rows.map(x => x.parkNo).join(','), 'B1-121,B1-122', '按车位号排')
+})
+
+test('车位详情：车辆只给卡号后四位，别人的车位 403 不是 404', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/parkings/PK00115'))
+  eq(r.status, 200, '车位详情')
+  assertSchema(r, 'MpParkingDetailEnvelope', 'GET /mp/parkings/{parkId}')
+  eq(r.data.parking.parkNo, 'B1-115', '车位号')
+  eq(r.data.parking.chargePile, true, '这个位有充电桩')
+  eq(r.data.vehicles.length, 1, '一辆车')
+
+  const v = r.data.vehicles[0]
+  assertSchema(v, 'MpVehicle', '车辆')
+  eq(v.plateNo, '川B·SFV7D', '车牌')
+  eq(v.cardNoTail, '2192', '卡号只给后四位')
+  eq('cardNo' in v, false, '完整 IC 卡号不下发 —— 那是能复制去开闸的凭证')
+
+  /* 别人的车位：403 而不是 404。号是真实存在的，回 404 会让业主以为"我的车位没了" */
+  const other = await withMp(tok, () => call('GET', '/mp/parkings/PK00156'))
+  eq(other.status, 403, '别人的车位 403')
+  const none = await withMp(tok, () => call('GET', '/mp/parkings/PK99999'))
+  eq(none.status, 404, '不存在的车位 404')
+})
+
+test('换绑车牌：四条前置逐条拦，成功留痕且不伪造厂商回执', async () => {
+  /* ① 未实名：登录后直接换 —— 实名是 L2，换牌动的是道闸白名单 */
+  const fresh = await mpLoginAs('13800138001')
+  const noReal = await withMp(fresh.data.token, () => call('POST', '/mp/parkings/PK00115/plate', { body: { plateNo: '川B·12345' } }))
+  eq(noReal.status, 403, '未实名不能换绑')
+
+  /* ② 家属：车位在父亲名下，她能看见，但不能替他换 */
+  const mb = await mpLoginAs('17619030789')
+  const fam = await withMp(mb.data.token, () => call('POST', '/mp/parkings/PK00115/plate', { body: { plateNo: '川B·12345' } }))
+  eq(fam.status, 403, '家属不能自助换绑')
+  eq(fam.message.includes('产权业主'), true, '错因说清是身份，不是次数 —— 否则她会换个账号再试')
+
+  /* ③ 管理费已到期：李秀兰 B2-026 到期 2026-09-19 */
+  const li = await mpReady('13900139002', '李秀兰', '4392')
+  const expired = await withMp(li.tok, () => call('POST', '/mp/parkings/PK00156/plate', { body: { plateNo: '渝A·99999' } }))
+  eq(expired.status, 409, '到期不能换绑')
+  eq(expired.code, 40930, '40930 管理费已到期')
+
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const bad = await withMp(tok, () => call('POST', '/mp/parkings/PK00115/plate', { body: { plateNo: 'ABC' } }))
+  eq(bad.status, 422, '车牌格式不对 422')
+  const same = await withMp(tok, () => call('POST', '/mp/parkings/PK00115/plate', { body: { plateNo: '川B·SFV7D' } }))
+  eq(same.status, 422, '与原车牌相同 422')
+
+  /* ④ 成功：小写 + 没打间隔点也要认，归一化成「川B·6Q2M8」 */
+  const ok = await withMp(tok, () => call('POST', '/mp/parkings/PK00115/plate', {
+    body: { plateNo: '川b 6q2m8', reason: '换了新车' }
+  }))
+  eq(ok.status, 200, '换绑成功')
+  assertSchema(ok, 'MpPlateChangeEnvelope', 'POST /mp/parkings/{parkId}/plate')
+  eq(ok.data.log.fromPlate, '川B·SFV7D', '记录了原车牌')
+  eq(ok.data.log.toPlate, '川B·6Q2M8', '输入被归一化')
+  eq(ok.data.log.source, '业主自助', '来源')
+  eq(ok.data.log.operatorName, '张建国', '操作人就是业主本人，不留空')
+  eq(ok.data.log.vendorStatus, '待同步', '车牌识别没对接，不假装已同步')
+  eq(ok.data.parking.plateNo, '川B·6Q2M8', '车位本体已更新')
+  eq(ok.data.parking.usedThisMonth, 1, '本月已用 1 次')
+  eq(ok.data.limit, 1, '额度一起返回，客户端不用再拉一次列表')
+
+  /* ⑤ 记录可见；详情里的车辆也换了牌 —— 只改车位不改车辆，页面会出现两个车牌 */
+  const logs = await withMp(tok, () => call('GET', '/mp/parkings/PK00115/logs'))
+  eq(logs.status, 200, '换绑记录')
+  assertSchema(logs, 'MpParkingChangeLogListEnvelope', 'GET /mp/parkings/{parkId}/logs')
+  eq(logs.data.rows.length, 2, '本次 1 条 + 8 月物业代操作 1 条')
+  eq(logs.data.rows[0].logId, ok.data.log.logId, '最新一条在最前')
+  eq(logs.data.rows[1].source, '物业代操作', '历史记录保留来源')
+  const det = await withMp(tok, () => call('GET', '/mp/parkings/PK00115'))
+  eq(det.data.vehicles[0].plateNo, '川B·6Q2M8', '车辆表同步')
+
+  /* ⑥ 额度用完：第二次被拦，且文案要说清什么时候恢复 */
+  const again = await withMp(tok, () => call('POST', '/mp/parkings/PK00115/plate', { body: { plateNo: '川B·77777' } }))
+  eq(again.status, 409, '本月第 2 次被拦')
+  eq(again.code, 40929, '40929 额度用完')
+  eq(again.message.includes('下月 1 日'), true, '客服照这句就能回答业主')
+})
+
+test('换绑：同一业主两个车位不能挂同一个牌；账单按 parkId 不串', async () => {
+  const { tok } = await mpReady('13700137003', '王浩然', '3572')
+
+  /* 道闸侧认牌不认车位，同一个牌挂两处会重复计费 */
+  const clash = await withMp(tok, () => call('POST', '/mp/parkings/PK00121/plate', { body: { plateNo: '京N·D7WY3' } }))
+  eq(clash.status, 409, '两个车位不能挂同一个牌')
+  eq(clash.code, 40931, '40931 车牌已在本人其他车位')
+
+  const b1 = await withMp(tok, () => call('GET', '/mp/bills', { query: { parkId: 'PK00121' } }))
+  eq(b1.data.rows.length, 3, 'B1-121 三期')
+  eq(b1.data.rows.every(x => x.parkId === 'PK00121'), true, '不掺另一个车位的账')
+  const b2 = await withMp(tok, () => call('GET', '/mp/bills', { query: { parkId: 'PK00402' } }))
+  eq(b2.data.rows.length, 3, 'B1-122 也是三期')
+  near(b1.data.summary.unpaid + b2.data.summary.unpaid, 240, '两个车位各欠 120 —— 串了就会少一半')
+
+  /* 别人的车位账单：403，不能靠 parkId 窥探别人的缴费记录 */
+  const other = await withMp(tok, () => call('GET', '/mp/bills', { query: { parkId: 'PK00115' } }))
+  eq(other.status, 403, '别人的车位账单 403')
+})
+
+/* ============================ 人脸 / 刷脸通行（批次 83） ============================ */
+
+test('人脸：业主看到本人与成员，未核验的成员没有代录入口', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/access/faces'))
+  eq(r.status, 200, '人脸状态')
+  assertSchema(r, 'MpAccessFaceListEnvelope', 'GET /mp/access/faces')
+
+  const self = r.data.self
+  assertSchema(self, 'MpFaceSelf', '本人人脸')
+  eq(self.status, '已生效', '张建国已开通刷脸')
+  eq(self.faceId, 'FC00001', '已生效的申请单号')
+  eq(self.role, '业主', '身份')
+  eq(self.readOnly, false, '业主可自助提交')
+  eq(self.canSubmit, true, '已生效也能重新采集')
+  eq(self.remain24h, 3, '24 小时 3 次')
+
+  eq(r.data.members.length, 2, '本房两位成员')
+  const chen = r.data.members.find(m => m.memberId === 'MB00001')
+  const wang = r.data.members.find(m => m.memberId === 'MB00002')
+  assertSchema(chen, 'MpFaceMember', '成员人脸')
+
+  eq(chen.name, '陈静', '配偶')
+  eq(chen.status, '已生效', '代录后已通过核验')
+  eq(chen.canEnroll, true, '已核验成员可以（重新）代录')
+
+  eq(wang.certified, false, '王小雪的成员资料还没核验')
+  eq(wang.status, '未采集', '未核验成员不会是已生效')
+  eq(wang.canEnroll, false, '没有代录入口')
+  eq(wang.why.includes('核验'), true, '要把原因写出来，否则业主只会以为按钮坏了')
+})
+
+test('人脸：家属只能看自己，租客只读', async () => {
+  /* 家属：成员列表恒为空 —— 家属之间是平级关系，谁也代表不了谁 */
+  const mb = await mpLoginAs('17619030789')
+  const fam = await withMp(mb.data.token, () => call('GET', '/mp/access/faces'))
+  eq(fam.status, 200, '家属读人脸')
+  eq(fam.data.members.length, 0, '家属看不到其他成员')
+  eq(fam.data.self.name, '陈静', '只能看到自己')
+  eq(fam.data.self.status, '已生效', '她自己那条')
+  eq(fam.data.self.faceId, 'FC00002', '按 memberId 命中，不是按业主')
+
+  /* 租客：人脸由物业在租约核验时录，业主端只读 */
+  const tn = await mpLoginAs('13012931145')
+  const ten = await withMp(tn.data.token, () => call('GET', '/mp/access/faces'))
+  eq(ten.status, 200, '租客读人脸')
+  eq(ten.data.self.readOnly, true, '租客只读')
+  eq(ten.data.self.canSubmit, false, '租客不自助提交')
+  eq(ten.data.self.status, '已生效', '档案里已录')
+  eq(ten.data.members.length, 0, '租客不看本房成员')
+
+  const tryPost = await withMp(tn.data.token, () => call('POST', '/mp/access/faces'))
+  eq(tryPost.status, 403, '租客自助提交 403')
+})
+
+test('人脸：待核验不能重复提交，驳回可重拍，撤回后变已冻结', async () => {
+  /* 李秀兰：昨天提交，物业还没审 */
+  const li = await mpReady('13900139002', '李秀兰', '4392')
+  const before = await withMp(li.tok, () => call('GET', '/mp/access/faces'))
+  eq(before.data.self.status, '待核验', '李秀兰在等审核')
+  const dup = await withMp(li.tok, () => call('POST', '/mp/access/faces'))
+  eq(dup.status, 409, '核验期间不能重复提交')
+  eq(dup.code, 40932, '40932 正在核验')
+
+  /* 王浩然：照片逆光被驳回，原因要能读到 —— 那是他重拍的唯一依据 */
+  const w = await mpReady('13700137003', '王浩然', '3572')
+  const wt = await withMp(w.tok, () => call('GET', '/mp/access/faces'))
+  eq(wt.data.self.status, '已驳回', '王浩然被驳回')
+  eq(wt.data.self.note.includes('逆光'), true, '驳回原因下发到业主端')
+  eq(wt.data.self.canSubmit, true, '驳回后可以重拍')
+
+  const re = await withMp(w.tok, () => call('POST', '/mp/access/faces'))
+  eq(re.status, 200, '重拍提交成功')
+  assertSchema(re, 'MpFaceSelfEnvelope', 'POST /mp/access/faces')
+  eq(re.data.status, '待核验', '提交后恒为待核验')
+  eq(re.data.faceId !== 'FC00004', true, '新申请单，不复用被驳回那条（审核队列要是新的）')
+
+  const back = await withMp(w.tok, () => call('POST', `/mp/access/faces/${re.data.faceId}/withdraw`))
+  eq(back.status, 200, '撤回成功')
+  assertSchema(back, 'MpFaceSubjectEnvelope', 'POST /mp/access/faces/{faceId}/withdraw')
+  eq(back.data.status, '已冻结', '撤回置为已冻结，不是删记录')
+  eq(back.data.note.includes('30 天'), true, '影像件删除期限要说清')
+
+  const again = await withMp(w.tok, () => call('POST', `/mp/access/faces/${re.data.faceId}/withdraw`))
+  eq(again.status, 409, '重复撤回')
+  eq(again.code, 40935, '40935 状态不允许撤回')
+})
+
+test('人脸：代录要核验过的成员 + 监护人同意，家属不能代录', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+
+  /* 王小雪资料还没核验：不能录 —— 没核验就录脸等于填个名字就能开门 */
+  const notCert = await withMp(tok, () => call('POST', '/mp/access/faces/members/MB00002', { body: { guardian: true } }))
+  eq(notCert.status, 409, '未核验成员不能代录')
+  eq(notCert.code, 40934, '40934 成员未核验')
+
+  const noGuardian = await withMp(tok, () => call('POST', '/mp/access/faces/members/MB00001', { body: {} }))
+  eq(noGuardian.status, 422, '没勾监护人同意不能提交')
+
+  const ok = await withMp(tok, () => call('POST', '/mp/access/faces/members/MB00001', { body: { guardian: true } }))
+  eq(ok.status, 200, '代录提交成功')
+  assertSchema(ok, 'MpFaceMemberEnvelope', 'POST /mp/access/faces/members/{memberId}')
+  eq(ok.data.status, '待核验', '代录也进待核验')
+  eq(ok.data.guardian.includes('监护人'), true, '代同意要留痕')
+
+  /* 家属替配偶录：403 —— 不是权限高低，是责任边界 */
+  const mb = await mpLoginAs('17619030789')
+  const famTry = await withMp(mb.data.token, () => call('POST', '/mp/access/faces/members/MB00001', { body: { guardian: true } }))
+  eq(famTry.status, 403, '家属不能代录')
+})
+
+test('人脸：24 小时最多 3 次，第 4 次被拦', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  for (let i = 1; i <= 3; i++) {
+    const r = await withMp(tok, () => call('POST', '/mp/access/faces'))
+    eq(r.status, 200, `第 ${i} 次提交`)
+    eq(r.data.status, '待核验', `第 ${i} 次提交后是待核验`)
+    if (i === 1) eq(r.data.note.includes('原人脸继续有效'), true, '重新采集时要说清旧脸还能用')
+    const w = await withMp(tok, () => call('POST', `/mp/access/faces/${r.data.faceId}/withdraw`))
+    eq(w.status, 200, `第 ${i} 次撤回`)
+  }
+  const over = await withMp(tok, () => call('POST', '/mp/access/faces'))
+  eq(over.status, 409, '第 4 次被拦')
+  eq(over.code, 40933, '40933 24 小时超限')
+  eq(over.message.includes('明天'), true, '文案要说清什么时候能再试')
+})
+
 test('业主认证：登录不发姓名，未实名不能查候选', async () => {
   const lg = await mpLoginAs('13800138001')
   eq(lg.status, 200, '业主登录')
@@ -5987,7 +6245,11 @@ test('/mp/me：没实名也能读（unboundCount 给 0，不能抛 422）', asyn
   eq(r.data.realnameStatus, '未实名', '状态如实')
   eq(r.data.unboundCount, 0, '算不出可绑套数时给 0，不要抛错')
   eq(r.data.houses.length, 0, '没绑房就是空')
-  eq(r.data.counts.debtBills, 0, '没绑房就没有待缴')
+  /* 待缴口径含「本人名下不挂房的车位费」（见 /mp/me 的 description），
+     所以这里**不是 0**：张建国名下有 B1-115，9 月逾期 + 10 月未缴两张。
+     这条断言因此写成"房账不进待缴"而不是"一分钱不欠" —— 后者会把
+     "车位是独立资产"这条业务规则判成 bug。 */
+  eq(r.data.counts.debtBills, 2, '没绑房：待缴只剩名下 2 张车位费，房账不进')
 })
 
 test('房屋详情：只给基础信息与管家，未绑的房 403、不存在 404', async () => {

@@ -1,0 +1,26 @@
+[
+  {
+    "logId": "PL00001",
+    "parkId": "PK00115",
+    "parkNo": "B1-115",
+    "fromPlate": "川B·6Q2M8",
+    "toPlate": "川B·SFV7D",
+    "source": "物业代操作",
+    "operatorName": "周敏",
+    "vendorStatus": "已同步",
+    "at": "2026-08-03 10:24",
+    "reason": "业主到前台提交行驶证变更"
+  },
+  {
+    "logId": "PL00002",
+    "parkId": "PK00121",
+    "parkNo": "B1-121",
+    "fromPlate": "川B·OLD11",
+    "toPlate": "粤B·YK1Q6",
+    "source": "业主自助",
+    "operatorName": "王浩然",
+    "vendorStatus": "已同步",
+    "at": "2026-09-12 19:41",
+    "reason": ""
+  }
+]

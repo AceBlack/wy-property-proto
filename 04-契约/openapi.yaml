@@ -8228,6 +8228,255 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /mp/parkings:
+    get:
+      tags: [mp]
+      operationId: mpParkingList
+      summary: 我的车位（含本月可换绑次数）
+      description: |
+        只返回 **`ownerId` = 当前业主** 的车位。车位归属来自产权 / 租赁档案，
+        **业主端没有"认领车位"这个动作** —— 认领等于"我说这车位是我的"，必然要物业核验，
+        又把客服时间花回去。没有车位时提示联系管家登记，不给自助入口。
+
+        **额度按「车位 + 自然月」，不是按业主**：有两个车位的人换两个车位是两件事，
+        按业主算会误伤他（样例里王浩然就是两个车位）。阈值来自系统参数
+        `park.plateChangeLimit`（默认 1），不写死在客户端 —— 客服要能按项目调、能人工重置。
+
+        **到期日只有一份真相**：`expireDate` = 该车位管理费已缴至的账期末。
+        它由账单派生 / 回写，不允许手工填 —— 手填的那天起，续费、可换绑条件、
+        逾期提醒三处就会各说各话。
+
+        `usedThisMonth` 按**该车位**统计，以「最后一次物业重置」为界：
+        重置之前的记录不计入（业主把车牌填错，客服重置一次，不该占掉下个月的名额）。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpParkingListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /mp/parkings/{parkId}:
+    get:
+      tags: [mp]
+      operationId: mpParkingDetail
+      summary: 车位详情 + 绑定的车辆
+      description: |
+        一个车位可以绑多辆车（`vehicles.parkId` 一对多），所以车辆是数组，不是单个字段。
+
+        **`cardNoTail` 只给后四位**：业主端本来就只显示 `****2192`，
+        而完整 IC 卡号是可以复制去开闸的凭证 —— 敏感字段不因为是"我的卡"就全量下发。
+
+        管理费账单不在这个接口里：走 `GET /mp/bills?parkId=`，
+        与"家庭账单"同一份数据、同一套欠费口径，不另开一份金额真相。
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpParkingDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人名下的车位 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/parkings/{parkId}/plate:
+    post:
+      tags: [mp]
+      operationId: mpParkingChangePlate
+      summary: 换绑主车牌（业主自助，不动物业审核）
+      description: |
+        **换绑 = 替换主车牌**，不是"再加一辆"。第二辆车起走物业，不占次数也不自动生效 ——
+        否则这条"减少客服重复劳动"的功能会变成新的重复劳动来源。
+
+        四条前置条件缺一不可，**服务端判，客户端只用来提前置灰**：
+
+        | 条件 | 不满足时 |
+        |---|---|
+        | 业主身份（不是家属 / 租客） | 403 |
+        | 已实名（L2） | 403 |
+        | 车位在本人名下 | 403 |
+        | 管理费未到期（`expireDate >= 今天`） | 409 / 40930 |
+        | 本月该车位额度还有 | 409 / 40929 |
+
+        **不动物业审核，但必须留痕**：每次换绑写一条 `parking-change-logs`，
+        `source` = 业主自助、`operatorName` = 业主本人、`vendorStatus` 一律「待同步」。
+        车牌识别系统（第三方）尚未对接，**不要在原型里假装有回执**：
+        假一个「已同步」只会在联调时多一轮排查。
+
+        客户端算出的"还能换 1 次"只是体验，服务端按 `(parkId, 自然月)` 计数才是权威 ——
+        前端拦不住改包的人。
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpPlateChangeRequest' }
+      responses:
+        '200':
+          description: 换绑成功（已写入记录，尚未下发道闸）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpPlateChangeEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是业主本人 / 未实名 / 车位不在名下 }
+        '409': { $ref: '#/components/responses/Conflict', description: 额度用尽（40929）/ 管理费已到期（40930）/ 车牌已在该业主其他车位（40931） }
+        '422': { $ref: '#/components/responses/ValidationError', description: 车牌格式非法 }
+
+  /mp/parkings/{parkId}/logs:
+    get:
+      tags: [mp]
+      operationId: mpParkingChangeLogs
+      summary: 换绑记录（业主自己看）
+      description: |
+        业主端要能回答"我什么时候换过、从哪个车牌换到哪个、生效了没有" ——
+        客服接到"我的车牌明明换了，闸机不认"这类电话时，第一句就是问这个。
+
+        `vendorStatus` 三态：待同步 / 已同步 / 失败。**原型阶段只会出现「待同步」**
+        （外加两条 9 月之前的历史记录是「已同步」，用来示范对接后的样子）。
+
+        只返回本车位的记录，且只返回本人名下的车位 —— 不做"跨车位汇总"，
+        两个车位的记录混在一起，业主会以为换错了。
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpParkingChangeLogListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人名下的车位 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mp/access/faces:
+    get:
+      tags: [mp]
+      operationId: mpAccessFaces
+      summary: 我的人脸通行状态（本人 + 本房成员）
+      description: |
+        小区没有人脸以外的通行设施（没有二维码闸机），所以这个接口回答的是
+        **"我能不能刷脸、为什么不能、下一步做什么"**，不是"要不要开门"。
+
+        **谁能录谁，按"谁对谁负责"分**：
+
+        | 身份 | 能做什么 | 为什么 |
+        |---|---|---|
+        | 业主 | 本人 + 本房**已核验**成员 | 老人孩子不会自己传照片，这是主要场景 |
+        | 家属（扫码绑定） | **只能录本人** | 走 me 语义，不下发也不需要 `memberId` |
+        | 租客 | 只读 | 租客的人脸在租约核验时由物业录（`POST /tenants/{id}/face`） |
+
+        家属那条不是权限高低，是**责任边界**：家属之间是平级关系，
+        谁也代表不了谁，让他替配偶录脸等于给了他一把能开门、也能给别人开门的钥匙。
+
+        五态：未采集 → 待核验 → 已生效，另有已驳回（带原因）与已冻结（租约结束 / 主动撤回）。
+        **业主端不允许自助生效** —— 生效只能由物业核验触发，否则谁都能给自己开门。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpAccessFaceListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+    post:
+      tags: [mp]
+      operationId: mpAccessFaceSubmit
+      summary: 提交本人人脸（进入待核验）
+      description: |
+        提交后状态恒为「待核验」，接口**没有"直接生效"的参数** ——
+        留一个 `autoApprove` 之类的开关，第一天就会被前端打开。
+
+        三条限制：
+
+        1. **待核验期间不能重复提交**：审核的人正在看那张照片，这时换一张，
+           他看到的和系统里的就不是同一张（这是人脸录入最常扯皮的一类）；
+        2. 同一主体 24 小时内最多 3 次：够改两次照片，不够刷接口；
+        3. 重新采集时**原人脸继续有效**，直到新照片被核验 —— 否则业主会以为
+           自己这会儿刷不了门，赶不上上班。
+
+        合规：人脸属于敏感个人信息，页面必须单独同意（不与其他条款捆绑）、
+        明示用途与存储期、可随时撤回。原型不存真图，`images` 只记张数。
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpFaceSubmitRequest' }
+      responses:
+        '200':
+          description: 已提交，等物业核验
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpFaceSelfEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 租客只读，人脸由物业录 }
+        '409': { $ref: '#/components/responses/Conflict', description: 待核验期间重复提交（40932）/ 24 小时超限（40933） }
+
+  /mp/access/faces/members/{memberId}:
+    post:
+      tags: [mp]
+      operationId: mpAccessFaceSubmitMember
+      summary: 帮家庭成员提交人脸（进待核验）
+      description: |
+        只有**业主**能调，且成员必须**已核验**：没核验就录脸，等于任何人填个名字
+        就能给别人开一张门禁卡 —— 成员登记页的"待核验"就是为了卡这一步。
+
+        代录必须勾选**监护人代同意**（`guardian=true`）：老人孩子不会自己读条款，
+        出事时这条留痕是唯一的依据。`guardian` 不通过就是不传，不存在默认同意。
+
+        家属不能调这个接口（403）—— 家属之间是平级关系，谁也代表不了谁。
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: { type: string, example: MB00001 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpFaceSubmitRequest' }
+      responses:
+        '200':
+          description: 已提交，等物业核验
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpFaceMemberEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 非业主 / 成员不属于本房 / 未勾选监护人同意 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 成员未核验（40934）/ 待核验期间重复提交（40932）/ 24 小时超限（40933） }
+        '422': { $ref: '#/components/responses/ValidationError', description: 缺少监护人同意 }
+
+  /mp/access/faces/{faceId}/withdraw:
+    post:
+      tags: [mp]
+      operationId: mpAccessFaceWithdraw
+      summary: 撤回人脸（停用并删影像件）
+      description: |
+        撤回后状态置「已冻结」，**不删除记录** —— 撤回是权利，但"曾经录过、什么时候撤的"
+        要留痕（合规要求可追溯）。影像件在 30 天内删除，删完记录仍在。
+
+        撤回的后果页面上要写清：**撤回后门禁停用、影像件 30 天内删除**，不是"下次生效"。
+        但别承诺"立刻"—— 闸机同步有时间差，页面按"最迟 24 小时内停用"表述才站得住。
+        所以前端必须先确认一次，不能一点就走。
+      parameters:
+        - name: faceId
+          in: path
+          required: true
+          schema: { type: string, example: FC00001 }
+      responses:
+        '200':
+          description: 已撤回
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpFaceSubjectEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人的申请 / 家属试图撤回成员的 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 当前状态不能撤回（40935，例如已冻结） }
+
   /mp/bills:
     get:
       tags: [mp]
@@ -8251,6 +8500,12 @@ paths:
         - name: houseId
           in: query
           schema: { type: string }
+        - name: parkId
+          in: query
+          description: |
+            只看某个车位的管理费（车位详情页用）。与 `houseId` 互斥：
+            车位账单不挂房，两个一起传按「房源账单」处理，车位费不会混进来。
+          schema: { type: string, example: PK00115 }
         - name: period
           in: query
           schema: { type: string, example: '2026-10' }
@@ -10984,6 +11239,12 @@ components:
       in: path
       required: true
       schema: { type: string, example: H010110101 }
+    parkId:
+      name: parkId
+      in: path
+      required: true
+      description: 车位编号（`parkings.json` 的主键，如 PK00115）
+      schema: { type: string, example: PK00115 }
     billId:
       name: billId
       in: path
@@ -11156,6 +11417,13 @@ components:
         | 40926 | 工单未完工，不能记工时积分 | 完工后再记 |
         | 40927 | 该期间积分已结算，不能再改 | 走冲正 |
         | 40928 | 审批单已受理，不能撤回 | 让审批人驳回 |
+        | 40929 | 本车位本月自助换绑次数已用完 | 下月 1 日恢复；填错了找客服重置 |
+        | 40930 | 车位管理费已到期，不能换绑 | 先续费（续费后自动恢复） |
+        | 40931 | 该车牌已绑在本人其他车位 | 先解绑那一个，或直接换另一个 |
+        | 40932 | 人脸正在核验，不能重复提交 | 等核验结果，或先撤回再重传 |
+        | 40933 | 24 小时内人脸提交次数超限 | 明天再试 |
+        | 40934 | 家庭成员资料未核验，不能代录人脸 | 先等成员登记核验通过 |
+        | 40935 | 当前状态不能撤回人脸 | 看状态（已冻结就是已经撤过了） |
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -15218,6 +15486,258 @@ components:
             groups:
               type: array
               items: { $ref: '#/components/schemas/MpRoomGroup' }
+
+    MpParking:
+      type: object
+      description: |
+        我的车位。`expireDate` 是**管理费已缴至的账期末**，到期日只有这一份真相 ——
+        手填的那天起，续费、可换绑条件、逾期提醒三处就会各说各话。
+      required: [parkId, parkNo, status, category, feeStandard, expireDate, usedThisMonth]
+      properties:
+        parkId: { type: string, example: PK00115 }
+        parkNo: { type: string, example: B1-115 }
+        zone: { type: string, example: B1, description: 区域（B1 / B2 / G 地面 …） }
+        parkType: { type: string, enum: [地下, 地上] }
+        category:
+          type: string
+          description: 产权车位 / 充电车位 / 人防车位 …（来自档案，不在这里枚举硬编码）
+        area: { type: number, description: 车位面积 ㎡ }
+        status: { type: string, enum: [已售, 已租, 闲置], description: 车位的处置状态，与"我能不能用"无关 }
+        plateNo: { type: string, example: 川B·SFV7D, description: 当前主车牌 }
+        bindStatus: { type: string, enum: [已绑定, 未绑定, 待审核] }
+        feeStandard: { type: number, description: 管理费单价（元/位·月） }
+        expireDate: { type: string, example: '2026-10-26', description: 管理费已缴至（YYYY-MM-DD） }
+        chargePile: { type: boolean }
+        vehicleCount: { type: integer, description: 绑定车辆数（一车位可多车） }
+        usedThisMonth: { type: integer, description: 该车位**本自然月**已自助换绑次数（以最后一次物业重置为界） }
+
+    MpParkingListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [rows, limit]
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpParking' }
+            limit:
+              type: integer
+              example: 1
+              description: 每车位每自然月可自助换绑次数（系统参数 `park.plateChangeLimit`）
+            period: { type: string, example: '2026-10' }
+            resetAt: { type: string, example: '2026-11-01', description: 额度重置日（下月 1 日） }
+
+    MpVehicle:
+      type: object
+      description: |
+        绑在某个车位上的车。**不给完整 IC 卡号** —— 业主端只显示后四位，
+        而完整卡号是可以复制去开闸的凭证。
+      required: [vehicleId, plateNo, vehicleType]
+      properties:
+        vehicleId: { type: string, example: VH00001 }
+        plateNo: { type: string, example: 川B·SFV7D }
+        vehicleType: { type: string, example: 小型车 }
+        brand: { type: string, example: 吉利 }
+        color: { type: string, example: 黑 }
+        cardNoTail: { type: string, example: '2192', description: IC 卡后四位；完整卡号不下发 }
+        authStatus: { type: string, enum: [正常, 黑名单], description: 道闸授权状态 }
+        inOutType: { type: string, enum: [月卡, 产权] }
+
+    MpParkingDetail:
+      type: object
+      required: [parking, vehicles]
+      properties:
+        parking: { $ref: '#/components/schemas/MpParking' }
+        vehicles:
+          type: array
+          items: { $ref: '#/components/schemas/MpVehicle' }
+
+    MpParkingDetailEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpParkingDetail' }
+
+    MpPlateChangeRequest:
+      type: object
+      required: [plateNo]
+      properties:
+        plateNo:
+          type: string
+          example: 川B·SFV7D
+          description: 新车牌。**替换主车牌**，不是追加第二辆
+        reason:
+          type: string
+          maxLength: 100
+          description: 可选备注，写进换绑记录（客服复核时看这句）
+
+    MpParkingChangeLog:
+      type: object
+      description: |
+        一条换绑 / 解绑 / 重置记录。业主端只读，`source` 区分是谁做的 ——
+        售后争议时这一行就是证据。
+      required: [logId, parkId, parkNo, source, vendorStatus, at]
+      properties:
+        logId: { type: string, example: PL00002 }
+        parkId: { type: string, example: PK00121 }
+        parkNo: { type: string, example: B1-121 }
+        fromPlate: { type: string, example: 川B·OLD11 }
+        toPlate: { type: string, example: 粤B·YK1Q6 }
+        source: { type: string, enum: [业主自助, 物业代操作, 物业重置] }
+        operatorName: { type: string, example: 王浩然, description: 谁做的；业主自助时就是业主本人 }
+        vendorStatus:
+          type: string
+          enum: [待同步, 已同步, 失败]
+          description: 车牌识别系统（第三方）的下发状态。原型阶段新记录一律「待同步」
+        at: { type: string, example: '2026-09-12 19:41' }
+        reason: { type: string }
+
+    MpParkingChangeLogListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [rows]
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/MpParkingChangeLog' }
+
+    MpPlateChangeEnvelope:
+      type: object
+      description: 换绑成功。返回新的 `parking` 与配额，客户端不用再拉一次列表
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [log, parking, limit]
+          properties:
+            log: { $ref: '#/components/schemas/MpParkingChangeLog' }
+            parking: { $ref: '#/components/schemas/MpParking' }
+            limit: { type: integer, example: 1 }
+            period: { type: string, example: '2026-10' }
+            resetAt: { type: string, example: '2026-11-01' }
+
+    MpFaceStatus:
+      type: string
+      enum: [未采集, 待核验, 已生效, 已驳回, 已冻结]
+      description: |
+        五态。顺序就是流程顺序（未采集 → 待核验 → 已生效）；
+        已驳回与已冻结是旁支：驳回按原因重拍即可，冻结要先确认是"租约结束"还是"本人撤回"。
+
+    MpFaceSubject:
+      type: object
+      description: 一个主体的人脸状态（本人与成员共用的那部分）
+      required: [status, name, canSubmit]
+      properties:
+        faceId:
+          type: string
+          description: 申请单号；**未采集时是空串**（没有申请单就是没采集，不造一条空记录）
+        name: { type: string, example: 张建国 }
+        status: { $ref: '#/components/schemas/MpFaceStatus' }
+        submittedAt: { type: string, example: '2026-03-11 10:20' }
+        updatedAt: { type: string, description: 最近一次状态变化（审计时间优先于提交时间） }
+        note:
+          type: string
+          description: 给业主看的一句话。重新采集时是"新照片核验期间，原人脸继续有效"
+        canSubmit: { type: boolean, description: 现在能不能提交采集 }
+        why: { type: string, description: 不能提交的原因；能提交时是空串 }
+        remain24h: { type: integer, description: 24 小时内还能提交几次 }
+        guardian: { type: string, example: 张建国（配偶，代同意）, description: 代录留痕 }
+
+    MpFaceSelf:
+      type: object
+      description: 本人这一条。`readOnly` 是租客：人脸由物业在租约核验时录，业主端只读
+      required: [status, name, canSubmit, role, readOnly]
+      properties:
+        faceId: { type: string }
+        name: { type: string, example: 张建国 }
+        role: { type: string, enum: [业主, 家属, 租客] }
+        status: { $ref: '#/components/schemas/MpFaceStatus' }
+        submittedAt: { type: string }
+        updatedAt: { type: string }
+        note: { type: string }
+        canSubmit: { type: boolean }
+        why: { type: string }
+        readOnly: { type: boolean }
+        readOnlyWhy: { type: string }
+        remain24h: { type: integer }
+        guardian: { type: string }
+
+    MpFaceMember:
+      type: object
+      description: 本房成员这一条。`canEnroll=false` 时 `why` 说明原因（通常是资料未核验）
+      required: [memberId, name, certified, status, canEnroll]
+      properties:
+        faceId: { type: string }
+        memberId: { type: string, example: MB00001 }
+        name: { type: string, example: 陈静 }
+        relation: { type: string, example: 配偶 }
+        certified: { type: boolean, description: 成员资料是否已核验 —— 没核验不能代录人脸 }
+        status: { $ref: '#/components/schemas/MpFaceStatus' }
+        submittedAt: { type: string }
+        updatedAt: { type: string }
+        note: { type: string }
+        canSubmit: { type: boolean }
+        canEnroll: { type: boolean }
+        why: { type: string }
+        remain24h: { type: integer }
+        guardian: { type: string }
+
+    MpFaceSubmitRequest:
+      type: object
+      properties:
+        guardian:
+          type: boolean
+          description: |
+            代家人录入时的**监护人代同意**。不传等于不同意 —— 不存在默认同意。
+            本人提交时不需要这个字段。
+        consent:
+          type: boolean
+          description: 单独同意（敏感个人信息处理）。原型阶段只记录有这个动作，不落文本
+
+    MpAccessFaceListEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [self, members]
+          properties:
+            self: { $ref: '#/components/schemas/MpFaceSelf' }
+            members:
+              type: array
+              description: 家属登录时恒为空数组 —— 家属只能看自己
+              items: { $ref: '#/components/schemas/MpFaceMember' }
+
+    MpFaceSelfEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpFaceSelf' }
+
+    MpFaceMemberEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpFaceMember' }
+
+    MpFaceSubjectEnvelope:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/MpFaceSubject' }
 
     MpBindingMatch:
       type: object
