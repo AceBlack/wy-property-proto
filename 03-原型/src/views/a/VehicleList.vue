@@ -213,10 +213,26 @@
           </el-table>
         </div>
 
-        <div class="sec__hd" style="margin-top:18px;"><h4>换绑记录</h4><span class="desc">留痕 · 厂商回执</span></div>
+        <div class="sec__hd" style="margin-top:18px;">
+          <h4>换绑记录</h4>
+          <span class="desc">
+            本月已换
+            <b :class="{ 'is-over': detailData.monthChanges >= detailData.plateLimit }">{{ detailData.monthChanges }}</b>
+            / 上限 {{ detailData.plateLimit }} 次
+          </span>
+          <span class="spacer" />
+          <el-button
+            v-if="canEdit && detailData.monthChanges > 0"
+            link type="primary" size="small" @click="openReset"
+          >重置本月次数</el-button>
+        </div>
         <div class="tl">
           <div v-for="(l, i) in detailData.bindLogs || []" :key="i" class="tl__i" :class="{ 'is-done': l.done }">
-            <div class="tl__t">{{ l.title }}</div>
+            <div class="tl__t">
+              {{ l.title }}
+              <el-tag v-if="l.source" size="small" :type="l.source === '业主自助' ? 'warning' : (l.source === '物业重置' ? 'info' : '')" effect="plain">{{ l.source }}</el-tag>
+              <el-tag v-if="l.vendorStatus" size="small" :type="l.vendorStatus === '已同步' ? 'success' : (l.vendorStatus === '失败' ? 'danger' : 'warning')" effect="plain">{{ l.vendorStatus }}</el-tag>
+            </div>
             <div class="tl__m">{{ l.memo }}</div>
           </div>
         </div>
@@ -282,10 +298,11 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  PAGE_SIZES, authStatusOpts, getParkingDetail, ownerName, parkBindStatusOpts, parkTree,
-  parkVirtualNodes, parkingSummary, queryParkingVehicles, vehicleTypeOpts
+  PAGE_SIZES, addParkingChangeLog, authStatusOpts, canEditVehicles, currentOperator, getParkingDetail,
+  ownerName, parkBindStatusOpts, parkTree, parkVirtualNodes, parkingSummary,
+  queryParkingVehicles, resetParkMonthChanges, vehicleTypeOpts
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import { pathOf, useFocusLanding } from '@/composables/useFocus'
@@ -338,7 +355,10 @@ const highlightId = ref('')
 
 const vnLabel = computed(() => vnodes.find(v => v.key === activeVn.value)?.label || '')
 const ownerLabel = computed(() => (query.ownerId ? ownerName(query.ownerId) : ''))
-const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getParkingDetail)
+const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail, load: reloadDetail } = useDetail(getParkingDetail)
+const canEdit = computed(() => canEditVehicles())
+/* 记录里要写清是谁操作的：取当前角色的演示身份，取不到回落角色名 */
+const currentOperatorName = () => currentOperator().name || '物业前台'
 
 const flatNode = new Map()
 ;(function flatten(list) {
@@ -375,37 +395,52 @@ function submitBind() {
   if (bind && !form.plateNo) { ElMessage.error('请输入新车牌'); return }
   if (!form.reason) { ElMessage.error(bind ? '请选择换绑原因' : '请选择解绑原因'); return }
   saving.value = true
-  setTimeout(() => {
-    // 换绑留痕：提交即写一条待回执记录，抽屉时间线即时反映
-    const log = {
-      title: bind ? `换绑为 ${form.plateNo}` : '解除绑定',
-      memo: `${form.reason} · 已下发厂商，等待回执`,
-      done: false
+  const parkId = p.parkId
+  const fromPlate = p.plateNo || ''
+  setTimeout(async () => {
+    try {
+      // H2：写进真表（不再往 detailData 里 push，刷新即丢的那套已经撤了）
+      addParkingChangeLog({
+        parkId,
+        fromPlate,
+        toPlate: bind ? form.plateNo : '',
+        source: '物业代操作',
+        operatorName: currentOperatorName(),
+        vendorStatus: '待同步',
+        reason: form.reason
+      })
+      await reloadDetail(parkId)
+      ElMessage.success(
+        bind
+          ? `已提交换绑：${p.parkNo} → ${form.plateNo}（等待厂商回执）`
+          : `已提交解绑：${p.parkNo}（等待厂商回执）`
+      )
+      dlg.value = false
+    } catch (e) {
+      ElMessage.error(e?.message || '提交失败')
+    } finally {
+      saving.value = false
     }
-    if (bind) {
-      const v = detailData.value.vehicle
-      if (v) v.plateNo = form.plateNo
-      else detailData.value.vehicle = {
-        plateNo: form.plateNo, vehicleType: '—', brand: '—', color: '—',
-        authStatus: '待审核', inOutType: '月卡', cardNo: '—'
-      }
-      p.plateNo = form.plateNo
-      p.bindStatus = '已绑定'
-      p.bound = true
-      // 绑定成功后「尚未绑定车牌」这条待办要撤掉，否则与当前状态矛盾
-      detailData.value.bindLogs = [log, ...(detailData.value.bindLogs || []).filter(l => l.title !== '尚未绑定车牌')]
-      ElMessage.success(`已提交换绑：${p.parkNo} → ${form.plateNo}（等待厂商回执）`)
-    } else {
-      detailData.value.vehicle = null
-      p.plateNo = ''
-      p.bindStatus = '未绑定'
-      p.bound = false
-      detailData.value.bindLogs = [log, ...(detailData.value.bindLogs || []).filter(l => !l.title.startsWith('绑定 '))]
-      ElMessage.success(`已提交解绑：${p.parkNo}（等待厂商回执）`)
+  }, 400)
+}
+
+/** 重置本月换绑次数：客服兜底，必须写原因（会留痕，业主端能看到次数归零） */
+function openReset() {
+  if (!detailData.value?.parking) return
+  ElMessageBox.prompt('重置原因（会计入换绑记录，可追溯）', '重置本月换绑次数', {
+    confirmButtonText: '确认重置',
+    cancelButtonText: '取消',
+    inputPlaceholder: '如：业主多次来电，已核实确有换车',
+    inputValidator: v => (String(v || '').trim() ? true : '请填写重置原因')
+  }).then(async ({ value }) => {
+    try {
+      resetParkMonthChanges(detailData.value.parking.parkId, value)
+      await reloadDetail(detailData.value.parking.parkId)
+      ElMessage.success('已重置本月次数，并留一条记录')
+    } catch (e) {
+      ElMessage.error(e?.message || '重置失败')
     }
-    saving.value = false
-    dlg.value = false
-  }, 600)
+  }).catch(() => {})
 }
 
 function onPick(node) {

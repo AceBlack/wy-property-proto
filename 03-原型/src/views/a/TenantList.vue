@@ -119,7 +119,9 @@
         <el-table-column label="实名 / 人脸" min-width="126">
           <template #default="{ row }">
             <el-tag size="small" :type="row.certified ? 'success' : 'warning'" effect="plain">{{ row.certified ? '已实名' : '未实名' }}</el-tag>
-            <el-tag size="small" :type="row.faceRegistered ? 'success' : 'info'" effect="plain" style="margin-left:4px">{{ row.faceRegistered ? '人脸' : '无人脸' }}</el-tag>
+            <el-tag v-if="row.faceRegistered" size="small" type="success" effect="plain" style="margin-left:4px">人脸</el-tag>
+            <el-tag v-else-if="facePendingOfTenant(row.tenantId)" size="small" type="warning" effect="plain" style="margin-left:4px">人脸待核验</el-tag>
+            <el-tag v-else size="small" type="info" effect="plain" style="margin-left:4px">无人脸</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="信息完整度" min-width="126">
@@ -347,8 +349,8 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  PAGE_SIZES, batchVerifyTenants, getTenantDetail,
-  moveOutTenant, queryTenants, registerTenantFace, tenantSourceOpts, tenantSummary,
+  PAGE_SIZES, batchVerifyTenants, facePendingOfTenant, getTenantDetail,
+  moveOutTenant, queryTenants, registerTenantFace, submitFaceRequest, tenantSourceOpts, tenantSummary,
   tenantQuickViews, tenantVerifyStatusOpts, verifyTenant
 } from '@/api'
 import { currentRoleId } from '@/utils/auth'
@@ -460,15 +462,26 @@ function doBatchVerify() {
 }
 
 /* ---------- 录入人脸（门禁授权） ---------- */
+/**
+ * H5：前台录入的人脸不再直接生效，改为**提交一条核验**，与业主走同一个工作台。
+ * 直接置为已授权等于物业替租客担保 —— 出了事说不清是谁录的、录的是谁。
+ */
 function doFace() {
   const t = detailData.value?.tenant
   if (!t) return
   try {
-    const r = registerTenantFace(t.tenantId, { operator: '物业前台' })
-    ElMessage.success(`${r.name} 人脸已录入，门禁与通知触达已开通`)
+    if (facePendingOfTenant(t.tenantId)) {
+      ElMessage.warning('该租客已有一条待核验记录，请到「人脸核验」工作台处理')
+      return
+    }
+    submitFaceRequest({
+      subjectType: '租客', tenantId: t.tenantId, name: t.name,
+      phone: t.phone, houseId: t.houseId, source: '物业前台', images: 1
+    })
+    ElMessage.success(`${t.name} 人脸已提交核验，请在「人脸核验」工作台通过后生效`)
     reload()
     openDetail(t.tenantId)
-  } catch (e) { ElMessage.error(e?.message || '录入失败') }
+  } catch (e) { ElMessage.error(e?.message || '提交失败') }
 }
 
 /* ---------- 搬离 ---------- */

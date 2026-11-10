@@ -7,7 +7,7 @@
     @submit="onSubmit" @cancel="onCancel"
   >
     <template #note>
-      <br />提交为<b>内存态</b>（原型阶段不写库，刷新还原）；校验规则全部来自 <code>utils/rules.js</code>。
+      <br />人脸状态由「人脸核验」工作台回写，这里的开关已撤掉。<br />提交为<b>内存态</b>（原型阶段不写库，刷新还原）；校验规则全部来自 <code>utils/rules.js</code>。
     </template>
 
     <div class="sec">
@@ -85,7 +85,15 @@
           <el-form-item label="已实名"><el-switch v-model="form.certified" /></el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="已录人脸"><el-switch v-model="form.faceRegistered" /></el-form-item>
+          <!-- H4：人脸不再是随手勾的开关，只能经「人脸核验」工作台通过后生效 -->
+          <el-form-item label="人脸状态">
+            <div class="face-state">
+              <el-tag size="small" :type="form.faceRegistered ? 'success' : 'info'" effect="plain">
+                {{ form.faceRegistered ? '已录人脸' : '未采集 / 待核验' }}
+              </el-tag>
+              <el-button link type="primary" size="small" @click="$router.push('/a/faces')">去核验</el-button>
+            </div>
+          </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="已注册 App"><el-switch v-model="form.appRegistered" /></el-form-item>
@@ -199,3 +207,7 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.face-state { display: flex; align-items: center; gap: 8px; }
+</style>

@@ -59,6 +59,10 @@ export const PAGES = [
   // ---------- L4 收尾（29–32 页，数据与 IA 骨架齐备后补齐） ----------
   { path: '/a/tenants', name: 'TenantList', title: '租户管理', group: 'a', status: 'done', icon: 'Avatar', desc: '在住租户 · 核验 · 补充 · 搬离',
     component: () => import('@/views/a/TenantList.vue') },
+  // 人脸核验（H4/H5 · 2026-11-10）：业主本人 / 家庭成员 / 租客同一个工作台。
+  // 以前「已录人脸」是业主表单里的开关，勾一下就生效 —— 那等于物业替业主担保。
+  { path: '/a/faces', name: 'FaceAudit', title: '人脸核验', group: 'a', status: 'done', icon: 'Camera', desc: '业主 · 家庭成员 · 租客 · 通过 / 驳回',
+    component: () => import('@/views/a/FaceAudit.vue') },
   // 租售信息（2026-11-06 第 69 批）：业主自己发、责任楼管审、访客留电话。
   // 后台**没有「新建」**——挂牌只能由业主发起。留了编辑入口，最后一定变成"客服帮业主改价格"。
   { path: '/a/listings', name: 'ListingList', title: '租售信息', group: 'a', status: 'done', icon: 'Sell',

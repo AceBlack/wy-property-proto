@@ -2757,18 +2757,156 @@ export function parkingSummary() {
   }
 }
 
-/** 换绑留痕：绑定关系变更必须可追溯（原型阶段按车位当前状态派生） */
+/* ---------------- 换绑留痕（真表 · H2） ----------------
+ * 以前是 parkingBindLogs(parking, vehicle) 现算出来的，提交换绑只往 detailData 里 push 一条，
+ * **刷新即丢**。业主端已经能自助换绑，后台看不见记录 = 出纠纷时无法举证。
+ * 现在改真表：换绑、解绑、客服重置都落一条，记录区把「真表 + 两条派生说明」拼起来。
+ */
+const PARK_CHANGE_LOGS = []
+let _PARK_LOG_SEQ = 0
+
+const PARK_CHANGE_SOURCE = ['业主自助', '物业代操作', '物业重置']
+const PARK_VENDOR_STATUS = ['待同步', '已同步', '失败']
+
+const parkMonthOf = at => String(at || '').slice(0, 7)
+const _parkNowMonth = () => String(TODAY).slice(0, 7)
+
+/** 车位写权限：换绑、解绑、重置次数都走这一个码 */
+export const canEditVehicles = () => _hasPerm('a.vehicles.edit')
+
+/** 每车位每月上限：读系统参数，读不到按 1 次兜底 */
+export function parkPlateLimit() {
+  const p = PARAMS.find(x => x.key === 'park.plateChangeLimit')
+  const n = Number(p?.value)
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function _parkLogRow(r) {
+  return {
+    ...r,
+    sourceType: r.source === '业主自助' ? 'warning' : (r.source === '物业重置' ? 'info' : ''),
+    vendorType: r.vendorStatus === '已同步' ? 'success' : (r.vendorStatus === '失败' ? 'danger' : 'warning')
+  }
+}
+
+/** 本月已换次数：以「最后一次重置」为界，重置之前的记录不计入 */
+export function parkMonthChangeCount(parkId) {
+  const month = _parkNowMonth()
+  const mine = PARK_CHANGE_LOGS
+    .filter(r => r.parkId === parkId && parkMonthOf(r.at) === month)
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  const lastReset = [...mine].reverse().find(r => r.source === '物业重置')
+  const from = lastReset ? mine.indexOf(lastReset) + 1 : 0
+  return mine.slice(from).filter(r => r.source !== '物业重置').length
+}
+
+export function parkingLogsOf(parkId) {
+  return PARK_CHANGE_LOGS
+    .filter(r => r.parkId === parkId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .map(_parkLogRow)
+}
+
+/** 写一条换绑/解绑/重置记录。页面提交后调它，别再往 detailData 里 push。 */
+export function addParkingChangeLog(rec = {}) {
+  const parking = PV_ROWS.find(p => p.parkId === rec.parkId)
+  if (!parking) throw new Error('车位不存在')
+  _PARK_LOG_SEQ += 1
+  const row = {
+    logId: 'PL' + String(_PARK_LOG_SEQ).padStart(5, '0'),
+    parkId: parking.parkId,
+    parkNo: parking.parkNo,
+    fromPlate: rec.fromPlate || '',
+    toPlate: rec.toPlate || '',
+    source: PARK_CHANGE_SOURCE.includes(rec.source) ? rec.source : '物业代操作',
+    operatorName: rec.operatorName || currentOperator().name || '—',
+    vendorStatus: PARK_VENDOR_STATUS.includes(rec.vendorStatus) ? rec.vendorStatus : '待同步',
+    at: rec.at || `${TODAY} ${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+    reason: rec.reason || ''
+  }
+  PARK_CHANGE_LOGS.push(row)
+  // 变更同步到车位本体 + 车辆表，否则详情页读完还是老车牌（这里才是唯一真源）
+  if (rec.source !== '物业重置') {
+    const vi = vehicles.findIndex(v => v.parkId === parking.parkId)
+    if (row.toPlate) {
+      parking.plateNo = row.toPlate
+      parking.bindStatus = '已绑定'
+      parking.bound = true
+      if (vi >= 0) {
+        vehicles[vi].plateNo = row.toPlate
+        vehicles[vi].authStatus = '待审核'
+      } else {
+        const maxId = vehicles.reduce((m, v) => Math.max(m, Number(String(v.vehicleId).replace(/\D/g, '')) || 0), 0)
+        vehicles.push({
+          vehicleId: 'VH' + String(maxId + 1).padStart(5, '0'),
+          plateNo: row.toPlate,
+          ownerId: parking.ownerId || '',
+          parkId: parking.parkId,
+          communityId: parking.communityId || '',
+          vehicleType: '小型车',
+          brand: '—',
+          color: '—',
+          cardNo: '—',
+          authStatus: '待审核',
+          inOutType: '月卡'
+        })
+      }
+    } else if (row.fromPlate) {
+      parking.plateNo = ''
+      parking.bindStatus = '未绑定'
+      parking.bound = false
+      if (vi >= 0) vehicles.splice(vi, 1)
+    }
+  }
+  return _parkLogRow({ ...row })
+}
+
+/** 客服兜底：把本月已换次数清零（记一条重置日志，可追溯） */
+export function resetParkMonthChanges(parkId, reason = '') {
+  const parking = PV_ROWS.find(p => p.parkId === parkId)
+  if (!parking) throw new Error('车位不存在')
+  if (!_hasPerm('a.vehicles.edit')) throw new Error('当前角色没有重置换绑次数的权限（a.vehicles.edit）')
+  const used = parkMonthChangeCount(parkId)
+  if (!used) throw new Error('本月还没有换绑记录，无需重置')
+  if (!String(reason).trim()) throw new Error('请填写重置原因')
+  return addParkingChangeLog({
+    parkId,
+    source: '物业重置',
+    operatorName: currentOperator().name,
+    vendorStatus: '已同步',
+    reason: `${reason}（重置前本月 ${used} 次）`
+  })
+}
+
+/** 换绑留痕：真表记录在前，交付 / 授权两条派生说明在后 */
 export function parkingBindLogs(parking, vehicle) {
   if (!parking) return []
-  const logs = []
+  const logs = parkingLogsOf(parking.parkId).map(r => ({
+    title: r.source === '物业重置'
+      ? '客服重置本月换绑次数'
+      : (r.toPlate ? `换绑 ${r.fromPlate || '—'} → ${r.toPlate}` : `解除绑定 ${r.fromPlate || '—'}`),
+    memo: [
+      r.at,
+      r.source,
+      r.operatorName,
+      r.reason,
+      r.source === '物业重置' ? '' : `厂商${r.vendorStatus}`
+    ].filter(Boolean).join(' · '),
+    done: r.vendorStatus === '已同步',
+    source: r.source,
+    vendorStatus: r.vendorStatus,
+    at: r.at,
+    operatorName: r.operatorName,
+    reason: r.reason,
+    logId: r.logId,
+    fromPlate: r.fromPlate,
+    toPlate: r.toPlate
+  }))
   if (vehicle) {
-    logs.push({ title: `绑定 ${vehicle.plateNo}`, memo: '系统同步 · 厂商回执成功', done: true })
     logs.push({ title: `授权状态 ${vehicle.authStatus} · ${vehicle.inOutType}`, memo: '道闸白名单已下发', done: true })
   } else {
-    logs.push({ title: '车位启用', memo: `${parking.communityName} · ${parking.zoneLabel} 交付启用`, done: true })
     logs.push({ title: '尚未绑定车牌', memo: '可直接用于新业主 / 租户分配', done: false })
   }
-  // 未绑定 / 闲置车位（192 个）没有管理费到期日，不显示续期条目
   if (parking.expireDate) {
     logs.push({
       title: `管理费续期至 ${parking.expireDate}`,
@@ -2777,6 +2915,44 @@ export function parkingBindLogs(parking, vehicle) {
     })
   }
   return logs
+}
+
+/**
+ * 种子：让详情页一打开就有可看的换绑记录。
+ * 关键一点：**最新一条的 toPlate 必须是该车位当前车牌** ——
+ * 否则记录写「换成 川A·T3M9」，详情里却是 川B·JK3YA，一眼就能看出是假数据。
+ */
+function _seedParkChangeLogs() {
+  if (PARK_CHANGE_LOGS.length) return
+  const bound = PV_ROWS.filter(p => p.bound && p.plateNo).slice(0, 4)
+  // 每个车位两条：本月一条（to = 当前车牌）、上月一条（历史换手），来源一真一记
+  const plan = [
+    { source: '业主自助', operatorName: '业主本人（业主端）', at: '2026-10-20 09:12', reason: '车辆更换', vendor: '待同步' },
+    { source: '物业代操作', operatorName: '物业前台 · 王芳', at: '2026-09-27 15:20', reason: '二手过户', vendor: '已同步' }
+  ]
+  bound.forEach((p, pi) => {
+    /* 两条记录要首尾相接：上月 A → B，本月 B → 当前车牌。
+       若不接续，时间线读起来就是两段互不相关的事。 */
+    const mid = '川A·' + String(3000 + pi * 61).slice(-4)
+    const first = '川A·' + String(5000 + pi * 43).slice(-4)
+    plan.forEach((x, xi) => {
+      // 只有前两个车位保留两条，其余只留本月那条，避免时间线太长
+      if (pi > 1 && xi === 1) return
+      _PARK_LOG_SEQ += 1
+      PARK_CHANGE_LOGS.push({
+        logId: 'PL' + String(_PARK_LOG_SEQ).padStart(5, '0'),
+        parkId: p.parkId,
+        parkNo: p.parkNo,
+        fromPlate: xi === 0 ? mid : first,
+        toPlate: xi === 0 ? p.plateNo : mid,
+        source: x.source,
+        operatorName: x.operatorName,
+        vendorStatus: x.vendor,
+        at: x.at,
+        reason: x.reason
+      })
+    })
+  })
 }
 
 /** 车位详情：车位 + 车辆 + 业主 + 最近通行 + 换绑留痕（闲置车位没有车辆，只显示车位段） */
@@ -2790,7 +2966,11 @@ export function getParkingDetail(parkId) {
       parking, vehicle, owner,
       // 车牌优先、parkId 兜底：换绑后车牌变了，历史通行仍按车位能召回
       passes: passRecordsOf(parkId, vehicle?.plateNo || parking.plateNo).slice(0, 10),
-      bindLogs: parkingBindLogs(parking, vehicle)
+      bindLogs: parkingBindLogs(parking, vehicle),
+      // H2：本月已换 / 上限 / 还能换几次，页面顶部直接用
+      monthChanges: parkMonthChangeCount(parkId),
+      plateLimit: parkPlateLimit(),
+      changeLeft: Math.max(0, parkPlateLimit() - parkMonthChangeCount(parkId))
     }
   })
 }
@@ -2798,6 +2978,8 @@ export const parkZoneOpts = () => distinct(parkings, 'zone')
 export const parkStatusOpts = () => distinct(parkings, 'status')
 export const parkBindStatusOpts = () => distinct(parkings, 'bindStatus')
 export const parkCategoryOpts = () => distinct(parkings, 'category')
+
+_seedParkChangeLogs()
 
 /* ---------------- 跨页锚点：focus 协议 ---------------- */
 
@@ -7999,7 +8181,11 @@ const PARAMS = [
   { key: 'wo.slaHours', name: '工单默认 SLA', value: '24', unit: '小时', group: '现场', desc: '普通优先级工单完成时限' },
   { key: 'deposit.decorationBase', name: '装修押金基准', value: '3000', unit: '元', group: '押金', desc: '90–140㎡ 房屋的押金收取标准' },
   { key: 'export.maxRows', name: '导出单次上限', value: '50000', unit: '条', group: '导出', desc: '超过则走异步任务并分页导出' },
-  { key: 'login.sessionHours', name: '会话有效期', value: '8', unit: '小时', group: '安全', desc: '超时后需重新登录' }
+  { key: 'login.sessionHours', name: '会话有效期', value: '8', unit: '小时', group: '安全', desc: '超时后需重新登录' },
+  // 2026-11-10（H1）：业主端自助换绑的上限。阈值必须在后台可配，
+  // 写死在 06 的 PLATE_LIMIT 里，改一次要发一次版。
+  { key: 'park.plateChangeLimit', name: '车牌换绑次数', value: '1', unit: '次/月', group: '车位', desc: '每车位每自然月业主可自助换绑的次数' },
+  { key: 'park.plateChangeWindow', name: '换绑计数周期', value: '自然月', unit: '', group: '车位', desc: '自然月 = 每月 1 日重置' }
 ]
 export const paramRows = () => PARAMS.map(p => ({ ...p }))
 export function saveParam(key, value) {
@@ -18425,3 +18611,190 @@ export function myContact(empId = '') {
 
 /* ---------- 初始化：模块加载时跑一次 ---------- */
 _lvSeed()
+
+/* ============================================================
+ * H4 / H5 · 人脸核验（业主本人 + 家庭成员 + 租客，同一工作台）
+ * ------------------------------------------------------------
+ * 以前「已录人脸」是业主表单里的一个 el-switch，勾一下就生效；
+ * 业主端采集提交上来之后**没有任何受理入口**，永远停在「待核验」。
+ * 现在收成一条状态机：未采集 → 待核验 → 已生效 / 已驳回（驳回必填原因）。
+ * 租客与业主走同一个工作台，按主体类型分两段 —— 同一件事开两个入口，
+ * 客服第一句话一定是「到底在哪审」。
+ * ============================================================ */
+
+const FACE_REQUESTS = []
+let _FACE_SEQ = 0
+
+const FACE_STATUS = ['待核验', '已生效', '已驳回']
+const FACE_SUBJECT = ['业主', '租客']
+
+/** 核验权限：业主档案或租户管理的操作权，任一即可（不再单开权限码，避免和员工端窗口撞车） */
+export const canAuditFaces = () => _hasPerm('a.owners.edit') || _hasPerm('a.tenants.edit')
+
+const _faceHouse = houseId => {
+  const h = houses.find(x => x.houseId === houseId) || {}
+  return { houseShort: h.shortName || '', communityId: h.communityId || '', communityName: h.communityId ? communityName(h.communityId) : '' }
+}
+
+function _faceRow(r) {
+  const house = _faceHouse(r.houseId)
+  const waitMin = (() => {
+    const t = Date.parse(String(r.submittedAt).replace(/-/g, '/'))
+    const now = Date.parse(`${TODAY} 10:00`.replace(/-/g, '/'))
+    return Number.isFinite(t) ? Math.max(0, Math.round((now - t) / 3600000)) : 0
+  })()
+  return {
+    ...r,
+    ...house,
+    hoursWaiting: waitMin,
+    overdue: r.status === '待核验' && waitMin >= 24,
+    statusType: r.status === '已生效' ? 'success' : (r.status === '已驳回' ? 'danger' : 'warning'),
+    maskedPhone: maskPhone(r.phone || ''),
+    label: r.subjectType === '租客' ? `租客 · ${r.relation || '承租人'}` : (r.relation === '本人' ? '业主本人' : `家庭成员 · ${r.relation}`)
+  }
+}
+
+function _pushFace(rec) {
+  _FACE_SEQ += 1
+  FACE_REQUESTS.push({
+    reqId: 'FR' + String(_FACE_SEQ).padStart(5, '0'),
+    subjectType: '业主',
+    ownerId: '', memberId: '', tenantId: '',
+    name: '', relation: '本人', phone: '',
+    houseId: '', source: '业主端',
+    submittedAt: `${TODAY} 09:00`,
+    status: '待核验', auditBy: '', auditAt: '', rejectReason: '',
+    images: 2,
+    ...rec
+  })
+}
+
+/** 种子：业主本人 + 配偶 + 子女 + 两个租客，五个待核验，够演示两段 */
+function _seedFaceRequests() {
+  if (FACE_REQUESTS.length) return
+  // 优先挑「有配偶 / 子女且未录人脸」的业主：验收要看到 本人 / 配偶 / 子女 三种主体，
+  // 随机挑一个没成员的业主，第一段就只有「业主本人」，看不出家庭成员这条路
+  const hasKin = o => members.some(m => m.ownerId === o.ownerId && !m.faceRegistered
+    && ['配偶', '子女'].includes(m.relation))
+  const pool = owners.filter(o => !o.faceRegistered && housesOfOwner(o.ownerId).length)
+  const cands = [...pool.filter(hasKin), ...pool.filter(o => !hasKin(o))].slice(0, 2)
+  cands.forEach((o, oi) => {
+    const h = housesOfOwner(o.ownerId)[0]
+    _pushFace({
+      ownerId: o.ownerId, name: o.name, relation: '本人', phone: o.phone,
+      houseId: h.houseId, submittedAt: oi === 0 ? `${TODAY} 09:20` : `${TODAY} 08:40`,
+      images: 2
+    })
+    const ms = members.filter(m => m.ownerId === o.ownerId && !m.faceRegistered).slice(0, oi === 0 ? 2 : 1)
+    ms.forEach((m, mi) => {
+      _pushFace({
+        ownerId: o.ownerId, memberId: m.memberId, name: m.name, relation: m.relation || '家属',
+        phone: m.phone, houseId: h.houseId,
+        submittedAt: `${TODAY} 0${oi === 0 ? 9 : 8}:${mi === 0 ? '45' : '55'}`,
+        images: 1
+      })
+    })
+  })
+  // 租户表的在住标记是 status === '在住'，不是 live（早期别处用的字段名不一样）
+  tenants.filter(t => t.status === '在住' && !t.faceRegistered).slice(0, 2).forEach((t, i) => {
+    _pushFace({
+      subjectType: '租客', tenantId: t.tenantId, name: t.name, relation: '承租人',
+      phone: t.phone, houseId: t.houseId, source: '员工端',
+      submittedAt: `${TODAY} 0${i === 0 ? 9 : 8}:${i === 0 ? '10' : '35'}`,
+      images: 1
+    })
+  })
+}
+
+export function queryFaceRequests({ subjectType = '', status = '', kw = '', pageNo = 1, size = 20 } = {}) {
+  return delay(() => {
+    const k = String(kw).trim()
+    const list = FACE_REQUESTS
+      .filter(r => !subjectType || r.subjectType === subjectType)
+      .filter(r => !status || r.status === status)
+      .filter(r => !k || `${r.name}${r.houseShort}${r.relation}`.includes(k))
+      .map(_faceRow)
+      // 待核验永远在最前，且等得久的更靠前 —— 这页看的就是「谁在等」
+      .sort((a, b) => {
+        const w = (x) => (x.status === '待核验' ? 0 : 1)
+        return w(a) - w(b) || b.hoursWaiting - a.hoursWaiting
+      })
+    const start = (Number(pageNo) - 1) * Number(size)
+    return { rows: list.slice(start, start + Number(size)), total: list.length }
+  })
+}
+
+export function faceRequestStats() {
+  const rows = FACE_REQUESTS.map(_faceRow)
+  return {
+    total: rows.length,
+    pending: rows.filter(r => r.status === '待核验').length,
+    pendingOwner: rows.filter(r => r.status === '待核验' && r.subjectType === '业主').length,
+    pendingTenant: rows.filter(r => r.status === '待核验' && r.subjectType === '租客').length,
+    overdue: rows.filter(r => r.overdue).length,
+    activated: rows.filter(r => r.status === '已生效').length,
+    rejected: rows.filter(r => r.status === '已驳回').length
+  }
+}
+
+/** 某业主（含家庭成员）名下的人脸记录：业主档案页只读展示用 */
+/** 该租客是否已有待核验记录：有就别让他重复提交，按钮也要禁掉 */
+export function facePendingOfTenant(tenantId) {
+  return FACE_REQUESTS.some(r => r.subjectType === '租客' && r.tenantId === tenantId && r.status === '待核验')
+}
+
+/** 该业主（本人或家庭成员）是否已有待核验记录 */
+export function facePendingOfOwner(ownerId) {
+  return FACE_REQUESTS.some(r => r.subjectType === '业主' && r.ownerId === ownerId && r.status === '待核验')
+}
+
+export function faceRequestsOfOwner(ownerId) {
+  return FACE_REQUESTS
+    .filter(r => r.subjectType === '业主' && r.ownerId === ownerId)
+    .map(_faceRow)
+    .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)))
+}
+
+/** 业主端 / 员工端提交采集（原型内由种子与页面制造，接口化后落库） */
+export function submitFaceRequest(rec = {}) {
+  const subjectType = FACE_SUBJECT.includes(rec.subjectType) ? rec.subjectType : '业主'
+  if (!rec.name) throw new Error('姓名必填')
+  if (!rec.houseId) throw new Error('房屋必填')
+  _pushFace({ ...rec, subjectType, status: '待核验', submittedAt: rec.submittedAt || `${TODAY} 10:00` })
+  return { ok: true, reqId: FACE_REQUESTS[FACE_REQUESTS.length - 1].reqId }
+}
+
+/**
+ * 审核：通过 / 驳回。
+ * 通过时把结果写回主体（业主 / 家庭成员 / 租客）的 faceRegistered，
+ * 所以「租客列表里的人脸状态跟着变」不是页面自己算的，而是这一处写的。
+ */
+export function auditFaceRequest(reqId, { pass = false, reason = '' } = {}) {
+  return delay(() => {
+    if (!canAuditFaces()) throw new Error('当前角色没有人脸核验的权限（a.owners.edit / a.tenants.edit）')
+    const r = FACE_REQUESTS.find(x => x.reqId === reqId)
+    if (!r) throw new Error('核验记录不存在')
+    if (r.status !== '待核验') throw new Error(`该记录已处理（${r.status}），不能重复审核`)
+    if (!pass && !String(reason).trim()) throw new Error('驳回必须写原因 —— 业主端会原样展示给业主')
+    r.status = pass ? '已生效' : '已驳回'
+    r.auditBy = currentOperator().name || '物业前台'
+    r.auditAt = `${TODAY} 10:00`
+    r.rejectReason = pass ? '' : String(reason).trim()
+    if (pass) {
+      if (r.subjectType === '租客') {
+        const t = tenants.find(x => x.tenantId === r.tenantId)
+        if (t) t.faceRegistered = true
+      } else if (r.memberId) {
+        const m = members.find(x => x.memberId === r.memberId)
+        if (m) m.faceRegistered = true
+      } else {
+        const o = owners.find(x => x.ownerId === r.ownerId)
+        if (o) o.faceRegistered = true
+      }
+    }
+    return _faceRow(r)
+  })
+}
+
+_seedFaceRequests()
+

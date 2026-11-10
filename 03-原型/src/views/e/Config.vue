@@ -50,7 +50,7 @@
           <el-table :data="params" style="width:100%" max-height="calc(100vh - 340px)">
             <el-table-column prop="group" label="分组" width="90" />
             <el-table-column prop="name" label="参数名称" width="160" />
-            <el-table-column prop="key" label="参数键" width="180">
+            <el-table-column prop="key" label="参数键" width="215">
               <template #default="{ row }"><code>{{ row.key }}</code></template>
             </el-table-column>
             <el-table-column label="参数值" width="180">

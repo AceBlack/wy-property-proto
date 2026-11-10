@@ -44,3 +44,16 @@ export const splitOwnerHouses = (ownerId, houseIds) =>
 
 /* ---------- 字典 ---------- */
 export const ownerVirtualNodes = () => mock.ownerVirtualNodes()
+
+/* ---------- 人脸核验（H4 / H5 · 2026-11-10） ----------
+ * 契约还没落（批次 83 之后才接口化），现在**只有 mock 实现**。
+ * 这里不写 http 分支：写了就会有人以为接口已经通了。
+ */
+export const canAuditFaces = () => mock.canAuditFaces()
+export const queryFaceRequests = (params) => mock.queryFaceRequests(params)
+export const faceRequestStats = () => mock.faceRequestStats()
+export const auditFaceRequest = (reqId, opt) => mock.auditFaceRequest(reqId, opt)
+export const submitFaceRequest = (rec) => mock.submitFaceRequest(rec)
+export const faceRequestsOfOwner = (ownerId) => mock.faceRequestsOfOwner(ownerId)
+export const facePendingOfOwner = (ownerId) => mock.facePendingOfOwner(ownerId)
+export const facePendingOfTenant = (tenantId) => mock.facePendingOfTenant(tenantId)
