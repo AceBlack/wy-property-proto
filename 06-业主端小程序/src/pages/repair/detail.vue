@@ -38,6 +38,11 @@
           <view class="wd__meta">
             <text class="wd__m">{{ wo.houseName }}</text>
             <text class="wd__m" v-if="wo.priceCode">· {{ wo.priceName }}</text>
+            <!--
+              公共单没有价目项，但有业主自己写的「问题类型」原文（category）。
+              不显示出来，业主会以为自己填的那句话丢了；师傅也少一条判断依据。
+            -->
+            <text v-else-if="wo.isPublic && wo.category" class="wd__m">· {{ wo.category }}</text>
           </view>
         </view>
 

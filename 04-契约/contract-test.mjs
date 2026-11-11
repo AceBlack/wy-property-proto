@@ -6663,7 +6663,8 @@ test('公共报修：只给位置与描述就能下单，不传价目、不传�
     body: {
       scope: 'public',
       place: '3栋2单元电梯厅',
-      category: '电梯',
+      /* 业主写的原文，不是枚举值 —— 2026-11-12 起前台受理时归类 */
+      category: '电梯异响',
       description: '电梯运行到 6 层会顿一下，有异响'
     }
   }))
@@ -6676,7 +6677,7 @@ test('公共报修：只给位置与描述就能下单，不传价目、不传�
   eq(wo.totalFee, 0, '公共维修免费')
   eq(wo.payStatus, '无需支付', '不生成待支付')
   eq(r.data.payOrder, null, '不返回支付单')
-  eq(wo.category, '电梯', '分类是部位而不是价目分类（派单与积分权重都靠它）')
+  eq(wo.category, '电梯异响', '分类原样保存业主写的类型，不做枚举改写')
   eq(wo.title.includes('公共区域报修'), true, `标题不该拼不存在的项目名：${wo.title}`)
   eq(wo.houseId, '', '公共单不挂房')
   eq(wo.houseName, '3栋2单元电梯厅', '位置落在 houseName')
@@ -6690,6 +6691,25 @@ test('公共报修：只给位置与描述就能下单，不传价目、不传�
     body: { scope: 'public', place: '很'.repeat(41), description: '坏了' }
   }))
   eq(longPlace.status, 422, '位置超 40 字 422')
+
+  /* 问题类型是选填：不填落「公共设备」，不逼业主写 */
+  const noType = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', place: '5栋消防通道', description: '安全出口的灯不亮' }
+  }))
+  eq(noType.status, 200, '不填类型也能报')
+  eq(noType.data.order.category, '公共设备', '不填按公共设备')
+
+  /* 但也不能无限长：这一列进后台列表会被撑坏 */
+  const longType = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', place: '5栋消防通道', category: '很'.repeat(21), description: '坏了' }
+  }))
+  eq(longType.status, 422, '类型超 20 字 422')
+
+  /* 传标准部位也可以：后台工时积分权重能直接取到（电梯 1.5） */
+  const enumType = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', place: '1栋大堂', category: '电梯', description: '轿厢门关不严' }
+  }))
+  eq(enumType.data.order.category, '电梯', '标准部位原样保留')
 
   /* 个人单仍然要价目：放宽 public 不等于两条线都不校验 */
   const noPrice = await withMp(tok, () => call('POST', '/mp/orders', {

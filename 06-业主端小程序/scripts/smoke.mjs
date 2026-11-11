@@ -421,14 +421,17 @@ async function runSuite(base, tag) {
   /* ---------- 7. 公共报修（免认证、免费） ---------- */
   console.log('\n[7] 公共报修：登录即可，免费')
   await goto('/pages/repair/create?scope=public')
-  check('公共报修可选位置', await waitText('问题位置'))
+  check('公共报修有位置输入框', await waitText('问题位置'))
   /* 2026-11-11：公共线**不再选项目**（物业出人出料，免费）。
-     原来这条断言看的"不收费"写在项目行里，项目段已整体移除 ——
-     改为断言"底部标免费"且"页面上没有价目金额"，后者才是真守卫。 */
+     2026-11-12：位置与问题类型取消快捷 chip，改成纯输入框 ——
+     所以这里断言的是"两个输入框在、且页面上一个 chip 都没有"，
+     比断言某一句文案更接近这次改动本身。 */
   check('公共报修标注免费', await has('免费'))
   check('公共报修不出现项目价格', !(await has('材料 ¥')) && !(await has('¥125')))
-  await tapText('单元电梯轿厢')
-  await tapText('给排水')
+  check('位置与类型都是输入框', (await visible('#place-input')) && (await visible('#issue-input')))
+  check('公共表单没有快捷 chip', (await page.$$('.chip')).length === 0)
+  await setInput('#place-input', '3栋2单元电梯厅')
+  await setInput('#issue-input', '电梯异响')
   await setInput('.textarea', '3栋2单元电梯运行到6层有异响，请检查')
   await shot('23-repair-public')
   await tap('#repair-submit', 0, 1800)
@@ -582,8 +585,11 @@ async function runSuite(base, tag) {
   /* ---------- 10. 我的 / 身份权限 ---------- */
   console.log('\n[10] 我的 + 身份权限')
   await goto('/pages/mine/index')
-  check('我的页显示认证身份', await has('已认证'))
-  check('七格入口齐全', (await has('物业缴费')) && (await has('我的房产')) && (await has('便民缴费')))
+  /* 用 waitText 而不是 goto 后立刻 has：dev 模式要现编译模块，
+     2026-11-12 我的页多了预存/商业两个数据层的 import，900ms 不够（dist 一直是够的，
+     所以这条失败只在 dev 出现 —— 这种"只在 dev 红"的断言最容易被当成环境问题放过） */
+  check('我的页显示认证身份', await waitText('已认证'))
+  check('七格入口齐全', (await waitText('物业缴费')) && (await has('我的房产')) && (await has('便民缴费')))
   await shot('31-mine')
 
   await goto('/pages/house/index')

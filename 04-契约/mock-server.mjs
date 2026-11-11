@@ -10221,6 +10221,8 @@ on('POST', '/mp/orders', (ctx) => {
     const place = String(b.place || '').trim()
     if (!place) throw invalid('公共区域报修要填位置')
     if (place.length > 40) throw invalid('位置最多 40 字')
+    /* 类型是业主写的原文（前台受理时归类），不是枚举 —— 只限长度，不查白名单 */
+    if (String(b.category || '').trim().length > 20) throw invalid('问题类型最多 20 字')
   } else {
     price = mpPriceOf(String(b.priceCode || ''))
     if (!price || !repairPrices.items.some(i => i.code === price.code)) {
@@ -10254,9 +10256,12 @@ on('POST', '/mp/orders', (ctx) => {
     /* 「入户维修」在 2026-11-02 已废弃（契约 WoType 写明）：收费的入户单是「商业服务」。
        写回旧值不会报错，只会在后台筛选里变成一个谁都搜不到的类型。 */
     type: isPublic ? '公共区域维修' : '商业服务',
-    /* 公共单的 category 是**部位**（电梯 / 配电 / 给排水…），不是价目分类 ——
-       后台派单按它找工种，工时积分按它取权重（电梯 1.5 / 配电 1.3）。 */
-    category: isPublic ? String(b.category || '公共设备') : (price.category || '综合维修'),
+    /* 公共单的 category 是**业主填写的问题类型原文**（「电梯异响」「路灯不亮」），
+       不是价目分类，也不做枚举校验 —— 前台受理时按它定工种。
+       传了标准部位（电梯 / 配电…）时工时积分权重能直接取到，否则落默认 1.0。 */
+    category: isPublic
+      ? (String(b.category || '').trim() || '公共设备')
+      : (price.category || '综合维修'),
     source: '小程序',
     priority: '普通',
     /* 状态先给「待派单」，但 `payStatus=未支付` 时**不进派单池** ——

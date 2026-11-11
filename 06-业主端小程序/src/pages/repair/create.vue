@@ -2,14 +2,18 @@
   我要报修（个人 / 公共两条线）
   ------------------------------------------------------------
   个人：选房 → 价目项目（下单即见价）→ 1 小时时段 → 描述 + 照片 → 提交并支付
-  公共：选位置（快捷 + 可手填）→ 部位 → 描述 + 照片 → 提交（免费，不支付）
+  公共：位置 → 问题类型 → 描述 + 照片 → 提交（免费，不支付）
 
   两条线**要的东西不一样**，2026-11-11 按实际数据与业务分了家：
     · 公共区域维修由物业出人出料，没有价目项 —— 不再让业主先挑一个收费项目再免费处理；
       也不要求预约时段（样例里 75 张公共单没有一张有预约时间）。
-    · 但**部位**要留（电梯 / 配电 / 给排水…）：它决定派给哪个工种，
-      也是工时积分的权重来源。部位不是"项目"，选了不影响收费。
-    · 位置除了 10 个高频快捷项，必须能自己填 —— 小区总有列表没覆盖的角落（消防通道、屋面）。
+
+  2026-11-12 又改了一次：**位置与类型都改成纯输入框**，取消快捷 chip。
+  原因不是"快捷不好看"，而是它把两件事锁死了：
+    · 位置固定 10 个 —— 小区里的角落远不止 10 个，业主找不到就只能编，写进「其它位置」
+      反而多一步；不如一进来就是一个空输入框。
+    · 类型固定 7 个「部位」—— 业主不是专业人士，不会把"电梯有异响"翻译成「电梯」。
+      让他自己写，前台受理时归类，这才是真实分工（归类本来就是物业的活）。
 
   个人项目按分类折叠 + 搜索：现在只有 10 项，但项目是会加的，
   一次摊开几十项就没法选了。默认展开前 3 类，搜索时全部展开。
@@ -34,39 +38,33 @@
           </view>
         </view>
         <template v-else>
-          <view class="rc__places">
-            <view
-              v-for="p in PUBLIC_PLACES"
-              :key="p"
-              class="chip"
-              :class="{ 'is-on': !useOther && placePick === p }"
-              @tap="pickPlace(p)"
-            ><text>{{ p }}</text></view>
-            <view id="place-other" class="chip" :class="{ 'is-on': useOther }" @tap="pickOther"><text>其它位置</text></view>
-          </view>
-          <view v-if="useOther" class="rc__other">
-            <input
-              id="place-input"
-              v-model="placeOther"
-              class="field__input field__input--boxed"
-              maxlength="40"
-              placeholder="例如：5栋消防通道 / 中心花园东侧廊架"
-              placeholder-class="ph"
-            />
-            <text class="rc__other-tip">写清楚楼栋与具体位置，师傅才不用满小区找</text>
-          </view>
+          <input
+            id="place-input"
+            v-model="place"
+            class="field__input field__input--boxed"
+            maxlength="40"
+            placeholder="例如：3栋2单元电梯厅 / 地下车库 B1 东侧"
+            placeholder-class="ph"
+          />
+          <text class="rc__hint">写清楼栋与具体位置，师傅才不用满小区找；不确定就写到"能认出来"为止</text>
         </template>
       </view>
 
-      <!-- 部位（公共）：不影响收费，只决定派给谁 -->
+      <!-- 问题类型（公共）：自由填写，前台受理时归类 -->
       <view v-if="isPublic" class="rc__sec">
         <view class="rc__k-row">
-          <text class="rc__k">部位</text>
-          <text class="rc__k-d">决定派给哪个工种，不影响收费</text>
+          <text class="rc__k">问题类型</text>
+          <text class="rc__k-d">选填 · 不影响收费</text>
         </view>
-        <view class="rc__places">
-          <view v-for="c in PUBLIC_PARTS" :key="c" class="chip" :class="{ 'is-on': part === c }" @tap="part = c"><text>{{ c }}</text></view>
-        </view>
+        <input
+          id="issue-input"
+          v-model="issue"
+          class="field__input field__input--boxed"
+          maxlength="20"
+          placeholder="例如：电梯异响 / 路灯不亮 / 地砖破损"
+          placeholder-class="ph"
+        />
+        <text class="rc__hint">一句话说清是什么坏了；不填也行，描述里写明白就可以</text>
       </view>
 
       <!-- 项目（个人）：分类折叠 + 搜索 -->
@@ -168,18 +166,11 @@ import Bar from '@/components/Bar.vue'
 import Empty from '@/components/Empty.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import { orderFee, priceGroups, priceItems } from '@/api/pricing'
-import { PUBLIC_PLACES, activeHouse, createOrder, createOrderPay } from '@/api/mp'
+import { activeHouse, createOrder, createOrderPay } from '@/api/mp'
 import { DEMO } from '@/config/demo'
 import { money } from '@/utils/format'
 import { go, toast, toastErr } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
-
-/**
- * 公共报修的**部位**：与后台工单的 category 同一套枚举。
- * 它不是价目分类 —— 派单按它找工种，工时积分按它取权重（电梯 1.5 / 配电 1.3 / 给排水 1.2）。
- * 不选默认「公共设备」，保证落库一定有值，不至于让后台在"未分类"里堆一堆单。
- */
-const PUBLIC_PARTS = ['电梯', '配电', '给排水', '公共设备', '公区照明', '门窗五金', '土建']
 
 const groups = priceGroups()
 const isPublic = ref(false)
@@ -189,12 +180,9 @@ const photos = ref([])
 const day = ref(DEMO.today)
 const slot = ref('09:00-10:00')
 
-/* 位置：快捷项与手填二选一，最终取 finalPlace */
-const placePick = ref(PUBLIC_PLACES[0])
-const useOther = ref(false)
-const placeOther = ref('')
-/* 部位默认「公共设备」：既保证落库有值，又不会被当成"必须选一项"的负担 */
-const part = ref('公共设备')
+/* 公共报修：位置与问题类型都是自由填写（2026-11-12 取消快捷选项） */
+const place = ref('')
+const issue = ref('')
 
 /* 个人项目的折叠与搜索 */
 const kw = ref('')
@@ -205,8 +193,6 @@ const house = computed(() => activeHouse())
 /* priceItems() 而不是常量：接口模式下价目来自服务端快照，模块加载时还是空的 */
 const sel = computed(() => priceItems().find(i => i.code === code.value) || null)
 const fee = computed(() => orderFee(sel.value, 1))
-
-const finalPlace = computed(() => (useOther.value ? placeOther.value.trim() : placePick.value))
 
 /** 搜索时不分折叠状态，一律展开 —— 搜到了还要再点一次展开，等于没搜 */
 const shownGroups = computed(() => {
@@ -219,7 +205,7 @@ const shownGroups = computed(() => {
 const isOpen = cat => (kw.value.trim() ? true : openCats.value.has(cat))
 
 const canSubmit = computed(() => {
-  if (isPublic.value) return !!finalPlace.value && !!desc.value.trim()
+  if (isPublic.value) return !!place.value.trim() && !!desc.value.trim()
   return !!sel.value && !!house.value
 })
 const days = computed(() => {
@@ -244,14 +230,6 @@ function setScope(s) {
   code.value = ''
 }
 
-function pickPlace(p) {
-  useOther.value = false
-  placePick.value = p
-}
-function pickOther() {
-  useOther.value = true
-}
-
 function toggleCat(cat) {
   if (kw.value.trim()) return
   const next = new Set(openCats.value)
@@ -266,14 +244,15 @@ function pick(it) {
 
 async function submit() {
   if (isPublic.value) {
-    if (!finalPlace.value) return toastErr('请选择或填写问题位置')
+    if (!place.value.trim()) return toastErr('请填写问题位置')
     if (!desc.value.trim()) return toastErr('写一句问题描述，师傅好带工具')
     try {
       const wo = await createOrder({
         scope: 'public',
-        place: finalPlace.value,
-        /* 部位不是"项目"：它只决定派给谁，不影响收费 */
-        category: part.value,
+        place: place.value.trim(),
+        /* 业主自己写的类型原文，前台受理时归类；不填按「公共设备」——
+           不再让业主义务把"电梯有异响"翻译成「电梯」 */
+        category: issue.value.trim() || '公共设备',
         description: desc.value.trim(),
         photos: photos.value.map(p => ({ kind: p.kind, at: p.at, note: p.note || '' }))
       })
@@ -318,9 +297,8 @@ async function submit() {
 .rc__k-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14rpx; }
 .rc__k-row .rc__k { margin-bottom: 0; }
 .rc__k-d { font-size: 21rpx; color: var(--biz-text-4); }
-.rc__places { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.rc__other { margin-top: 16rpx; }
-.rc__other-tip { display: block; margin-top: 8rpx; font-size: 20rpx; color: var(--biz-text-4); }
+/* 输入框下方的一句提示（位置 / 问题类型两处共用） */
+.rc__hint { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.5; color: var(--biz-text-4); }
 .rc__search { margin-bottom: 14rpx; }
 .rc__group + .rc__group { margin-top: 6rpx; }
 .rc__group-hd { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 4rpx; border-bottom: 1rpx solid var(--biz-border-light); }
