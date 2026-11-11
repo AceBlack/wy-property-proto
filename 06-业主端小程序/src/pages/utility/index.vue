@@ -16,9 +16,10 @@
     <view class="body">
       <view class="ut__hd">
         <view class="ut__hd-l">
-          <text class="ut__hd-k">本房水费 + 电费余额</text>
-          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(sum.balance) }}</text></view>
-          <text class="ut__hd-d">本期应缴 {{ money(sum.due) }} · {{ sum.count }} 个户号</text>
+          <text class="ut__hd-k">预存账户余额</text>
+          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(sum.prepay.balance) }}</text></view>
+          <text class="ut__hd-d">可抵扣水费、电费与物业费 · 本期水电气应缴 {{ money(sum.due) }}</text>
+          <text v-if="!sum.prepay.hasAccount" class="ut__hd-note">本房还未开通预存账户，充值后自动开通</text>
         </view>
         <view class="ut__sw" @tap="houseSheet = true"><text>切换房屋</text></view>
       </view>
@@ -32,16 +33,16 @@
             <text class="ut__t">{{ a.label }}</text>
             <text class="ut__d">户号 {{ a.meterNo }} · {{ a.price }} 元/{{ a.unit }}</text>
           </view>
-          <Tag :text="a.balance > 0 ? '余额充足' : '待充值'" size="sm" :color="a.balance > 0 ? 'var(--biz-accent-dark)' : 'var(--biz-warning)'" />
+          <Tag :text="a.due > 0 ? '本期待缴' : '本期已结清'" size="sm" :color="a.due > 0 ? 'var(--biz-warning)' : 'var(--biz-text-3)'" />
         </view>
         <view class="ut__rows">
-          <view class="ut__r"><text class="ut__k">余额</text><text class="ut__v">{{ money(a.balance) }}</text></view>
           <view class="ut__r"><text class="ut__k">本期用量</text><text class="ut__v">{{ a.usage }} {{ a.unit }}</text></view>
           <view class="ut__r"><text class="ut__k">本期应缴</text><text class="ut__v danger">{{ money(a.due) }}</text></view>
+          <view class="ut__r"><text class="ut__k">单价</text><text class="ut__v">{{ a.price }} 元/{{ a.unit }}</text></view>
           <view class="ut__r"><text class="ut__k">抄表日</text><text class="ut__v">{{ a.readDate || '—' }}</text></view>
         </view>
         <view class="ut__acts">
-          <view :id="`ut-recharge-${a.accountId}`" class="btn btn--primary btn--sm" @tap="goRecharge(a.accountId)"><text>充值</text></view>
+          <view :id="`ut-recharge-${a.accountId}`" class="btn btn--primary btn--sm" @tap="goRecharge()"><text>充值</text></view>
           <view class="btn btn--line btn--sm" @tap="tab = 'record'"><text>缴费记录</text></view>
         </view>
       </view>
@@ -67,14 +68,14 @@
       <view v-for="r in records.slice(0, 5)" :key="r.payId" class="card ut__rec">
         <view class="ut__rec-b">
           <text class="ut__rec-t">{{ r.label }} 充值</text>
-          <text class="ut__rec-d">{{ r.at }} · {{ r.meterNo }}</text>
+          <text class="ut__rec-d">{{ r.at }} · {{ r.meterNo || '预存账户' }}</text>
         </view>
         <text class="ut__rec-v">+{{ money(r.amount) }}</text>
       </view>
 
       <view class="ut__tip">
         <text class="demo-tip">演示</text>
-        <text class="ut__tip-t">充值即时到余额（模拟支付）。真实接入要对接缴费平台或表厂，涉及销账对账，本轮不接。</text>
+        <text class="ut__tip-t">充值是往本房预存账户存钱（模拟支付），到账后可抵扣水费、电费与物业费账单。真实接入要对接缴费平台或表厂，涉及销账对账，本轮不接。</text>
       </view>
     </view>
 
@@ -110,7 +111,9 @@ const house = computed(() => {
 })
 const sum = computed(() => {
   ver.value
-  return house.value ? utilitySummary(house.value.houseId) : { accounts: [], due: 0, balance: 0, count: 0 }
+  return house.value
+    ? utilitySummary(house.value.houseId)
+    : { accounts: [], due: 0, count: 0, prepay: { balance: 0, hasAccount: false } }
 })
 const gas = gasAccount()
 const records = computed(() => {
@@ -130,7 +133,7 @@ function onPickHouse(id) {
   switchHouse(id)
   ver.value++
 }
-const goRecharge = accountId => go('/pages/utility/recharge', { accountId })
+const goRecharge = () => go('/pages/utility/recharge')
 </script>
 
 <style scoped>
@@ -143,6 +146,7 @@ const goRecharge = accountId => go('/pages/utility/recharge', { accountId })
 .ut__hd-k { font-size: 22rpx; color: var(--biz-text-3); }
 .ut__hd .big { margin-top: 6rpx; color: var(--biz-text-1); }
 .ut__hd-d { display: block; margin-top: 6rpx; font-size: 21rpx; color: var(--biz-text-3); }
+.ut__hd-note { display: block; margin-top: 8rpx; font-size: 20rpx; color: var(--biz-warning); }
 .ut__sw { flex: none; font-size: 21rpx; color: var(--biz-primary); background: #fff; border-radius: 999rpx; padding: 8rpx 18rpx; }
 
 .ut { margin-top: 20rpx; }

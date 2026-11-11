@@ -391,6 +391,32 @@ const fewActs = buildFeed({
 add('首页流', '只有 1 场活动时，其余位由公告补满', fewActs.length, 4)
 add('首页流', '活动少时流里仍只有 1 条活动', fewActs.filter(r => r.kind === 'activity').length, 1)
 
+/* ============================ 水电与预存账户（11-11） ============================ */
+/**
+ * 预存账户是**一个房一个**（`prepayAccounts` 的主键语义是 houseId）。
+ *
+ * 旧实现把 `balance` 挂在每个户号上、顶部再把各户号余额相加 ——
+ * 同一套房有水电两个表时，余额被显示成两倍。这条守卫盯的就是"别再按户号摊余额"。
+ */
+const meters = read('meters')
+const prepayAccounts = read('prepayAccounts')
+const livePrepay = prepayAccounts.filter(p => p.status !== '已销户')
+const perHouse = new Map()
+for (const p of livePrepay) perHouse.set(p.houseId, (perHouse.get(p.houseId) || 0) + 1)
+add('预存账户', '一个房最多一个有效账户', [...perHouse.values()].filter(n => n > 1).length, 0)
+add('预存账户', '账户都挂在房屋上', livePrepay.filter(p => !p.houseId).length, 0)
+add('表具', '每个表具都归属房屋', meters.filter(m => !m.houseId).length, 0)
+/**
+ * 预存账户是**可选**的：样例里 249 个有表具的房，只有 126 个开了账户（51%）。
+ * 所以这里不断言覆盖率 —— 没账户按 0 处理、页面提示"未开通预存"才是正确行为。
+ * 要守的是"一个房不能有两个有效账户"，上面那条已经钉住。
+ */
+const meterHouses = new Set(meters.map(m => m.houseId))
+add('预存账户', '账户数不超过有表具的房数', livePrepay.length <= meterHouses.size, true)
+console.log(`  · 有表具的房 ${meterHouses.size} / 已开预存 ${[...meterHouses].filter(h => perHouse.has(h)).length}（其余按 0 处理）`)
+const multiMeter = [...meterHouses].filter(h => meters.filter(m => m.houseId === h).length > 1).length
+add('表具', '存在水+电双表的房（这正是"余额翻倍"的现场）', multiMeter > 0, true)
+
 /* ============================ 打印 ============================ */
 console.log('数据源：' + MOCK)
 let g = ''

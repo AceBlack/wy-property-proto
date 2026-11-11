@@ -1,14 +1,19 @@
-<!-- 充值（模拟支付）：选金额 → 确认 → 余额增加 -->
+<!--
+  预存账户充值（模拟支付）：选金额 → 确认 → 账户余额增加
+  ------------------------------------------------------------
+  为什么不是"给某块表充值"：数据里一个房只有一个预存账户（`prepayAccounts`），
+  水、电、物业费都从这个账户抵扣。按表充值会让流水与账面各说各话。
+-->
 <template>
   <view class="page">
-    <NavBar title="充值" :subtitle="acc ? `${acc.label} · ${acc.meterNo}` : ''" />
+    <NavBar title="预存账户充值" :subtitle="house?.fullName || ''" />
     <view class="body">
-      <Empty v-if="!acc" text="户号不存在" />
+      <Empty v-if="!house" text="未选择房屋" sub="先完成业主认证并绑定房产" />
       <template v-else>
         <view class="card rc__hd">
-          <text class="rc__k">当前余额</text>
-          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(acc.balance) }}</text></view>
-          <text class="rc__d">本期用量 {{ acc.usage }} {{ acc.unit }} · 应缴 {{ money(acc.due) }}</text>
+          <text class="rc__k">当前预存余额</text>
+          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(account.balance) }}</text></view>
+          <text class="rc__d">可抵扣水费、电费与物业费账单 · 本期水电气应缴 {{ money(due) }}</text>
         </view>
 
         <view class="card">
@@ -30,12 +35,12 @@
 
         <view class="rc__tip">
           <text class="demo-tip">演示</text>
-          <text class="rc__tip-t">点「确认充值」直接置为已支付并入余额，不发起真实扣款。真接入要对接缴费平台与表厂销账。</text>
+          <text class="rc__tip-t">点「确认充值」直接置为已支付并入预存账户，不发起真实扣款。真接入要对接缴费平台与表厂销账。</text>
         </view>
       </template>
     </view>
 
-    <Bar v-if="acc" label="充值" :amount="money(finalAmount)" hint="即时到账（模拟）" okText="确认充值" :disabled="finalAmount <= 0" btn-id="ut-pay" @submit="pay" />
+    <Bar v-if="house" label="充值" :amount="money(finalAmount)" hint="即时到账（模拟）" okText="确认充值" :disabled="finalAmount <= 0" btn-id="ut-pay" @submit="pay" />
   </view>
 </template>
 
@@ -47,35 +52,39 @@ import Bar from '@/components/Bar.vue'
 import Cell from '@/components/Cell.vue'
 import Empty from '@/components/Empty.vue'
 import { activeHouse } from '@/api/mp'
-import { QUICK_AMOUNTS, accountsOf, recharge } from '@/api/utility'
+import { QUICK_AMOUNTS, prepayOf, recharge, utilitySummary } from '@/api/utility'
 import { amount, money } from '@/utils/format'
 import { toastOk, toastErr } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
 
-const accountId = ref('')
 const amountVal = ref(100)
 const custom = ref('')
 const ver = ref(0)
 
-const acc = computed(() => {
+const house = computed(() => {
   ver.value
-  const h = activeHouse()
-  if (!h) return null
-  return accountsOf(h.houseId).find(a => a.accountId === accountId.value) || null
+  return activeHouse()
+})
+const account = computed(() => {
+  ver.value
+  return house.value ? prepayOf(house.value.houseId) : { balance: 0, hasAccount: false }
+})
+const due = computed(() => {
+  ver.value
+  return house.value ? utilitySummary(house.value.houseId).due : 0
 })
 const finalAmount = computed(() => {
   const c = Number(custom.value)
   return c > 0 ? c : amountVal.value
 })
 
-onLoad(o => {
-  if (!gateOwner('水电燃气缴费')) return
-  accountId.value = o?.accountId ? decodeURIComponent(o.accountId) : ''
+onLoad(() => {
+  gateOwner('水电燃气缴费')
 })
 
 function pay() {
   try {
-    recharge({ houseId: activeHouse().houseId, accountId: accountId.value, amount: finalAmount.value })
+    recharge({ houseId: house.value.houseId, amount: finalAmount.value })
     ver.value++
     toastOk(`充值成功 ${money(finalAmount.value)}`)
     setTimeout(() => uni.navigateBack(), 600)

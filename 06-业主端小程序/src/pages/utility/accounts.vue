@@ -13,8 +13,8 @@
           <text class="ua__del" @tap="remove(a)">解除</text>
         </view>
         <view class="ua__rows">
-          <text class="ua__r">余额 {{ money(a.balance) }}</text>
           <text class="ua__r">本期 {{ a.usage }} {{ a.unit }}</text>
+          <text class="ua__r">应缴 {{ money(a.due) }}</text>
           <text class="ua__r">抄表 {{ a.readDate }}</text>
         </view>
       </view>
@@ -34,7 +34,7 @@
 
       <view class="ua__tip">
         <text class="demo-tip">说明</text>
-        <text class="ua__tip-t">户号与表具按房绑定，只能由物业登记与解除；业主端解除只是本地隐藏，真实解绑要走后台（避免业主误删后重复缴费）。</text>
+        <text class="ua__tip-t">户号与表具按房绑定，只能由物业登记与解除；业主端解除只是本地隐藏，真实解绑要走后台（避免业主误删后重复缴费）。余额不挂在这里 —— 一个房只有一个预存账户，见生活缴费首页。</text>
       </view>
     </view>
   </view>

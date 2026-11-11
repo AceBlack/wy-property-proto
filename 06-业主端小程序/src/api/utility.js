@@ -22,7 +22,7 @@ const TYPE_META = {
 
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100
 
-/** 本房的水电账户（余额把本地充值也加上） */
+/** 本房的水电账户（**只回答"哪个户号、用了多少、应缴多少"**，不承载余额） */
 export function accountsOf(houseId) {
   const list = meters.filter(m => m.houseId === houseId)
   return list.map(m => {
@@ -31,8 +31,6 @@ export function accountsOf(houseId) {
       .filter(r => r.meterId === m.meterId)
       .sort((a, b) => String(b.period).localeCompare(String(a.period)))
     const latest = readings[0] || null
-    const prepay = prepayAccounts.find(p => p.houseId === houseId && p.ownerId === m.ownerId) || null
-    const localPaid = app.utilityPays.filter(p => p.houseId === houseId && p.type === m.type).reduce((s, p) => s + p.amount, 0)
     const price = PRICE_OF[m.type] || 0
     const usage = latest?.usage || 0
     return {
@@ -50,11 +48,37 @@ export function accountsOf(houseId) {
       lastPeriod: latest?.period || '',
       usage,
       due: r2(usage * price),
-      balance: r2((prepay?.balance || 0) + localPaid),
-      autoDeduct: !!prepay?.autoDeduct,
       readDate: latest?.readDate || m.lastReadDate
     }
   })
+}
+
+/**
+ * 本房的**预存账户**（一个房一个账户）。
+ *
+ * 这一条是 2026-11-11 修的一处口径错用：`prepayAccounts` 是「业主预存账户」，
+ * 后台 `/b/prepay` 用它抵扣**各项账单**（物业费、水费、电费、车位费都走 `bills`，
+ * 1327 条水电账单同样在内），不是"水表余额"。
+ *
+ * 旧实现把它挂在每个户号上（`accountsOf` 里 `balance`），于是：
+ *   ① 水表和电表显示同一个数字；
+ *   ② 顶部"本房水费+电费余额"把同一个余额**加了两遍**（¥4809 变成 ¥9618）。
+ * 现在余额只有一个来源、只展示一次，户号只留用量与应缴。
+ */
+export function prepayOf(houseId) {
+  const p = prepayAccounts.find(x => x.houseId === houseId) || null
+  /* 本地模拟充值记在同一账户上：它是"往账户里存钱"，不是"给某个表充值" */
+  const localPaid = app.utilityPays
+    .filter(x => x.houseId === houseId && x.kind !== 'deduct')
+    .reduce((s, x) => s + (Number(x.amount) || 0), 0)
+  return {
+    accountId: p?.accountId || '',
+    hasAccount: !!p,
+    balance: r2((p?.balance || 0) + localPaid),
+    autoDeduct: !!p?.autoDeduct,
+    totalRecharge: r2((p?.totalRecharge || 0) + localPaid),
+    totalDeduct: r2(p?.totalDeduct || 0)
+  }
 }
 
 /** 燃气：数据里没有表具，如实返回 null（页面标"未开通"） */
@@ -75,24 +99,26 @@ export function utilitySummary(houseId) {
   return {
     accounts: list,
     due: r2(list.reduce((s, a) => s + a.due, 0)),
-    balance: r2(list.reduce((s, a) => s + a.balance, 0)),
+    /* 余额是**账户级**的，不能按户号求和 —— 求出来的就是同一个数加两遍 */
+    prepay: prepayOf(houseId),
     count: list.length
   }
 }
 
-/** 充值（模拟支付）：记账 + 加余额，不接真通道 */
-export function recharge({ houseId, accountId, amount, method = '微信支付（模拟）' }) {
-  const acc = accountsOf(houseId).find(a => a.accountId === accountId)
-  if (!acc) throw new Error('户号不存在')
+/**
+ * 充值（模拟支付）：往**预存账户**里存钱，不按户号。
+ *
+ * 数据模型里一个房只有一个预存账户（`prepayAccounts`），按户号充值会让
+ * "水表充 100、电表充 100"变成"账户只多 100"，账面与流水对不上。
+ */
+export function recharge({ houseId, amount, method = '微信支付（模拟）' }) {
   const amt = r2(amount)
   if (!amt || amt <= 0) throw new Error('充值金额需大于 0')
   if (amt > 5000) throw new Error('单笔充值上限 5000 元')
   return addUtilityPay({
     houseId,
-    accountId,
-    meterNo: acc.meterNo,
-    type: acc.type,
-    label: acc.label,
+    kind: 'recharge',
+    label: '预存账户',
     amount: amt,
     method
   })
