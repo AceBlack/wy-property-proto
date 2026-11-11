@@ -9945,25 +9945,35 @@ on('POST', '/mp/orders', (ctx) => {
   const me = mpOf(ctx)
   const b = ctx.body || {}
   const isPublic = String(b.scope || 'personal') === 'public'
-  const price = mpPriceOf(String(b.priceCode || ''))
-  if (!price || !repairPrices.items.some(i => i.code === price.code)) {
-    throw invalid(`维修项目不存在：${b.priceCode || '（空）'}`)
-  }
   if (!b.description || !String(b.description).trim()) throw invalid('问题描述必填')
   if (String(b.description).length > 120) throw invalid('问题描述最多 120 字')
-  if (!b.appointDate) throw invalid('请选择上门日期')
-  /* 时段是 1 小时粒度（09:00-10:00）。只校验形状不校验清单：
-     以后加时段不用改这里，但"上午/下午"这种词得在客户端就挡住 */
-  if (!/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(String(b.appointSlot || ''))) {
-    throw invalid('上门时段格式应是 09:00-10:00')
-  }
 
+  /* 两条线要的东西不同：
+       personal —— 房 + 价目项 + 预约时段（下单即见价、即预付）
+       public   —— 位置 + 描述（物业出人出料，没有价目项，也不用业主约时间）
+
+     公共单**不再要求 `priceCode`**：以前不分 scope 一律校验价目，等于让
+     "电梯有异响"先挑一个收费项目再免费处理。样例里 75 张公共单的
+     `priceCode` / `serviceName` 全是空、`appointAt` 一条都没有 —— 契约此前比数据收得更紧。 */
+  let price = null
   let house = null
-  if (!isPublic) {
+  if (isPublic) {
+    const place = String(b.place || '').trim()
+    if (!place) throw invalid('公共区域报修要填位置')
+    if (place.length > 40) throw invalid('位置最多 40 字')
+  } else {
+    price = mpPriceOf(String(b.priceCode || ''))
+    if (!price || !repairPrices.items.some(i => i.code === price.code)) {
+      throw invalid(`维修项目不存在：${b.priceCode || '（空）'}`)
+    }
     if (!b.houseId) throw invalid('请选择要维修的房屋')
     house = mpMyHouse(me, b.houseId) // 没绑 → 403
-  } else if (!b.place) {
-    throw invalid('公共区域报修要选位置')
+    if (!b.appointDate) throw invalid('请选择上门日期')
+    /* 时段是 1 小时粒度（09:00-10:00）。只校验形状不校验清单：
+       以后加时段不用改这里，但"上午/下午"这种词得在客户端就挡住 */
+    if (!/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(String(b.appointSlot || ''))) {
+      throw invalid('上门时段格式应是 09:00-10:00')
+    }
   }
 
   const qty = Math.min(5, Math.max(1, Number(b.qty) || 1))
@@ -9984,14 +9994,18 @@ on('POST', '/mp/orders', (ctx) => {
     /* 「入户维修」在 2026-11-02 已废弃（契约 WoType 写明）：收费的入户单是「商业服务」。
        写回旧值不会报错，只会在后台筛选里变成一个谁都搜不到的类型。 */
     type: isPublic ? '公共区域维修' : '商业服务',
-    category: price.category || '综合维修',
+    /* 公共单的 category 是**部位**（电梯 / 配电 / 给排水…），不是价目分类 ——
+       后台派单按它找工种，工时积分按它取权重（电梯 1.5 / 配电 1.3）。 */
+    category: isPublic ? String(b.category || '公共设备') : (price.category || '综合维修'),
     source: '小程序',
     priority: '普通',
     /* 状态先给「待派单」，但 `payStatus=未支付` 时**不进派单池** ——
        派单池的取数条件是 `status=待派单 且 payStatus=已支付`。
        不给新状态（比如"待支付"）是为了不让后台的状态机多一个分叉。 */
     status: '待派单',
-    title: `${isPublic ? String(b.place) : (price.category || '维修')} · ${price.name}`,
+    title: isPublic
+      ? `${String(b.place).trim()} · 公共区域报修`
+      : `${price.category || '维修'} · ${price.name}`,
     description: String(b.description).trim(),
     dispatchMode: '系统派单',
     createTime: MP_NOW,
@@ -9999,11 +10013,11 @@ on('POST', '/mp/orders', (ctx) => {
     slaDueAt: mpInMinutes(MP_NOW, 24 * 60),
     slaUsedHours: 0,
     slaBreached: false,
-    serviceItemCode: price.code,
-    serviceName: price.name,
-    priceCode: price.code,
-    priceName: price.name,
-    priceQty: qty,
+    serviceItemCode: price ? price.code : '',
+    serviceName: price ? price.name : '',
+    priceCode: price ? price.code : '',
+    priceName: price ? price.name : '',
+    priceQty: price ? qty : 0,
     feeType: isPublic ? '免费' : '收费',
     materialFee: material,
     laborFee: labor,
@@ -10012,8 +10026,11 @@ on('POST', '/mp/orders', (ctx) => {
     payStatus: isPublic ? '无需支付' : '未支付',
     score: 0,
     isPublic,
-    appointAt: `${b.appointDate ? String(b.appointDate).slice(0, 10) : NV_TODAY} ${String(b.appointSlot || '09:00-11:00').slice(0, 5)}`,
-    appointSlot: b.appointSlot || '09:00-11:00',
+    /* 公共单不落预约时间：样例里 75 张公共单一条都没有，物业按派单排期 */
+    appointAt: isPublic
+      ? ''
+      : `${String(b.appointDate).slice(0, 10)} ${String(b.appointSlot).slice(0, 5)}`,
+    appointSlot: isPublic ? '' : String(b.appointSlot),
     photos: Array.isArray(b.photos) ? b.photos : [],
     addons: [],
     _ver: 1

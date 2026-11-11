@@ -6515,6 +6515,47 @@ test('我的报修：只给已绑房的单，公共单另算', async () => {
   }
 })
 
+test('公共报修：只给位置与描述就能下单，不传价目、不传时段', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: {
+      scope: 'public',
+      place: '3栋2单元电梯厅',
+      category: '电梯',
+      description: '电梯运行到 6 层会顿一下，有异响'
+    }
+  }))
+  eq(r.status, 200, '公共报修下单')
+
+  const wo = r.data.order
+  eq(wo.isPublic, true, '是公共单')
+  eq(wo.priceCode, '', '公共单没有价目项')
+  eq(wo.serviceName, '', '也没有服务项目名')
+  eq(wo.totalFee, 0, '公共维修免费')
+  eq(wo.payStatus, '无需支付', '不生成待支付')
+  eq(r.data.payOrder, null, '不返回支付单')
+  eq(wo.category, '电梯', '分类是部位而不是价目分类（派单与积分权重都靠它）')
+  eq(wo.title.includes('公共区域报修'), true, `标题不该拼不存在的项目名：${wo.title}`)
+  eq(wo.houseId, '', '公共单不挂房')
+  eq(wo.houseName, '3栋2单元电梯厅', '位置落在 houseName')
+
+  /* 位置必填、可自由填写（列表没覆盖的角落也得能报） */
+  const noPlace = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', description: '坏了' }
+  }))
+  eq(noPlace.status, 422, '没位置 422')
+  const longPlace = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'public', place: '很'.repeat(41), description: '坏了' }
+  }))
+  eq(longPlace.status, 422, '位置超 40 字 422')
+
+  /* 个人单仍然要价目：放宽 public 不等于两条线都不校验 */
+  const noPrice = await withMp(tok, () => call('POST', '/mp/orders', {
+    body: { scope: 'personal', houseId: 'H010110501', description: '主卫角阀渗水' }
+  }))
+  eq(noPrice.status, 422, '个人单缺价目 422')
+})
+
 test('下单：金额由价目算，生成待支付单；他人房 403、项目不存在 422', async () => {
   const { tok, houses } = await mpReady('13800138001', '张建国', '5880')
   const houseId = houses[0]

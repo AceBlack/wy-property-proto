@@ -8672,13 +8672,26 @@ paths:
 
         提交成功即生成一张待支付订单（项目配置 `prepayWhenOrder=true`），
         付掉才进派单池；现场若加项，走增项确认后**后付差额**。
+
+        **两条线要的东西不一样**（2026-11-11 调整）：
+
+        | | 个人报修 | 公共区域报修 |
+        |---|---|---|
+        | 必填 | `houseId` + `priceCode` + `appointDate` + `appointSlot` + `description` | `place` + `description` |
+        | 不要 | —— | `priceCode`（公共维修没有价目项）、预约时段（物业按派单排） |
+        | 分类 | 由 `priceCode` 派生（水管漏水 / 电路故障…） | `category` 传**部位**（电梯 / 配电 / 给排水…） |
+
+        为什么公共单仍要 `category`：它不是"选项目"，而是**派给哪个工种**，
+        并且决定工时积分权重（电梯 1.5 / 配电 1.3 / 给排水 1.2 / 土建 1.1）。
+        样例里 75 张公共单全部带部位、全部**没有** `appointAt` ——
+        所以"公共报修不选项目、不选时间"不是新规则，是契约此前比数据收得更紧。
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [priceCode, appointDate, appointSlot, description]
+              required: [description]
               properties:
                 scope:
                   type: string
@@ -8692,22 +8705,42 @@ paths:
                   description: '`scope=personal` 时必填，且必须是已绑定的房'
                 place:
                   type: string
-                  description: '`scope=public` 时必填，如「1栋大堂」'
-                priceCode: { type: string, example: RP-W01 }
+                  maxLength: 40
+                  description: |
+                    `scope=public` 时必填，如「1栋大堂」。
+                    **允许自由填写**：快捷项只是高频位置，业主端必须给"其它位置"的输入口 ——
+                    小区里总有列表没覆盖到的角落（消防通道、屋面、某个架空层）。
+                category:
+                  type: string
+                  description: |
+                    仅 `scope=public` 使用，传**部位**：电梯 / 配电 / 给排水 / 公共设备 /
+                    公区照明 / 门窗五金 / 土建。不传按「公共设备」处理。
+                    个人单不要传 —— 它由 `priceCode` 派生，避免两处不一致。
+                priceCode:
+                  type: string
+                  example: RP-W01
+                  description: |
+                    `scope=personal` 时必填。`scope=public` **不要传**：
+                    公共区域维修由物业出人出料，没有价目项；传了也会被忽略。
                 qty: { type: integer, minimum: 1, maximum: 5, default: 1 }
-                appointDate: { type: string, format: date }
+                appointDate:
+                  type: string
+                  format: date
+                  description: '`scope=personal` 时必填；公共单不传（物业按派单排期）'
                 appointSlot:
                   type: string
                   pattern: '^\d{2}:\d{2}-\d{2}:\d{2}$'
                   example: 09:00-10:00
                   description: |
-                    上门时段，**1 小时粒度**：09:00-10:00 / 10:00-11:00 / 11:00-12:00 /
-                    14:00-15:00 / 15:00-16:00 / 16:00-17:00 / 19:00-20:00。
+                    `scope=personal` 时必填，上门时段**1 小时粒度**：09:00-10:00 / 10:00-11:00 /
+                    11:00-12:00 / 14:00-15:00 / 15:00-16:00 / 16:00-17:00 / 19:00-20:00。
 
                     契约原先写的是三个两小时时段（09:00-11:00 等），与业主端下单页的
                     7 个一小时时段对不上 —— 按页面对齐：业主说的是"9 点到 10 点在家"，
                     两小时一段等于把"我上午都在"和"我 9 点在家"混成一件事。
                     上午 / 下午 / 晚上是**排班维度**，不进接口。
+
+                    `scope=public` 不传：样例里 75 张公共单没有一张有预约时间。
                 description: { type: string, maxLength: 120 }
                 photos:
                   type: array

@@ -516,10 +516,13 @@ export async function createOrder(p = {}) {
       scope: isPublic ? 'public' : 'personal',
       houseId: isPublic ? undefined : p.houseId,
       place: isPublic ? p.place : undefined,
-      priceCode: p.code,
-      qty: Math.max(1, Number(p.qty) || 1),
-      appointDate: p.appointDate,
-      appointSlot: p.appointSlot,
+      /* 公共单的 category 是**部位**（电梯 / 配电…），不是价目分类；
+         价目项与预约时段公共单都没有 —— 传了服务端也会忽略，索性不传 */
+      category: isPublic ? (p.category || '公共设备') : undefined,
+      priceCode: isPublic ? undefined : p.code,
+      qty: isPublic ? undefined : Math.max(1, Number(p.qty) || 1),
+      appointDate: isPublic ? undefined : p.appointDate,
+      appointSlot: isPublic ? undefined : p.appointSlot,
       description: p.description,
       photos: p.photos || []
     })
@@ -528,14 +531,16 @@ export async function createOrder(p = {}) {
     return decorate(r.order)
   }
   /* 本地模式：isPublic 在上面已经算过了（接口分支也用同一个值），这里不再声明 */
-  const item = priceOfCode(p.code)
-  if (!item) throw new Error('维修项目不存在：' + p.code)
+  /* 公共区域维修没有价目项（物业出人出料），所以 item 允许为空 ——
+     但个人单必须能查到，否则就是"价目表里没有这一项"。 */
+  const item = isPublic ? null : priceOfCode(p.code)
+  if (!isPublic && !item) throw new Error('维修项目不存在：' + p.code)
   if (!isPublic && !boundHouseIds().includes(p.houseId)) throw new Error('房屋未绑定，不能下单')
 
   const house = isPublic ? null : HOUSE_OF.get(p.houseId)
   const owner = house ? OWNER_OF.get(house.ownerId) : null
   const qty = Math.max(1, Number(p.qty) || 1)
-  const fee = orderFee(item, qty)
+  const fee = item ? orderFee(item, qty) : { material: 0, labor: 0, total: 0, minutes: 0 }
 
   const wo = createWorkOrder({
     communityId: house?.communityId || p.communityId || 'P01',
@@ -545,10 +550,10 @@ export async function createOrder(p = {}) {
     ownerName: owner?.name || '',
     phone: owner?.phone || '',
     type: isPublic ? '公共区域维修' : '入户维修',
-    category: item.category,
+    category: isPublic ? (p.category || '公共设备') : item.category,
     source: '小程序',
     priority: '普通',
-    title: isPublic ? `${p.place || '公共区域'} · ${item.name}` : `${item.category} · ${item.name}`,
+    title: isPublic ? `${p.place || '公共区域'} · 公共区域报修` : `${item.category} · ${item.name}`,
     description: p.description || '',
     images: (p.photos || []).length,
     feeType: isPublic ? '免费' : '收费',
@@ -556,18 +561,19 @@ export async function createOrder(p = {}) {
   })
 
   const patch = {
-    priceCode: item.code,
-    priceName: item.name,
-    priceQty: qty,
-    priceUnit: item.unit,
+    priceCode: item ? item.code : '',
+    priceName: item ? item.name : '',
+    priceQty: item ? qty : 0,
+    priceUnit: item ? item.unit : '',
     materialFee: isPublic ? 0 : fee.material,
     laborFee: isPublic ? 0 : fee.labor,
     totalFee: isPublic ? 0 : fee.total,
     payStatus: isPublic ? '无需支付' : '未支付',
     isPublic,
     place: isPublic ? p.place || '' : '',
-    appointAt: `${p.appointDate || DEMO.today} ${(p.appointSlot || '09:00-10:00').split('-')[0]}`,
-    appointSlot: p.appointSlot || '09:00-10:00',
+    /* 公共单不落预约时间：物业按派单排期，样例里 75 张公共单没有一张有 */
+    appointAt: isPublic ? '' : `${p.appointDate || DEMO.today} ${(p.appointSlot || '09:00-10:00').split('-')[0]}`,
+    appointSlot: isPublic ? '' : (p.appointSlot || '09:00-10:00'),
     photos: p.photos || [],
     createTime: stamp(),
     woNo: `BX${DEMO.today.slice(0, 4)}${String(Number(wo.woId.replace(/\D/g, ''))).padStart(5, '0')}`
