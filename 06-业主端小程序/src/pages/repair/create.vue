@@ -2,18 +2,21 @@
   我要报修（个人 / 公共两条线）
   ------------------------------------------------------------
   个人：选房 → 价目项目（下单即见价）→ 1 小时时段 → 描述 + 照片 → 提交并支付
-  公共：位置 → 问题类型 → 描述 + 照片 → 提交（免费，不支付）
+  公共：问题类型（下拉）→ 位置 → 描述 + 照片 → 提交（免费，不支付）
 
   两条线**要的东西不一样**，2026-11-11 按实际数据与业务分了家：
     · 公共区域维修由物业出人出料，没有价目项 —— 不再让业主先挑一个收费项目再免费处理；
       也不要求预约时段（样例里 75 张公共单没有一张有预约时间）。
 
-  2026-11-12 又改了一次：**位置与类型都改成纯输入框**，取消快捷 chip。
-  原因不是"快捷不好看"，而是它把两件事锁死了：
-    · 位置固定 10 个 —— 小区里的角落远不止 10 个，业主找不到就只能编，写进「其它位置」
-      反而多一步；不如一进来就是一个空输入框。
-    · 类型固定 7 个「部位」—— 业主不是专业人士，不会把"电梯有异响"翻译成「电梯」。
-      让他自己写，前台受理时归类，这才是真实分工（归类本来就是物业的活）。
+  公共线的字段顺序与形态（2026-11-12 最终）：
+    **问题类型（下拉，固定 7 项 + 「其他」手写）→ 问题位置（输入）→ 描述 → 照片**
+
+  为什么类型做下拉、位置反而放开：
+    · 类型是**派单口径**（电梯 1.5 / 配电 1.3…，工时积分按它取权重），
+      所以给一列固定项，让业主点一下就能对上台后台的枚举；
+      列不进去的用「其他」自己写，不逼他硬塞进某个格子里。
+    · 位置是**空间描述**，小区角落无穷多，列 10 个永远不够 ——
+      固定列表在这里只会让业主先点「其它位置」再输一遍，比直接打字多一步。
 
   个人项目按分类折叠 + 搜索：现在只有 10 项，但项目是会加的，
   一次摊开几十项就没法选了。默认展开前 3 类，搜索时全部展开。
@@ -26,6 +29,27 @@
       <view class="seg">
         <view class="seg__i" :class="{ 'is-on': !isPublic }" @tap="setScope('personal')"><text>个人报修</text></view>
         <view class="seg__i" :class="{ 'is-on': isPublic }" @tap="setScope('public')"><text>公共区域</text></view>
+      </view>
+
+      <!-- 问题类型（公共）：固定下拉 + 「其他」手写 -->
+      <view v-if="isPublic" class="rc__sec">
+        <view class="rc__k-row">
+          <text class="rc__k">问题类型</text>
+          <text class="rc__k-d">决定派给哪个工种，不影响收费</text>
+        </view>
+        <view id="type-field" class="field__sel" @tap="typeSheet = true">
+          <text class="field__sel-t" :class="{ 'is-ph': !typeLabel }">{{ typeLabel || '请选择问题类型' }}</text>
+          <text class="field__sel-a">▾</text>
+        </view>
+        <input
+          v-if="typeIsOther"
+          id="issue-input"
+          v-model="issue"
+          class="field__input field__input--boxed rc__other-input"
+          maxlength="20"
+          placeholder="写一句是什么坏了，如「健身器材螺丝松动」"
+          placeholder-class="ph"
+        />
       </view>
 
       <!-- 位置 -->
@@ -50,25 +74,9 @@
         </template>
       </view>
 
-      <!-- 问题类型（公共）：自由填写，前台受理时归类 -->
-      <view v-if="isPublic" class="rc__sec">
-        <view class="rc__k-row">
-          <text class="rc__k">问题类型</text>
-          <text class="rc__k-d">选填 · 不影响收费</text>
-        </view>
-        <input
-          id="issue-input"
-          v-model="issue"
-          class="field__input field__input--boxed"
-          maxlength="20"
-          placeholder="例如：电梯异响 / 路灯不亮 / 地砖破损"
-          placeholder-class="ph"
-        />
-        <text class="rc__hint">一句话说清是什么坏了；不填也行，描述里写明白就可以</text>
-      </view>
-
-      <!-- 项目（个人）：分类折叠 + 搜索 -->
-      <view v-else class="rc__sec">
+      <!-- 项目（个人）：分类折叠 + 搜索。用 v-if 而不是 v-else ——
+           上一段是「位置」，它两种 scope 都要显示，不是 v-if，v-else 会配错 -->
+      <view v-if="!isPublic" class="rc__sec">
         <view class="rc__k-row">
           <text class="rc__k">报修项目</text>
           <text class="rc__k-d">下单即见价</text>
@@ -146,6 +154,14 @@
       </view>
     </view>
 
+    <ActionSheet
+      v-model:show="typeSheet"
+      title="问题类型"
+      sub="选一个，或选「其他」自己写"
+      :actions="typeActions"
+      @select="pickType"
+    />
+
     <Bar
       :label="isPublic ? '费用' : '合计'"
       :amount="isPublic ? '免费' : sel ? money(fee.total) : '¥0.00'"
@@ -165,6 +181,7 @@ import NavBar from '@/components/NavBar.vue'
 import Bar from '@/components/Bar.vue'
 import Empty from '@/components/Empty.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import { orderFee, priceGroups, priceItems } from '@/api/pricing'
 import { activeHouse, createOrder, createOrderPay } from '@/api/mp'
 import { DEMO } from '@/config/demo'
@@ -180,9 +197,21 @@ const photos = ref([])
 const day = ref(DEMO.today)
 const slot = ref('09:00-10:00')
 
-/* 公共报修：位置与问题类型都是自由填写（2026-11-12 取消快捷选项） */
-const place = ref('')
+/**
+ * 公共报修的**问题类型**：7 个固定项 + 「其他」手写。
+ *
+ * 这 7 个值必须与后台 `LABOR_POINT_RULE.weights` 的键一致（电梯 1.5 / 公共设备 1.4 /
+ * 配电 1.3 / 给排水 1.2 / 道闸门禁 1.2 / 土建 1.1 / 公区照明 1.0 / 门窗五金 1.0）——
+ * 对上了，派单与工时积分就能直接取到；对不上就落默认 1.0。
+ * 所以这里是**下拉而不是输入**：业主点一下，值就是标准值。
+ */
+const TYPE_OPTIONS = ['电梯', '配电', '给排水', '道闸门禁', '公区照明', '门窗五金', '土建']
+const TYPE_OTHER = '__other__'
+const typeSheet = ref(false)
+/* '' 表示还没选；选了「其他」之后的具体内容写在 issue 里 */
+const type = ref('')
 const issue = ref('')
+const place = ref('')
 
 /* 个人项目的折叠与搜索 */
 const kw = ref('')
@@ -190,6 +219,20 @@ const openCats = ref(new Set(groups.slice(0, 3).map(g => g.category)))
 
 const slots = ['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '19:00-20:00']
 const house = computed(() => activeHouse())
+
+const typeIsOther = computed(() => type.value === TYPE_OTHER)
+/**
+ * 下拉行只显示"选了哪一项"。
+ * 选「其他」时**不要**把业主写的话再显示一遍 —— 下面那个输入框已经在显示了，
+ * 两处同样的字看起来像两个字段，截图里一眼就能看出来（2026-11-12 修）。
+ */
+const typeLabel = computed(() => (typeIsOther.value ? '其他（自己写）' : type.value))
+/** 落库值：固定项用它自己，其他用业主写的那句话 */
+const categoryValue = computed(() => (typeIsOther.value ? issue.value.trim() : type.value))
+const typeActions = computed(() => [
+  ...TYPE_OPTIONS.map(t => ({ value: t, label: t, active: type.value === t })),
+  { value: TYPE_OTHER, label: '其他（自己写）', desc: '列表里没有合适的类型', active: typeIsOther.value }
+])
 /* priceItems() 而不是常量：接口模式下价目来自服务端快照，模块加载时还是空的 */
 const sel = computed(() => priceItems().find(i => i.code === code.value) || null)
 const fee = computed(() => orderFee(sel.value, 1))
@@ -205,7 +248,7 @@ const shownGroups = computed(() => {
 const isOpen = cat => (kw.value.trim() ? true : openCats.value.has(cat))
 
 const canSubmit = computed(() => {
-  if (isPublic.value) return !!place.value.trim() && !!desc.value.trim()
+  if (isPublic.value) return !!categoryValue.value && !!place.value.trim() && !!desc.value.trim()
   return !!sel.value && !!house.value
 })
 const days = computed(() => {
@@ -230,6 +273,11 @@ function setScope(s) {
   code.value = ''
 }
 
+function pickType(v) {
+  type.value = v
+  if (v !== TYPE_OTHER) issue.value = ''
+}
+
 function toggleCat(cat) {
   if (kw.value.trim()) return
   const next = new Set(openCats.value)
@@ -244,15 +292,17 @@ function pick(it) {
 
 async function submit() {
   if (isPublic.value) {
+    if (!type.value) return toastErr('先选一个问题类型')
+    if (typeIsOther.value && !issue.value.trim()) return toastErr('选了「其他」，请写一句是什么坏了')
     if (!place.value.trim()) return toastErr('请填写问题位置')
     if (!desc.value.trim()) return toastErr('写一句问题描述，师傅好带工具')
     try {
       const wo = await createOrder({
         scope: 'public',
         place: place.value.trim(),
-        /* 业主自己写的类型原文，前台受理时归类；不填按「公共设备」——
-           不再让业主义务把"电梯有异响"翻译成「电梯」 */
-        category: issue.value.trim() || '公共设备',
+        /* 固定项 = 后台枚举值（派单与积分权重能直接取到）；
+           「其他」= 业主写的原文，前台受理时归类 */
+        category: categoryValue.value,
         description: desc.value.trim(),
         photos: photos.value.map(p => ({ kind: p.kind, at: p.at, note: p.note || '' }))
       })
@@ -297,8 +347,15 @@ async function submit() {
 .rc__k-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14rpx; }
 .rc__k-row .rc__k { margin-bottom: 0; }
 .rc__k-d { font-size: 21rpx; color: var(--biz-text-4); }
-/* 输入框下方的一句提示（位置 / 问题类型两处共用） */
+/* 输入框下方的一句提示（位置处用） */
 .rc__hint { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.5; color: var(--biz-text-4); }
+
+/* 下拉字段：外观与 .field__input--boxed 一致，只是右侧多一个箭头 */
+.field__sel { display: flex; align-items: center; justify-content: space-between; height: 72rpx; padding: 0 20rpx; border-radius: 14rpx; background: var(--biz-bg-fill); }
+.field__sel-t { font-size: 28rpx; color: var(--biz-text-1); }
+.field__sel-t.is-ph { color: var(--biz-text-4); }
+.field__sel-a { font-size: 22rpx; color: var(--biz-text-3); }
+.rc__other-input { margin-top: 12rpx; }
 .rc__search { margin-bottom: 14rpx; }
 .rc__group + .rc__group { margin-top: 6rpx; }
 .rc__group-hd { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 4rpx; border-bottom: 1rpx solid var(--biz-border-light); }

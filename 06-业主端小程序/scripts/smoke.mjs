@@ -421,17 +421,24 @@ async function runSuite(base, tag) {
   /* ---------- 7. 公共报修（免认证、免费） ---------- */
   console.log('\n[7] 公共报修：登录即可，免费')
   await goto('/pages/repair/create?scope=public')
-  check('公共报修有位置输入框', await waitText('问题位置'))
+  check('公共报修有类型下拉', await waitText('问题类型'))
   /* 2026-11-11：公共线**不再选项目**（物业出人出料，免费）。
-     2026-11-12：位置与问题类型取消快捷 chip，改成纯输入框 ——
-     所以这里断言的是"两个输入框在、且页面上一个 chip 都没有"，
-     比断言某一句文案更接近这次改动本身。 */
+     2026-11-12：类型改下拉（固定项 + 其他手写）、位置排第二 ——
+     断言盯的是结构与顺序，不是某一句文案。 */
   check('公共报修标注免费', await has('免费'))
   check('公共报修不出现项目价格', !(await has('材料 ¥')) && !(await has('¥125')))
-  check('位置与类型都是输入框', (await visible('#place-input')) && (await visible('#issue-input')))
   check('公共表单没有快捷 chip', (await page.$$('.chip')).length === 0)
+  check('问题类型排在问题位置之前', await page.evaluate(() => {
+    const t = document.querySelector('#type-field')?.getBoundingClientRect().top ?? -1
+    const p = document.querySelector('#place-input')?.getBoundingClientRect().top ?? -1
+    return t > 0 && p > 0 && t < p
+  }))
+
+  await tap('#type-field', 0, 900)
+  check('下拉里有固定类型与「其他」', (await has('电梯')) && (await has('其他（自己写）')))
+  await tapText('电梯')
+  check('选固定项后不出现手写框', !(await visible('#issue-input')))
   await setInput('#place-input', '3栋2单元电梯厅')
-  await setInput('#issue-input', '电梯异响')
   await setInput('.textarea', '3栋2单元电梯运行到6层有异响，请检查')
   await shot('23-repair-public')
   await tap('#repair-submit', 0, 1800)
