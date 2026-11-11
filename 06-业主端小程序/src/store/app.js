@@ -46,6 +46,11 @@ export const app = reactive({
   addons: cache.addons || {},
   payOrders: cache.payOrders || [],
   billPays: cache.billPays || {},
+  /**
+   * 本地模式的预存抵扣流水（接口模式用服务端返回的 flows，不落这里）。
+   * 结构同 `/mp/prepay` 的 `MpPrepayFlow`：logId / type / amount / balanceAfter / at / bills。
+   */
+  prepayDeducts: cache.prepayDeducts || [],
   paySeq: cache.paySeq || 0,
 
   /** 内容侧写回（2026-11-07 按交接单 §12 改为四频道） */
@@ -140,6 +145,7 @@ export function persist() {
       addons: app.addons,
       payOrders: app.payOrders,
       billPays: app.billPays,
+      prepayDeducts: app.prepayDeducts,
       paySeq: app.paySeq,
       noticeReads: app.noticeReads,
       noticeSigns: app.noticeSigns,
@@ -193,6 +199,35 @@ export function writeAddons(woId, list) {
 
 export const addonsOf = woId => app.addons[woId] || woOf(woId)?.addons || []
 
+/**
+ * 预存抵扣写回（本地模式）。
+ *
+ * 与 `markBillPaid` 的区别：这里**允许部分抵扣** —— 余额只够抵一张的一部分时，
+ * 账单变「部分缴」、`unpaid` 留差额，而不是假装结清。
+ */
+export function markBillDeducted(billId, amount, flow) {
+  const amt = Math.round((Number(amount) || 0) * 100) / 100
+  const b = bills.find(x => x.billId === billId)
+  if (b) {
+    const payable = Number(b.payable ?? b.amount ?? 0)
+    const paid = Math.round(((Number(b.paidAmount) || 0) + amt) * 100) / 100
+    b.paidAmount = paid
+    b.unpaid = Math.round(Math.max(0, payable - paid) * 100) / 100
+    b.status = b.unpaid <= 0.009 ? '已缴' : '部分缴'
+    b.payMethod = '预存抵扣'
+    if (b.status === '已缴') b.overdueDays = 0
+  }
+  const prev = app.billPays[billId]
+  app.billPays[billId] = {
+    payId: prev?.payId || '',
+    amount: Math.round(((Number(prev?.amount) || 0) + amt) * 100) / 100,
+    at: stamp(),
+    method: '预存抵扣'
+  }
+  if (flow) app.prepayDeducts.unshift(flow)
+  persist()
+}
+
 export function markBillPaid(billId, { payId, amount, at }) {
   app.billPays[billId] = { payId, amount, at }
   const b = bills.find(x => x.billId === billId)
@@ -219,14 +254,17 @@ export function rehydrate() {
   }
   for (const [billId, p] of Object.entries(app.billPays)) {
     const b = bills.find(x => x.billId === billId)
-    if (b) {
-      b.status = '已缴'
-      b.paidAmount = Number(b.payable ?? b.amount ?? p.amount ?? 0)
-      b.unpaid = 0
-      b.payTime = String(p.at).slice(0, 10)
-      b.payMethod = '微信支付（模拟）'
-      b.overdueDays = 0
-    }
+    if (!b) continue
+    /* 按「实际付了多少」还原，而不是一律置为已缴 ——
+       预存抵扣可能只抵一部分（余额用完了），抹成已缴等于把欠的钱藏起来 */
+    const payable = Number(b.payable ?? b.amount ?? 0)
+    const paid = Number(p.amount) || 0
+    b.paidAmount = Math.round(paid * 100) / 100
+    b.unpaid = Math.round(Math.max(0, payable - paid) * 100) / 100
+    b.status = b.unpaid <= 0.009 ? '已缴' : '部分缴'
+    b.payTime = String(p.at).slice(0, 10)
+    b.payMethod = p.method || '微信支付（模拟）'
+    if (b.status === '已缴') b.overdueDays = 0
   }
 }
 
@@ -363,6 +401,7 @@ export function resetAll() {
     addons: {},
     payOrders: [],
     billPays: {},
+    prepayDeducts: [],
     paySeq: 0,
     noticeReads: {},
     noticeSigns: {},

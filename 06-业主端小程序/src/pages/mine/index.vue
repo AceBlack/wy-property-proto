@@ -40,6 +40,27 @@
         <text class="auth__a">{{ pending ? '查看' : '去认证' }}</text>
       </view>
 
+      <!--
+        账户条（2026-11-11）：**两个账户分开展示**，各有各的名字与出口。
+        合成一个"总余额"会让人以为商业储值能交物业费 —— 那是两笔钱。
+      -->
+      <view class="accts">
+        <view id="acct-prepay" class="accts__i" @tap="goPrepay">
+          <text class="accts__k">物业预存</text>
+          <view class="accts__v">
+            <text class="accts__cur">¥</text><text class="accts__n">{{ amount(prepay.balance) }}</text>
+          </view>
+          <text class="accts__d">{{ prepayDesc }}</text>
+        </view>
+        <view id="acct-commerce" class="accts__i" @tap="goCommerce">
+          <text class="accts__k">商业积分</text>
+          <view class="accts__v">
+            <text class="accts__n">{{ commerce ? commerce.points : '—' }}</text><text class="accts__cur" v-if="commerce">分</text>
+          </view>
+          <text class="accts__d">{{ commerceDesc }}</text>
+        </view>
+      </view>
+
       <!-- 数据行 -->
       <view class="stats">
         <view class="stats__i" @tap="goRepair">
@@ -97,7 +118,9 @@ import Tag from '@/components/Tag.vue'
 import Cell from '@/components/Cell.vue'
 import { app, isApproved, isLogged, isPending, logout, resetAll } from '@/store/app'
 import { activeHouse, authSummary, myHouses, myOrders, residentsOf } from '@/api/mp'
-import { maskPhone } from '@/utils/format'
+import { loadPrepay, prepayAccount, prepayBills } from '@/api/prepay'
+import { commerceAccount, commerceCoupons, loadCommerce } from '@/api/commerce'
+import { amount, maskPhone, money } from '@/utils/format'
 import { go, toast } from '@/utils/ui'
 import { gateOwner, gatePerm } from '@/utils/guard'
 
@@ -148,6 +171,34 @@ const authText = computed(() => {
   return '未认证'
 })
 
+/* 账户条：未认证时给空壳，不要显示上一个人的余额 */
+const prepay = computed(() => {
+  ver.value
+  if (!approved.value) return { balance: 0, status: '未开通' }
+  return prepayAccount()
+})
+const prepayDebt = computed(() => {
+  ver.value
+  return approved.value ? prepayBills() : { count: 0, unpaid: 0 }
+})
+const prepayDesc = computed(() => {
+  if (!approved.value) return '认证后可用'
+  if (prepay.value.status === '未开通') return '充值后可用'
+  if (prepayDebt.value.count) return `可抵 ${money(prepayDebt.value.unpaid)} 待缴`
+  return '可抵扣账单'
+})
+const commerce = computed(() => {
+  ver.value
+  if (!approved.value) return null
+  return commerceAccount()
+})
+const commerceDesc = computed(() => {
+  if (!approved.value) return '认证后同步'
+  if (!commerce.value) return '未开通'
+  const n = commerceCoupons().filter(c => c.status === '可领取').length
+  return n ? `${n} 张券可领` : `${commerce.value.level}`
+})
+
 const grids = computed(() => [
   { key: 'bill', icon: '费', label: '物业缴费', run: () => (gatePerm('bills', '物业缴费') ? go('/pages/bills/index') : null) },
   { key: 'repair', icon: '修', label: '报事报修', run: goRepair },
@@ -160,7 +211,15 @@ const grids = computed(() => [
   { key: 'sale', icon: '租', label: '租售信息', run: () => go('/pages/house-sale/list') }
 ])
 
-onShow(() => {
+onShow(async () => {
+  /* 账户条的两个数都要拉：预存走接口、商业账户是镜像。
+     失败就算了 —— 这一条挂了不该挡住「我的」页其他内容。 */
+  try {
+    await loadPrepay()
+  } catch (e) { /* 未认证 / 网络抖动，保持空壳 */ }
+  try {
+    await loadCommerce()
+  } catch (e) { /* 同上 */ }
   ver.value++
 })
 
@@ -176,6 +235,8 @@ function goHouse() {
   go('/pages/house/index')
 }
 const goRepair = () => go('/pages/repair/list')
+const goPrepay = () => (gateOwner('预存账户') ? go('/pages/prepay/index') : null)
+const goCommerce = () => (gateOwner('商业账户') ? go('/pages/commerce/index') : null)
 const goFeedback = () => go('/pages/mine/feedback')
 const goMyListings = () => (gateOwner('我的挂牌') ? go('/pages/house-sale/mine') : null)
 function goNeighbor() {
@@ -231,6 +292,13 @@ async function onReset() {
 .auth__d { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--biz-text-3); }
 .auth__a { flex: none; font-size: 23rpx; color: var(--biz-primary); font-weight: 600; }
 
+.accts { display: flex; gap: 16rpx; margin: 4rpx 0 18rpx; }
+.accts__i { flex: 1; padding: 20rpx 22rpx; border-radius: 18rpx; background: #fff; box-shadow: var(--biz-shadow-card); }
+.accts__k { font-size: 21rpx; color: var(--biz-text-3); }
+.accts__v { display: flex; align-items: baseline; margin-top: 6rpx; }
+.accts__cur { font-size: 22rpx; color: var(--biz-text-2); }
+.accts__n { font-family: var(--biz-font-num); font-size: 40rpx; font-weight: 700; color: var(--biz-text-1); margin-right: 4rpx; }
+.accts__d { display: block; margin-top: 4rpx; font-size: 19rpx; color: var(--biz-text-4); }
 .stats { display: flex; background: #fff; border-radius: 20rpx; margin-top: 20rpx; padding: 24rpx 0; box-shadow: var(--biz-shadow-card); }
 .stats__i { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4rpx; }
 .stats__n { font-family: var(--biz-font-num); font-size: 34rpx; font-weight: 700; color: var(--biz-text-1); }

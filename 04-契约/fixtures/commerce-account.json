@@ -1,0 +1,54 @@
+[
+  {
+    "ownerId": "OW00001",
+    "memberName": "张建国",
+    "syncedAt": "2026-10-20 07:00",
+    "points": 1280,
+    "pointsExpiring": 200,
+    "pointsExpireAt": "2026-12-31",
+    "level": "银卡会员",
+    "levelNext": "金卡会员",
+    "levelProgress": {
+      "current": 1280,
+      "next": 2000
+    },
+    "coupons": [
+      {
+        "couponId": "CP001",
+        "title": "邻里中心通用券",
+        "type": "满减",
+        "faceValue": 20,
+        "threshold": 100,
+        "scope": "邻里中心 · 生活服务",
+        "validFrom": "2026-10-01",
+        "validTo": "2026-11-30",
+        "status": "可领取",
+        "claimUrl": "https://example.com/commerce/coupon/CP001"
+      },
+      {
+        "couponId": "CP002",
+        "title": "生鲜到家免配送费",
+        "type": "免邮",
+        "faceValue": 8,
+        "threshold": 0,
+        "scope": "生鲜到家",
+        "validFrom": "2026-10-15",
+        "validTo": "2026-11-15",
+        "status": "可领取",
+        "claimUrl": "https://example.com/commerce/coupon/CP002"
+      },
+      {
+        "couponId": "CP003",
+        "title": "邻里节 8 折券",
+        "type": "折扣",
+        "faceValue": 0,
+        "threshold": 0,
+        "scope": "邻里节活动商家",
+        "validFrom": "2026-09-01",
+        "validTo": "2026-10-10",
+        "status": "已过期",
+        "claimUrl": "https://example.com/commerce/coupon/CP003"
+      }
+    ]
+  }
+]

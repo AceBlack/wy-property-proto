@@ -71,13 +71,17 @@ export function prepayOf(houseId) {
   const localPaid = app.utilityPays
     .filter(x => x.houseId === houseId && x.kind !== 'deduct')
     .reduce((s, x) => s + (Number(x.amount) || 0), 0)
+  /* 本地抵扣也要从余额里扣掉 —— 否则抵扣完再进缴费页，余额又变回原样 */
+  const localDeducted = (app.prepayDeducts || [])
+    .filter(x => !x.houseId || x.houseId === houseId)
+    .reduce((s, x) => s + (Number(x.amount) || 0), 0)
   return {
     accountId: p?.accountId || '',
-    hasAccount: !!p,
-    balance: r2((p?.balance || 0) + localPaid),
+    hasAccount: !!p || localPaid > 0,
+    balance: r2((p?.balance || 0) + localPaid - localDeducted),
     autoDeduct: !!p?.autoDeduct,
     totalRecharge: r2((p?.totalRecharge || 0) + localPaid),
-    totalDeduct: r2(p?.totalDeduct || 0)
+    totalDeduct: r2((p?.totalDeduct || 0) + localDeducted)
   }
 }
 

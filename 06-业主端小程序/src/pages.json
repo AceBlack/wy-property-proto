@@ -95,6 +95,20 @@
       }
     },
     {
+      "path": "pages/prepay/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的预存账户"
+      }
+    },
+    {
+      "path": "pages/commerce/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "商业账户"
+      }
+    },
+    {
       "path": "pages/park/index",
       "style": {
         "navigationStyle": "custom",

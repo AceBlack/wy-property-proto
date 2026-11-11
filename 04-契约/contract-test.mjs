@@ -5956,6 +5956,148 @@ test('换绑：同一业主两个车位不能挂同一个牌；账单按 parkId 
   eq(other.status, 403, '别人的车位账单 403')
 })
 
+/* ============================ 预存账户与商业账户（2026-11-11） ============================ */
+
+test('预存账户：按房取，未开通不是 404', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/prepay', { query: { houseId: 'H010110501' } }))
+  eq(r.status, 200, '预存账户')
+  assertSchema(r, 'MpPrepayEnvelope', 'GET /mp/prepay')
+
+  eq(r.data.account.balance, 917.14, '余额 = 1500 充值 - 582.86 抵扣')
+  eq(r.data.account.status, '正常', '账户正常')
+  eq(r.data.account.houseId, 'H010110501', '账户挂在房上')
+  /* 账单会被前面的支付用例改（测试共享内存），所以只断言形状与排序，不钉死张数与金额 */
+  eq(r.data.bills.count >= 1, true, '有可抵账单')
+  eq(r.data.bills.unpaid > 0, true, '待抵合计大于 0')
+  const periods = r.data.bills.rows.map(b => b.period)
+  eq(periods.join(',') === [...periods].sort().join(','), true, '按账期升序，最早的在前')
+  eq(r.data.flows.length, 3, '三条历史流水')
+  near(r.data.account.balance, r.data.flows[0].balanceAfter, '余额 = 最后一条流水的余额')
+
+  /* 没有账户是**正常状态**，不是 404：249 个有表具的房只有 126 个开户 */
+  const li = await mpReady('13900139002', '李秀兰', '4392')
+  const r2 = await withMp(li.tok, () => call('GET', '/mp/prepay'))
+  eq(r2.status, 200, '没开户也要能读')
+  eq(r2.data.account.status, '未开通', '第四态')
+  eq(r2.data.account.balance, 0, '没开户余额是 0')
+  eq(r2.data.account.accountId, '', '没有账户号')
+  eq(r2.data.flows.length, 0, '没有流水')
+
+  /* 别人的房：403，不是空账户 —— 空账户会让业主以为"我这房没欠费" */
+  const other = await withMp(tok, () => call('GET', '/mp/prepay', { query: { houseId: 'H010110101' } }))
+  eq(other.status, 403, '别人的房 403')
+})
+
+test('预存充值：首次充值即开户，营销位恒 null', async () => {
+  const w = await mpReady('13700137003', '王浩然', '3572')
+  const before = await withMp(w.tok, () => call('GET', '/mp/prepay'))
+  eq(before.data.account.status, '未开通', '王浩然还没有账户')
+
+  const r = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', {
+    body: { amount: 500, method: '微信支付', campaignCode: 'AUTUMN' }
+  }))
+  eq(r.status, 200, '充值成功')
+  assertSchema(r, 'MpPrepayRechargeEnvelope', 'POST /mp/prepay/recharge')
+  eq(r.data.account.status, '正常', '首次充值即开户')
+  eq(r.data.account.balance, 500, '余额')
+  eq(r.data.account.accountId !== '', true, '开户后有了账户号')
+  eq(r.data.flow.type, '充值', '写了一条充值流水')
+  eq(r.data.flow.balanceAfter, 500, '流水余额与账户一致')
+  eq(r.data.gift, null, '营销赠送本期恒为 null —— 不假装有活动')
+
+  const after = await withMp(w.tok, () => call('GET', '/mp/prepay'))
+  eq(after.data.flows.length, 1, '流水 1 条')
+
+  const zero = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', { body: { amount: 0 } }))
+  eq(zero.status, 422, '金额 0 → 422')
+  const huge = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', { body: { amount: 50001 } }))
+  eq(huge.status, 422, '超过单笔上限 → 422')
+})
+
+test('预存抵扣：按账期冲抵，余额用完为止，可指定账单', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const q = { houseId: 'H010110501' }
+
+  /* 期望值全部按"读到的"算，不硬编码 —— 测试共享内存，
+     前面的支付用例可能已经把某几张账单缴掉了。这条守的是**规则**，不是数字。 */
+  const before = await withMp(tok, () => call('GET', '/mp/prepay', { query: q }))
+  const bal = before.data.account.balance
+  const list = before.data.bills.rows
+  eq(list.length > 0, true, '有可抵账单')
+  eq(bal > 0, true, '有可用余额')
+
+  const all = await withMp(tok, () => call('POST', '/mp/prepay/deduct', { body: q }))
+  eq(all.status, 200, '一键抵扣')
+  assertSchema(all, 'MpPrepayDeductEnvelope', 'POST /mp/prepay/deduct')
+
+  /* 按账期升序抵，抵到余额用完为止 */
+  let left = bal
+  let expect = 0
+  let cover = 0
+  for (const b of list) {
+    if (left <= 0.009) break
+    const use = Math.min(left, b.unpaid)
+    expect += use
+    left -= use
+    cover += 1
+  }
+  near(all.data.deducted, expect, '抵掉 min(余额, 待抵合计)')
+  eq(all.data.rows.length, cover, '覆盖的账单张数')
+  near(all.data.account.balance, bal - expect, '余额 = 原余额 - 抵扣额')
+  eq(all.data.rows[0].billId, list[0].billId, '从最早的账期开始抵')
+  near(all.data.flow.bills.reduce((s, b) => s + b.amount, 0), expect, '流水明细合计 = 抵扣额')
+  eq(all.data.rows.every(r => ['已缴', '部分缴'].includes(r.afterStatus)), true, '抵完只能是已缴或部分缴')
+
+  /* 余额为 0 时再抵 → 422（而不是静默成功一条 0 元记录） */
+  if (all.data.account.balance <= 0.009) {
+    const again = await withMp(tok, () => call('POST', '/mp/prepay/deduct', { body: q }))
+    eq(again.status, 422, '余额为 0 再抵 → 422')
+  }
+
+  /* 再充 500，指定一张剩下的账单：够就抵、不够就 422，不做半途而废 */
+  const ch = await withMp(tok, () => call('POST', '/mp/prepay/recharge', { body: { houseId: q.houseId, amount: 500 } }))
+  eq(ch.data.account.status, '正常', '充值后账户正常')
+  const after = await withMp(tok, () => call('GET', '/mp/prepay', { query: q }))
+  if (after.data.bills.rows.length) {
+    const target = after.data.bills.rows[0]
+    const r3 = await withMp(tok, () => call('POST', '/mp/prepay/deduct', {
+      body: { houseId: q.houseId, billIds: [target.billId] }
+    }))
+    if (target.unpaid <= 500) {
+      eq(r3.status, 200, '指定账单：余额够')
+      near(r3.data.deducted, target.unpaid, '只抵这一张的欠额')
+      eq(r3.data.rows[0].afterStatus, '已缴', '结清')
+    } else {
+      eq(r3.status, 422, '指定账单：余额不够就是 422')
+      eq(r3.code, 42213, '42213 余额不足')
+    }
+  }
+
+  /* 未开户的业主抵扣 → 422（提示先充值开户） */
+  const li = await mpReady('13900139002', '李秀兰', '4392')
+  const noAcc = await withMp(li.tok, () => call('POST', '/mp/prepay/deduct', { body: {} }))
+  eq(noAcc.status, 422, '没账户不能抵扣')
+})
+
+test('商业账户：只读镜像，只有积分与券，没有余额', async () => {
+  const { tok } = await mpReady('13800138001', '张建国', '5880')
+  const r = await withMp(tok, () => call('GET', '/mp/commerce/account'))
+  eq(r.status, 200, '商业账户')
+  assertSchema(r, 'MpCommerceAccountEnvelope', 'GET /mp/commerce/account')
+  eq(r.data.points, 1280, '积分')
+  eq(r.data.level, '银卡会员', '等级')
+  eq(r.data.coupons.length, 3, '三张券')
+  eq(r.data.coupons.filter(c => c.status === '可领取').length, 2, '两张可领')
+  eq(r.data.coupons[0].claimUrl.startsWith('http'), true, '领取落在商业平台，不是一个假按钮')
+  eq('balance' in r.data, false, '不给余额：商业平台的储值不是物业预存，混在一起业主会问能不能交物业费')
+  eq(!!r.data.syncedAt, true, '必须带镜像时间点')
+
+  const li = await mpReady('13900139002', '李秀兰', '4392')
+  const none = await withMp(li.tok, () => call('GET', '/mp/commerce/account'))
+  eq(none.status, 404, '没在商业平台注册 → 404')
+})
+
 /* ============================ 人脸 / 刷脸通行（批次 83） ============================ */
 
 test('人脸：业主看到本人与成员，未核验的成员没有代录入口', async () => {

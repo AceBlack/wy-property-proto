@@ -160,6 +160,15 @@ export const fetchParkingLogs = parkId => get(`/mp/parkings/${parkId}/logs`).the
 export const fetchParkBills = parkId => get('/mp/bills', { parkId }).then(r => r.rows || [])
 export const postPlateChange = (parkId, data) => post(`/mp/parkings/${parkId}/plate`, data)
 
+/* ---------------- 预存账户 / 商业账户（2026-11-11） ----------------
+ * 同样不缓存：余额与账单随时会变（充值、抵扣、客服在前台收费），
+ * 进页面拉一次，"刷了没变"是最难解释的一类投诉。
+ */
+export const fetchPrepay = houseId => get('/mp/prepay', houseId ? { houseId } : undefined)
+export const postPrepayRecharge = data => post('/mp/prepay/recharge', data)
+export const postPrepayDeduct = data => post('/mp/prepay/deduct', data)
+export const fetchCommerce = () => get('/mp/commerce/account')
+
 /* ---------------- 人脸（批次 83） ----------------
  * 人脸状态会因核验而变，同样不缓存：业主点开就看，看到的就是此刻的状态。
  */

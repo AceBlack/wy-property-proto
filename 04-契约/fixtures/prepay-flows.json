@@ -1,0 +1,81 @@
+[
+  {
+    "logId": "PL900001",
+    "accountId": "PA90001",
+    "type": "充值",
+    "amount": 1000,
+    "balance": 1000,
+    "method": "微信支付",
+    "operator": "张建国",
+    "time": "2026-08-30 10:12",
+    "remark": "微信充值 ¥1000",
+    "giftType": "",
+    "giftDesc": ""
+  },
+  {
+    "logId": "PL900002",
+    "accountId": "PA90001",
+    "type": "充值",
+    "amount": 500,
+    "balance": 1500,
+    "method": "微信支付",
+    "operator": "张建国",
+    "time": "2026-09-28 19:40",
+    "remark": "微信充值 ¥500",
+    "giftType": "",
+    "giftDesc": ""
+  },
+  {
+    "logId": "PL900003",
+    "accountId": "PA90001",
+    "type": "抵扣",
+    "amount": 582.86,
+    "balance": 917.14,
+    "method": "余额抵扣",
+    "operator": "张建国",
+    "time": "2026-09-29 09:05",
+    "remark": "抵扣 2026-08 物业服务费与水费",
+    "giftType": "",
+    "giftDesc": "",
+    "bills": [
+      {
+        "billId": "BL000039",
+        "period": "2026-08",
+        "itemName": "物业服务费",
+        "amount": 352.07
+      },
+      {
+        "billId": "BL000040",
+        "period": "2026-08",
+        "itemName": "水费",
+        "amount": 230.79
+      }
+    ]
+  },
+  {
+    "logId": "PL000101",
+    "accountId": "PA00001",
+    "type": "充值",
+    "amount": 5000,
+    "balance": 5000,
+    "method": "银行转账",
+    "operator": "雷天佑",
+    "time": "2025-10-30 14:20",
+    "remark": "银行转账充值 ¥5000",
+    "giftType": "",
+    "giftDesc": ""
+  },
+  {
+    "logId": "PL000102",
+    "accountId": "PA00001",
+    "type": "抵扣",
+    "amount": 191,
+    "balance": 4809,
+    "method": "余额抵扣",
+    "operator": "物业前台",
+    "time": "2026-05-22 11:00",
+    "remark": "抵扣 2026-04 物业服务费",
+    "giftType": "",
+    "giftDesc": ""
+  }
+]
