@@ -27,7 +27,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: 03-原型/package-lock.json
+          cache-dependency-path: |
+            03-原型/package-lock.json
+            05-员工端APP/package-lock.json
+            06-业主端小程序/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -39,6 +42,40 @@ jobs:
 
       - name: Add 404 fallback for client-side routing
         run: cp dist/index.html dist/404.html
+
+      # 员工端 / 业主端也发到这个站点的子路径下（/emp 与 /mp）。
+      # 两个 H5 都是 hash 路由 + `base: "./"`，放进任何子目录都能跑，不用改 base、
+      # 也不需要 404 回退（深链全在 # 后面，服务端只认 index.html）。
+      #
+      # 顺序有依赖：它们通过 `@pc` 别名读 `03-原型/src`，所以必须排在 03 构建之后 ——
+      # 那时 03 的 node_modules 已经装好，@pc 里的依赖才解析得到。
+      # 也正因为这样，两个 H5 的构建**不能带 VITE_USE_API**：线上没有假服务，
+      # 带了就是满屏 404。默认不设即本地模式。
+      - name: Install 员工端 deps
+        working-directory: 05-员工端APP
+        run: npm ci --no-audit --no-fund
+
+      - name: Build 员工端 H5
+        working-directory: 05-员工端APP
+        run: npm run build:h5
+
+      - name: Install 业主端 deps
+        working-directory: 06-业主端小程序
+        run: npm ci --no-audit --no-fund
+
+      - name: Build 业主端 H5
+        working-directory: 06-业主端小程序
+        run: npm run build:h5
+
+      - name: 收进同一个产物目录（/emp 与 /mp）
+        run: |
+          cp -R ../05-员工端APP/dist/build/h5 dist/emp
+          cp -R ../06-业主端小程序/dist/build/h5 dist/mp
+          echo '--- 站点根目录 ---'
+          ls -1 dist
+          echo '--- 两个子站 ---'
+          ls -1 dist/emp | head -3
+          ls -1 dist/mp | head -3
 
       - uses: actions/configure-pages@v5
 
