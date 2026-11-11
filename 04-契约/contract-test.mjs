@@ -3615,6 +3615,44 @@ test('OA 会签：单人节点不受影响（没有 approvers 时签完即推进
   assert(['审批中', '已通过'].includes(r.data.status), `单据继续推进：${r.data.status}`)
 })
 
+test('OA 审批动作：不是这单的人点不了同意（原来谁拿到 id 都能审）', async () => {
+  token = await login('gm')
+  const created = await call('POST', '/oa/requests', {
+    body: {
+      bizType: '用车申请',
+      formData: { useAt: '2026-10-23 09:00', destination: '分公司', reason: '对接工作' }
+    }
+  })
+  eq(created.status, 200, '先造一张待审批的单')
+  const id = created.data.approvalId
+
+  /* 一线员工：不在名单里、也不是总经理 / 项目经理 —— 这是最关键的一条 */
+  token = await login('zhou-ming')
+  const denied = await call('POST', `/oa/requests/${id}/action`, { body: { action: '同意' } })
+  eq(denied.status, 403, '无关的人点同意要被拒')
+  assert(String(denied.message).includes('卡在'),
+    `拒绝时要说明这单卡在谁那里，而不是一句"无权限"：${denied.message}`)
+
+  /* 单据不能因为这个 403 被动过（PC 侧没有单条 GET，走员工端详情接口看） */
+  token = await login('gm')
+  const still = await call('GET', `/mobile/approvals/${id}`)
+  eq(still.status, 200, '取单据状态')
+  eq(still.data.approval.status, '待审批', '被拒的请求不能改动单据')
+  assert(still.data.timeline.every(n => n.action === '待处理'), '时间线上没有任何人签过')
+
+  /*
+   * 「不能审自己」这一条不在这里单测：会签名单在生成时就排除了申请人
+   * （见上方「会签名单排除申请人本人」），正常流程下构造不出"名单里有申请人"的场景，
+   * 真正会触发它的是**代签**（GM/PM 碰到自己发的单）。那个分支由 oaCanAct 里的判断守住，
+   * 硬造数据要改组织负责人，成本比收益高。
+   *
+   * 这里只验代签这条路是通的：总经理上面没有人，不豁免的话他的单永远卡在「待审批」。
+   */
+  token = await login('gm')
+  const proxy = await call('POST', `/oa/requests/${id}/action`, { body: { action: '同意' } })
+  eq(proxy.status, 200, '集团总经理代签放行')
+})
+
 /* ============================ 计划模板（T 域） ============================ */
 
 test('计划模板：六套模板，模板里没有权重（第 60 批）', async () => {

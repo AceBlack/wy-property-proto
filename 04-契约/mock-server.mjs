@@ -1425,6 +1425,54 @@ on('GET', '/mobile/debts', (ctx) => {
   }
 })
 
+/**
+ * 能不能对这张单执行审批动作。
+ *
+ * 与 `oaCanHandle`（列表用）的区别：那个回答"要不要把它放进我的待办"，
+ * 这个回答"我现在点同意会不会被服务端放行"。两者共用同一套 targetOf 结论，
+ * 但代签规则只在这里——待办列表不该把"我能代签的"都算成我的待办。
+ */
+function oaCanAct(u, a) {
+  if (!a) return { ok: false, why: '审批单不存在' }
+  if (!['待审批', '审批中'].includes(a.status)) {
+    return { ok: false, why: `当前「${a.status}」，已结束无法处理` }
+  }
+  if (a.communityId && !inScopeCommunity(u, a.communityId)) {
+    return { ok: false, why: '这张单不在你的数据范围内' }
+  }
+
+  const t = oaTargetOf(a)
+  if (t.kind === 'unsupported') return { ok: false, why: t.why }
+
+  /* ① 名单里的人 / 单人节点的 signer：正常签，但**不能签自己发起的** */
+  const inList = t.kind === 'sign'
+    ? t.approvers.some(p => p.name === u.name && p.action === '待处理')
+    : !!(t.signer && t.signer.name === u.name)
+  if (inList) {
+    if (a.applicant === u.name) return { ok: false, why: '不能审批自己提交的单据' }
+    return { ok: true }
+  }
+
+  /*
+   * ② 代签：集团总经理、该项目的项目经理。
+   *
+   * 集团总经理**豁免"不能审自己"** —— 他已经是系统里最高的一档，
+   * 没有第二个人能批他的单；严格禁止的结果是他的报销单永远卡在"待审批"。
+   * 项目经理不豁免：他上面还有人。
+   */
+  if (u.roleId === 'R-GM') return { ok: true, proxy: '集团总经理代签' }
+  if (a.communityId) {
+    const pm = rankingLeader(`O-${a.communityId}`)
+    if (pm && pm.name === u.name) {
+      if (a.applicant === u.name) return { ok: false, why: '不能审批自己提交的单据' }
+      return { ok: true, proxy: '项目经理代签' }
+    }
+  }
+
+  const who = t.signer?.name || (t.approvers || []).map(p => p.name).filter(Boolean).join('、')
+  return { ok: false, why: `这单卡在「${t.label || a.currentNode}」${who ? `，由 ${who} 处理` : ''}，不是你` }
+}
+
 on('GET', '/mobile/approvals', (ctx) => {
   requirePerm(ctx.user, MT_PERM.approvalHandle, `缺少权限位 ${MT_PERM.approvalHandle}：无权处理审批`)
   const u = ctx.user
@@ -1547,6 +1595,21 @@ on('POST', '/oa/requests/{approvalId}/action', (ctx) => {
   if (!['同意', '驳回'].includes(action)) throw bad('action 只能是 同意 / 驳回')
   const idx = a.flow.findIndex(n => n.action === '待处理')
   if (idx < 0) throw new ApiError(409, 40928, '没有待处理节点')
+
+  /*
+   * 谁能办这一单。
+   *
+   * 这条校验原来完全没有 —— 任何人拿到 approvalId 就能审别人的单。
+   * 但也不能卡到"只认名单里的人"：集团总经理与项目经理本来就有代签权，
+   * 而且会签名单里常有副职（副职不参与单签、只参与会签），他们未必有账号。
+   * 所以分两层：
+   *   ① 名单里的人 / 单人节点的 signer —— 正常签；
+   *   ② 集团总经理、该项目的项目经理 —— 允许代签（这是权力不是漏洞）。
+   * 其余人一律 403，并告诉他这单卡在谁那里。
+   */
+  const guard = oaCanAct(ctx.user, a)
+  if (!guard.ok) throw forbidden(guard.why)
+
   const node = a.flow[idx]
   const approvers = Array.isArray(node.approvers) ? node.approvers : []
   const isSign = approvers.length > 0
