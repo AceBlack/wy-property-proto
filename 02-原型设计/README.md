@@ -3705,4 +3705,4 @@ for (const bad of ['baseSalary','idCard','bankCard','emergencyPhone'])
 | 自检 | `check.mjs` 9 条全过 · build · 冒烟 **75/75** |
 | e2e | 新增 `scripts/e2e/park-face.mjs` **41 条断言**全绿；listings 45 / neighbor 70 回归通过 |
 | 截图 | `03-原型/screenshots/park-face/` 四张 |
-| 契约 | **未动**（H4/H5 待批次 83 接口化；`04-契约` 当时有在途改动） |
+| 契约 | **已补受理侧**（2026-11-11）：`/system/params*`、`/parkings/{id}/changes*`、`/access/faces*`；契约 304 路径 / 350 接口 / 282 测试 · `tools/verify-api.mjs` 进 CI |

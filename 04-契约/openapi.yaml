@@ -142,6 +142,30 @@ tags:
 
       敏感：银行卡只回后四位，完整卡号走 `reveal`（双权限 + 留痕）。工资域不返回手机与证件——
       要员工姓名是必要的，但不该成为绕过员工域权限的后门。
+  - name: system
+    description: |
+      系统参数。运营能在后台调、客户端只读的那类阈值。
+
+      `park.plateChangeLimit` 这类值以前写死在客户端常量里，改一次要发一次版；
+      下发之后客户端只负责展示与校验，**不再有第二个写入口**。
+
+  - name: parking
+    description: |
+      车位换绑留痕（H2）。产权车位换车牌必须可追溯：谁改的、从什么改成什么、厂商同步到哪一步。
+
+      一条硬规矩：**日志是唯一真源**，车位上的 `plateNo` 只是它的投影 ——
+      只写日志不改车位，详情页就会出现"记录写着换成 A、车辆还是 B"。
+
+  - name: faces
+    description: |
+      人脸核验（H4 / H5）。业主端提交走 `/mp/access/faces`，**受理侧在这组**。
+
+      五态：未采集 → 待核验 → 已生效，另有已驳回（带原因）与已冻结（撤回 / 租约结束）。
+      **业主端不允许自助生效**：生效只能由物业核验触发，否则谁都能给自己开门。
+
+      业主本人、家庭成员、租客进同一张申请单，按 `subjectType` 分两段 ——
+      同一件事开两个入口，客服第一句话一定是"到底在哪审"。
+
   - name: access
     description: |
       组织与权限（纯 RBAC）：权限只挂角色，人只挂角色——**没有「给某人加一个权限码」这种接口**。
@@ -11236,6 +11260,261 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
+  # ---------------- 系统参数（后台 · 2026-11-11） ----------------
+  /system/params:
+    get:
+      tags: [system]
+      operationId: querySystemParams
+      summary: 系统参数（按分组）
+      description: |
+        运营能在后台调、客户端只读的那一类阈值。`park.plateChangeLimit`
+        以前写死在业主端常量里，改一次要发一次版 —— 这类值一旦下发，客户端就只负责展示与校验。
+
+        **不再有第二个写入口**：业主端读到的上限、后台换绑记录里的「本月上限」，
+        都来自这一张表。
+      parameters:
+        - name: group
+          in: query
+          description: 计费 / 催缴 / 现场 / 押金 / 导出 / 安全 / 车位
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemParamListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /system/params/{key}:
+    patch:
+      tags: [system]
+      operationId: updateSystemParam
+      summary: 改一个参数值
+      description: |
+        **值不得为空**（422）—— 空值会让下游退回默认值，而默认值是什么没人记得。
+
+        `key` 不可改：它是客户端读参数时用的标识，改了等于让老版本读不到，
+        而老版本还在线上跑（小程序做不到强更）。要换语义就新增一个 key。
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: 参数键，形如 park.plateChangeLimit
+          schema: { type: string, example: park.plateChangeLimit }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { type: string, description: 一律按字符串存，数值由客户端自行解析 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemParamEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------- 车位换绑记录（H2 · 2026-11-11） ----------------
+  /parkings/{parkId}/changes:
+    get:
+      tags: [parking]
+      operationId: queryParkingChanges
+      summary: 某个车位的换绑记录 + 本月次数
+      description: |
+        以前这条记录是**按车位当前状态现算**的，提交换绑只在前端塞一条，**刷新即丢**。
+        业主端已经能自助换绑，后台看不见记录 = 出纠纷时无法举证。
+
+        `monthChanges` 以**最后一次重置**为界：重置之前的记录不计入，
+        否则重置完数字不变，客服会以为没生效。
+      x-permission: a.vehicles.view
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingChangesEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    post:
+      tags: [parking]
+      operationId: createParkingChange
+      summary: 物业代操作换绑 / 解绑
+      description: |
+        `toPlate` 为空表示解绑。**原因必填** —— 出纠纷时要能举证是谁、为什么改的。
+
+        写记录的同时会改车位本体与车辆表：日志是唯一真源，车位上的 `plateNo` 只是它的投影。
+        只写日志不改车位，详情页就会显示"记录写着换成 A，车辆还是 B"。
+      x-permission: a.vehicles.edit
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                toPlate: { type: string, description: 留空 = 解绑 }
+                reason: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingChangesEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 该车位没有车牌，无需解绑
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /parkings/{parkId}/changes/reset:
+    post:
+      tags: [parking]
+      operationId: resetParkingChanges
+      summary: 重置本月换绑次数（客服兜底）
+      description: |
+        业主当月额度用完但确有换车，客服可以清零。**必须写原因**，并留一条「物业重置」记录 ——
+        不写原因的重置等于无声改数，出事时没人认。
+
+        本月本来就没有记录时返回 409：这个按钮按下去应该是"确实有用"的，
+        按了没反应与按坏了看起来一样。
+      x-permission: a.vehicles.edit
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingChangesEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 本月没有换绑记录
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------- 人脸核验（H4 / H5 · 2026-11-11） ----------------
+  /access/faces:
+    get:
+      tags: [faces]
+      operationId: queryFaceRequests
+      summary: 人脸核验队列（业主 / 家庭成员 / 租客同一入口）
+      description: |
+        业主端提交人脸走 `/mp/access/faces`，状态恒为「待核验」；**这一组是受理侧**。
+        没有它，业主提交完就一直停在待核验 —— 流程是断的。
+
+        按 `subjectType` 分两段：`业主`（含家庭成员）与 `租客`。同一件事开两个入口，
+        客服第一句话一定是"到底在哪审"。
+
+        待核验恒排最前，等得久的更靠前 —— 这页看的就是"谁在等"。
+      x-permission: a.owners.view
+      parameters:
+        - name: subjectType
+          in: query
+          schema: { type: string, enum: [业主, 租客] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [待核验, 已生效, 已驳回, 已冻结] }
+        - name: overdue
+          in: query
+          description: 只要超过 24 小时未处理的
+          schema: { type: boolean }
+        - name: kw
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaceRequestListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /access/faces/stats:
+    get:
+      tags: [faces]
+      operationId: faceRequestStats
+      summary: 人脸核验看板
+      x-permission: a.owners.view
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaceRequestStatsEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /access/faces/{faceId}/audit:
+    post:
+      tags: [faces]
+      operationId: auditFaceRequest
+      summary: 核验（通过 / 驳回）
+      description: |
+        **业主端不允许自助生效**，生效只能走这里 —— 否则谁都能给自己开门。
+
+        驳回必填原因（422），业主端会原样展示；只写"不合格"等于让业主猜。
+        只有「待核验」能审（409）。
+
+        通过时回写主体：业主写 `owners`、家庭成员写 `members`、租客写 `tenants` ——
+        申请单是唯一真相，那几个布尔只是它的投影。
+        **驳回不动已有的人脸**：重新采集期间原人脸继续有效，否则业主会以为自己这会儿刷不了门。
+      x-permission: a.owners.edit
+      parameters:
+        - name: faceId
+          in: path
+          required: true
+          schema: { type: string, example: FC00003 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pass]
+              properties:
+                pass: { type: boolean, description: 'true=通过并下发门禁，false=驳回' }
+                reason: { type: string, description: 驳回必填，业主可见 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaceRequestEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: 该申请已处理
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -17959,3 +18238,152 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/MyContact' }
+
+    # ---------------- 系统参数 / 车位换绑 / 人脸核验（2026-11-11） ----------------
+
+    SystemParam:
+      type: object
+      description: 一个可配置阈值。`key` 不可改，改了老版本客户端就读不到（小程序做不到强更）
+      required: [key, name, value, group]
+      properties:
+        key: { type: string, example: park.plateChangeLimit }
+        name: { type: string, example: 车牌换绑次数 }
+        value: { type: string, description: 一律字符串，数值由客户端解析 }
+        unit: { type: string, example: 次/月 }
+        group: { type: string, enum: [计费, 催缴, 现场, 押金, 导出, 安全, 车位] }
+        desc: { type: string }
+
+    ParkingChangeLog:
+      type: object
+      description: |
+        一条换绑留痕。`source` 三档里只有「物业重置」是**不改车牌**的计数操作，
+        所以 `fromPlate` / `toPlate` 都为空 —— 客户端的渲染要按 `source` 分支，不能一律画成箭头。
+      required: [logId, parkId, source, at]
+      properties:
+        logId: { type: string, example: PL00001 }
+        parkId: { type: string, example: PK00115 }
+        parkNo: { type: string, example: B1-115 }
+        fromPlate: { type: string, description: 重置记录为空 }
+        toPlate: { type: string, description: 解绑与重置记录为空 }
+        source: { type: string, enum: [业主自助, 物业代操作, 物业重置] }
+        sourceType: { type: string, description: 前端标签色 }
+        operatorName: { type: string }
+        vendorStatus: { type: string, enum: [待同步, 已同步, 失败], description: 车牌识别系统回执 }
+        vendorType: { type: string, description: 前端标签色 }
+        at: { type: string }
+        reason: { type: string }
+
+    ParkingChanges:
+      type: object
+      properties:
+        parking:
+          type: object
+          properties:
+            parkId: { type: string }
+            parkNo: { type: string }
+            plateNo: { type: string }
+            bindStatus: { type: string }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/ParkingChangeLog' }
+        monthChanges: { type: integer, description: 本月已换次数（以最后一次重置为界） }
+        limit: { type: integer, description: 来自系统参数 park.plateChangeLimit }
+        left: { type: integer, description: 本月还能换几次 }
+
+    FaceRequest:
+      type: object
+      description: |
+        人脸申请单，**唯一真相**。`owners.faceRegistered` / `members.faceStatus` /
+        `tenants.faceRegistered` 都是它的投影 —— 派生值可以有，但不能有第二个写入口。
+      required: [faceId, subjectType, name, status]
+      properties:
+        faceId: { type: string, example: FC00003 }
+        subjectType: { type: string, enum: [业主, 租客], description: 家属归入「业主」段 }
+        ownerId: { type: string }
+        memberId: { type: string }
+        tenantId: { type: string }
+        houseId: { type: string }
+        houseShort: { type: string }
+        communityId: { type: string }
+        communityName: { type: string }
+        name: { type: string }
+        relation: { type: string, description: 本人 / 配偶 / 子女 / 承租人 … }
+        status: { type: string, enum: [待核验, 已生效, 已驳回, 已冻结] }
+        statusType: { type: string }
+        label: { type: string, description: 业主本人 / 家庭成员 · 配偶 / 租客 · 承租人 }
+        submittedAt: { type: string }
+        auditAt: { type: string }
+        auditBy: { type: string }
+        rejectReason: { type: string, description: 业主端原样展示 }
+        frozenReason: { type: string }
+        guardian: { type: string, description: 代家人录入时的监护人留痕 }
+        images: { type: integer, description: 影像件张数（原型不存图） }
+        source: { type: string, description: 业主端 / 员工端 / 物业前台 }
+        hoursWaiting: { type: integer }
+        overdue: { type: boolean, description: 待核验且超 24 小时 }
+
+    FaceRequestStats:
+      type: object
+      properties:
+        total: { type: integer }
+        pending: { type: integer }
+        pendingOwner: { type: integer }
+        pendingTenant: { type: integer }
+        overdue: { type: integer }
+        activated: { type: integer, description: 已生效 }
+        rejected: { type: integer }
+
+    SystemParamEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/SystemParam' }
+
+    SystemParamListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/SystemParam' }
+
+    ParkingChangesEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ParkingChanges' }
+
+    FaceRequestEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/FaceRequest' }
+
+    FaceRequestListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [rows, total]
+              properties:
+                rows:
+                  type: array
+                  items: { $ref: '#/components/schemas/FaceRequest' }
+                total: { type: integer }
+
+    FaceRequestStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/FaceRequestStats' }

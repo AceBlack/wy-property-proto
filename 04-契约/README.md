@@ -1005,3 +1005,60 @@ VITE_API_MODE=http VITE_API_BASE=http://127.0.0.1:4010 npx vite --port 5175
 （`02/seed_dataset.py:439` 随机挑状态，但金额没跟着清零）。接口按**状态**判欠费，
 所以它不进欠费合计；但账单明细里仍挂着未收金额。真实环境不会有这种数据，
 样例里留着是为了让"按状态判还是按金额判"这条守卫有东西可钉。
+
+---
+
+## 十一、后台侧收尾接口（2026-11-11）
+
+> 起因：H1/H2/H4/H5 四个功能在 03 都做完了，**契约里一条都没有**。
+> 而业主端早就能提交人脸（`/mp/access/faces`）、能自助换绑（`/mp/parkings/{id}/plate`）——
+> 提交了没有接口受理，正是 H4 当初要解决的那个毛病。这组补的是**受理侧**。
+
+### 11.1 三组接口
+
+| 组 | 路径 | 权限 |
+|---|---|---|
+| 系统参数 | `GET /system/params`、`PATCH /system/params/{key}` | 仅登录 |
+| 车位换绑 | `GET/POST /parkings/{parkId}/changes`、`POST .../changes/reset` | `a.vehicles.view` / `.edit` |
+| 人脸核验 | `GET /access/faces`、`GET /access/faces/stats`、`POST /access/faces/{faceId}/audit` | `a.owners.view` / `.edit` |
+
+系统参数**故意不设权限码**：03 的 `/e/config` 本来就没有页面级权限，为两个接口去编
+`e.config.*` 要同步 03/02 的 permissions、roles、seed 四处，不值当。要拆时再加。
+
+### 11.2 三处口径
+
+**① 日志是唯一真源。** `POST /parkings/{id}/changes` 写日志的同时改 `parkings.plateNo` 与
+`vehicles`。只写日志不改车位，详情页就会出现"记录写着换成 A、车辆还是 B"。
+
+**② 人脸申请单是唯一真相。** `owners.faceRegistered` / `members.faceStatus` /
+`tenants.faceRegistered` 都是它的投影，由 `audit` 写。驳回**不动**已有的人脸 ——
+重新采集期间原人脸继续有效，否则业主会以为自己这会儿刷不了门。
+
+**③ 驳回必填原因。** 三条写入接口（换绑、重置、驳回人脸）都强制 422 ——
+原因会原样展示给业主，只写"不合格"等于让他猜。
+
+### 11.3 两次踩到的坑
+
+**时间戳要精确到秒。** 客服同一分钟内连办两笔换绑，分钟粒度的时间戳相同，
+排序就退回成"谁先插入谁在前"，看上去像记录乱序 —— 契约测试也偶发失败。
+现在 `at` 到秒，且排序用 `logId` 兜底。
+
+**mp 侧也写同一张日志表。** `/mp/parkings/{id}/plate` 与后台换绑共用 `parkingChangeLogs`，
+所以测试不能假设"这个车位本月没记录"，必须用「改前 / 改后」相对断言。
+
+### 11.4 客户端调用面守卫
+
+新增 `tools/verify-api.mjs`（仓库根）：扫 05/06 里 `get('/x')` / `post(...)` 的调用，
+和假服务注册表逐段比对。
+
+它守的是契约测试管不到的那一层：契约测试保证「契约 ↔ 假服务」一致，
+但如果客户端调了一个服务没注册的路径，运行时是 404，**页面上通常表现为"空列表"**，
+看着像没数据、不像坏了。已接进 `.github/workflows/verify.yml`（零依赖，不装包）。
+
+### 11.5 当前规模
+
+路径 **304** · 接口 **350** · schema **375** · 测试 **282/282** · 悬空 `$ref` 0
+客户端调用 **82 处**，缺失 **0**（`node tools/verify-api.mjs`）
+
+生成器：`scripts/gen-system-params-fixture.mjs`、`scripts/gen-tenant-face-fixtures.mjs`
+（租客的人脸单单独一个文件 —— 并进 `access-faces.json` 会连带重写 `members.json` 的人脸投影）。

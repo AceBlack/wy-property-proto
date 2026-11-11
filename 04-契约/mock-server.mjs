@@ -9540,7 +9540,7 @@ on('GET', '/mp/parkings/{parkId}/logs', (ctx) => {
   const p = mpMyParking(me, ctx.params.parkId)
   const rows = parkingChangeLogs
     .filter(r => r.parkId === p.parkId)
-    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(b.logId).localeCompare(String(a.logId)))
     .map(r => ({
       logId: r.logId,
       parkId: r.parkId,
@@ -12378,6 +12378,257 @@ on('PATCH', '/listings/{listingId}/steward', (ctx) => {
 
 /** 已注册的路由清单（`GET /neighbor/votes` 这种形态），供契约与实现的一致性守卫使用 */
 export const routeKeys = () => routes.map(r => `${r.method} ${r.pattern}`)
+
+/* ============================================================
+ * 后台侧收尾接口（2026-11-11）
+ *   ① 系统参数       GET /system/params · PATCH /system/params/{key}
+ *   ② 车位换绑记录   GET/POST /parkings/{parkId}/changes · POST .../changes/reset
+ *   ③ 人脸核验       GET /access/faces · GET /access/faces/stats · POST /access/faces/{faceId}/audit
+ *
+ * 这三组此前**契约里一条都没有**：03 的页面全跑内存态，业主端却已经能
+ * 提交人脸（/mp/access/faces）、能自助换绑（/mp/parkings/{id}/plate）。
+ * 提交了没有接口受理，正是 H4 当初要解决的毛病 —— 这里把受理侧补上。
+ * ============================================================ */
+
+const systemParams = readJson('fixtures/system-params.json')
+const tenantFaceRows = readJson('fixtures/access-faces-tenants.json')
+
+/** 后台视图里所有能审的人脸：业主/家属（批次 83）+ 租客（H5） */
+const bgAllFaces = () => faces.concat(tenantFaceRows)
+
+const bgNow = () => `${DATA_DATE} 10:00`
+const bgHoursSince = at => {
+  const t = Date.parse(String(at || '').replace(/-/g, '/'))
+  const now = Date.parse(bgNow().replace(/-/g, '/'))
+  return Number.isFinite(t) ? Math.max(0, Math.round((now - t) / 3600000)) : 0
+}
+/*
+ * 到秒，不是到分：同一分钟内连续办两笔换绑（客服边打电话边改）在分粒度上时间戳相同，
+ * 排序就退回成"谁先插入谁在前"，看上去像记录乱序。契约测试也会因此偶发失败。
+ */
+const bgClock = () => {
+  const d = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/* ---------------- ① 系统参数 ---------------- */
+/*
+ * 权限：参数是运维面，03 的 /e/config 目前**没有页面级权限码**，
+ * 所以这里只要求登录（401），不编一个 `e.config.*` 出来 ——
+ * 编了就要同步 03/02 的 permissions、roles、seed 四处，为两个接口不值当。
+ * 真要拆细粒度时，加 `e.config.view/edit` 并把这里换掉即可。
+ */
+on('GET', '/system/params', (ctx) => {
+  const g = ctx.query?.group
+  const rows = systemParams.filter(p => eq(p.group, g))
+  return { rows: rows.map(p => ({ ...p })) }
+})
+
+on('PATCH', '/system/params/{key}', (ctx) => {
+  const p = systemParams.find(x => x.key === ctx.params.key)
+  if (!p) throw notFound('参数不存在')
+  const value = String(ctx.body?.value ?? '').trim()
+  if (!value) throw invalid('参数值不得为空')
+  p.value = value
+  return { ...p }
+})
+
+/* ---------------- ② 车位换绑记录 ---------------- */
+const PARK_LIMIT_KEY = 'park.plateChangeLimit'
+const bgParkLimitOf = () => {
+  const n = Number((systemParams.find(p => p.key === PARK_LIMIT_KEY) || {}).value)
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+const parkMonth = () => String(DATA_DATE).slice(0, 7)
+
+/** 本月已换次数：以「最后一次重置」为界，重置之前的不计入 —— 与 03 的算法保持一致 */
+const bgParkMonthCount = parkId => {
+  const mine = parkingChangeLogs
+    .filter(r => r.parkId === parkId && String(r.at).slice(0, 7) === parkMonth())
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  const lastReset = [...mine].reverse().find(r => r.source === '物业重置')
+  const from = lastReset ? mine.indexOf(lastReset) + 1 : 0
+  return mine.slice(from).filter(r => r.source !== '物业重置').length
+}
+const bgParkRow = parkId => {
+  const p = parkings.find(x => x.parkId === parkId)
+  if (!p) throw notFound('车位不存在')
+  return p
+}
+const bgParkChangesView = parkId => {
+  const p = bgParkRow(parkId)
+  const rows = parkingChangeLogs
+    .filter(r => r.parkId === parkId)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .map(r => ({
+      ...r,
+      sourceType: r.source === '业主自助' ? 'warning' : (r.source === '物业重置' ? 'info' : ''),
+      vendorType: r.vendorStatus === '已同步' ? 'success' : (r.vendorStatus === '失败' ? 'danger' : 'warning')
+    }))
+  const monthChanges = bgParkMonthCount(parkId)
+  const limit = bgParkLimitOf()
+  return {
+    parking: { parkId: p.parkId, parkNo: p.parkNo, plateNo: p.plateNo || '', bindStatus: p.bindStatus || '' },
+    rows,
+    monthChanges,
+    limit,
+    left: Math.max(0, limit - monthChanges)
+  }
+}
+const bgPushParkLog = rec => {
+  const seq = parkingChangeLogs.reduce((m, r) => Math.max(m, Number(String(r.logId).replace(/\D/g, '')) || 0), 0) + 1
+  const row = {
+    logId: 'PL' + String(seq).padStart(5, '0'),
+    parkNo: bgParkRow(rec.parkId).parkNo,
+    vendorStatus: '待同步',
+    at: `${DATA_DATE} ${bgClock()}`,
+    ...rec
+  }
+  parkingChangeLogs.push(row)
+  return row
+}
+
+on('GET', '/parkings/{parkId}/changes', (ctx) => {
+  requirePerm(ctx.user, 'a.vehicles.view', '缺少权限位 a.vehicles.view：无权查看车位换绑记录')
+  assertInScope(ctx.user, { communityId: bgParkRow(ctx.params.parkId).communityId })
+  return bgParkChangesView(ctx.params.parkId)
+})
+
+on('POST', '/parkings/{parkId}/changes', (ctx) => {
+  requirePerm(ctx.user, 'a.vehicles.edit', '缺少权限位 a.vehicles.edit：无权办理换绑')
+  const p = bgParkRow(ctx.params.parkId)
+  assertInScope(ctx.user, { communityId: p.communityId })
+  const toPlate = String(ctx.body?.toPlate || '').trim()
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!toPlate && !p.plateNo) throw invalid('该车位没有车牌，无需解绑')
+  if (!reason) throw invalid('换绑必须写原因 —— 出纠纷时要能举证')
+  const log = bgPushParkLog({
+    parkId: p.parkId,
+    fromPlate: p.plateNo || '',
+    toPlate,
+    source: '物业代操作',
+    operatorName: ctx.user?.name || '物业前台',
+    reason
+  })
+  /* 真源只有一个：日志写了，车位本体必须跟着改，否则详情页读完还是老车牌 */
+  if (toPlate) {
+    p.plateNo = toPlate
+    p.bindStatus = '已绑定'
+  } else {
+    p.plateNo = ''
+    p.bindStatus = '未绑定'
+  }
+  return { ...bgParkChangesView(p.parkId), change: log }
+})
+
+on('POST', '/parkings/{parkId}/changes/reset', (ctx) => {
+  requirePerm(ctx.user, 'a.vehicles.edit', '缺少权限位 a.vehicles.edit：无权重置换绑次数')
+  const p = bgParkRow(ctx.params.parkId)
+  assertInScope(ctx.user, { communityId: p.communityId })
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!reason) throw invalid('重置必须写原因')
+  const used = bgParkMonthCount(p.parkId)
+  if (!used) throw new ApiError(409, 40941, '本月还没有换绑记录，无需重置')
+  bgPushParkLog({
+    parkId: p.parkId,
+    fromPlate: '',
+    toPlate: '',
+    source: '物业重置',
+    operatorName: ctx.user?.name || '物业前台',
+    vendorStatus: '已同步',
+    reason: `${reason}（重置前本月 ${used} 次）`
+  })
+  return bgParkChangesView(p.parkId)
+})
+
+/* ---------------- ③ 人脸核验 ---------------- */
+const FACE_SUBJECT_LABEL = { 业主: '业主', 家属: '业主', 租客: '租客' }
+const bgFaceRow = f => {
+  const h = houses.find(x => x.houseId === f.houseId) || {}
+  const hours = bgHoursSince(f.submittedAt)
+  const subject = FACE_SUBJECT_LABEL[f.subjectType] || '业主'
+  return {
+    ...f,
+    subjectType: subject,
+    communityId: h.communityId || '',
+    communityName: (communities.find(c => c.communityId === h.communityId) || {}).name || '',
+    houseShort: h.shortName || '',
+    hoursWaiting: hours,
+    overdue: f.status === '待核验' && hours >= 24,
+    statusType: f.status === '已生效' ? 'success' : (f.status === '已驳回' ? 'danger' : 'warning'),
+    label: subject === '租客'
+      ? `租客 · ${f.relation || '承租人'}`
+      : (f.relation === '本人' ? '业主本人' : `家庭成员 · ${f.relation}`)
+  }
+}
+
+on('GET', '/access/faces', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.view', '缺少权限位 a.owners.view：无权查看人脸核验队列')
+  const q = ctx.query || {}
+  const rows = bgAllFaces()
+    .map(bgFaceRow)
+    .filter(r => inScopeCommunity(ctx.user, r.communityId))
+    .filter(r => eq(r.subjectType, q.subjectType) && eq(r.status, q.status))
+    .filter(r => kwHit([r.name, r.houseShort, r.relation], q.kw))
+    .filter(r => (q.overdue ? r.overdue : true))
+    .sort((a, b) => {
+      const w = x => (x.status === '待核验' ? 0 : 1)
+      return w(a) - w(b) || b.hoursWaiting - a.hoursWaiting
+    })
+  return page(rows, q)
+})
+
+on('GET', '/access/faces/stats', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.view', '缺少权限位 a.owners.view：无权查看人脸核验队列')
+  const rows = bgAllFaces().map(bgFaceRow).filter(r => inScopeCommunity(ctx.user, r.communityId))
+  const pending = rows.filter(r => r.status === '待核验')
+  return {
+    total: rows.length,
+    pending: pending.length,
+    pendingOwner: pending.filter(r => r.subjectType === '业主').length,
+    pendingTenant: pending.filter(r => r.subjectType === '租客').length,
+    overdue: rows.filter(r => r.overdue).length,
+    activated: rows.filter(r => r.status === '已生效').length,
+    rejected: rows.filter(r => r.status === '已驳回').length
+  }
+})
+
+on('POST', '/access/faces/{faceId}/audit', (ctx) => {
+  requirePerm(ctx.user, 'a.owners.edit', '缺少权限位 a.owners.edit：无权核验人脸')
+  const f = bgAllFaces().find(x => x.faceId === ctx.params.faceId)
+  if (!f) throw notFound('人脸申请单不存在')
+  if (f.status !== '待核验') {
+    throw new ApiError(409, 40942, `这条申请已处理（${f.status}），不能重复审核`)
+  }
+  const pass = ctx.body?.pass === true
+  const reason = String(ctx.body?.reason || '').trim()
+  if (!pass && !reason) throw invalid('驳回必须写原因 —— 业主端会原样展示给业主')
+
+  f.status = pass ? '已生效' : '已驳回'
+  f.auditBy = ctx.user?.name || '物业前台'
+  f.auditAt = bgNow()
+  f.rejectReason = pass ? '' : reason
+
+  /* 申请单是唯一真相，主体的 faceRegistered 只是它的投影 ——
+     所以这里写投影，页面不再自己算 */
+  if (pass) {
+    if (f.subjectType === '租客') {
+      const t = tenants.find(x => x.tenantId === f.tenantId)
+      if (t) { t.faceRegistered = true; bumpVer('tenant', t.tenantId) }
+    } else if (f.memberId) {
+      const m = members.find(x => x.memberId === f.memberId)
+      if (m) m.faceRegistered = true
+    } else {
+      const o = owners.find(x => x.ownerId === f.ownerId)
+      if (o) o.faceRegistered = true
+    }
+  } else {
+    /* 驳回不动已有的人脸：重新采集期间原人脸继续有效，
+       否则业主会以为自己这会儿刷不了门 */
+  }
+  return bgFaceRow(f)
+})
 
 export function startServer(port = 4010) {
   const server = http.createServer(handler)

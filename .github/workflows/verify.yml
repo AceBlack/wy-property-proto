@@ -34,6 +34,20 @@ jobs:
       - name: 跑契约测试（结构 + 语义 + 业务不变量）
         run: npm test
 
+  clients-vs-service:
+    name: 客户端调用面 vs 假服务
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # 契约测试守的是「契约 ↔ 假服务」，这一层守「客户端 ↔ 假服务」：
+      # 05/06 里写 get('/mobile/xx') 而服务没注册，运行时是 404，页面上通常表现为"空列表"，
+      # 看着像没数据、不像坏了 —— 人眼发现不了，只能靠这层拦。
+      - name: 扫客户端调用（零依赖，不用装包）
+        run: node tools/verify-api.mjs
+
   check-build-e2e:
     name: 自检 · 构建 · 冒烟
     runs-on: ubuntu-latest

@@ -1,0 +1,40 @@
+[
+  {
+    "faceId": "FC01001",
+    "subjectType": "租客",
+    "tenantId": "TN00001",
+    "ownerId": "OW00022",
+    "memberId": "",
+    "houseId": "H010111001",
+    "name": "赵娟",
+    "relation": "承租人",
+    "status": "待核验",
+    "submittedAt": "2026-10-20 18:30",
+    "auditAt": "",
+    "auditBy": "",
+    "rejectReason": "",
+    "frozenReason": "",
+    "guardian": "",
+    "images": 1,
+    "source": "员工端"
+  },
+  {
+    "faceId": "FC01002",
+    "subjectType": "租客",
+    "tenantId": "TN00005",
+    "ownerId": "OW00036",
+    "memberId": "",
+    "houseId": "H010120602",
+    "name": "马刚",
+    "relation": "承租人",
+    "status": "待核验",
+    "submittedAt": "2026-10-21 08:05",
+    "auditAt": "",
+    "auditBy": "",
+    "rejectReason": "",
+    "frozenReason": "",
+    "guardian": "",
+    "images": 1,
+    "source": "物业前台"
+  }
+]

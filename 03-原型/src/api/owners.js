@@ -45,14 +45,20 @@ export const splitOwnerHouses = (ownerId, houseIds) =>
 /* ---------- 字典 ---------- */
 export const ownerVirtualNodes = () => mock.ownerVirtualNodes()
 
-/* ---------- 人脸核验（H4 / H5 · 2026-11-10） ----------
- * 契约还没落（批次 83 之后才接口化），现在**只有 mock 实现**。
- * 这里不写 http 分支：写了就会有人以为接口已经通了。
+/* ---------- 人脸核验（H4 / H5） ----------
+ * 2026-11-11：契约补了受理侧（`/access/faces`、`/stats`、`/{faceId}/audit`），
+ * 这里才有 http 分支。此前刻意只写 mock —— 没接口却写 http，会让人以为已经通了。
+ *
+ * 仍然只有 mock 的三个：`submitFaceRequest`（业主端才有提交入口）、
+ * `faceRequestsOfOwner` / `facePendingOf*`（按业主聚合的派生视图，接口侧没有对应资源）。
  */
 export const canAuditFaces = () => mock.canAuditFaces()
-export const queryFaceRequests = (params) => mock.queryFaceRequests(params)
-export const faceRequestStats = () => mock.faceRequestStats()
-export const auditFaceRequest = (reqId, opt) => mock.auditFaceRequest(reqId, opt)
+export const queryFaceRequests = (params) =>
+  IS_MOCK ? mock.queryFaceRequests(params) : get('/access/faces', params)
+export const faceRequestStats = () =>
+  IS_MOCK ? mock.faceRequestStats() : get('/access/faces/stats')
+export const auditFaceRequest = (reqId, opt) =>
+  IS_MOCK ? mock.auditFaceRequest(reqId, opt) : post(`/access/faces/${reqId}/audit`, opt)
 export const submitFaceRequest = (rec) => mock.submitFaceRequest(rec)
 export const faceRequestsOfOwner = (ownerId) => mock.faceRequestsOfOwner(ownerId)
 export const facePendingOfOwner = (ownerId) => mock.facePendingOfOwner(ownerId)

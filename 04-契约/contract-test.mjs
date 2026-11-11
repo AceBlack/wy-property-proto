@@ -7776,6 +7776,141 @@ test('住户与催收：手机号脱敏，责任范围外拒收', async () => {
   assert(!!batch.data.batchNo, '给批次号，便于回查这一批发了什么')
 })
 
+
+/* ==================== 系统参数 / 车位换绑 / 人脸核验（2026-11-11） ==================== */
+
+test('系统参数：登录可见，改值能存，空值被拦', async () => {
+  const anon = await call('GET', '/system/params', { auth: false })
+  eq(anon.status, 401, '未登录不能读参数')
+
+  token = await login('gm')
+  const list = await call('GET', '/system/params')
+  eq(list.status, 200, '登录后可读')
+  eq(list.data.rows.length, 10, '参数 10 条')
+  const park = list.data.rows.filter(r => r.group === '车位')
+  eq(park.length, 2, '「车位」分组两条')
+  assert(park.some(r => r.key === 'park.plateChangeLimit'), '含换绑上限')
+
+  const ok = await call('PATCH', '/system/params/park.plateChangeLimit', { body: { value: '2' } })
+  eq(ok.status, 200, '改值成功')
+  eq(ok.data.value, '2', '值已更新')
+
+  const empty = await call('PATCH', '/system/params/park.plateChangeLimit', { body: { value: '  ' } })
+  eq(empty.status, 422, '空值被拦 —— 空值会让下游退回没人记得的默认值')
+
+  const miss = await call('PATCH', '/system/params/not.exist', { body: { value: '1' } })
+  eq(miss.status, 404, '不存在的 key 返回 404')
+})
+
+test('车位换绑：记录可查、次数与上限对得上', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/parkings/PK00115/changes')
+  eq(r.status, 200, '能查换绑记录')
+  assert(Array.isArray(r.data.rows), 'rows 是数组')
+  assert(r.data.rows.every(x => ['业主自助', '物业代操作', '物业重置'].includes(x.source)), '来源只有三档')
+  assert(typeof r.data.monthChanges === 'number' && typeof r.data.limit === 'number', '带本月次数与上限')
+  eq(r.data.left, Math.max(0, r.data.limit - r.data.monthChanges), 'left = 上限 − 已换')
+  /* 上限来自系统参数，不是常量 */
+  eq(r.data.limit, 2, '上限读的是刚改过的参数值（2）')
+
+  token = await login('staff')
+  const denied = await call('GET', '/parkings/PK00115/changes')
+  eq(denied.status, 403, '工程维修没有 a.vehicles.view')
+})
+
+test('车位换绑：代办必须写原因，写完车牌与次数一起变', async () => {
+  token = await login('gm')
+  const before = await call('GET', '/parkings/PK00115/changes')
+  const beforeCount = before.data.monthChanges
+  const beforePlate = before.data.parking.plateNo
+
+  const noReason = await call('POST', '/parkings/PK00115/changes', { body: { toPlate: '川B·T9999' } })
+  eq(noReason.status, 422, '不写原因被拦 —— 出纠纷要能举证')
+
+  const ok = await call('POST', '/parkings/PK00115/changes', { body: { toPlate: '川B·T9999', reason: '车辆更换' } })
+  eq(ok.status, 200, '换绑成功')
+  eq(ok.data.parking.plateNo, '川B·T9999', '车位车牌跟着改（日志是唯一真源，车位只是投影）')
+  eq(ok.data.monthChanges, beforeCount + 1, '本月次数 +1')
+  assert(ok.data.change.source === '物业代操作', '来源记「物业代操作」')
+  assert(ok.data.change.fromPlate === beforePlate, '原车牌记的是换之前那个')
+
+  const after = await call('GET', '/parkings/PK00115/changes')
+  eq(after.data.rows[0].toPlate, '川B·T9999', '刷新后记录还在（不再是刷新即丢）')
+})
+
+test('车位换绑：重置要写原因，本月没记录时按 409 拒', async () => {
+  token = await login('gm')
+  const noReason = await call('POST', '/parkings/PK00115/changes/reset', { body: {} })
+  eq(noReason.status, 422, '重置不写原因被拦')
+
+  const ok = await call('POST', '/parkings/PK00115/changes/reset', { body: { reason: '业主多次来电，已核实确有换车' } })
+  eq(ok.status, 200, '重置成功')
+  eq(ok.data.monthChanges, 0, '本月次数归零')
+  assert(ok.data.rows.some(x => x.source === '物业重置'), '留了一条「物业重置」记录')
+
+  const again = await call('POST', '/parkings/PK00115/changes/reset', { body: { reason: '再重置一次' } })
+  eq(again.status, 409, '本月已经 0 次，再重置要拒 —— 按了没反应和按坏了看起来一样')
+})
+
+test('人脸核验：业主与租客在同一队列，按主体分段', async () => {
+  const anon = await call('GET', '/access/faces', { auth: false })
+  eq(anon.status, 401, '未登录不能看核验队列')
+
+  token = await login('staff')
+  const denied = await call('GET', '/access/faces')
+  eq(denied.status, 403, '没有 a.owners.view 的看不到')
+
+  token = await login('gm')
+  const all = await call('GET', '/access/faces')
+  eq(all.status, 200, '能看队列')
+  assert(all.data.rows.length > 0, '队列非空')
+  assert(all.data.rows.some(x => x.subjectType === '业主'), '有业主段')
+  assert(all.data.rows.some(x => x.subjectType === '租客'), '有租客段（H5 合并入口）')
+  eq(all.data.rows[0].status, '待核验', '待核验排最前')
+
+  const tenants = await call('GET', '/access/faces?subjectType=租客')
+  assert(tenants.data.rows.every(x => x.subjectType === '租客'), '按主体筛选生效')
+
+  const stats = await call('GET', '/access/faces/stats')
+  eq(stats.status, 200, '统计可用')
+  eq(stats.data.pending, stats.data.pendingOwner + stats.data.pendingTenant, '待核验 = 业主 + 租客')
+})
+
+test('人脸核验：驳回必写原因，通过后状态生效且不能重复审', async () => {
+  token = await login('gm')
+  const queue = await call('GET', '/access/faces?status=待核验')
+  const target = queue.data.rows[0]
+  assert(!!target, '要有待核验样本')
+
+  const noReason = await call('POST', `/access/faces/${target.faceId}/audit`, { body: { pass: false } })
+  eq(noReason.status, 422, '驳回不写原因被拦 —— 业主端会原样展示')
+
+  const ok = await call('POST', `/access/faces/${target.faceId}/audit`, { body: { pass: true } })
+  eq(ok.status, 200, '通过成功')
+  eq(ok.data.status, '已生效', '状态变已生效')
+  assert(!!ok.data.auditAt && !!ok.data.auditBy, '记了审计时间与审计人')
+
+  const again = await call('POST', `/access/faces/${target.faceId}/audit`, { body: { pass: true } })
+  eq(again.status, 409, '重复审核要拒')
+
+  const after = await call('GET', `/access/faces?status=待核验`)
+  assert(!after.data.rows.some(x => x.faceId === target.faceId), '已处理的从待核验里消失')
+})
+
+test('人脸核验：通过后主体的 faceRegistered 被回写（租客同理）', async () => {
+  token = await login('gm')
+  const queue = await call('GET', '/access/faces?status=待核验&subjectType=租客')
+  const t = queue.data.rows[0]
+  assert(!!t, '要有待核验的租客样本')
+
+  const before = await call('GET', `/tenants/${t.tenantId}`)
+  const ok = await call('POST', `/access/faces/${t.faceId}/audit`, { body: { pass: true } })
+  eq(ok.status, 200, '租客人脸通过')
+  const after = await call('GET', `/tenants/${t.tenantId}`)
+  eq(before.data.tenant.faceRegistered, false, '通过前是未录人脸')
+  eq(after.data.tenant.faceRegistered, true, '通过后租户的人脸标记跟着变 —— 不是页面自己算的')
+})
+
 /* ============================ 跑 ============================ */
 const server = await startServer(0)
 const port = server.address().port
