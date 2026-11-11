@@ -145,7 +145,7 @@ const rowActions = computed(() => {
 })
 
 async function load() {
-  d.value = activityOf(activityId.value)
+  d.value = await activityOf(activityId.value)
   enrolls.value = await enrollsOf(activityId.value)
 }
 
@@ -162,23 +162,26 @@ function openRow(e) {
   rowSheet.value = true
 }
 
-function onRowAction(v) {
+async function onRowAction(v) {
   rowSheet.value = false
   const e = cur.value
   if (!e) return
   try {
     if (v === 'checkin') {
-      checkin(persona.value, e.enrollId)
+      await checkin(persona.value, e.enrollId)
       toastOk('已签到')
     } else {
-      const r = d.value?.fee > 0 ? refund(persona.value, e.enrollId, '现场取消') : cancel(persona.value, e.enrollId, '现场取消')
+      /* 退款金额由服务端按活动档位算，页面只负责显示 —— 前端算一份会出现"显示 50% 实际 30%" */
+      const r = d.value?.fee > 0
+        ? await refund(persona.value, e.enrollId, '现场取消')
+        : await cancel(persona.value, e.enrollId, '现场取消')
       if (d.value?.fee > 0 && r?.amount !== undefined) {
         toastOk(`已退款 ¥${r.amount}（按 ${r.ratio}% 档）`)
       } else {
         toastOk('已取消报名')
       }
     }
-    load()
+    await load()
   } catch (err) {
     toastErr(err.message || '操作失败')
   }

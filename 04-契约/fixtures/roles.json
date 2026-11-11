@@ -622,6 +622,7 @@
     ],
     "perms": [
       "a.houses.view",
+      "a.listings.viewing",
       "a.owners.view",
       "a.sensitive.view",
       "a.stewards.view",

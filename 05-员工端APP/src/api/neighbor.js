@@ -227,6 +227,18 @@ const SHOW_PHASES = ['报名中', '待成行', '已成行']
 const PHASE_ORDER = { 报名中: 0, 待成行: 1, 已成行: 2 }
 
 export async function activitiesOf() {
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    /* 阶段过滤留在这边：接口只按社区收敛，'报名中/待成行/已成行' 是移动端的展示口径 */
+    const r = await get(`/neighbor/activities?communityId=${cid()}&size=100`)
+    return (r.rows || [])
+      .filter(a => SHOW_PHASES.includes(a.phase))
+      .sort(
+        (a, b) =>
+          PHASE_ORDER[a.phase] - PHASE_ORDER[b.phase] ||
+          String(a.startAt).localeCompare(String(b.startAt))
+      )
+  }
   const r = await queryActivities({ size: 100, filters: { communityId: cid() } })
   return r.rows
     .filter(a => SHOW_PHASES.includes(a.phase))
@@ -237,11 +249,20 @@ export async function activitiesOf() {
     )
 }
 
-export function activityOf(activityId) {
+export async function activityOf(activityId) {
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    return get(`/neighbor/activities/${activityId}`)
+  }
   return getActivity(activityId)
 }
 
 export async function enrollsOf(activityId) {
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    const r = await get(`/neighbor/activities/${activityId}/enrolls?size=100`)  /* size 上限 100，传 200 会 400 */
+    return r.rows || []
+  }
   const r = await queryEnrolls({ activityId, size: 200 })
   return r.rows
 }
@@ -250,7 +271,14 @@ export async function enrollsOf(activityId) {
  * 代报名。`paid` 勾了记「已支付」（现场代收），不勾记「待支付」。
  * 见证件号必填——要投保的活动，只有联系人买不了保险。
  */
-export function enroll(personaLike, activityId, body) {
+export async function enroll(personaLike, activityId, body) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/neighbor/activities/${activityId}/enroll`, {
+      ...body,
+      paymentMethod: body.paid ? body.paymentMethod || '现金' : ''
+    })
+  }
   return withRole(() =>
     enrollActivity(activityId, {
       ...body,
@@ -260,20 +288,42 @@ export function enroll(personaLike, activityId, body) {
   )
 }
 
-export function cancel(personaLike, enrollId, reason) {
+export async function cancel(personaLike, enrollId, reason) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/neighbor/enrolls/${enrollId}/cancel`, { reason: String(reason || '') })
+  }
   return withRole(() => cancelEnroll(enrollId, reason, personaLike?.name || ''))
 }
 
-export function refund(personaLike, enrollId, reason) {
+export async function refund(personaLike, enrollId, reason) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/neighbor/enrolls/${enrollId}/refund`, { reason: String(reason || '') })
+  }
   return withRole(() => refundEnroll(enrollId, reason, personaLike?.name || ''))
 }
 
-export function checkin(personaLike, enrollId) {
+export async function checkin(personaLike, enrollId) {
+  if (IS_API) {
+    if (personaLike?.id) await loginAs(personaLike.id)
+    return post(`/neighbor/enrolls/${enrollId}/checkin`, {})
+  }
   return withRole(() => checkinEnroll(enrollId, personaLike?.name || ''))
 }
 
 /** 退款预览：比例来自分档，页面不许自己算 */
-export function refundPreview(activity, atDay) {
+export async function refundPreview(activity, atDay) {
+  /*
+   * 退款比例必须问服务端：档位配置在活动上（`refundPolicy`），
+   * 前端自己按规则算一份，改一档比例就会出现"页面显示退 50%、实际退 30%"。
+   */
+  if (IS_API) {
+    if (persona.value?.id) await loginAs(persona.value.id)
+    const d = await get(`/neighbor/activities/${activity.activityId}/refund-ratio${atDay ? `?atDay=${encodeURIComponent(atDay)}` : ''}`)
+    const ratio = typeof d === 'number' ? d : (d?.ratio ?? 0)
+    return { ratio, amount: Math.round(Number(activity.fee) * ratio) / 100 }
+  }
   const ratio = refundRatioOf(activity.activityId, atDay)
   return { ratio, amount: Math.round(Number(activity.fee) * ratio) / 100 }
 }
