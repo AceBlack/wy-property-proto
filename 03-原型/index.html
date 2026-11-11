@@ -8,6 +8,10 @@
        一个 index.html 服务两种终端，只能这样取舍 —— 扫码页正式上线应当独立部署。 -->
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>智慧物业 V2 · 高保真原型</title>
+  <!-- 不收录：站点挂在 GitHub Pages 的**项目子路径**下，根目录的 robots.txt 不会被读到
+       （只能放在域名根）。meta 是唯一有效的手段，且对已经收录的页面也生效。
+       这里挡的是搜索引擎，不是访客 —— 链接照样能打开。 -->
+  <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b6cff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='14' font-weight='700' fill='%23fff' text-anchor='middle'%3EWY%3C/text%3E%3C/svg%3E" />
   <style>
     html, body { margin: 0; padding: 0; background: #f1f2fa; }
