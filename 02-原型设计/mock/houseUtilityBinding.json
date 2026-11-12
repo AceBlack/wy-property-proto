@@ -1,0 +1,10 @@
+[
+  {
+    "houseId": "H030110113",
+    "elecPriceId": "UP-P03-E-PROTOCOL",
+    "waterPriceId": "",
+    "reason": "餐饮铺转供电协议价 0.92，与业态默认价 0.90 不同",
+    "updatedAt": "2026-10-15",
+    "updatedBy": "陈瑞"
+  }
+]

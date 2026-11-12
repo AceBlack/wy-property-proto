@@ -1,0 +1,380 @@
+[
+  {
+    "priceId": "UP-P01-E-RES",
+    "communityId": "P01",
+    "meterType": "电表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 0.568,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "居民合表电价"
+  },
+  {
+    "priceId": "UP-P01-E-RETAIL",
+    "communityId": "P01",
+    "meterType": "电表",
+    "tierName": "零售铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "零售铺"
+    ],
+    "price": 0.8,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业零售用电"
+  },
+  {
+    "priceId": "UP-P01-E-FOOD",
+    "communityId": "P01",
+    "meterType": "电表",
+    "tierName": "餐饮铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "餐饮铺"
+    ],
+    "price": 0.9,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 21,
+    "note": "含动力电与油烟设备"
+  },
+  {
+    "priceId": "UP-P01-E-OFFICE",
+    "communityId": "P01",
+    "meterType": "电表",
+    "tierName": "办公价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "办公"
+    ],
+    "price": 1.0,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 22,
+    "note": "办公用电"
+  },
+  {
+    "priceId": "UP-P01-E-BIZ",
+    "communityId": "P01",
+    "meterType": "电表",
+    "tierName": "商业通用价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 0.85,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 29,
+    "note": "商业细分类型未定价时的兜底"
+  },
+  {
+    "priceId": "UP-P01-W-RES",
+    "communityId": "P01",
+    "meterType": "水表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 3.85,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "含污水处理费"
+  },
+  {
+    "priceId": "UP-P01-W-BIZ",
+    "communityId": "P01",
+    "meterType": "水表",
+    "tierName": "商业价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 5.55,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业用水，含污水处理费"
+  },
+  {
+    "priceId": "UP-P02-E-RES",
+    "communityId": "P02",
+    "meterType": "电表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 0.568,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "居民合表电价"
+  },
+  {
+    "priceId": "UP-P02-E-RETAIL",
+    "communityId": "P02",
+    "meterType": "电表",
+    "tierName": "零售铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "零售铺"
+    ],
+    "price": 0.8,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业零售用电"
+  },
+  {
+    "priceId": "UP-P02-E-FOOD",
+    "communityId": "P02",
+    "meterType": "电表",
+    "tierName": "餐饮铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "餐饮铺"
+    ],
+    "price": 0.9,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 21,
+    "note": "含动力电与油烟设备"
+  },
+  {
+    "priceId": "UP-P02-E-OFFICE",
+    "communityId": "P02",
+    "meterType": "电表",
+    "tierName": "办公价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "办公"
+    ],
+    "price": 1.0,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 22,
+    "note": "办公用电"
+  },
+  {
+    "priceId": "UP-P02-E-BIZ",
+    "communityId": "P02",
+    "meterType": "电表",
+    "tierName": "商业通用价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 0.85,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 29,
+    "note": "商业细分类型未定价时的兜底"
+  },
+  {
+    "priceId": "UP-P02-W-RES",
+    "communityId": "P02",
+    "meterType": "水表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 3.85,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "含污水处理费"
+  },
+  {
+    "priceId": "UP-P02-W-BIZ",
+    "communityId": "P02",
+    "meterType": "水表",
+    "tierName": "商业价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 5.55,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业用水，含污水处理费"
+  },
+  {
+    "priceId": "UP-P03-E-RES",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 0.568,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "居民合表电价"
+  },
+  {
+    "priceId": "UP-P03-E-RETAIL",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "零售铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "零售铺"
+    ],
+    "price": 0.8,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业零售用电"
+  },
+  {
+    "priceId": "UP-P03-E-FOOD",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "餐饮铺价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "餐饮铺"
+    ],
+    "price": 0.9,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 21,
+    "note": "含动力电与油烟设备"
+  },
+  {
+    "priceId": "UP-P03-E-OFFICE",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "办公价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "办公"
+    ],
+    "price": 1.0,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 22,
+    "note": "办公用电"
+  },
+  {
+    "priceId": "UP-P03-E-BIZ",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "商业通用价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 0.85,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 29,
+    "note": "商业细分类型未定价时的兜底"
+  },
+  {
+    "priceId": "UP-P03-W-RES",
+    "communityId": "P03",
+    "meterType": "水表",
+    "tierName": "住宅价",
+    "usage": [
+      "住宅",
+      "公寓"
+    ],
+    "houseTypes": [],
+    "price": 3.85,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 10,
+    "note": "含污水处理费"
+  },
+  {
+    "priceId": "UP-P03-W-BIZ",
+    "communityId": "P03",
+    "meterType": "水表",
+    "tierName": "商业价",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [],
+    "price": 5.55,
+    "unit": "元/吨",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 20,
+    "note": "商业用水，含污水处理费"
+  },
+  {
+    "priceId": "UP-P03-E-PROTOCOL",
+    "communityId": "P03",
+    "meterType": "电表",
+    "tierName": "协议价（川味小馆）",
+    "usage": [
+      "商业"
+    ],
+    "houseTypes": [
+      "餐饮铺"
+    ],
+    "price": 0.92,
+    "unit": "元/度",
+    "effectiveFrom": "2026-01-01",
+    "enabled": true,
+    "sort": 5,
+    "note": "2026 年转供电协议价，单独签约"
+  }
+]

@@ -7,6 +7,7 @@ import {
   inspectTemplates, invoices, maintenanceRecords, members, meterReadings, meters, metrics,
   notices, operationLogs, orgs, ownerTags, owners, parkings, passRecords, payments, permissions,
   feeCategories, feeItemCategoryMap, waiveReasons, communityUtility,
+  utilityPrices, houseUtilityBinding,
   prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders,
   // N 域（邻里）复用的存量数据：公告不另建源，投票/活动/闲置都从业主端同一份数据出发
   activities, activityEnrollments, secondhandItems, surveys
@@ -5477,7 +5478,7 @@ export function queryRepairSummary({ pageNo = 1, size = 20, filters = {} } = {})
 // 租约押金、车位押金等一律不存在，因此 tenants 不设押金字段，押金只在此处出数。
 // 余额 balance = amount - refundAmount - deductAmount；在账 = 未验收（装修中 / 已逾期）或未结清。
 
-export const DEPOSIT_STATUS = ['装修中', '已逾期', '已退还', '部分扣除', '已没收']
+export const DEPOSIT_STATUS = ['在押', '装修中', '已逾期', '已退还', '部分扣除', '已没收']
 export const depositStatusOpts = () => DEPOSIT_STATUS.map(v => ({ value: v, label: v }))
 
 const DEPOSIT_VF = {
@@ -19331,3 +19332,239 @@ export function createUtilityCharge({ houseId, itemId, amount, qty, payMethod = 
 const meterTypeOf = itemId => (feeItemCategoryMap.find(m => m.itemId === itemId) || {}).meterType || '水表'
 export const utilityChargeRows = () => UTILITY_CHARGES.map(r => ({ ...r }))
 export { MATRIX_START, MATRIX_END, monthRange }
+
+/* ============================================================
+ * 水电价目表 · 按业态取价（2026-11-13）
+ * ------------------------------------------------------------
+ * 单价不再是「收费项上的一个数字」：同一项目里住宅和商业不同价，
+ * 商业里零售/餐饮/办公又不同价，个别商户还有协议价。
+ *
+ * 取价顺序：房屋覆盖 → 房屋类型精确 → 业态 → 通用。
+ * **取不到就报错**，不静默回落：一旦回落成住宅价，商业户每次都被少收，
+ * 而且差额不会有人发现 —— 这类错误在报表上只表现为"电费收入偏低"。
+ * ============================================================ */
+
+const UTILITY_METER_TYPES = ['电表', '水表']
+
+const _tierOfPrice = pid => utilityPrices.find(x => x.priceId === pid) || null
+
+/** 某项目某表计的全部档位（下拉用，含停用标记） */
+export function utilityTierRows({ communityId = '', meterType = '' } = {}) {
+  return utilityPrices
+    .filter(p => (!communityId || p.communityId === communityId) && (!meterType || p.meterType === meterType))
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(p => ({ ...p, priceText: `${p.price} ${p.unit}` }))
+}
+
+/**
+ * 按「房屋类型 → 业态 → 通用」匹配档位。
+ * 房屋类型精确匹配优先于业态：零售铺必须命中 0.80，不能被"商业"这一层盖掉。
+ */
+function _matchTier(communityId, meterType, usage, houseType) {
+  const cands = utilityPrices.filter(p =>
+    p.communityId === communityId && p.meterType === meterType && p.enabled)
+  if (!cands.length) return null
+  const bySort = (a, b) => (a.sort || 0) - (b.sort || 0)
+  const exact = cands.filter(p => (p.houseTypes || []).includes(houseType)).sort(bySort)[0]
+  if (exact) return exact
+  const byUsage = cands.filter(p => !(p.houseTypes || []).length && (p.usage || []).includes(usage)).sort(bySort)[0]
+  if (byUsage) return byUsage
+  return cands.filter(p => !(p.usage || []).length && !(p.houseTypes || []).length).sort(bySort)[0] || null
+}
+
+/**
+ * 某户某表计当前生效的价档。
+ * 返回值带 isOverride：页面要能看出"这户是特例"，否则运营改价时永远想不起它。
+ */
+export function utilityPriceOf(houseId, meterType = '电表') {
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  if (!UTILITY_METER_TYPES.includes(meterType)) throw new Error(`未知表计：${meterType}`)
+  const bind = houseUtilityBinding.find(b => b.houseId === houseId)
+  const pid = bind ? (meterType === '电表' ? bind.elecPriceId : bind.waterPriceId) : ''
+  if (pid) {
+    const t = _tierOfPrice(pid)
+    if (t) return { ...t, isOverride: true, overrideReason: bind.reason || '' }
+  }
+  const t = _matchTier(h.communityId, meterType, h.usage, h.houseType)
+  if (!t) {
+    throw new Error(`该项目「${h.usage}${h.houseType ? ' · ' + h.houseType : ''}」没有配置${meterType}价，请先在价目表补价`)
+  }
+  return { ...t, isOverride: false, overrideReason: '' }
+}
+
+/** 某个业主义下所有房屋的表计价，收银台按户展示用 */
+export function utilityPriceOfHouse(houseId) {
+  return { elec: utilityPriceOf(houseId, '电表'), water: utilityPriceOf(houseId, '水表') }
+}
+
+/** 改单人房价：必须写原因，否则以后没人知道为什么这户和别人不一样 */
+export function setHouseUtilityPrice(houseId, meterType, priceId, reason = '') {
+  assertPerm('b.feeItems.view', '维护水电价目需要有收费科目权限')
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  const t = _tierOfPrice(priceId)
+  if (!t) throw new Error('价档不存在')
+  if (t.meterType !== meterType) throw new Error(`该价档是${t.meterType}价，不能用在${meterType}上`)
+  if (!t.enabled) throw new Error('该价档已停用')
+  if (!String(reason).trim()) throw new Error('改价必须写原因 —— 否则以后查不清这户为什么和别人不一样')
+  let row = houseUtilityBinding.find(b => b.houseId === houseId)
+  if (!row) {
+    row = { houseId, elecPriceId: '', waterPriceId: '', reason: '', updatedAt: '', updatedBy: '' }
+    houseUtilityBinding.push(row)
+  }
+  if (meterType === '电表') row.elecPriceId = priceId
+  else row.waterPriceId = priceId
+  row.reason = String(reason).trim()
+  row.updatedAt = TODAY
+  row.updatedBy = currentOperator().name || '系统'
+  return utilityPriceOf(houseId, meterType)
+}
+
+/** 恢复成业态默认价（清掉单人价覆盖） */
+export function resetHouseUtilityPrice(houseId, meterType) {
+  const row = houseUtilityBinding.find(b => b.houseId === houseId)
+  if (!row) return utilityPriceOf(houseId, meterType)
+  if (meterType === '电表') row.elecPriceId = ''
+  else row.waterPriceId = ''
+  row.updatedAt = TODAY
+  if (!row.elecPriceId && !row.waterPriceId) {
+    const i = houseUtilityBinding.indexOf(row)
+    if (i >= 0) houseUtilityBinding.splice(i, 1)
+  }
+  return utilityPriceOf(houseId, meterType)
+}
+
+/* ---------------- 抄表模式的电费/水费账单 ---------------- */
+
+/**
+ * 该户某表计的待缴账单（抄表模式下由抄表出账产生）。
+ * 收银台用它渲染「待缴单」，金额不可改 —— 改了等于改读数。
+ */
+export function utilityBillsOf(houseId, meterType = '电表') {
+  const itemId = meterType === '电表' ? 'FI06' : 'FI05'
+  return bills
+    .filter(b => b.houseId === houseId && b.itemId === itemId
+      && ['未缴', '逾期', '部分缴'].includes(b.status))
+    .sort((a, b) => String(a.period).localeCompare(String(b.period)))
+    .map(b => ({
+      ...b,
+      unpaid: Math.round((b.amount - (b.paidAmount || 0) - (b.discount || 0)) * 100) / 100,
+      usage: b.quantity || 0
+    }))
+}
+
+/* ---------------- 车位续期 ---------------- */
+
+/**
+ * 车位续期：不产生账期、不进欠费统计 —— 过期就是失效，没有"欠几个月"。
+ * 续期只做两件事：收一笔钱、把 expireDate 往后推。
+ */
+export function parkingRenewQuote(parkId, months = 1) {
+  const pk = PV_ROWS.find(p => p.parkId === parkId)
+  if (!pk) throw new Error('车位不存在')
+  const n = Number(months)
+  if (!Number.isFinite(n) || n < 1) throw new Error('续期月数至少 1 个月')
+  if (n > 36) throw new Error('一次最多续 36 个月')
+  if (!pk.expireDate) throw new Error('该车位没有有效期，请先在车位档案里设定')
+  const monthly = Number(pk.feeStandard) || 0
+  if (!monthly) throw new Error('该车位没有月费标准')
+  // 已过期从今天续，未过期从原到期日续 —— 过期户不该白送中间空档
+  const base = pk.expireDate >= TODAY ? pk.expireDate : TODAY
+  const [y, m, d] = String(base).split('-').map(Number)
+  let ny = y, nm = m + n
+  while (nm > 12) { nm -= 12; ny += 1 }
+  const lastDay = new Date(ny, nm, 0).getDate()
+  const newExpire = `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
+  return {
+    parkId, parkNo: pk.parkNo, plateNo: pk.plateNo || '', months: n,
+    monthly, amount: Math.round(monthly * n * 100) / 100,
+    oldExpire: pk.expireDate, newExpire,
+    expired: pk.expireDate < TODAY,
+    daysLeft: pk.expireDate >= TODAY
+      ? Math.round((Date.parse(pk.expireDate.replace(/-/g, '/')) - Date.parse(TODAY.replace(/-/g, '/'))) / 86400000)
+      : 0
+  }
+}
+
+/**
+ * 车位续期落库：只延长有效期，不产生账单、不进欠费。
+ * 与「换绑」分开：换绑改车牌要同步道闸，续期只改日期。
+ */
+export function renewParking(parkId, months = 1) {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const q = parkingRenewQuote(parkId, months)
+  const pk = PV_ROWS.find(p => p.parkId === parkId)
+  pk.expireDate = q.newExpire
+  return {
+    renewId: 'PR' + String(Date.now()).slice(-6),
+    ...q,
+    paidAt: `${TODAY}`
+  }
+}
+
+/* ---------------- 押金（收银台直收，不含退还） ---------------- */
+
+export const DEPOSIT_COLLECT_TYPES = [
+  { type: '装修押金', amount: 3000, refundable: true, needDates: true, note: '需填开工与计划完工日期' },
+  { type: '门禁卡押金', amount: 50, refundable: true, needDates: false, note: '按张收取' },
+  { type: '非机动车牌押金', amount: 20, refundable: true, needDates: false, note: '按牌收取' }
+]
+export const depositCollectTypeOpts = () =>
+  DEPOSIT_COLLECT_TYPES.map(t => ({ value: t.type, label: `${t.type}（${t.amount} 元）` }))
+
+/**
+ * 收银台收押金。
+ * 金额不可改：押金一改就成了议价，退的时候按哪个数退？所以只允许取字典标准额。
+ * 这里只「收」，退还走押金台账并需审批 —— 收银台上退钱，等于给了一条不经审批的出金口。
+ */
+export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1, remark = '' } = {}) {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  const def = DEPOSIT_COLLECT_TYPES.find(t => t.type === type)
+  if (!def) throw new Error('押金类型不存在')
+  const q = Number(quantity) || 1
+  if (q < 1) throw new Error('数量至少 1')
+  const amount = Math.round(def.amount * q * 100) / 100
+  DP_SEQ += 1
+  const rec = {
+    depositId: 'DP' + String(DP_SEQ).padStart(5, '0'),
+    applyNo: 'YJ' + new Date().getFullYear() + '-' + String(DP_SEQ).padStart(4, '0'),
+    communityId: h.communityId, communityName: communityName(h.communityId),
+    houseId: h.houseId, houseName: h.fullName,
+    ownerId: h.ownerId || '', ownerName: ownerName(h.ownerId), phone: '',
+    type, amount,
+    paidDate: TODAY, startDate: '', planEndDate: '', checkDate: null,
+    status: '在押', deductAmount: 0, deductReason: '',
+    refundAmount: 0, refundDate: null, balance: amount, overdueDays: 0,
+    operator: currentOperator().name || '前台', remark: String(remark || ''), _isNew: true
+  }
+  decorationDeposits.unshift(rec)
+  return rec
+}
+
+/**
+ * 按「指定单价」换算金额与用量。
+ * 不能用 utilityQuote：那个读的是收费项上的旧单价（4.2 / 0.62），
+ * 现在真实单价在价目表里且按业态不同，混用会让商业户按住宅价结算。
+ */
+export function utilityQuoteAt(unitPrice, unit = '', { amount, qty } = {}) {
+  const p = Number(unitPrice)
+  if (!Number.isFinite(p) || p <= 0) throw new Error('单价无效，无法换算')
+  const a = Number(amount)
+  const q = Number(qty)
+  const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100
+  if (Number.isFinite(a) && a > 0) return { unitPrice: p, unit, amount: r2(a), qty: r2(a / p) }
+  if (Number.isFinite(q) && q > 0) return { unitPrice: p, unit, amount: r2(q * p), qty: r2(q) }
+  throw new Error('金额或用量必须填一个')
+}
+
+/** 收银台可收的"其他收费科目"：非按月、非水电的那些 */
+export function cashierExtraItemOpts() {
+  return feeItems
+    .filter(i => i.status === '启用' && !['FI01', 'FI05', 'FI06', 'FI07'].includes(i.itemId))
+    .filter(i => !['按面积', '按车位'].includes(i.calcType))
+    .map(i => ({ value: i.itemId, label: `${i.name}（${i.price} ${i.unit || ''}）`, price: i.price, unit: i.unit, calcType: i.calcType }))
+}
+

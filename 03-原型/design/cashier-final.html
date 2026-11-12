@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>收银台定稿 · 三类业务三套形态</title>
+<style>
+  :root{
+    --p:#5b6af0; --p-soft:#eef0ff;
+    --bg:#f1f2fa; --bg2:#f4f5fc; --bd:#e3e6f2; --bd2:#eef0f8;
+    --t1:#1f2540; --t2:#4a5168; --t3:#8a94b0;
+    --ok:#2f9e6e; --warn:#d98a1f; --bad:#d9534f;
+    --num:'DIN Pro','DIN Alternate','Bahnschrift',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#e9ebf5; color:var(--t1);
+    font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased;
+    padding:32px 40px 80px;
+  }
+  .head,.sheet,.foot{width:1108px;margin-left:auto;margin-right:auto;}
+  .head{margin-bottom:22px;}
+  .head h1{font-size:22px;font-weight:600;letter-spacing:-.2px;}
+  .head p{margin-top:8px;font-size:13.5px;color:var(--t2);line-height:1.75;}
+  .head .tag{display:inline-block;background:#fff;border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:12px;color:var(--t3);margin-right:6px;}
+
+  .wrap{width:1108px;height:693px;overflow:hidden;border-radius:12px;box-shadow:0 8px 30px rgba(31,37,64,.13);background:#fff;}
+  .screen{width:1440px;height:900px;transform:scale(.77);transform-origin:top left;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+
+  .bar{height:54px;flex:0 0 54px;background:#fff;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:16px;padding:0 18px;}
+  .bar__logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;}
+  .bar__dot{width:22px;height:22px;border-radius:7px;background:var(--p);color:#fff;display:grid;place-items:center;font-size:12px;font-family:var(--num);}
+  .bar__meta{font-size:12.5px;color:var(--t3);display:flex;gap:14px;align-items:center;}
+  .bar__meta b{color:var(--t2);font-weight:500;}
+  .bar .sp{flex:1;}
+  .bar__btn{border:1px solid var(--bd);border-radius:8px;padding:6px 12px;font-size:12.5px;color:var(--t2);background:#fff;}
+  .bar__btn.dark{background:var(--p);border-color:var(--p);color:#fff;}
+
+  .cols{flex:1;display:flex;min-height:0;padding:12px;gap:12px;}
+
+  /* 左 */
+  .left{flex:0 0 268px;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 3px rgba(31,37,64,.05);}
+  .left__hd{padding:12px 12px 8px;}
+  .search{border:1px solid var(--bd);border-radius:8px;height:34px;display:flex;align-items:center;gap:7px;padding:0 10px;font-size:12.5px;color:var(--t3);}
+  .search .ic{width:13px;height:13px;border:1.6px solid var(--t3);border-radius:50%;position:relative;flex:0 0 13px;}
+  .search .ic::after{content:'';position:absolute;right:-4px;bottom:-3px;width:6px;height:1.6px;background:var(--t3);transform:rotate(45deg);}
+  .seg{display:flex;gap:6px;margin-top:9px;}
+  .seg span{font-size:12px;padding:4px 10px;border-radius:6px;background:var(--bg2);color:var(--t2);}
+  .seg span.on{background:var(--p-soft);color:var(--p);font-weight:500;}
+  .left__list{flex:1;overflow:hidden;padding:4px 8px;}
+  .cust{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;}
+  .cust.on{background:var(--p-soft);box-shadow:inset 0 0 0 1px #ccd2ff;}
+  .cust__a{width:30px;height:30px;border-radius:8px;background:var(--bg2);display:grid;place-items:center;font-size:12.5px;color:var(--t2);flex:0 0 30px;}
+  .cust.on .cust__a{background:#fff;color:var(--p);}
+  .cust__m{flex:1;min-width:0;}
+  .cust__n{font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px;}
+  .cust__s{font-size:11.5px;color:var(--t3);margin-top:1px;font-family:var(--num);}
+  .cust__amt{font-family:var(--num);font-size:12.5px;color:var(--bad);text-align:right;flex:0 0 auto;}
+  .cust__amt.ok{color:var(--ok);}
+  .tagm{font-size:10.5px;padding:0 5px;border-radius:4px;line-height:15px;font-weight:400;flex:0 0 auto;}
+  .tagm.r{background:#fdeceb;color:#c9433f;}
+  .tagm.g{background:#e8f7f0;color:#1f7a53;}
+  .tagm.y{background:#fdf3e3;color:#a76b13;}
+  .tagm.b{background:#eef0ff;color:#4a58d8;}
+
+  /* 中 */
+  .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;}
+
+  .who{background:#fff;border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(31,37,64,.05);}
+  .who__a{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#5b6af0,#8b7cf6);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:600;flex:0 0 40px;}
+  .who__n{font-size:15.5px;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .who__s{font-size:12px;color:var(--t3);margin-top:2px;font-family:var(--num);}
+  .who__kpi{margin-left:auto;display:flex;gap:22px;}
+  .who__kpi .k{font-size:11.5px;color:var(--t3);white-space:nowrap;}
+  .who__kpi .v{font-family:var(--num);font-size:16.5px;font-weight:600;margin-top:1px;}
+  .who__kpi .v.red{color:var(--bad);}
+
+  .blk{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(31,37,64,.05);flex:0 0 auto;}
+  .blk__hd{display:flex;align-items:baseline;gap:9px;padding:11px 14px 0;}
+  .blk__hd b{font-size:13px;}
+  .blk__hd .sub{font-size:11.5px;color:var(--t3);font-family:var(--num);}
+  .blk__hd .act{margin-left:auto;display:flex;gap:6px;}
+  .blk__hd .act i{font-style:normal;font-size:11.5px;padding:3px 9px;border-radius:6px;background:var(--bg2);color:var(--t2);}
+  .blk__hd .act i.on{background:var(--p-soft);color:var(--p);}
+  .blk__hd .mode{font-size:10.5px;padding:1px 6px;border-radius:4px;background:#eef0ff;color:#4a58d8;}
+
+  /* 物业费账期 */
+  .pgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:12px 14px 15px;}
+  .pcell{border:1px solid var(--bd);border-radius:8px;padding:10px 11px;background:#fff;position:relative;}
+  .pcell .m{font-size:10.5px;color:var(--t3);font-family:var(--num);}
+  .pcell .v{font-size:12.5px;font-family:var(--num);font-weight:600;margin-top:3px;}
+  .pcell .st{font-size:10px;margin-top:2px;color:var(--t3);}
+  .pcell.paid{background:#f3faf6;border-color:#cfe9dd;}
+  .pcell.paid .v{color:var(--ok);}
+  .pcell.due{background:#fdf4f3;border-color:#f4d3d0;}
+  .pcell.due .v{color:var(--bad);}
+  .pcell.fut{background:var(--bg2);border-style:dashed;}
+  .pcell.fut .v{color:var(--t3);}
+  .pcell.sel{border-color:var(--p);box-shadow:0 0 0 2px #dfe3ff;background:#fbfbff;}
+  .pcell .bill{position:absolute;top:6px;right:7px;font-size:9.5px;color:#4a58d8;background:#eef0ff;border-radius:3px;padding:0 4px;line-height:13px;}
+
+  /* 车位有效期 */
+  .park{display:flex;align-items:center;gap:16px;padding:14px 14px 16px;}
+  .park__i{width:38px;height:38px;border-radius:10px;background:#eef0ff;color:#4a58d8;display:grid;place-items:center;font-size:15px;font-weight:600;flex:0 0 38px;font-family:var(--num);}
+  .park__m{flex:1;min-width:0;}
+  .park__n{font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+  .park__s{font-size:11.5px;color:var(--t3);margin-top:2px;font-family:var(--num);}
+  .left{flex:0 0 auto;font-size:10.5px;padding:0 5px;border-radius:4px;line-height:15px;background:#fdf3e3;color:#a76b13;font-family:var(--num);}
+  .park__bar{height:5px;border-radius:3px;background:var(--bg2);margin-top:7px;overflow:hidden;max-width:260px;}
+  .park__bar i{display:block;height:100%;background:linear-gradient(90deg,#5b6af0,#8b7cf6);border-radius:3px;}
+  .park__bar.soon i{background:linear-gradient(90deg,#e8a13a,#f0b45f);}
+  .park__act{display:flex;gap:6px;flex:0 0 auto;}
+  .park__act span{font-size:12px;padding:7px 11px;border:1px solid var(--bd);border-radius:8px;color:var(--t2);background:#fff;}
+  .park__act span.on{border-color:var(--p);color:var(--p);background:var(--p-soft);font-weight:500;}
+
+  /* 水电 */
+  .util{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px 15px;}
+  .ucard{border:1px solid var(--bd);border-radius:9px;padding:12px 13px;display:flex;flex-direction:column;gap:10px;}
+  .ucard__hd{display:flex;align-items:baseline;gap:7px;}
+  .ucard__hd b{font-size:12.5px;}
+  .ucard__hd .price{font-size:11.5px;color:var(--t3);font-family:var(--num);}
+  .ucard__hd .md{margin-left:auto;font-size:10.5px;padding:1px 6px;border-radius:4px;}
+  .sw{font-size:10.5px;color:#4a58d8;border:1px solid #d7dcff;background:#f4f6ff;border-radius:4px;padding:0 5px;line-height:15px;flex:0 0 auto;}
+  .md.pre{background:#fdf3e3;color:#a76b13;}
+  .md.meter{background:#eef7f1;color:#1f7a53;}
+  .ucard__b{display:flex;align-items:center;gap:8px;}
+  .ucard__b .box{border:1px solid var(--bd);border-radius:7px;padding:6px 9px;font-family:var(--num);font-size:13px;flex:1;display:flex;align-items:center;gap:6px;}
+  .ucard__b .box .u{font-size:11px;color:var(--t3);margin-left:auto;}
+  .ucard__b .eq{color:var(--t3);font-size:13px;}
+  .ucard__f{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:8px;}
+  .ucard__f b{font-family:var(--num);color:var(--t2);font-weight:500;}
+
+  /* 收款记录 */
+  .mini{padding:0 14px 12px;flex:0 0 auto;}
+  .mini__hd{display:flex;align-items:baseline;gap:8px;padding:9px 0 5px;border-top:1px dashed var(--bd);}
+  .mini__hd b{font-size:12px;}
+  .mini__hd span{font-size:11px;color:var(--t3);}
+  .mrow{display:flex;align-items:center;gap:10px;font-size:11.5px;padding:4px 0;color:var(--t2);}
+  .mrow .t{font-family:var(--num);color:var(--t3);flex:0 0 86px;}
+  .mrow .n{flex:1;min-width:0;}
+  .mrow .a{font-family:var(--num);font-weight:600;color:var(--t1);}
+  .mrow .w{color:var(--t3);flex:0 0 40px;text-align:right;}
+
+  /* 右 */
+  .right{flex:0 0 330px;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 3px rgba(31,37,64,.05);}
+  .right__hd{padding:12px 16px;border-bottom:1px solid var(--bd2);display:flex;align-items:baseline;gap:8px;}
+  .right__hd b{font-size:13.5px;}
+  .right__hd span{font-size:11.5px;color:var(--t3);}
+  .cart{flex:1;min-height:0;overflow:hidden;padding:6px 12px;display:flex;flex-direction:column;}
+  .ci{padding:9px 8px;border-radius:8px;display:flex;gap:9px;align-items:flex-start;}
+  .ci__x{width:16px;height:16px;border-radius:50%;background:var(--bg2);color:var(--t3);font-size:11px;display:grid;place-items:center;margin-top:1px;flex:0 0 16px;}
+  .ci__m{flex:1;min-width:0;}
+  .ci__n{font-size:12.5px;font-weight:500;}
+  .ci__s{font-size:11px;color:var(--t3);margin-top:2px;font-family:var(--num);}
+  .ci__v{font-family:var(--num);font-size:13px;font-weight:600;}
+  .ci.add{background:var(--bg2);}
+  .cart__hint{margin-top:auto;text-align:center;font-size:11px;color:var(--t3);padding:10px 0 4px;line-height:1.7;}
+  .effect{margin:0 12px 10px;padding:9px 10px;border-radius:8px;background:#f6f8ff;border:1px solid #e2e7ff;}
+  .effect__hd{font-size:11.5px;color:#4a58d8;font-weight:500;margin-bottom:5px;}
+  .erow{font-size:11px;color:var(--t2);line-height:1.75;padding-left:11px;position:relative;}
+  .erow::before{content:'';position:absolute;left:0;top:8px;width:4px;height:4px;border-radius:50%;background:#8b95d8;}
+  .erow b{font-family:var(--num);color:var(--t1);font-weight:600;}
+
+  .sum{padding:9px 16px 11px;border-top:1px solid var(--bd2);}
+  .sum__r{display:flex;justify-content:space-between;font-size:12.5px;color:var(--t2);padding:3px 0;}
+  .sum__r b{font-family:var(--num);font-weight:500;color:var(--t1);}
+  .sum__total{display:flex;justify-content:space-between;align-items:baseline;margin-top:5px;padding-top:8px;border-top:1px dashed var(--bd);}
+  .sum__total .k{font-size:13px;color:var(--t2);}
+  .sum__total .v{font-family:var(--num);font-size:27px;font-weight:600;color:var(--bad);letter-spacing:-.5px;}
+  .sum__total .v .u{font-size:14px;margin-right:2px;}
+
+  .payblock{padding:9px 16px 0;border-top:1px solid var(--bd2);}
+  .payblock__hd{display:flex;align-items:baseline;gap:8px;margin-bottom:7px;}
+  .payblock__hd b{font-size:12.5px;}
+  .payblock__hd span{font-size:11px;color:var(--t3);}
+  .payrow{display:flex;align-items:center;gap:8px;border:1px solid var(--bd);border-radius:8px;padding:6px 10px;margin-bottom:6px;}
+  .payrow .pm{font-size:12.5px;}
+  .payrow .amt{font-family:var(--num);font-size:13px;font-weight:600;margin-left:auto;}
+  .payrow .x{color:var(--t3);font-size:12px;}
+  .payrow.ghost{border-style:dashed;color:var(--t3);justify-content:center;font-size:12px;}
+
+  .go{margin:10px 16px 16px;height:48px;border-radius:10px;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:600;}
+  .go .kbd{font-size:11px;background:rgba(255,255,255,.22);border-radius:4px;padding:1px 5px;font-family:var(--num);font-weight:400;}
+
+
+  /* ---------- 变体图 ---------- */
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .vcard{background:#fff;border-radius:10px;padding:14px 16px;}
+  .vcard__t{font-size:13px;font-weight:600;margin-bottom:3px;}
+  .vcard__d{font-size:11.5px;color:var(--t3);line-height:1.7;margin-bottom:11px;}
+  .vcard .ucard{border:1px solid var(--bd);border-radius:9px;padding:12px 13px;display:flex;flex-direction:column;gap:10px;}
+  .vcard .ucard.off{background:var(--bg2);border-style:dashed;}
+  .md.offm{background:#eef0f4;color:#7b8399;}
+  .offbox{font-size:11.5px;color:var(--t3);line-height:1.7;padding:6px 0;}
+
+  .olist{display:flex;flex-direction:column;gap:5px;}
+  .orow{display:flex;align-items:center;gap:9px;font-size:11.5px;padding:6px 8px;border-radius:7px;background:var(--bg2);}
+  .orow.sel{background:#fdf4f3;box-shadow:inset 0 0 0 1px #f4d3d0;}
+  .orow .p{font-family:var(--num);color:var(--t2);flex:0 0 62px;}
+  .orow .q{color:var(--t3);font-family:var(--num);flex:1;}
+  .orow .a{font-family:var(--num);font-weight:600;}
+  .orow .st{font-size:10.5px;padding:0 5px;border-radius:4px;line-height:15px;background:#fdeceb;color:#c9433f;flex:0 0 auto;}
+  .orow .st.ok{background:#e8f7f0;color:#1f7a53;}
+
+  .dd{border:1px solid var(--p);border-radius:9px;overflow:hidden;box-shadow:0 4px 14px rgba(91,106,240,.14);}
+  .dd__hd{padding:8px 12px;background:var(--p-soft);font-size:11.5px;color:#4a58d8;display:flex;justify-content:space-between;}
+  .dd__hd span{color:#8a92c8;}
+  .dd__i{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12.5px;border-top:1px solid var(--bd2);}
+  .dd__i .ck{width:13px;color:var(--p);flex:0 0 13px;}
+  .dd__i .p{margin-left:auto;font-family:var(--num);font-weight:600;}
+  .dd__i .tag{font-size:10px;background:var(--bg2);color:var(--t3);border-radius:3px;padding:0 4px;line-height:14px;margin-left:6px;}
+  .dd__i.on{background:#fbfbff;}
+  .dd__f{padding:7px 12px;border-top:1px solid var(--bd2);font-size:10.5px;color:var(--t3);background:var(--bg2);}
+
+  .ap{border:1px solid var(--bd);border-radius:9px;overflow:hidden;}
+  .ap__tabs{display:flex;background:var(--bg2);}
+  .ap__tabs span{flex:1;text-align:center;font-size:12px;padding:8px 0;color:var(--t2);}
+  .ap__tabs span.on{background:#fff;color:var(--p);font-weight:500;box-shadow:inset 0 -2px 0 var(--p);}
+  .ap__body{padding:10px 12px;display:flex;flex-direction:column;gap:9px;}
+  .apf{display:flex;align-items:center;gap:9px;}
+  .apf label{font-size:11.5px;color:var(--t3);flex:0 0 62px;}
+  .apf .ctl{flex:1;border:1px solid var(--bd);border-radius:7px;padding:6px 9px;font-size:12px;color:var(--t1);display:flex;align-items:center;}
+  .apf .ctl .u{margin-left:auto;font-size:11px;color:var(--t3);}
+  .apf .ctl.dim{color:var(--t3);background:var(--bg2);}
+  .ap__f{padding:9px 12px;border-top:1px solid var(--bd2);display:flex;align-items:center;gap:9px;}
+  .ap__f .warn{font-size:10.5px;color:#a76b13;flex:1;line-height:1.6;}
+  .ap__f .btn{font-size:12px;color:#fff;background:var(--p);border-radius:7px;padding:7px 14px;font-weight:500;}
+
+  /* 说明区 */
+  .foot{margin-top:20px;}
+  .foot h2{font-size:15px;font-weight:600;margin:26px 0 10px;}
+  .foot h2:first-child{margin-top:0;}
+  .tbl{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:12.5px;}
+  .tbl th{background:var(--bg2);text-align:left;padding:9px 12px;font-weight:500;color:var(--t2);border-bottom:1px solid var(--bd);}
+  .tbl td{padding:9px 12px;border-bottom:1px solid var(--bd2);color:var(--t2);vertical-align:top;line-height:1.65;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl td b{color:var(--t1);}
+  .tbl .num{font-family:var(--num);}
+  .note{background:#fff;border-radius:10px;padding:14px 16px;font-size:12.5px;line-height:1.8;color:var(--t2);margin-top:12px;}
+  .note b{color:var(--t1);}
+  .note .k{color:var(--p);font-weight:500;}
+  .note ul{margin:6px 0 0 18px;}
+  .note li{margin:3px 0;}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>收银台定稿 · 三类业务，三套形态</h1>
+  <p>
+    <span class="tag">1440 × 900</span><span class="tag">缩放 77%</span><span class="tag">真实数据</span>
+    依据你给的三条业务事实重做：<b>物业费能欠</b>（账单制、按月、有账龄）、<b>车位费不能欠</b>（到期失效、车牌停月租，只能按周期续）、
+    <b>水电按业态计价</b>（住宅 3.85/0.568、商业 5.55/0.8–1.00）。<br />
+    三种业务的规则不同，所以它们不该共用一种卡片 —— 中间是三块，各有各的形态。
+  </p>
+</div>
+
+<div class="sheet">
+  <div class="wrap"><div class="screen">
+
+    <div class="bar">
+      <div class="bar__logo"><div class="bar__dot">物</div>收银台</div>
+      <div class="bar__meta"><span>翡翠城</span><span>收银员 <b>王芳</b></span><span>早班 08:00–16:00</span></div>
+      <div class="sp"></div>
+      <div class="bar__meta"><span style="font-family:var(--num)">2026-11-13 00:12</span></div>
+      <div class="bar__btn">今日流水</div>
+      <div class="bar__btn dark">交班对账</div>
+    </div>
+
+    <div class="cols">
+      <div class="left">
+        <div class="left__hd">
+          <div class="search"><div class="ic"></div>房号 / 姓名 / 手机号</div>
+          <div class="seg"><span class="on">全部</span><span>欠费</span><span>本楼</span></div>
+        </div>
+        <div class="left__list">
+          <div class="cust on"><div class="cust__a">陈</div><div class="cust__m"><div class="cust__n">P01-011-0201 <span class="tagm r">欠 3</span></div><div class="cust__s">陈丽 · 住宅 · 103.96㎡</div></div><div class="cust__amt">873</div></div>
+          <div class="cust"><div class="cust__a">罗</div><div class="cust__m"><div class="cust__n">P01-011-0202 <span class="tagm g">已清</span></div><div class="cust__s">罗伟 · 住宅 · 121.6㎡</div></div><div class="cust__amt ok">已清</div></div>
+          <div class="cust"><div class="cust__a">龚</div><div class="cust__m"><div class="cust__n">P01-011-0301 <span class="tagm r">欠 1</span></div><div class="cust__s">龚悦 · 住宅 · 107.55㎡</div></div><div class="cust__amt">291</div></div>
+          <div class="cust"><div class="cust__a">江</div><div class="cust__m"><div class="cust__n">P01-011-0302 <span class="tagm y">车位将到期</span></div><div class="cust__s">江鑫 · 住宅 · 126.19㎡</div></div><div class="cust__amt ok">已清</div></div>
+          <div class="cust"><div class="cust__a">味</div><div class="cust__m"><div class="cust__n">P02-001-商铺 <span class="tagm b">商业</span></div><div class="cust__s">川味小馆 · 餐饮铺 · 86.4㎡</div></div><div class="cust__amt">1,556</div></div>
+          <div class="cust"><div class="cust__a">雷</div><div class="cust__m"><div class="cust__n">P01-011-0102 <span class="tagm r">欠 2</span></div><div class="cust__s">雷天佑 · 住宅 · 98.1㎡</div></div><div class="cust__amt">549</div></div>
+          <div class="cust"><div class="cust__a">便</div><div class="cust__m"><div class="cust__n">P02-001-零售 <span class="tagm b">商业</span></div><div class="cust__s">老王便利店 · 零售铺 · 64.2㎡</div></div><div class="cust__amt ok">已清</div></div>
+          <div class="cust"><div class="cust__a">孙</div><div class="cust__m"><div class="cust__n">P01-011-0401 <span class="tagm g">已清</span></div><div class="cust__s">孙雅 · 住宅 · 112.3㎡</div></div><div class="cust__amt ok">已清</div></div>
+          <div class="cust"><div class="cust__a">何</div><div class="cust__m"><div class="cust__n">P01-012-0103 <span class="tagm r">欠 4</span></div><div class="cust__s">何敏 · 住宅 · 96.4㎡</div></div><div class="cust__amt">1,128</div></div>
+        </div>
+      </div>
+
+      <div class="mid">
+        <div class="who">
+          <div class="who__a">陈</div>
+          <div>
+            <div class="who__n">陈丽 <span class="tagm b">住宅</span> <span class="tagm r">物业费欠 3 期</span></div>
+            <div class="who__s">翡翠城 P01-011-0201 · 103.96㎡ · 138****6621</div>
+          </div>
+          <div class="who__kpi">
+            <div><div class="k">本月应收</div><div class="v">291.09</div></div>
+            <div><div class="k">欠费合计</div><div class="v red">873.27</div></div>
+            <div><div class="k">车位</div><div class="v">B1-088</div></div>
+          </div>
+        </div>
+
+        <!-- ① 物业服务费：账期 → 能欠、按月 -->
+        <div class="blk">
+          <div class="blk__hd">
+            <b>物业服务费</b><span class="sub">2.8 元/㎡ · 291.09 / 月</span>
+            <span class="mode">按账期 · 可欠费</span>
+            <div class="act"><i class="on">全选欠费</i><i>2025 年</i><i>2027 年</i></div>
+          </div>
+          <div class="pgrid">
+            <div class="pcell paid"><div class="m">2026-08</div><div class="v">291.09</div><div class="st">已收</div><div class="bill">已开单</div></div>
+            <div class="pcell due sel"><div class="m">2026-09</div><div class="v">291.09</div><div class="st">欠费</div><div class="bill">BL0231</div></div>
+            <div class="pcell due sel"><div class="m">2026-10</div><div class="v">291.09</div><div class="st">欠费</div><div class="bill">BL0232</div></div>
+            <div class="pcell due sel"><div class="m">2026-11</div><div class="v">291.09</div><div class="st">欠费</div><div class="bill">BL0233</div></div>
+            <div class="pcell fut"><div class="m">2026-12</div><div class="v">291.09</div><div class="st">未到期</div></div>
+            <div class="pcell fut"><div class="m">2027-01</div><div class="v">291.09</div><div class="st">未到期</div></div>
+          </div>
+        </div>
+
+        <!-- ② 车位管理费：有效期 → 不能欠、到期失效 -->
+        <div class="blk">
+          <div class="blk__hd">
+            <b>车位管理服务费</b><span class="sub">120 元/月</span>
+            <span class="mode">按周期 · 不欠费</span>
+            <div class="act" style="color:var(--t3);font-size:11.5px;">到期未续：车牌自动停用月租，按临停计费</div>
+          </div>
+          <div class="park">
+            <div class="park__i">B1</div>
+            <div class="park__m">
+              <div class="park__n">B1-088 · 地下 · 浙B·JK3YA <span class="tagm g">生效中</span> <span class="left">剩 92 天</span></div>
+              <div class="park__s">有效期至 <b style="color:#1f2540">2027-02-15</b> · 无欠费 · 上次续费 2026-11-02</div>
+            </div>
+            <div class="park__act">
+              <span>续 1 月</span><span class="on">续 3 月</span><span>续 6 月</span><span>续 1 年</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ 水电：按业态计价，两种计费模式 -->
+        <div class="blk">
+          <div class="blk__hd">
+            <b>水电</b><span class="sub">单价按业态自动取价</span>
+            <span class="mode">预充买量 / 抄表账单</span>
+            <div class="act" style="color:var(--t3);font-size:11.5px;">本项目：电=预充 · 水=抄表</div>
+          </div>
+          <div class="util">
+            <div class="ucard">
+              <div class="ucard__hd"><b>电费</b><span class="price">0.568 元/度 · 住宅价</span><span class="sw">切换 ⌄</span><span class="md pre">预充买量</span></div>
+              <div class="ucard__b">
+                <div class="box"><span style="color:var(--t3);font-size:11px">¥</span>500.00<span class="u">元</span></div>
+                <span class="eq">⇄</span>
+                <div class="box">880.28<span class="u">度</span></div>
+              </div>
+              <div class="ucard__f">余额 <b>42.6</b> 度 · 输金额或度数任一即可</div>
+            </div>
+            <div class="ucard">
+              <div class="ucard__hd"><b>水费</b><span class="price">3.85 元/吨 · 住宅价</span><span class="sw">切换 ⌄</span><span class="md meter">抄表账单</span></div>
+              <div class="ucard__b">
+                <div class="box" style="background:var(--bg2);border-style:dashed;font-size:12px;">2026-11 抄表 18 吨<span class="u">69.30</span></div>
+              </div>
+              <div class="ucard__f">上期读数 1,246 → 本期 1,264 · <b style="color:#4a58d8">加入收款</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini">
+          <div class="mini__hd"><b>本户收款记录</b><span>近 4 笔 · 有争议时当场核对</span></div>
+          <div class="mrow"><span class="t">2026-08-14</span><span class="n">物业服务费 2026-05~08 共 4 期 · 微信</span><span class="a">1,164.36</span><span class="w">王芳</span></div>
+          <div class="mrow"><span class="t">2026-07-02</span><span class="n">电费充值 300 元 / 483.9 度</span><span class="a">300.00</span><span class="w">李静</span></div>
+          <div class="mrow"><span class="t">2026-05-09</span><span class="n">物业服务费 2026-03~04 共 2 期 · POS</span><span class="a">582.18</span><span class="w">王芳</span></div>
+          <div class="mrow"><span class="t">2026-04-11</span><span class="n">车位管理服务费 续 3 月 · 现金</span><span class="a">360.00</span><span class="w">王芳</span></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="right__hd"><b>本次收款</b><span>2 项</span></div>
+        <div class="cart">
+          <div class="ci"><div class="ci__x">×</div><div class="ci__m"><div class="ci__n">物业服务费</div><div class="ci__s">2026-09 / 10 / 11 · 3 期</div></div><div class="ci__v">873.27</div></div>
+          <div class="ci"><div class="ci__x">×</div><div class="ci__m"><div class="ci__n">车位管理服务费</div><div class="ci__s">续 3 月 · 2027-02-15 → 2027-05-15</div></div><div class="ci__v">360.00</div></div>
+          <div class="ci add"><div class="ci__x" style="background:#fff">+</div><div class="ci__m"><div class="ci__n" style="color:var(--t2);font-weight:400">+ 加收：其他科目 / 押金 / 临时</div><div class="ci__s">点击展开，不跳页</div></div></div>
+        </div>
+
+        <div class="effect">
+          <div class="effect__hd">收款后会发生什么</div>
+          <div class="erow">物业费收清，<b>欠费清零</b>，核销 3 张账单</div>
+          <div class="erow">车位续至 <b>2027-05-15</b>，车牌继续放行</div>
+          <div class="erow">写日结 · 进开票池</div>
+        </div>
+
+        <div class="sum">
+          <div class="sum__r"><span>收入类合计</span><b>1,233.27</b></div>
+          <div class="sum__r"><span>押金（负债，不计收入）</span><b style="color:var(--t3)">0.00</b></div>
+          <div class="sum__total"><span class="k">本次实收</span><span class="v"><span class="u">¥</span>1,233.27</span></div>
+        </div>
+
+        <div class="payblock">
+          <div class="payblock__hd"><b>支付方式</b><span>可拆分，最多 3 种</span></div>
+          <div class="payrow"><span class="pm">微信</span><span class="amt">1,233.27</span><span class="x">×</span></div>
+          <div class="payrow ghost">+ 添加（现金 / POS / 转账）</div>
+        </div>
+
+        <div class="go">收款 <span class="kbd">F2</span></div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<div class="foot">
+
+
+  <h2>四种变体（按项目配置自动切换）</h2>
+  <div class="vgrid">
+
+    <div class="vcard">
+      <div class="vcard__t">① 电费改「物业抄表」后</div>
+      <div class="vcard__d">单价仍在，但形态从「钱换量」变成「待缴单」——金额由读数算，前台不能改。可多选一并收。</div>
+      <div class="ucard">
+        <div class="ucard__hd"><b>电费</b><span class="price">0.90 元/度 · 餐饮铺价</span><span class="sw">切换 ⌄</span><span class="md meter">抄表账单</span></div>
+        <div class="olist">
+          <div class="orow sel"><span class="p">2026-10</span><span class="q">186 度 × 0.90</span><span class="a">167.40</span><span class="st">未缴</span></div>
+          <div class="orow sel"><span class="p">2026-09</span><span class="q">203 度 × 0.90</span><span class="a">182.70</span><span class="st">未缴</span></div>
+          <div class="orow"><span class="p">2026-08</span><span class="q">168 度 × 0.90</span><span class="a">151.20</span><span class="st ok">已缴</span></div>
+        </div>
+        <div class="ucard__f">11 月未抄表 · 抄表后自动推单</div>
+      </div>
+    </div>
+
+    <div class="vcard">
+      <div class="vcard__t">② 电费改「国网自缴」后</div>
+      <div class="vcard__d">整块灰显、不参与收款，也不进收入统计。留着是为了让前台能回答「我们系统里怎么没有电费」。</div>
+      <div class="ucard off">
+        <div class="ucard__hd"><b>电费</b><span class="price">业主向国网自缴</span><span class="md offm">系统不参与</span></div>
+        <div class="offbox">本项目电费不产生应收、不收款、不计收入。<br />业主凭国网账单自行缴纳。</div>
+      </div>
+    </div>
+
+    <div class="vcard">
+      <div class="vcard__t">③ 同一业态也可能不同价 → 可切换</div>
+      <div class="vcard__d">默认取房屋档案绑定的档位，前台可改。改价<b>必须留痕</b>：单据存单价快照 + 操作人，否则事后查不清谁按什么价收的。</div>
+      <div class="dd">
+        <div class="dd__hd">选择电价档位 <span>该房屋默认：餐饮铺价</span></div>
+        <div class="dd__i on"><span class="ck">✓</span>餐饮铺价<span class="tag">默认</span><span class="p">0.90</span></div>
+        <div class="dd__i"><span class="ck"></span>零售铺价<span class="p">0.80</span></div>
+        <div class="dd__i"><span class="ck"></span>办公价<span class="p">1.00</span></div>
+        <div class="dd__i"><span class="ck"></span>转供电协议价（川味小馆）<span class="p">0.92</span></div>
+        <div class="dd__f">改价会记录操作人与原因，充值单存单价快照</div>
+      </div>
+    </div>
+
+    <div class="vcard">
+      <div class="vcard__t">④ 加收：其他科目 / 押金 / 临时收费</div>
+      <div class="vcard__d">右栏那行点开后原地展开，不跳页。三个 tab 分别对应三种收法，押金单列不计收入。</div>
+      <div class="ap">
+        <div class="ap__tabs"><span>其他科目</span><span class="on">押金</span><span>临时收费</span></div>
+        <div class="ap__body">
+          <div class="apf"><label>押金类型</label><div class="ctl">装修押金（可退）<span class="u">3000 / 次</span></div></div>
+          <div class="apf"><label>关联</label><div class="ctl dim">装修单号 ZX2026-0087<span class="u">选填</span></div></div>
+          <div class="apf"><label>实收金额</label><div class="ctl">3,000.00<span class="u">元</span></div></div>
+        </div>
+        <div class="ap__f">
+          <div class="warn">押金计入负债、<b>不进收入表</b>；退还需审批走押金台账，不能在这里退</div>
+          <div class="btn">加入本次</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="note" style="margin-top:12px;">
+    <b>三个 tab 各自的字段（为什么不能合成一个表单）：</b>
+    <ul>
+      <li><b>其他科目</b>：从收费科目里挑（门禁卡工本费 20/张、装修垃圾清运费按面积、临时停车费按次）→ 科目 + 数量 + 金额，<b>金额由科目规则算出，可微调</b>。</li>
+      <li><b>押金</b>：装修押金 3000、门禁卡押金 50、非机动车牌押金 20 → 类型 + 关联单号 + 金额，<b>金额不可改</b>（改了就成议价），且<b>只能收不能退</b>。</li>
+      <li><b>临时收费</b>：临停费、场地费、摆摊费这类没有科目、也不挂业主的钱 → 事项 + 金额 + 说明，<b>必须写说明</b>（否则日结对不上时无从查）。</li>
+    </ul>
+  </div>
+
+  <h2>为什么中间是三块，而不是一排磁贴</h2>
+  <table class="tbl">
+    <thead>
+      <tr><th style="width:130px">业务</th><th style="width:150px">规则</th><th style="width:180px">界面形态</th><th>为什么必须这样</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>物业服务费</b></td>
+        <td>账单制 · 按月 · <b>能欠</b></td>
+        <td>账期格子（6 格一行）</td>
+        <td>核心问题是"欠了几个月"。格子把账龄画出来，红几格就是欠几期；点格子即收那一期，收未来月份就是预缴。</td>
+      </tr>
+      <tr>
+        <td><b>车位管理费</b></td>
+        <td>周期制 · <b>不欠费</b> · 到期失效</td>
+        <td>有效期条 + 续期按钮</td>
+        <td>不存在"欠 3 个月"这种事 —— 过期那天车牌就不是月租了。所以显示的是<b>有效期和剩余天数</b>，操作是"续多久"，不是"补哪几期"。</td>
+      </tr>
+      <tr>
+        <td><b>水费 / 电费</b></td>
+        <td>按量 · 两种模式 · <b>按业态计价</b></td>
+        <td>换算框（预充）／ 待缴单（抄表）</td>
+        <td>预充是"钱换量"，必须双向换算且单价随业态变；抄表是"量换钱"，金额由读数与单价算出，前台不能改。</td>
+      </tr>
+      <tr>
+        <td>其他科目</td>
+        <td>一次性 / 临时</td>
+        <td>右栏「+ 其他收费项」</td>
+        <td>临停、门禁卡、押金这类低频且形态各异，不值得占中间的位置，收进一个入口即可。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>业态价目表（这是新加的一层）</h2>
+  <table class="tbl">
+    <thead>
+      <tr><th style="width:120px">表计</th><th style="width:150px">住宅 / 公寓</th><th style="width:150px">商业 · 零售铺</th><th style="width:150px">商业 · 餐饮铺</th><th style="width:150px">商业 · 办公</th><th>口径</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>水费</b></td><td class="num">3.85 元/吨</td><td class="num">5.55 元/吨</td><td class="num">5.55 元/吨</td><td class="num">5.55 元/吨</td><td>按房屋业态取价，<b>不按业主</b></td></tr>
+      <tr><td><b>电费</b></td><td class="num">0.568 元/度</td><td class="num">0.80 元/度</td><td class="num">0.90 元/度</td><td class="num">1.00 元/度</td><td>商业按细分类型分档</td></tr>
+      <tr><td>公寓</td><td class="num">暂按住宅价</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><b>这一格要你确认</b>：公寓是否单独定价</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>为什么价目表必须独立成表，不能写在收费项上：</b>现在 <span class="k">feeItems.price</span> 是单一值，备注里拿文字写"阶梯：0-200 度 0.62…"，这等于没有结构 ——
+    报表算不出价、调价改一次要改一个字符串、同一项目商业户和住宅户只能共用一个价。
+    正确做法是 <span class="k">(项目 × 表计 × 业态 × 生效日) → 单价</span> 四元组，房屋取价时按 <b>业态 + 房屋类型</b> 匹配，
+    匹配不到就报错让运营补价，<b>不静默回落到一个默认值</b>（否则商业户会被按住宅价收，差额没人发现）。
+  </div>
+
+  <h2>和 A / B 的关系</h2>
+  <div class="note">
+    <b>保留 A 的骨架</b>：左找人 · 中操作 · 右结算，三栏不换页。<br />
+    <b>保留 B 的账期矩阵</b>：但<b>只用在物业服务费</b>上 —— 它是唯一"能欠、按月"的科目，账格才对它有意义。<br />
+    <b>去掉的</b>：一排通用磁贴。因为你的科目里只有物业费能欠、车位只能续、水电按量，三种规则硬塞进一样的卡片，
+    前台就得在脑子里做翻译（"这个卡点进去是选月数还是选金额？"）。<br />
+    <b>去掉的演示科目</b>：电梯运行维护、公共能耗分摊、生活垃圾清运费 —— 你说实际没有这些，已经从设计里删掉。
+  </div>
+
+  <h2>落进代码要改三处</h2>
+  <div class="note">
+    <ul>
+      <li><b>价目表</b>：新增 <span class="k">utilityPrices.json</span>（项目 × 表计 × 业态 × 生效日 → 单价），收费项的单一 <span class="k">price</span> 只在"非水电"科目上继续用。</li>
+      <li><b>车位改成周期续费</b>：现有 <span class="k">parkings.expireDate</span> 已经有了，缺的是"续期单" —— 续 3 月 = 收 360 + 把 expireDate 往后推 3 个月，<b>不产生账期</b>。</li>
+      <li><b>物业费仍是账期</b>：批 2 的矩阵不动，只是把"账单"降级成格子右上角的角标，收款时自动核销。</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.pcell').forEach(c => {
+    c.addEventListener('click', () => c.classList.toggle('sel'))
+  })
+  document.querySelectorAll('.park__act span').forEach(s => {
+    s.addEventListener('click', () => {
+      s.parentNode.querySelectorAll('span').forEach(x => x.classList.remove('on'))
+      s.classList.add('on')
+    })
+  })
+</script>
+</body>
+</html>
