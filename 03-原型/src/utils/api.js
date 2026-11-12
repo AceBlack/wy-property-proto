@@ -9415,6 +9415,19 @@ export function getTempCharge(chargeId) {
 }
 
 /** 台账顶部四个数：待收、本月已收、累计已收、已作废 */
+/**
+ * 收银台散客模式用：最近 N 笔临时收费（默认只看「外部」）。
+ * 同步返回 —— 收银台要在切到散客的瞬间就把名单摆出来（同一个摊位一天来两趟很常见，
+ * 前台得能当场看到"这个名刚才是不是已经交过了"）。
+ */
+export function recentTempCharges({ partyType = '外部', limit = 6 } = {}) {
+  return TEMP_CHARGES
+    .filter(x => !partyType || x.partyType === partyType)
+    .map(_tcRowOf)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, limit)
+}
+
 export function tempChargeStats() {
   const month = TODAY.slice(0, 7)
   const paid = TEMP_CHARGES.filter(x => x.status === '已收款')
@@ -19585,6 +19598,45 @@ export function createPrepayForPeriod({ houseId, itemId = 'FI01', period, amount
     source: 'prepay', at: `${TODAY}`, prepayOnly: true
   })
   return { period, amount: amt, left: Math.round((left - amt) * 100) / 100 }
+}
+
+/**
+ * 收银台账期窗口（2026-11-13）。
+ *
+ * 之前固定铺 6 期（2026-08 ~ 2027-01），前台看不到"一年后"，也没法一次选半年。
+ * 现在拆成两段：
+ *   欠费段  回溯 6 期（有更早的欠费就自动往前扩到那一期）
+ *   预缴段  未来 12 期
+ *
+ * 欠费段最少给 6 期是刻意的：**已收的月份也要看得见**。
+ * 业主说"我 9 月交过了"，前台要能直接把绿格子指给他看，而不是去翻流水。
+ * 回溯不早于房屋交付月 —— 不设这个下限，2015 年交付的楼会凭空长出一年的"欠费"。
+ */
+export function cashierPeriodRows({ houseId, itemId = 'FI01', future = 12, minBack = 5, maxBack = 11 } = {}) {
+  const cur = periodOf()
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) return { current: cur, from: cur, to: cur, rows: [] }
+
+  let floor = addMonths(cur, -maxBack)
+  if (h.deliverDate) {
+    const dm = String(h.deliverDate).slice(0, 7)
+    if (dm && dm > floor) floor = dm
+  }
+
+  /* 最早未缴期：比"回溯 6 期"更早的欠费，要把欠费段往前扩到那一期，
+     否则欠了 10 期只显示最近 6 期，前台会以为只欠半年 */
+  let from = addMonths(cur, -minBack)
+  for (const p of monthRange(floor, cur)) {
+    if (_mtxRow(houseId, itemId, p).unpaid > 0) { if (p < from) from = p; break }
+  }
+  if (from < floor) from = floor
+
+  const to = addMonths(cur, future)
+  const rows = monthRange(from, to).map(p => ({
+    ..._mtxRow(houseId, itemId, p),
+    segment: p < cur ? 'past' : (p === cur ? 'current' : 'future')
+  }))
+  return { current: cur, from, to, rows }
 }
 
 /** 收银台可收的"其他收费科目"：非按月、非水电的那些 */

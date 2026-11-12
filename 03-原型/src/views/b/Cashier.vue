@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div v-if="p" class="pos">
+    <div v-if="p || isWalkin" class="pos">
       <!-- ============ 左：客户 ============ -->
       <div class="panel pos-left">
         <div class="panel__hd">
@@ -38,6 +38,18 @@
           </el-select>
         </div>
         <div class="olist">
+          <!-- 散客常驻入口：摆摊、场地、赔偿这类收款没有业主档案，不能硬挂一户 -->
+          <div
+            class="oitem oitem--walkin" :class="{ 'is-on': isWalkin }"
+            @click="pick(WALKIN)"
+          >
+            <div class="oitem__ava oitem__ava--walkin">散</div>
+            <div class="oitem__b">
+              <div class="oitem__n">散客 / 外来人员</div>
+              <div class="oitem__d">摆摊、场地、临时事项 · 不挂户</div>
+            </div>
+          </div>
+          <div class="olist__div" />
           <div
             v-for="o in resultList" :key="o.ownerId"
             class="oitem" :class="{ 'is-on': o.ownerId === ownerId }"
@@ -59,8 +71,8 @@
 
       <!-- ============ 中：三类业务 + 加收 ============ -->
       <div class="pos-mid">
-        <!-- 客户条 -->
-        <div class="panel who">
+        <!-- 客户条：业主形态（有房、有账期、有车位、有表计） -->
+        <div v-if="!isWalkin" class="panel who">
           <div class="who__a">{{ p.owner.name.slice(0, 1) }}</div>
           <div class="who__m">
             <div class="who__n">
@@ -80,31 +92,99 @@
           </div>
         </div>
 
+        <!-- 客户条：散客形态 —— 没有房、没有账期，只要"谁交的钱"和"算哪个项目" -->
+        <div v-else class="panel who who--guest">
+          <div class="who__a who__a--guest">散</div>
+          <div class="who__m">
+            <div class="who__n">
+              散客 / 外来人员
+              <span class="tagm tagm--y">不挂户</span>
+            </div>
+            <div class="who__s">摆摊费、场地租用、赔偿款 —— 有收款流水、计入收入，不进应收与收缴率</div>
+          </div>
+          <div class="guestf">
+            <el-input v-model="guest.name" size="small" maxlength="40" placeholder="姓名 / 单位（必填）" style="width:170px" />
+            <el-input v-model="guest.phone" size="small" maxlength="11" placeholder="手机号（选填）" style="width:132px" />
+            <el-select v-model="guest.communityId" size="small" placeholder="所属项目" style="width:146px">
+              <el-option v-for="c in cmOpts" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
+          </div>
+        </div>
+        <div v-if="isWalkin && guestErr" class="guestwarn">
+          <el-icon><InfoFilled /></el-icon>{{ guestErr }}（填完才能收款）
+        </div>
+
+        <template v-if="!isWalkin">
+
         <!-- ① 物业服务费：能欠 → 账期格子；没出账的月份点了就是预缴 -->
         <div class="panel blk">
           <div class="blk__hd">
             <b>物业服务费</b>
             <span class="blk__sub">2.8 元/㎡ · {{ money(activeHouse?.area ? activeHouse.area * 2.8 : 0) }} / 月</span>
             <span class="md md--due">按账期 · 可欠费 · 可预缴</span>
+            <span v-if="pickSummary.count" class="blk__pick">
+              已选 <b>{{ pickSummary.count }}</b> 期 ·
+              <b>¥{{ money(pickSummary.amount) }}</b>
+              <i>{{ pickSummary.first === pickSummary.last ? pickSummary.first : pickSummary.first + ' ~ ' + pickSummary.last }}</i>
+            </span>
             <span class="spacer" />
             <el-button v-if="periodDebtCount" link type="primary" size="small" @click="selectAllPeriodDebt">
               全选欠费（{{ periodDebtCount }}）
             </el-button>
           </div>
+
+          <!-- 欠费段：该收的。已收的月份也留着，业主说"我交过了"能当场指给他看 -->
+          <div class="pseg pseg--past">
+            <span class="pseg__t">欠费与当期</span>
+            <span class="pseg__hint">{{ periodDebtCount ? `未结清 ${periodDebtCount} 期` : '无欠费' }}</span>
+          </div>
           <div class="pgrid">
             <div
-              v-for="c in periodCells" :key="c.period"
+              v-for="c in pastCells" :key="c.period"
               class="pcell"
               :class="['is-' + cellTone(c), { 'is-picked': c.picked }]"
               @click="togglePeriod(c)"
             >
               <div class="pcell__m">{{ c.period }}</div>
-              <div class="pcell__v">{{ money(c.receivable) }}</div>
+              <div class="pcell__v">{{ money(c.bill ? c.bill.unpaid : c.receivable) }}</div>
               <div class="pcell__s">{{ cellLabel(c) }}</div>
               <span v-if="c.bill" class="pcell__bill">{{ c.billId.slice(-4) }}</span>
             </div>
           </div>
-          <div class="blk__foot">点红格收欠费，点虚线格是<b>预缴</b>（收完即记已收，不生成账单）</div>
+
+          <!-- 预缴段：未来 12 个月。点选或按档位一把选，按钮上的金额就是下面格子的合计 -->
+          <div class="pseg">
+            <span class="pseg__t">未来 12 个月 · 可预缴</span>
+            <span class="pseg__hint">从当期起连续选，已收清的自动跳过</span>
+            <span class="spacer" />
+            <div class="pquick">
+              <span
+                v-for="q in QUICK_MONTHS" :key="q"
+                :class="{ 'is-on': appliedQuick === q }"
+                @click="applyQuick(q)"
+              >
+                {{ q }} 个月 <i>¥{{ money(quickPlan(q).amount) }}</i>
+              </span>
+              <span v-if="pickSummary.count" class="pquick__clear" @click="clearPeriodSelection">清空</span>
+            </div>
+          </div>
+          <div class="pgrid">
+            <div
+              v-for="c in futureCells" :key="c.period"
+              class="pcell"
+              :class="['is-' + cellTone(c), { 'is-picked': c.picked }]"
+              @click="togglePeriod(c)"
+            >
+              <div class="pcell__m">{{ c.period }}</div>
+              <div class="pcell__v">{{ money(c.bill ? c.bill.unpaid : c.receivable) }}</div>
+              <div class="pcell__s">{{ cellLabel(c) }}</div>
+              <span v-if="c.bill" class="pcell__bill">{{ c.billId.slice(-4) }}</span>
+            </div>
+          </div>
+          <div class="blk__foot">
+            点红格收欠费，点虚线格是<b>预缴</b>（收完即记已收，不生成账单）；
+            快捷档从<b>最早未收清的一期</b>起连续选，已收清的直接跳过
+          </div>
         </div>
 
         <!-- ② 车位：不欠费，到期失效 → 有效期 + 续期 -->
@@ -219,17 +299,20 @@
           </div>
         </div>
 
+        </template>
+
         <!-- ④ 加收：其他科目 / 押金 / 临时收费
              放中栏不放右栏：右栏职责是"结账"，加收是"选收什么"；
-             而且右栏 320px 一条条堆表单，加完还得往上翻着看清单 -->
+             而且右栏 320px 一条条堆表单，加完还得往上翻着看清单
+             散客模式只留「临时收费」—— 其他科目与押金都要挂房屋才落得了库 -->
         <div class="panel blk addblk">
           <div class="blk__hd">
             <b>加收</b>
             <span class="blk__sub">不进账期、不产生欠费的一次性收款</span>
             <span class="spacer" />
             <div class="addtabs">
-              <span :class="{ 'is-on': extraPanel === 'item' }" @click="toggleExtraPanel('item')">其他科目</span>
-              <span :class="{ 'is-on': extraPanel === 'deposit' }" @click="toggleExtraPanel('deposit')">押金</span>
+              <span v-if="!isWalkin" :class="{ 'is-on': extraPanel === 'item' }" @click="toggleExtraPanel('item')">其他科目</span>
+              <span v-if="!isWalkin" :class="{ 'is-on': extraPanel === 'deposit' }" @click="toggleExtraPanel('deposit')">押金</span>
               <span :class="{ 'is-on': extraPanel === 'temp' }" @click="toggleExtraPanel('temp')">临时收费</span>
             </div>
           </div>
@@ -260,19 +343,47 @@
           </div>
 
           <div v-else-if="extraPanel === 'temp'" class="addrow">
-            <el-input v-model="extraForm.tempName" placeholder="事项（临停 / 场地 / 摆摊）" style="width:232px;" />
+            <el-input v-model="extraForm.tempName" placeholder="事项（摆摊费 / 场地 / 赔偿款）" style="width:232px;" />
             <el-input-number v-model="extraForm.tempAmount" :min="0" :precision="2" :controls="false"
               style="width:128px;" placeholder="金额" />
             <span class="addrow__eq">元</span>
             <el-button type="primary" plain @click="addTempCharge">加入</el-button>
-            <el-input v-model="extraForm.tempNote" placeholder="说明（必填）" style="flex:1;" />
+            <el-input v-model="extraForm.tempNote" placeholder="说明（摊位号 / 位置，选填）" style="flex:1;" />
           </div>
 
-          <div v-else class="addrow addrow--hint">选一个类型开始加收：其他科目 / 押金 / 临时收费</div>
+          <div v-if="extraPanel === 'temp'" class="temphint">
+            <template v-if="isWalkin">
+              付款方：<b>{{ guest.name || '未填写' }}</b> · 按「外部人员」入账，不挂户、不进应收
+            </template>
+            <template v-else>
+              付款方：<b>{{ p?.owner?.name }}</b> · 记在该业主名下（外来人员请从左上角切「散客」）
+            </template>
+          </div>
+
+          <div v-if="!extraPanel" class="addrow addrow--hint">选一个类型开始加收：{{ isWalkin ? '临时收费' : '其他科目 / 押金 / 临时收费' }}</div>
+        </div>
+
+        <!-- 散客：最近几笔外来收款 —— "我上午交过了"要能当场翻出来 -->
+        <div v-if="isWalkin" class="panel blk">
+          <div class="blk__hd">
+            <b>最近散客收款</b>
+            <span class="blk__sub">近 {{ guestRecent.length }} 笔 · 外来人员</span>
+            <span class="spacer" />
+            <el-button link type="primary" size="small" @click="$router.push('/b/temp-charges')">临时收费台账</el-button>
+          </div>
+          <div class="recent">
+            <div v-for="t in guestRecent" :key="t.chargeId" class="rrow">
+              <span class="rrow__t">{{ t.payTime || t.createdAt }}</span>
+              <span class="rrow__n">{{ t.partyName }} · {{ t.reason }}</span>
+              <span class="rrow__w">{{ t.status }}</span>
+              <span class="rrow__a">{{ money(t.amount) }}</span>
+            </div>
+            <div v-if="!guestRecent.length" class="blk__empty">还没有外来人员的收费记录</div>
+          </div>
         </div>
 
         <!-- ⑤ 本户收款记录：业主说"我上个月交过"时当场核对 -->
-        <div class="panel blk">
+        <div v-if="!isWalkin" class="panel blk">
           <div class="blk__hd">
             <b>本户收款记录</b>
             <span class="blk__sub">近 {{ recentPaid.length }} 笔 · 有争议时当场核对</span>
@@ -305,19 +416,22 @@
             </div>
             <div class="ci__v">{{ money(b.unpaid) }}</div>
           </div>
-          <div v-for="e in extras" :key="e.key" class="ci">
-            <span class="ci__x" @click="removeExtra(e.key)">×</span>
+          <div v-for="e in cartExtras" :key="e.key" class="ci">
+            <span class="ci__x" @click="removeExtraRow(e)">×</span>
             <div class="ci__m">
               <div class="ci__n">
                 {{ e.title }}
                 <span v-if="e.type === 'deposit'" class="tagm tagm--y">不计收入</span>
-                <span v-if="e.type === 'prepay'" class="tagm tagm--b">预缴</span>
+                <span v-if="e.type === 'prepay'" class="tagm tagm--b">预缴 {{ e.count }} 期</span>
+                <span v-if="e.type === 'temp' && isWalkin" class="tagm tagm--y">散客</span>
               </div>
               <div class="ci__s">{{ e.sub }}</div>
             </div>
             <div class="ci__v">{{ money(e.amount) }}</div>
           </div>
-          <div v-if="!pickedCount" class="cart__empty">点中间的账期格子 / 续期 / 充值，或在「加收」里选科目</div>
+          <div v-if="!pickedCount" class="cart__empty">
+            {{ isWalkin ? '在「临时收费」里填事项和金额，加入即可' : '点中间的账期格子 / 续期 / 充值，或在「加收」里选科目' }}
+          </div>
         </div>
 
         <!-- 合计：收入与押金分开 -->
@@ -379,7 +493,7 @@
           <div class="pay-done__s">{{ lastResult.methodText }}</div>
 
           <!-- 开具票据：就在收款结果里开完，不让人为了开一张收据再跳一次页面 -->
-          <div class="tk">
+          <div v-if="lastResult.payments?.length" class="tk">
             <div class="tk__hd">
               <span>开具票据</span>
               <span class="spacer" />
@@ -444,6 +558,17 @@
               </div>
             </template>
           </div>
+          <!-- 非账单收款（充值 / 续期 / 押金 / 临时收费）没有 payId 可挂，开票去台账 -->
+          <div v-else class="tk">
+            <div class="tk__hd">
+              <span>开具票据</span>
+              <span class="spacer" />
+              <el-button link type="primary" size="small" @click="$router.push('/b/payments')">查看流水</el-button>
+            </div>
+            <div class="tk__more" style="margin-top:6px;">
+              这类收款不走账单，请在「票据台账」按流水开票
+            </div>
+          </div>
         </div>
 
         <div class="tip">
@@ -468,12 +593,13 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  PAY_METHODS, PAY_SPLIT_MAX, billingMatrixOfHouse, canCollect, canEditTempCharges,
-  cashierBuildingOpts, cashierExtraItemOpts, cashierOwnerList, cashierOwnerRoom, cashierUnitOpts,
-  collectDeposit, communityUtilityOf, createPrepayCollect, createPrepayForPeriod, createUtilityCharge, debtOf,
+  PAY_METHODS, PAY_SPLIT_MAX, canCollect, canEditTempCharges,
+  cashierBuildingOpts, cashierExtraItemOpts, cashierOwnerList, cashierOwnerRoom, cashierPeriodRows,
+  cashierUnitOpts, collectDeposit, communityOpts, communityUtilityOf, createPrepayCollect, createPrepayForPeriod, createUtilityCharge, debtOf,
   depositCollectTypeOpts, feeItemCategoryRows, houseOptions, invoiceItemNameOpts,
   invoiceProfilesOfHouse, isDebt, isReceivableItem, issueInvoice, ownerProfile,
-  parkingRenewQuote, payBills, paySplitCheck, prepayBalanceOf, prepayPlan,
+  parkingRenewQuote, payBills, paySplitCheck, payTempCharge, prepayBalanceOf, prepayPlan,
+  recentTempCharges,
   renewParking, saveTempCharge, setHouseUtilityPrice, tenantsOfOwner,
   utilityBillsOf, utilityPriceOf, utilityQuote, utilityQuoteAt, utilityTierRows, waiveReasonOpts
 } from '@/utils/api'
@@ -498,7 +624,10 @@ const nowText = ref('')
 }
 
 const kw = ref('')
+/** 散客的虚拟客户 ID：不指向任何业主档案，只作为"当前收款对象"的标记 */
+const WALKIN = '__walkin__'
 const ownerId = ref('OW00001')
+const isWalkin = computed(() => ownerId.value === WALKIN)
 const houseFilter = ref('__all')
 const sel = ref([])
 const discount = ref(0)
@@ -766,7 +895,7 @@ watch([bldgId, unitId], () => {
 
 const debtRows = computed(() => {
   void payVer.value
-  return p.value.bills.filter(isDebt).map(b => ({ ...b, room: roomOf(b.houseId) }))
+  return (p.value?.bills || []).filter(isDebt).map(b => ({ ...b, room: roomOf(b.houseId) }))
     .sort((a, b) => b.overdueDays - a.overdueDays)
 })
 const shownRows = computed(() =>
@@ -856,7 +985,8 @@ function resetSplits() {
 }
 
 function quickDebt(id) {
-  return debtOf(p.value.ownerId === id ? p.value.bills : ownerBills(id))
+  if (id === WALKIN) return 0
+  return debtOf(p.value?.ownerId === id ? p.value.bills : ownerBills(id))
 }
 const billCache = new Map()
 function ownerBills(id) {
@@ -924,19 +1054,27 @@ const activePark = computed(() => {
 })
 
 /* ---------------- ① 物业费：账期格子 ---------------- */
-const PERIOD_FROM = '2026-08'
-const PERIOD_TO = '2027-01'
+/* 预缴段铺 12 期：业主提前交一年是常态，之前只有 2~3 期可点，等于做不了年缴 */
+const PERIOD_FUTURE = 12
+/** 快捷缴费月数：点一下选连续 N 期，金额当场算出来写在按钮上 */
+const QUICK_MONTHS = [3, 6, 12]
+
+const r2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
+const periodWindow = computed(() => {
+  void payVer.value
+  const h = activeHouse.value
+  if (!h) return { current: '', rows: [] }
+  try { return cashierPeriodRows({ houseId: h.houseId, itemId: 'FI01', future: PERIOD_FUTURE }) }
+  catch { return { current: '', rows: [] } }
+})
 
 const periodCells = computed(() => {
   void payVer.value
   const h = activeHouse.value
   if (!h) return []
-  let rows = []
-  try {
-    rows = billingMatrixOfHouse(h.houseId, { itemId: 'FI01', from: PERIOD_FROM, to: PERIOD_TO })
-  } catch { return [] }
-  return rows.map(r => {
-    const bill = (p.value.bills || []).find(b => b.houseId === h.houseId && b.itemId === 'FI01'
+  return periodWindow.value.rows.map(r => {
+    const bill = (p.value?.bills || []).find(b => b.houseId === h.houseId && b.itemId === 'FI01'
       && b.period === r.period && isDebt(b))
     return {
       ...r,
@@ -949,7 +1087,94 @@ const periodCells = computed(() => {
   })
 })
 
-const periodDebtCount = computed(() => periodCells.value.filter(c => c.bill).length)
+/** 欠费段（含当期）与预缴段分开渲染：一段是"该收的"，一段是"能提前收的" */
+const pastCells = computed(() => periodCells.value.filter(c => c.segment !== 'future'))
+const futureCells = computed(() => periodCells.value.filter(c => c.segment === 'future'))
+
+/**
+ * 未结清期数。
+ * 只数"有账单的"会和格子对不上：矩阵里 2025-11 就有应收、账单却只开到最近两期，
+ * 于是格子红了 11 格、块头写"欠 2 期"，前台第一句就会被业主问住。
+ * 口径统一成：谁还有未收金额，就算一期。
+ */
+const periodDebtCount = computed(() =>
+  periodCells.value.filter(c => c.segment !== 'future' && Number(c.bill ? c.bill.unpaid : c.unpaid) > 0).length)
+
+/** 已收清的格子：不能再点，快捷选择也要跳过 */
+const isSettledCell = c => !c.bill && (c.status === '已收' || c.status === '已减免')
+/** 逾期/部分收的格子，应收是"还差多少"而不是月费 */
+const cellDue = c => (Number(c.unpaid) > 0 ? c.unpaid : c.receivable)
+
+/**
+ * 已选账期总览：欠费（销账）与预缴（未来）都算，一格一期。
+ * 金额对的是"右栏要收多少"，所以账单用账单的未缴，预缴用该期应收。
+ */
+const pickSummary = computed(() => {
+  const rows = periodCells.value.filter(c => c.picked)
+  return {
+    count: rows.length,
+    amount: r2(rows.reduce((s, c) => s + (c.bill ? c.bill.unpaid : cellDue(c)), 0)),
+    first: rows[0]?.period || '',
+    last: rows[rows.length - 1]?.period || ''
+  }
+})
+
+/**
+ * 快捷缴费 N 期：从**当期**起连续取 N 期未收清的月份。
+ * 只跳过已收清的，不往欠费段里捞 —— 清欠有「全选欠费」和点格子两条路，
+ * 把欠费混进来会让"12 个月"变成"12 期（含去年欠的）"，金额对不上预期。
+ * 当期已收就自动顺延到下个月，所以"12 个月"永远凑满 12 个还没交的月份。
+ */
+function quickPlan(n) {
+  const pool = periodCells.value
+    .filter(c => c.segment !== 'past' && !isSettledCell(c))
+    .slice(0, n)
+  return {
+    count: pool.length,
+    amount: r2(pool.reduce((s, c) => s + (c.bill ? c.bill.unpaid : cellDue(c)), 0)),
+    first: pool[0]?.period || '',
+    last: pool[pool.length - 1]?.period || ''
+  }
+}
+
+/* 哪个快捷档是当前生效的：手点格子后要清掉，否则按钮一直亮着像没点上 */
+const appliedQuick = ref(0)
+
+function prepayRow(c, h) {
+  return {
+    key: `prepay-${h.houseId}-${c.period}`,
+    type: 'prepay',
+    title: '物业服务费（预缴）',
+    sub: `${c.period} · 提前缴纳，收后即记已收`,
+    amount: cellDue(c),
+    meta: { houseId: h.houseId, itemId: 'FI01', period: c.period }
+  }
+}
+
+/** 清掉本户已选的账期（账单 + 预缴），换档或重选时先清再选 */
+function clearPeriodSelection() {
+  const h = activeHouse.value
+  if (!h) return
+  appliedQuick.value = 0
+  sel.value = sel.value.filter(b => !(b.houseId === h.houseId && b.itemId === 'FI01'))
+  extras.value = extras.value.filter(e => !(e.type === 'prepay' && e.meta.houseId === h.houseId))
+}
+
+function applyQuick(n) {
+  const h = activeHouse.value
+  if (!h) return
+  clearPeriodSelection()
+  const pool = periodCells.value
+    .filter(c => c.segment !== 'past' && !isSettledCell(c))
+    .slice(0, n)
+  if (!pool.length) { ElMessage.info('没有可收的账期'); return }
+  for (const c of pool) {
+    if (c.bill) sel.value.push({ ...c.bill, room: h.room || '' })
+    else extras.value.push(prepayRow(c, h))
+  }
+  appliedQuick.value = n
+  if (pool.length < n) ElMessage.info(`只凑到 ${pool.length} 期（其余已收清）`)
+}
 
 /* 本户近期收款：业主说"我上个月交过"的时候，前台要能当场翻出来 */
 const recentPaid = computed(() => (p.value?.bills || [])
@@ -965,30 +1190,28 @@ const recentPaid = computed(() => (p.value?.bills || [])
  */
 function cellLabel(c) {
   if (c.bill) return '欠费'
-  if (c.picked) return '预缴中'
+  if (c.picked) return '已选'
   if (c.status === '已收' || c.status === '已减免') return c.status
-  return c.status
+  if (c.status === '部分收') return '部分收'
+  return c.segment === 'future' ? '可预缴' : c.status
 }
 function cellTone(c) {
   if (c.bill) return 'due'
   if (c.status === '已收' || c.status === '已减免') return 'paid'
+  if (c.status === '部分收') return 'due'
   if (c.status === '未到期') return 'fut'
   return 'due'
 }
 
 /**
  * 点格子 = 收这一期。
- * 未出账的月份不能点：账单制下"应收"要被开成单才算数，
- * 直接收没出账的钱，收缴率与账单销账两套口径立刻就分叉了。
- */
-/**
- * 点格子 = 收这一期。
  * 有账单 → 走销账；没账单但也没收过 → 走**预缴**（实际业务里物业费大都是提前收的）。
- * 已收清的格子点不动。
+ * 已收清的格子点不动；部分收的按"还差多少"预缴，不按整月月费。
  */
 function togglePeriod(cell) {
   const h = activeHouse.value
   if (!h) return
+  appliedQuick.value = 0
 
   if (cell.bill) {
     const i = sel.value.findIndex(x => x.billId === cell.billId)
@@ -996,29 +1219,36 @@ function togglePeriod(cell) {
     else sel.value.push({ ...cell.bill, room: h.room || '' })
     return
   }
-  if (cell.status === '已收' || cell.status === '已减免' || cell.status === '部分收') {
+  if (isSettledCell(cell)) {
     ElMessage.info(`${cell.period} 已收清`)
     return
   }
   const key = `prepay-${h.houseId}-${cell.period}`
   const i = extras.value.findIndex(e => e.key === key)
   if (i >= 0) { extras.value.splice(i, 1); return }
-  extras.value.push({
-    key,
-    type: 'prepay',
-    title: '物业服务费（预缴）',
-    sub: `${cell.period} · 提前缴纳，收后即记已收`,
-    amount: cell.receivable,
-    meta: { houseId: h.houseId, itemId: 'FI01', period: cell.period }
-  })
+  extras.value.push(prepayRow(cell, h))
 }
 
+/**
+ * 一键收齐欠费。
+ * 有账单的走销账，没出账单的走补缴（写矩阵，不补开账单）——
+ * 现实里历史欠费常常只出了最近几期的单，前台不能因此把前面 9 期留在系统外。
+ */
 function selectAllPeriodDebt() {
   const h = activeHouse.value
   if (!h) return
-  const has = new Set(sel.value.map(x => x.billId))
-  periodCells.value.filter(c => c.bill && !has.has(c.billId))
-    .forEach(c => sel.value.push({ ...c.bill, room: h.room || '' }))
+  appliedQuick.value = 0
+  const hasBill = new Set(sel.value.map(x => x.billId))
+  const hasPrepay = new Set(extras.value.filter(e => e.type === 'prepay').map(e => e.key))
+  for (const c of periodCells.value) {
+    if (c.segment === 'future') continue
+    if (!(Number(c.bill ? c.bill.unpaid : c.unpaid) > 0)) continue
+    if (c.bill) {
+      if (!hasBill.has(c.billId)) sel.value.push({ ...c.bill, room: h.room || '' })
+    } else if (!hasPrepay.has(`prepay-${h.houseId}-${c.period}`)) {
+      extras.value.push(prepayRow(c, h))
+    }
+  }
 }
 
 /* ---------------- ② 车位：有效期 + 续期 ---------------- */
@@ -1188,6 +1418,7 @@ function syncExtraAmount() {
 }
 
 function addExtraItem() {
+  if (isWalkin.value) { ElMessage.warning('其他科目要挂房屋计费，散客请用「临时收费」'); return }
   const opt = extraItemOpts.find(o => o.value === extraForm.itemId)
   if (!opt) { ElMessage.error('请先选择收费科目'); return }
   const qty = Number(extraForm.itemQty) || 1
@@ -1205,6 +1436,7 @@ function addExtraItem() {
 }
 
 function addDeposit() {
+  if (isWalkin.value) { ElMessage.warning('押金要挂到房屋台账上，散客请用「临时收费」'); return }
   const amount = extraDepositAmount.value
   if (!amount) { ElMessage.error('押金类型没有标准金额'); return }
   extras.value.push({
@@ -1231,12 +1463,101 @@ function addTempCharge() {
     meta: { itemName: name, note: extraForm.tempNote }
   })
   Object.assign(extraForm, { tempName: '', tempAmount: 0, tempNote: '' })
-  extraPanel.value = ''
+  /* 散客多半一次要加好几笔（摊位费 + 押金卡），面板不收起 */
+  extraPanel.value = isWalkin.value ? 'temp' : ''
 }
 
 function removeExtra(key) { extras.value = extras.value.filter(e => e.key !== key) }
 
+/* ============================================================
+ * ⑤ 散客 / 外来人员（2026-11-13）
+ * ------------------------------------------------------------
+ * 摆摊费、场地租用这类钱，付款方根本不是业主 —— 是门口摆摊的、来租场地的、
+ * 施工队赔玻璃的。他们既没有业主档案，也没有房屋，挂不到任何应收上。
+ *
+ * 所以不硬塞进"业主"：左栏给一个固定的散客入口，中栏切到散客形态
+ * （只有临时收费，没有物业费/车位/水电），收款时落 `partyType: '外部'`。
+ * 硬挂一个业主会污染那户的收款流水，业主来查账时说不清。
+ * ============================================================ */
+const cmOpts = communityOpts()
+const guest = reactive({ name: '', phone: '', communityId: cmOpts[0]?.id || '' })
+
+/** 散客的必填校验。放在这里而不是提交时弹错，前台填到一半就知道差什么 */
+const guestErr = computed(() => {
+  if (!isWalkin.value) return ''
+  if (!String(guest.name || '').trim()) return '请填写付款人姓名或单位'
+  if (guest.phone && !/^1\d{10}$/.test(String(guest.phone).trim())) return '手机号应为 11 位'
+  if (!guest.communityId) return '请选择所属项目'
+  return ''
+})
+
+/** 落库时的付款方：散客走「外部」，业主走档案，两者字段口径不同 */
+function payerOf() {
+  if (isWalkin.value) {
+    return {
+      partyType: '外部',
+      partyName: String(guest.name || '').trim(),
+      partyPhone: String(guest.phone || '').trim(),
+      communityId: guest.communityId,
+      houseId: ''
+    }
+  }
+  return {
+    partyType: '业主',
+    ownerId: ownerId.value,
+    partyName: p.value?.owner?.name || '',
+    houseId: activeHouse.value?.houseId || '',
+    communityId: activeHouse.value?.communityId || ''
+  }
+}
+
+/* 散客进来就默认打开临时收费；业主那边不默认展开，保持原来的"先看业务再决定加收" */
+watch(isWalkin, v => {
+  extraPanel.value = v ? 'temp' : ''
+  if (v) { sel.value = []; discount.value = 0 }
+})
+
+/* 最近几笔外来收款：同一个摊位一天来两趟很常见，前台要能当场对上，
+   也要能回答"我上午交过了" —— 所以切到散客就摆出来，收完款跟着刷新 */
+const guestRecent = computed(() => {
+  void payVer.value
+  return recentTempCharges({ partyType: '外部', limit: 6 })
+})
+
 /* ---------------- 合计：收入与押金分开 ---------------- */
+/**
+ * 右栏清单：预缴按房合并成一行。
+ * 「12 个月」快捷选择会产生 12 条预缴项，一条条列会撑爆右栏；
+ * 合并成「2026-12 ~ 2027-11 · 共 12 期」一行 —— 金额照旧逐期落库，销账不受影响。
+ */
+const cartExtras = computed(() => {
+  const out = []
+  const groups = new Map()
+  for (const e of extras.value) {
+    if (e.type !== 'prepay') { out.push(e); continue }
+    const hid = e.meta.houseId
+    let g = groups.get(hid)
+    if (!g) {
+      g = { key: 'prepay-group-' + hid, type: 'prepay', title: e.title, amount: 0, group: true, periods: [], houseId: hid }
+      groups.set(hid, g)
+      out.push(g)
+    }
+    g.periods.push(e.meta.period)
+    g.amount = r2(g.amount + e.amount)
+  }
+  for (const g of groups.values()) {
+    g.count = g.periods.length
+    g.sub = g.count === 1
+      ? `${g.periods[0]} · 提前缴纳，收后即记已收`
+      : `${g.periods[0]} ~ ${g.periods[g.periods.length - 1]} · 共 ${g.count} 期 · 收后即记已收`
+  }
+  return out
+})
+function removeExtraRow(e) {
+  if (!e.group) { removeExtra(e.key); return }
+  extras.value = extras.value.filter(x => !(x.type === 'prepay' && x.meta.houseId === e.houseId))
+}
+
 const billTotal = computed(() => sel.value.reduce((s, b) => s + (b.unpaid || 0), 0))
 const extraIncomeTotal = computed(() =>
   extras.value.filter(e => e.type !== 'deposit').reduce((s, e) => s + e.amount, 0))
@@ -1270,7 +1591,8 @@ watch(() => payableTotal.value, v => {
 })
 
 const canPay = computed(() =>
-  (sel.value.length + extras.value.length) > 0 && splitCheck.value.ok && !paying.value)
+  (sel.value.length + extras.value.length) > 0 && splitCheck.value.ok && !paying.value
+  && !guestErr.value)
 
 const pickedCount = computed(() => sel.value.length + extras.value.length)
 
@@ -1345,15 +1667,23 @@ async function confirmPay() {
         })
         done.push(`${r.type} ¥${money(r.amount)}（不计收入）`)
       } else {
-        saveTempCharge({
-          partyType: '业主',
-          ownerId: ownerId.value,
-          partyName: p.value?.owner?.name || '',
-          houseId: activeHouse.value?.houseId || '',
-          itemName: e.meta.itemName,
+        /* 临时收费 / 其他科目都落「临时收费」台账：它没有应收，不进收缴率。
+           reason 必须带 —— 数据层拿它校验，也拿它做收入分项，漏了直接报错。
+           **建单之后必须再收一次款**：只 saveTempCharge 的话台账停在「待收款」，
+           钱进了抽屉、系统里却没有这笔现金收入，日结会对不上。 */
+        const itemName = e.meta.itemName || e.title
+        const payMethod = splitRows.value[0]?.method || '微信支付'
+        const tc = saveTempCharge({
+          ...payerOf(),
+          reason: itemName,
+          itemName,
           amount: e.amount,
-          payMethod: splitRows.value[0]?.method || '微信支付',
+          payMethod,
           remark: e.meta.note || remark.value || '收银台加收'
+        })
+        payTempCharge(tc.chargeId, {
+          splits: [{ method: payMethod, amount: e.amount }],
+          remark: e.meta.note || ''
         })
         done.push(`${e.title} ¥${money(e.amount)}`)
       }
@@ -1361,14 +1691,18 @@ async function confirmPay() {
 
     lastResult.value = res
       ? { ...res, received: actual, extraCount: extras.value.length }
-      : { received: actual, count: 0, batchNo: 'AD' + String(Date.now()).slice(-8), methodText: '非账单收入（充值 / 续期 / 押金 / 临时收费）',
+      : { received: actual, count: 0, batchNo: 'AD' + String(Date.now()).slice(-8),
+          methodText: isWalkin.value
+            ? `散客 ${guest.name} · 临时收费（不进收缴率）`
+            : '非账单收入（充值 / 续期 / 押金 / 临时收费）',
           items: extras.value.map(e => ({ title: e.title, amount: e.amount })) }
     if (res) await initTicket(res)
     payVer.value++
     ElMessage.success(`收款 ¥${money(actual)}${done.length ? ' · ' + done.join('，') : ''}`)
     sel.value = []
     extras.value = []
-    extraPanel.value = ''
+    /* 散客多半接着收下一个摊位，面板留在临时收费上 */
+    extraPanel.value = isWalkin.value ? 'temp' : ''
     discount.value = 0
     remark.value = ''
     resetSplits()
@@ -1783,4 +2117,59 @@ async function confirmPay() {
 .rrow__n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rrow__w { color: var(--biz-text-3); flex: 0 0 64px; }
 .rrow__a { font-family: var(--biz-font-num); font-weight: 600; flex: 0 0 78px; text-align: right; }
+
+/* ---------- 账期两段 + 快捷缴费（2026-11-13） ---------- */
+.pseg { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.pseg--past { margin-top: 10px; }
+.pseg__t { font-size: 11.5px; font-weight: 500; color: var(--biz-text-2); }
+.pseg__hint { font-size: 11px; color: var(--biz-text-3); }
+.pseg__sum {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: 11.5px; color: var(--biz-text-2);
+}
+/* 已选期数/合计：放在块头，跟"该收多少"对齐，不塞在某个分段里 */
+.blk__pick {
+  display: flex; align-items: baseline; gap: 4px;
+  padding: 1px 8px; border-radius: 6px;
+  background: rgba(91,108,255,.08);
+  font-size: 11.5px; color: var(--biz-text-2);
+}
+.blk__pick b { font-family: var(--biz-font-num); color: var(--el-color-primary); font-size: 13px; }
+.blk__pick i { font-style: normal; font-size: 10.5px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
+.pseg__sum b { font-family: var(--biz-font-num); color: var(--el-color-primary); }
+.pseg__sum b.is-amt { font-size: 14px; }
+.pseg__sum i { font-style: normal; font-size: 10.5px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
+.pseg .spacer { flex: 1; }
+.pquick { display: flex; align-items: center; gap: 6px; }
+.pquick > span {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11.5px; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--biz-border); background: #fff;
+  color: var(--biz-text-2); cursor: pointer; transition: all .15s;
+}
+.pquick > span i { font-style: normal; font-family: var(--biz-font-num); font-size: 11px; color: var(--biz-text-3); }
+.pquick > span:hover { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+.pquick > span.is-on {
+  border-color: var(--el-color-primary); background: rgba(91,108,255,.08);
+  color: var(--el-color-primary); font-weight: 500;
+}
+.pquick > span.is-on i { color: var(--el-color-primary); }
+.pquick > span.pquick__clear { border-style: dashed; color: var(--biz-text-3); }
+.pquick > span.pquick__clear:hover { color: var(--biz-danger); border-color: var(--biz-danger); }
+.pseg + .pgrid { margin-top: 8px; }
+
+/* ---------- 散客 / 外来人员（2026-11-13） ---------- */
+.oitem--walkin { margin-bottom: 2px; }
+.oitem__ava--walkin { background: linear-gradient(135deg, #f0a020, #e2820f); }
+.olist__div { height: 1px; background: var(--biz-border-light); margin: 6px 6px 8px; }
+.who--guest { border: 1px dashed #f2cd80; background: #fffdf7; }
+.who__a--guest { background: linear-gradient(135deg, #f0a020, #e2820f); }
+.guestf { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.guestwarn {
+  display: flex; align-items: center; gap: 6px; margin-top: -4px;
+  padding: 8px 12px; border-radius: 8px;
+  background: #fdf3e3; color: #a76b13; font-size: 12px;
+}
+.temphint { margin-top: 8px; font-size: 11px; color: var(--biz-text-3); }
+.temphint b { color: var(--biz-text-2); font-weight: 500; }
 </style>

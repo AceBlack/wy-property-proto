@@ -58,9 +58,15 @@ const cells = await page.evaluate(() => [...document.querySelectorAll('.pcell')]
   t: x.innerText.replace(/\s+/g, ' ').trim(),
   cls: x.className
 })))
-ok(cells.length === 6, '物业费账期 6 格（一行放下，不出现 6+2 折行）', `${cells.length} 格`)
+const gridCounts = await page.evaluate(() =>
+  [...document.querySelectorAll('.pgrid')].map(g => g.children.length))
+ok(gridCounts.length === 2, '账期分成两段（欠费段 / 预缴段）', gridCounts.join(' + '))
+ok(gridCounts[1] === 12, '预缴段铺满未来 12 期', `${gridCounts[1]} 格`)
 ok(cells.filter(c => c.cls.includes('is-due')).length > 0, '有欠费格（红）')
 ok(cells.filter(c => c.cls.includes('is-fut')).length > 0, '有未到期格（虚线）')
+const psegs = await page.evaluate(() =>
+  [...document.querySelectorAll('.pseg')].map(x => x.innerText.replace(/\s+/g, ' ').trim()))
+ok(psegs.some(t => t.includes('未来 12 个月')), '预缴段有段头', psegs.join(' | ').slice(0, 60))
 
 const parkTxt = await txt('.park')
 ok(parkTxt.includes('有效期至'), '车位块显示有效期而不是"欠几期"', parkTxt.slice(0, 40))
@@ -71,6 +77,18 @@ ok(/预充买量|抄表账单|系统不参与/.test(utilTxt), '水电块按项�
 ok(/元\/度|元\/吨/.test(utilTxt), '水电单价来自价目表')
 
 console.log('\n【二】点账期 + 车位续期 + 押金')
+
+/* 口径一致性：客户条写的"欠 N 期"必须等于红格数，否则前台第一句就被业主问住 */
+const redCount = cells.filter(c => c.cls.includes('is-due')).length
+const whoTxt = await txt('.who')
+ok(new RegExp(`物业费欠 ${redCount} 期`).test(whoTxt), '「欠 N 期」与红格数量一致', whoTxt.slice(0, 46))
+
+await page.evaluate(() => {
+  [...document.querySelectorAll('.blk__hd .el-button')].find(x => x.innerText.includes('全选欠费'))?.click()
+})
+await sleep(700)
+const allDebt = await txt('.blk__pick')
+ok(new RegExp(`已选 ${redCount} 期`).test(allDebt), '「全选欠费」一次选齐（有单销账 / 无单补缴）', allDebt)
 
 const dueIdx = await page.evaluate(() => [...document.querySelectorAll('.pcell')]
   .map((x, i) => x.className.includes('is-due') ? i : -1).filter(i => i >= 0))
@@ -163,17 +181,55 @@ ok(await page.evaluate(() => {
   return !menu.some(x => (x.innerText || '').trim() === 'PC 收银台')
 }), '左侧菜单里不再挂收银台')
 
-console.log('\n【八】物业费可预缴')
+console.log('\n【八】物业费预缴：单点 + 快捷 3/6/12 期')
 
 await open()
 const futIdx = await page.evaluate(() => [...document.querySelectorAll('.pcell')]
   .map((x, i) => x.className.includes('is-fut') ? i : -1).filter(i => i >= 0))
-ok(futIdx.length > 0, '有未到期的账期格')
+ok(futIdx.length >= 11, '未来月份可点（不止 2~3 期）', `${futIdx.length} 格`)
 await page.evaluate(n => document.querySelectorAll('.pcell')[n].click(), futIdx[0])
 await sleep(600)
 const prepayCart = await txt('.cart')
 ok(prepayCart.includes('预缴'), '点未到期格子生成预缴项（不再提示"先去出单"）', prepayCart.slice(0, 50))
 ok(await page.evaluate(() => !!document.querySelector('.pcell.is-picked')), '预缴的格子也有选中态')
+
+/* 快捷 12 个月：一次选满一年，金额直接写在按钮上 */
+const clickQuick = n => page.evaluate(m => {
+  [...document.querySelectorAll('.pquick > span')].find(x => x.innerText.includes(m + ' 个月'))?.click()
+}, n)
+
+await clickQuick(12)
+await sleep(700)
+const picked12 = await page.evaluate(() => document.querySelectorAll('.pcell.is-picked').length)
+ok(picked12 === 12, '点「12 个月」一次选中 12 期', `${picked12} 期`)
+const segSum = await txt('.blk__pick')
+ok(/已选 12 期/.test(segSum), '块头显示已选期数与合计金额', segSum)
+const quickAmt12 = await page.evaluate(() => {
+  const el = [...document.querySelectorAll('.pquick > span')].find(x => x.innerText.includes('12 个月'))
+  return el ? el.innerText.replace(/\s+/g, ' ') : ''
+})
+ok(/¥/.test(quickAmt12), '快捷按钮上直接写出该档金额', quickAmt12)
+const numOf = s => (String(s).match(/[\d,]+\.\d{2}/) || [''])[0].replace(/,/g, '')
+ok(numOf(quickAmt12) && numOf(quickAmt12) === numOf(segSum),
+  '按钮金额与「已选合计」一致（月份和费用是同一份数据）', `${numOf(quickAmt12)} vs ${numOf(segSum)}`)
+const cart12 = await txt('.cart')
+ok(/共 \d+ 期/.test(cart12), '右栏预缴合并成一行（十几条不撑爆清单）', cart12.slice(0, 60))
+
+await clickQuick(6)
+await sleep(600)
+const picked6 = await page.evaluate(() => document.querySelectorAll('.pcell.is-picked').length)
+ok(picked6 === 6, '换成「6 个月」后只留 6 期（快捷档是替换不是叠加）', `${picked6} 期`)
+
+/* 单点仍然可以：清空后点一格 → 只剩 1 期 */
+await page.evaluate(() => {
+  const el = [...document.querySelectorAll('.pquick > span')].find(x => x.innerText.includes('清空'))
+  el?.click()
+})
+await sleep(500)
+ok((await page.evaluate(() => document.querySelectorAll('.pcell.is-picked').length)) === 0, '「清空」撤销预缴选择')
+await page.evaluate(n => document.querySelectorAll('.pcell')[n].click(), futIdx[2])
+await sleep(500)
+ok((await page.evaluate(() => document.querySelectorAll('.pcell.is-picked').length)) === 1, '手点单期仍可用')
 
 console.log('\n【九】水电金额 ⇄ 用量实时换算')
 
@@ -220,8 +276,80 @@ const amtVal = await page.evaluate(() => {
   return ins[1]?.value || ''
 })
 ok(Number(amtVal) > 0, '选科目后金额框自动带出单价（不再是 0.00）', amtVal)
+await page.evaluate(() => {
+  [...document.querySelectorAll('.addrow .el-button')].find(x => x.innerText.includes('加入'))?.click()
+})
+await sleep(600)
+ok((await page.evaluate(() => document.querySelectorAll('.cart .ci').length)) === 1, '其他科目加入清单')
 
-console.log('\n【十一】控制台')
+console.log('\n【十一】散客 / 外来人员（摆摊费，不挂户）')
+
+await open()
+const pickedWalkin = await page.evaluate(() => {
+  const hit = [...document.querySelectorAll('.oitem')].find(x => x.innerText.includes('散客'))
+  if (!hit) return false
+  hit.click(); return true
+})
+ok(pickedWalkin, '左栏有常驻「散客 / 外来人员」入口')
+await sleep(1200)
+ok(await page.evaluate(() => !!document.querySelector('.who--guest')), '中栏切成散客形态（不套业主档案）')
+ok((await txt('.pos-mid')).includes('临时收费'), '中栏仍有临时收费')
+ok(await page.evaluate(() => document.querySelectorAll('.pcell').length === 0), '散客没有账期格子（不挂户就没有应收）')
+ok(await page.evaluate(() => document.querySelectorAll('.util').length === 0), '散客没有水电块')
+ok((await txt('.temphint')).includes('外部人员'), '临时收费标明按「外部人员」入账', await txt('.temphint'))
+ok((await txt('.guestwarn')).includes('付款人'), '未填姓名时给出提示')
+
+/* 填姓名 → 金额 → 加入 → 收款 */
+const setVal = (sel, v) => page.evaluate((s, val) => {
+  const inp = document.querySelector(s)
+  if (!inp) return false
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  setter.call(inp, val)
+  inp.dispatchEvent(new Event('input', { bubbles: true }))
+  inp.dispatchEvent(new Event('change', { bubbles: true }))
+  return true
+}, sel, v)
+
+await setVal('.guestf .el-input input', '陈记糖油果子')
+await setVal('.addrow .el-input input', '摆摊费')
+await setVal('.addrow .el-input-number input', '200')
+await sleep(600)
+ok(!(await page.evaluate(() => !!document.querySelector('.guestwarn'))), '填完姓名后提示消失')
+
+await page.evaluate(() => {
+  [...document.querySelectorAll('.addrow .el-button')].find(x => x.innerText.includes('加入'))?.click()
+})
+await sleep(600)
+const gcart = await txt('.cart')
+ok(gcart.includes('摆摊费'), '散客临时收费进入清单', gcart.slice(0, 50))
+ok(gcart.includes('散客'), '清单上标出「散客」')
+
+/* 收款前先确认按钮可用（不能因为 p 为空就禁用） */
+ok(await page.evaluate(() => {
+  const b = [...document.querySelectorAll('.pay-actions .el-button')].find(x => x.innerText.includes('收款'))
+  return b && !b.disabled
+}), '收款按钮可用（散客没有业主档案也能收）')
+
+await page.evaluate(() => {
+  [...document.querySelectorAll('.pay-actions .el-button')].find(x => x.innerText.includes('收款'))?.click()
+})
+await sleep(2000)
+const gmsg = await page.evaluate(() =>
+  [...document.querySelectorAll('.el-message')].map(x => x.innerText).join(' | '))
+ok(/收款 ¥/.test(gmsg), '散客收款成功', gmsg.slice(0, 80))
+ok((await txt('.pay-done')).includes('散客'), '收款结果标明散客与临时收费', (await txt('.pay-done')).slice(0, 60))
+ok((await txt('.recent')).includes('陈记糖油果子'), '「最近散客收款」当场刷新出这笔（可回答"我上午交过了"）')
+ok(!(await txt('.recent')).includes('待收款'), '台账状态是「已收款」而不是停在「待收款」', (await txt('.recent')).slice(0, 80))
+
+/* 台账核对：这条钱必须能在临时收费台账里查到，且付款方是「外部」
+   走 hash 跳转而不是整页 reload —— mock 数据留在内存里，reload 就没了 */
+await page.evaluate(() => { location.hash = '#/b/temp-charges' })
+await sleep(1600)
+const ledger = await page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '))
+ok(ledger.includes('陈记糖油果子'), '临时收费台账能查到这笔（付款方 = 外来单位）')
+ok(ledger.includes('摆摊费'), '台账上事由是「摆摊费」')
+
+console.log('\n【十二】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()
