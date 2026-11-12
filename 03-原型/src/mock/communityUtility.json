@@ -1,0 +1,5 @@
+[
+  {"communityId": "P01", "elec": "meter", "water": "meter", "updatedAt": "2026-10-21", "updatedBy": "张振华"},
+  {"communityId": "P02", "elec": "none", "water": "card", "updatedAt": "2026-10-21", "updatedBy": "李春梅"},
+  {"communityId": "P03", "elec": "card", "water": "meter", "updatedAt": "2026-10-21", "updatedBy": "陈瑞"}
+]

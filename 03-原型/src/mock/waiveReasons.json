@@ -1,0 +1,57 @@
+[
+  {
+    "reasonId": "WR01",
+    "code": "POLICY",
+    "name": "政策性减免",
+    "type": "政策性",
+    "countInAssess": false,
+    "needProof": true,
+    "enabled": true,
+    "sort": 10,
+    "desc": "政府或行业规定必须减免的（老旧小区优惠、疫情减免等），需附文件"
+  },
+  {
+    "reasonId": "WR02",
+    "code": "HARDSHIP",
+    "name": "困难户减免",
+    "type": "个案",
+    "countInAssess": false,
+    "needProof": true,
+    "enabled": true,
+    "sort": 20,
+    "desc": "低保、重病、独居老人等，需居委或社区证明"
+  },
+  {
+    "reasonId": "WR03",
+    "code": "ERROR_FIX",
+    "name": "差错纠正",
+    "type": "差错",
+    "countInAssess": true,
+    "needProof": false,
+    "enabled": true,
+    "sort": 30,
+    "desc": "计费错误、面积口径错误导致的冲减；计入考核，说明不是白让的"
+  },
+  {
+    "reasonId": "WR04",
+    "code": "NEGOTIATION",
+    "name": "协商减免",
+    "type": "个案",
+    "countInAssess": false,
+    "needProof": true,
+    "enabled": true,
+    "sort": 40,
+    "desc": "诉讼和解、投诉补偿等，需审批单号"
+  },
+  {
+    "reasonId": "WR05",
+    "code": "OTHER",
+    "name": "其他",
+    "type": "个案",
+    "countInAssess": false,
+    "needProof": true,
+    "enabled": true,
+    "sort": 90,
+    "desc": "以上都不属于时选它，必须写清原因"
+  }
+]

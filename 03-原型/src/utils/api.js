@@ -6,6 +6,7 @@ import {
   decorationDeposits, devices, employees, feeItems, houses, inspectPlans, inspectTasks,
   inspectTemplates, invoices, maintenanceRecords, members, meterReadings, meters, metrics,
   notices, operationLogs, orgs, ownerTags, owners, parkings, passRecords, payments, permissions,
+  feeCategories, feeItemCategoryMap, waiveReasons, communityUtility,
   prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders,
   // N 域（邻里）复用的存量数据：公告不另建源，投票/活动/闲置都从业主端同一份数据出发
   activities, activityEnrollments, secondhandItems, surveys
@@ -18798,3 +18799,240 @@ export function auditFaceRequest(reqId, { pass = false, reason = '' } = {}) {
 
 _seedFaceRequests()
 
+/* ============================================================
+ * 费用分类字典 · 减免原因 · 项目水电收费模式（批 1 · 2026-11-12）
+ * ------------------------------------------------------------
+ * 这一层的意义：把「分类」从散落的中文文本变成受控字典。
+ * 以前收费项写 `category: '常规服务费'`，合同/报销各写各的，
+ * 报表只能按字符串分组，改一个字就多一个分组。
+ *
+ * 三条硬规则：
+ *   ① 分类只有两级，一级定方向（收入/支出/负债），二级挂单据；
+ *   ② 每级声明「允许来源」，账单不能产生"税金"、合同不能产生"物业费"；
+ *   ③ 停用不等于删除 —— 历史单据仍要能显示分类名。
+ * ============================================================ */
+
+const CATEGORY_DIRECTIONS = ['income', 'expense', 'liability']
+const UTILITY_MODES = [
+  { value: 'none', label: '国网/水司自缴（系统不涉及）' },
+  { value: 'card', label: '插卡式（前台充卡）' },
+  { value: 'meter', label: '物业抄表推单' }
+]
+const SOURCE_LABELS = {
+  bill: '账单', recharge: '预充值', temp: '临时收费', contract: '合同',
+  payroll: '工资表', reimburse: '报销', manual: '手工补录'
+}
+
+/** 写配置的口径：原型阶段复用收费科目权限，待权限模型细化后换成 b.feeCategory.edit */
+const assertFeeConfigPerm = () =>
+  assertPerm('b.feeItems.view', '维护费用分类需要有收费科目权限（b.feeItems.view）')
+
+export const canEditFeeConfig = () => _hasPerm('b.feeItems.view')
+export const sourceLabel = s => SOURCE_LABELS[s] || s
+
+/** 全量分类（含停用），按 sort；带父级名称与来源中文 */
+export function feeCategoryRows({ direction = '' } = {}) {
+  const byCode = new Map(feeCategories.map(c => [c.code, c]))
+  return feeCategories
+    .filter(c => !direction || c.direction === direction)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(c => ({
+      ...c,
+      parentName: c.parentCode ? (byCode.get(c.parentCode) || {}).name || '' : '',
+      sourceText: (c.allowSources || []).map(sourceLabel).join(' / ')
+    }))
+}
+
+/** 两级树：一级下挂二级，供页面做树表 */
+export function feeCategoryTree({ direction = '' } = {}) {
+  const rows = feeCategoryRows({ direction })
+  const l1 = rows.filter(r => r.level === 1)
+  return l1.map(p => ({ ...p, children: rows.filter(r => r.parentCode === p.code) }))
+}
+
+/** 下拉选项：只给启用项；按来源过滤（账单不该出现"税金"） */
+export function feeDictOpts({ direction = 'income', level = 2, source = '' } = {}) {
+  return feeCategoryRows({ direction })
+    .filter(c => c.enabled && (!level || c.level === level))
+    .filter(c => !source || (c.allowSources || []).includes(source))
+    .map(c => ({ label: c.level === 2 ? `${c.parentName} / ${c.name}` : c.name, value: c.code }))
+}
+
+export const feeCategoryOf = code => feeCategories.find(c => c.code === code) || null
+
+/** 单据落分类时的校验：方向、来源、是否启用，任一不符都拒 */
+export function assertFeeCategory(code, { direction = '', source = '' } = {}) {
+  const c = feeCategoryOf(code)
+  if (!c) throw new Error('费用分类不存在')
+  if (!c.enabled) throw new Error(`分类「${c.name}」已停用，不能再用于新单据`)
+  if (direction && c.direction !== direction) {
+    throw new Error(`分类「${c.name}」是${c.direction === 'income' ? '收入' : c.direction === 'expense' ? '支出' : '负债'}类，不能用在${direction}单据上`)
+  }
+  if (source && !(c.allowSources || []).includes(source)) {
+    throw new Error(`分类「${c.name}」不接受${sourceLabel(source)}来源`)
+  }
+  return c
+}
+
+/** 改分类：只允许改名称/排序/说明。编码与来源被单据引用，改了历史数据会指向不存在的分类 */
+export function saveFeeCategory({ code, name, sort, desc } = {}) {
+  assertFeeConfigPerm()
+  const c = feeCategoryOf(code)
+  if (!c) throw new Error('分类不存在')
+  const n = String(name || '').trim()
+  if (n.length < 2) throw new Error('名称至少 2 个字')
+  if (feeCategories.some(x => x.code !== code && x.name === n)) throw new Error(`已有同名分类「${n}」`)
+  c.name = n
+  if (sort !== undefined) c.sort = Number(sort) || 0
+  if (desc !== undefined) c.desc = String(desc)
+  return { ...c }
+}
+
+/** 启停分类。停一级要连带把二级停掉，否则二级还挂着、下拉里却没了父级 */
+export function toggleFeeCategory(code, enabled) {
+  assertFeeConfigPerm()
+  const c = feeCategoryOf(code)
+  if (!c) throw new Error('分类不存在')
+  const kids = feeCategories.filter(x => x.parentCode === code)
+  if (!enabled && kids.some(k => k.enabled)) {
+    const names = kids.filter(k => k.enabled).map(k => k.name).join('、')
+    throw new Error(`「${c.name}」下还有启用的子分类（${names}），先停子级再停父级`)
+  }
+  c.enabled = !!enabled
+  /* 停父级时把子级一起停，避免出现"子级启用、父级停用"的孤儿状态 */
+  if (!enabled) kids.forEach(k => { k.enabled = false })
+  return { ...c }
+}
+
+/** 收费项 + 分类：列表页直接用，缺分类的会标出来（不静默） */
+export function feeItemCategoryRows({ status = '', categoryCode = '', kw = '' } = {}) {
+  const map = new Map(feeItemCategoryMap.map(m => [m.itemId, m]))
+  return feeItems
+    .filter(i => !status || i.status === status)
+    .filter(i => !kw || `${i.name}${i.category}${i.remark || ''}`.includes(kw))
+    .map(i => {
+      const m = map.get(i.itemId) || {}
+      const c = m.categoryCode ? feeCategoryOf(m.categoryCode) : null
+      return {
+        ...i,
+        categoryCode: m.categoryCode || '',
+        categoryName: c ? c.name : '',
+        categoryPath: c ? `${feeCategoryOf(c.parentCode)?.name || ''} / ${c.name}`.replace(/^ \/ /, '') : '',
+        meterType: m.meterType || '',
+        missingCategory: !c
+      }
+    })
+    .filter(i => !categoryCode || i.categoryCode === categoryCode)
+}
+
+/** 分类缺口：有多少收费项没挂分类 —— 报表分不了组就是从这里开始的 */
+export function feeItemCategoryGaps() {
+  const rows = feeItemCategoryRows()
+  return { total: rows.length, missing: rows.filter(r => r.missingCategory) }
+}
+
+/* ---------------- 减免原因字典 ---------------- */
+export function waiveReasonRows({ enabledOnly = false } = {}) {
+  return waiveReasons
+    .filter(r => !enabledOnly || r.enabled)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(r => ({ ...r }))
+}
+
+export const waiveReasonOpts = () =>
+  waiveReasonRows({ enabledOnly: true }).map(r => ({ label: r.name, value: r.reasonId }))
+
+export const waiveReasonOf = id => waiveReasons.find(r => r.reasonId === id) || null
+
+export function saveWaiveReason(rec = {}) {
+  assertFeeConfigPerm()
+  const name = String(rec.name || '').trim()
+  if (name.length < 2) throw new Error('名称至少 2 个字')
+  const dup = waiveReasons.find(r => r.name === name && r.reasonId !== rec.reasonId)
+  if (dup) throw new Error(`「${name}」已存在`)
+  if (rec.reasonId) {
+    const r = waiveReasons.find(x => x.reasonId === rec.reasonId)
+    if (!r) throw new Error('减免原因不存在')
+    if (!r.enabled && rec.enabled === undefined) throw new Error('已停用的原因不能直接改名，请先启用')
+    Object.assign(r, {
+      name,
+      type: rec.type || r.type,
+      countInAssess: rec.countInAssess === undefined ? r.countInAssess : !!rec.countInAssess,
+      needProof: rec.needProof === undefined ? r.needProof : !!rec.needProof,
+      desc: rec.desc === undefined ? r.desc : String(rec.desc),
+      sort: rec.sort === undefined ? r.sort : Number(rec.sort) || 0
+    })
+    return { ...r }
+  }
+  const seq = waiveReasons.reduce((m, r) => Math.max(m, Number(String(r.reasonId).replace(/\D/g, '')) || 0), 0) + 1
+  const row = {
+    reasonId: 'WR' + String(seq).padStart(2, '0'),
+    code: String(rec.code || 'CUSTOM_' + seq).toUpperCase(),
+    name,
+    type: rec.type || '个案',
+    countInAssess: !!rec.countInAssess,
+    needProof: rec.needProof === undefined ? true : !!rec.needProof,
+    enabled: true,
+    sort: rec.sort === undefined ? (seq * 10) : Number(rec.sort) || 0,
+    desc: String(rec.desc || '')
+  }
+  waiveReasons.push(row)
+  return { ...row }
+}
+
+export function toggleWaiveReason(reasonId, enabled) {
+  assertFeeConfigPerm()
+  const r = waiveReasons.find(x => x.reasonId === reasonId)
+  if (!r) throw new Error('减免原因不存在')
+  /* 停用前先确认没有"唯一可用"的风险：至少留一条启用的，否则收银台减免没法提交 */
+  if (!enabled && waiveReasons.filter(x => x.enabled && x.reasonId !== reasonId).length === 0) {
+    throw new Error('至少要保留一条启用的减免原因，否则减免无法提交')
+  }
+  r.enabled = !!enabled
+  return { ...r }
+}
+
+/* ---------------- 项目水电收费模式 ---------------- */
+export const utilityModeOpts = () => UTILITY_MODES.map(m => ({ ...m }))
+export const utilityModeLabel = v => (UTILITY_MODES.find(m => m.value === v) || {}).label || '未配置'
+
+export function communityUtilityOf(communityId) {
+  const row = communityUtility.find(u => u.communityId === communityId)
+  return row ? { ...row } : { communityId, elec: 'none', water: 'none', updatedAt: '', updatedBy: '' }
+}
+
+export function communityUtilityRows() {
+  return communities.map(c => {
+    const u = communityUtilityOf(c.communityId)
+    return { ...c, elec: u.elec, water: u.water, elecLabel: utilityModeLabel(u.elec), waterLabel: utilityModeLabel(u.water), updatedAt: u.updatedAt }
+  })
+}
+
+/** 项目水电模式：按表计类型分别配 —— 常见"电走国网、水走物业"，一刀切会错 */
+export function saveCommunityUtility(communityId, patch = {}) {
+  assertFeeConfigPerm()
+  const c = communities.find(x => x.communityId === communityId)
+  if (!c) throw new Error('项目不存在')
+  const valid = UTILITY_MODES.map(m => m.value)
+  const next = {}
+  for (const k of ['elec', 'water']) {
+    if (patch[k] === undefined) continue
+    if (!valid.includes(patch[k])) throw new Error('收费模式非法')
+    next[k] = patch[k]
+  }
+  if (!Object.keys(next).length) throw new Error('没有要更新的模式')
+  let row = communityUtility.find(u => u.communityId === communityId)
+  if (!row) {
+    row = { communityId, elec: 'none', water: 'none', updatedAt: '', updatedBy: '' }
+    communityUtility.push(row)
+  }
+  Object.assign(row, next, {
+    updatedAt: `${TODAY}`,
+    updatedBy: currentOperator().name || '系统'
+  })
+  return { ...row }
+}
+
+/** 该项目某种表计是否需要系统计费（A 类 false） */
+export const utilityBilling = (communityId, meterType) =>
+  communityUtilityOf(communityId)[meterType === '电表' || meterType === 'elec' ? 'elec' : 'water'] !== 'none'

@@ -58,6 +58,12 @@
         <el-table-column prop="itemId" label="编号" width="72" />
         <el-table-column prop="name" label="科目名称" min-width="150" show-overflow-tooltip />
         <el-table-column prop="category" label="分类" width="100" />
+        <el-table-column label="收入分类" min-width="170" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="catMap.get(row.itemId)?.categoryPath">{{ catMap.get(row.itemId).categoryPath }}</span>
+            <el-tag v-else size="small" type="danger" effect="plain">未挂分类</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="calcType" label="计费方式" width="95" />
         <el-table-column label="单价" width="120" align="right">
           <template #default="{ row }">
@@ -163,7 +169,7 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import {
-  PAGE_SIZES, feeCalcTypeOpts, feeCategoryOpts, feeItemRows, getFeeItemDetail, queryFeeItems, subjectLabel
+  PAGE_SIZES, feeCalcTypeOpts, feeCategoryOpts, feeItemCategoryRows, feeItemRows, getFeeItemDetail, queryFeeItems, subjectLabel
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import DetailDrawer from '@/components/DetailDrawer.vue'
@@ -176,6 +182,8 @@ const { rows, total, pageNo, size, loading, query, load, search, reset } = useLi
   queryFeeItems, { filters: { category: '', calcType: '', status: '', kw: '' } }
 )
 const categoryOpts = feeCategoryOpts()
+/* 收入分类（批 1）：收费项挂到费用分类字典后的"报表归属"，没挂的当场标出来 */
+const catMap = new Map(feeItemCategoryRows().map(r => [r.itemId, r]))
 const calcOpts = feeCalcTypeOpts()
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */

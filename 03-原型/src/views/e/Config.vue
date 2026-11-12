@@ -66,6 +66,35 @@
       </el-tab-pane>
 
       <!-- 操作日志 -->
+      <!-- 项目收费模式（批 1）：按表计类型分别配 —— 常见"电走国网、水走物业"，一刀切会错 -->
+      <el-tab-pane label="项目收费模式" name="utility">
+        <div class="panel" style="margin-top:12px;">
+          <div class="hint-line">
+            三种模式：<b>国网/水司自缴</b>（系统不涉及）、<b>插卡式</b>（前台充卡，系统只记充值金额）、
+            <b>物业抄表推单</b>（抄表后用用量 × 单价推单）。同一项目的电与水可以不同。
+          </div>
+          <el-table :data="utilityRows" style="width:100%;margin-top:10px;" size="small">
+            <el-table-column prop="name" label="项目" width="140" />
+            <el-table-column prop="bizType" label="业态" width="90" />
+            <el-table-column label="电" min-width="220">
+              <template #default="{ row }">
+                <el-select :model-value="row.elec" size="small" style="width:100%" @change="v => onUtility(row, 'elec', v)">
+                  <el-option v-for="m in utilityOpts" :key="m.value" :label="m.label" :value="m.value" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column label="水" min-width="220">
+              <template #default="{ row }">
+                <el-select :model-value="row.water" size="small" style="width:100%" @change="v => onUtility(row, 'water', v)">
+                  <el-option v-for="m in utilityOpts" :key="m.value" :label="m.label" :value="m.value" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column prop="updatedAt" label="最近修改" width="110" />
+          </el-table>
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="操作日志" name="log">
         <div class="panel" style="margin-top:12px;">
           <el-form :model="lq" class="filter-bar" label-width="60px" @submit.prevent>
@@ -150,7 +179,8 @@ import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { exportList } from '@/utils/export'
 import {
-  PAGE_SIZES, addDictItem, dictDomains, logSummary, paramRows, queryOperationLogs, saveParam
+  PAGE_SIZES, addDictItem, communityUtilityRows, dictDomains, logSummary, paramRows,
+  queryOperationLogs, saveCommunityUtility, saveParam, utilityModeOpts
 } from '@/utils/api'
 
 const tab = ref('dict')
@@ -159,6 +189,20 @@ const curDomain = ref(domains.value[0]?.domain || 'bill')
 const curItems = computed(() => domains.value.find(d => d.domain === curDomain.value)?.items || [])
 function tagType(t) {
   return ({ primary: 'primary', success: 'success', warning: 'warning', danger: 'danger', info: 'info', muted: 'info' })[t] || 'info'
+}
+
+/* 项目收费模式（批 1）：按表计类型分别配，改完立即落内存态并回显"最近修改" */
+const utilityRows = ref(communityUtilityRows())
+const utilityOpts = utilityModeOpts()
+function onUtility(row, key, value) {
+  try {
+    saveCommunityUtility(row.communityId, { [key]: value })
+    utilityRows.value = communityUtilityRows()
+    ElMessage.success(`${row.name} 的${key === 'elec' ? '电' : '水'}费模式已改为「${utilityOpts.find(m => m.value === value)?.label}」`)
+  } catch (e) {
+    ElMessage.error(e?.message || '保存失败')
+    utilityRows.value = communityUtilityRows()
+  }
 }
 
 const addVisible = ref(false)

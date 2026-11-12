@@ -1,0 +1,12 @@
+[
+  {"itemId": "FI01", "categoryCode": "INC_MAIN_PROPERTY"},
+  {"itemId": "FI02", "categoryCode": "INC_MAIN_ELEV"},
+  {"itemId": "FI03", "categoryCode": "INC_MAIN_ENERGY"},
+  {"itemId": "FI04", "categoryCode": "INC_OTHER_SERVICE"},
+  {"itemId": "FI05", "categoryCode": "INC_OTHER_UTILITY", "meterType": "水表"},
+  {"itemId": "FI06", "categoryCode": "INC_OTHER_UTILITY", "meterType": "电表"},
+  {"itemId": "FI07", "categoryCode": "INC_MAIN_PARK"},
+  {"itemId": "FI08", "categoryCode": "LIA_DEPOSIT"},
+  {"itemId": "FI09", "categoryCode": "INC_OTHER_PARKING"},
+  {"itemId": "FI10", "categoryCode": "INC_OTHER_CARD"}
+]

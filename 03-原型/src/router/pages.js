@@ -93,6 +93,12 @@ export const PAGES = [
     component: () => import('@/views/b/PaymentList.vue') },
   { path: '/b/fee-items', name: 'FeeItemList', title: '收费科目', group: 'b', status: 'done', icon: 'PriceTag', desc: '科目 · 单价 · 计费方式 · 收缴率',
     component: () => import('@/views/b/FeeItemList.vue') },
+  // 费用分类字典（批 1 · 2026-11-12）：所有统计报表的根，收费项/合同/报销/补录都往这里挂
+  { path: '/b/fee-categories', name: 'FeeCategory', title: '费用分类字典', group: 'b', status: 'done', icon: 'Files', desc: '收入 / 支出 / 负债 · 两级 · 允许来源',
+    component: () => import('@/views/b/FeeCategory.vue') },
+  // 减免原因字典（批 1）：收银台减免必选，报表按原因汇总
+  { path: '/b/waive-reasons', name: 'WaiveReason', title: '减免原因', group: 'b', status: 'done', icon: 'Discount', desc: '减免原因 · 类型 · 是否计入考核',
+    component: () => import('@/views/b/WaiveReason.vue') },
   { path: '/b/collection', name: 'Collection', title: '欠费催缴工作台', group: 'b', status: 'done', icon: 'Promotion', desc: '欠费池 · 生成催缴单 · 催缴历史',
     component: () => import('@/views/b/Collection.vue') },
   { path: '/b/invoices', name: 'Invoice', title: '发票与收据', group: 'b', status: 'done', icon: 'Printer', desc: '票据台账 · 批量开票 · 红冲',
