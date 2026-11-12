@@ -80,7 +80,10 @@ export const PAGES = [
   { path: '/b/multi-revenue', name: 'MultiRevenue', title: '多种经营收入', group: 'b', status: 'done', icon: 'TrendCharts',
     desc: '商业服务 · 商业合作 · 公共收益 · 结构占比',
     component: () => import('@/views/b/MultiRevenue.vue') },
-  { path: '/b/cashier', name: 'Cashier', title: 'PC 收银台', group: 'b', status: 'done', icon: 'Money', desc: '按业主聚合的一人多房合并收费',
+  // 收银台是全屏独立页：不进左侧菜单（进去就没侧栏了，菜单上挂着也点不回来），
+  // 入口在顶栏右侧的「收银台」按钮
+  { path: '/b/cashier', name: 'Cashier', title: 'PC 收银台', group: 'b', status: 'done', icon: 'Money',
+    hidden: true, standalone: true, desc: '左找人 · 中收费 · 右结账',
     component: () => import('@/views/b/Cashier.vue') },
   { path: '/b/bills', name: 'BillList', title: '账单查询', group: 'b', status: 'done', icon: 'Tickets', desc: '账期 · 科目 · 收缴状态 · 缴费流水',
     component: () => import('@/views/b/BillList.vue') },

@@ -19560,6 +19560,33 @@ export function utilityQuoteAt(unitPrice, unit = '', { amount, qty } = {}) {
   throw new Error('金额或用量必须填一个')
 }
 
+/**
+ * 预缴某一期物业费（收银台上的"点未来月份"）。
+ *
+ * 与 createPrepayCollect 的区别：那个是"给一笔钱，我按先清欠再预付的顺序摊"，
+ * 适合业主说"我交 2000"；这个是"就这一期，提前交"，适合业主说"把 12 月也交了"。
+ * 两者都只写矩阵，不生成账单 —— 账单是"已经到期要交"的凭证，预缴还没到期。
+ */
+export function createPrepayForPeriod({ houseId, itemId = 'FI01', period, amount } = {}) {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  if (!period) throw new Error('请选择账期')
+  const row = _mtxRow(houseId, itemId, period)
+  const left = Math.round((row.receivable - row.received - row.waived) * 100) / 100
+  if (left <= 0) throw new Error(`${period} 已收清，无需预缴`)
+  const amt = Math.round((Number(amount) || left) * 100) / 100
+  if (amt <= 0) throw new Error('预缴金额必须大于 0')
+  if (amt > left + 0.01) throw new Error(`预缴金额不能超过该期应收（还剩 ¥${left}）`)
+  _MTX_SEQ += 1
+  MATRIX_TX.push({
+    txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+    houseId, itemId, period, amount: amt,
+    source: 'prepay', at: `${TODAY}`, prepayOnly: true
+  })
+  return { period, amount: amt, left: Math.round((left - amt) * 100) / 100 }
+}
+
 /** 收银台可收的"其他收费科目"：非按月、非水电的那些 */
 export function cashierExtraItemOpts() {
   return feeItems

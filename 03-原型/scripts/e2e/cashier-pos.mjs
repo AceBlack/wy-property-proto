@@ -83,12 +83,12 @@ await sleep(700)
 ok((await txt('.cart')).includes('车位管理服务费'), '车位续期加入清单')
 
 await page.evaluate(() => {
-  [...document.querySelectorAll('.add__tabs span')].find(x => x.innerText === '押金')?.click()
+  [...document.querySelectorAll('.addtabs span')].find(x => x.innerText === '押金')?.click()
 })
 await sleep(400)
-ok((await txt('.add__body')).includes('押金'), '押金面板展开')
+ok((await txt('.addrow')).includes('押金'), '押金面板展开')
 await page.evaluate(() => {
-  [...document.querySelectorAll('.add__body .el-button')].find(x => x.innerText.includes('加入'))?.click()
+  [...document.querySelectorAll('.addrow .el-button')].find(x => x.innerText.includes('加入'))?.click()
 })
 await sleep(700)
 const cartTxt = await txt('.cart')
@@ -107,12 +107,12 @@ ok(nums.length >= 3, '三个金额都在（收入 / 押金 / 实收）', nums.jo
 console.log('\n【四】其他科目加收')
 
 await page.evaluate(() => {
-  [...document.querySelectorAll('.add__tabs span')].find(x => x.innerText === '其他科目')?.click()
+  [...document.querySelectorAll('.addtabs span')].find(x => x.innerText === '其他科目')?.click()
 })
 await sleep(400)
 /* el-select 的可点区域是 __wrapper，点外层 .el-select 不展开 */
 const itemOpts = await page.evaluate(() => {
-  const s = document.querySelector('.add__body .el-select__wrapper')
+  const s = document.querySelector('.addrow .el-select__wrapper')
   s?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
   return !!s
 })
@@ -123,10 +123,8 @@ ok(itemOpts && optCount > 0, '其他科目下拉有可选项', `${optCount} 项`
 
 console.log('\n【五】收款落库')
 
-const parkBefore = await page.evaluate(async () => {
-  const m = await import('/src/utils/api.js')
-  return m.parkingRenewQuote('PK00115', 1).oldExpire
-})
+/* 不写死 parkId：一户可能多个车位，默认选中的那个才是被续的 */
+const parkBefore = await txt('.park__s')
 const totalBefore = await txt('.sum__total')
 await page.evaluate(() => {
   [...document.querySelectorAll('.pay-actions .el-button')].find(x => x.innerText.includes('收款'))?.click()
@@ -137,11 +135,8 @@ const msg = await page.evaluate(() =>
 ok(/收款 ¥/.test(msg), '收款成功有提示', msg.slice(0, 70))
 ok(!(await page.evaluate(() => !!document.querySelector('.cart .ci'))), '收款后清单清空')
 
-const parkAfter = await page.evaluate(async () => {
-  const m = await import('/src/utils/api.js')
-  return m.parkingRenewQuote('PK00115', 1).oldExpire
-})
-ok(parkBefore !== parkAfter, '车位有效期已前移（落库，不只是界面）', `${parkBefore} → ${parkAfter}`)
+const parkAfter = await txt('.park__s')
+ok(parkBefore !== parkAfter, '车位有效期已前移（落库后界面跟着变）', `${parkBefore} → ${parkAfter}`)
 
 ok(await page.evaluate(() => !!document.querySelector('.pay-done')), '右栏出现收款结果卡（可当场开票）')
 
@@ -159,7 +154,74 @@ const bizUtil = await txt('.util')
 ok(/0\.8 元\/度|0\.9 元\/度|1 元\/度/.test(bizUtil), '商业电价按业态取到（0.8 / 0.9 / 1.0）', bizUtil.slice(0, 60))
 ok(bizUtil.includes('5.55'), '商业水价 5.55')
 
-console.log('\n【七】控制台')
+console.log('\n【七】独立页与入口')
+
+ok(!(await page.evaluate(() => !!document.querySelector('.app-shell'))), '收银台不套后台外壳（无侧栏）')
+ok(await page.evaluate(() => !!document.querySelector('.pos-bar')), '自带顶栏（项目 / 收银员 / 退出）')
+ok(await page.evaluate(() => {
+  const menu = [...document.querySelectorAll('.side-item, .side-group a, .side-group div')]
+  return !menu.some(x => (x.innerText || '').trim() === 'PC 收银台')
+}), '左侧菜单里不再挂收银台')
+
+console.log('\n【八】物业费可预缴')
+
+await open()
+const futIdx = await page.evaluate(() => [...document.querySelectorAll('.pcell')]
+  .map((x, i) => x.className.includes('is-fut') ? i : -1).filter(i => i >= 0))
+ok(futIdx.length > 0, '有未到期的账期格')
+await page.evaluate(n => document.querySelectorAll('.pcell')[n].click(), futIdx[0])
+await sleep(600)
+const prepayCart = await txt('.cart')
+ok(prepayCart.includes('预缴'), '点未到期格子生成预缴项（不再提示"先去出单"）', prepayCart.slice(0, 50))
+ok(await page.evaluate(() => !!document.querySelector('.pcell.is-picked')), '预缴的格子也有选中态')
+
+console.log('\n【九】水电金额 ⇄ 用量实时换算')
+
+const sw = await page.evaluate(() => {
+  const hit = [...document.querySelectorAll('.oitem')].find(x => x.innerText.includes('星光天地'))
+  if (!hit) return false
+  hit.click(); return true
+})
+ok(sw, '切到 P03（电=预充）')
+await sleep(2000)
+/* el-input-number 在 precision 下逐字输入会被重新格式化（输 500 变成 0.50），
+   键盘模拟不可靠 —— 用原生 setter 触发一次 input 事件，走组件自己的解析 */
+await page.evaluate(() => {
+  const inp = document.querySelectorAll('.ucard .el-input-number input')[0]
+  if (!inp) return
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  setter.call(inp, '500')
+  inp.dispatchEvent(new Event('input', { bubbles: true }))
+  inp.dispatchEvent(new Event('change', { bubbles: true }))
+})
+await sleep(900)
+const pair = await page.evaluate(() =>
+  [...document.querySelectorAll('.ucard .el-input-number input')].map(x => x.value))
+ok(pair[0] === '500.00' && Number(pair[1]) > 0, '输 500 元 → 度数自动算出', pair.join(' / '))
+ok(Number(pair[1]) === Math.round(500 / 0.8 * 100) / 100,
+  '换算用的是业态价 0.8（不是收费项上的 0.62）', pair[1])
+
+console.log('\n【十】其他科目金额自动带出')
+
+await page.evaluate(() => {
+  [...document.querySelectorAll('.addtabs span')].find(x => x.innerText === '其他科目')?.click()
+})
+await sleep(400)
+await page.evaluate(() => {
+  document.querySelector('.addrow .el-select__wrapper')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+})
+await sleep(600)
+await page.evaluate(() => {
+  [...document.querySelectorAll('.el-select-dropdown__item')].filter(x => x.getBoundingClientRect().height > 0)[0]?.click()
+})
+await sleep(700)
+const amtVal = await page.evaluate(() => {
+  const ins = [...document.querySelectorAll('.addrow .el-input-number input')]
+  return ins[1]?.value || ''
+})
+ok(Number(amtVal) > 0, '选科目后金额框自动带出单价（不再是 0.00）', amtVal)
+
+console.log('\n【十一】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()

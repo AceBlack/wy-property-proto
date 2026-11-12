@@ -1,5 +1,7 @@
 <template>
-  <div class="app-shell">
+  <!-- 独立页（收银台）不套外壳：多一个侧栏就少一块操作区，且收银时不该看到别的菜单 -->
+  <router-view v-if="standalone" />
+  <div v-else class="app-shell">
     <AppSidebar :collapse="collapse" @toggle="collapse = !collapse" />
     <div class="app-main">
       <AppTopBar :collapse="collapse" @toggle="collapse = !collapse" />
@@ -34,4 +36,5 @@ const page = computed(() => pageOf(route.path))
 const groupName = computed(() => groupOf(page.value?.group)?.name || '原型')
 const pageName = computed(() => page.value?.title || route.meta?.title || '')
 const pageDesc = computed(() => page.value?.desc || '')
+const standalone = computed(() => !!route.meta?.standalone)
 </script>

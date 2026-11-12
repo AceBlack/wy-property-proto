@@ -28,6 +28,12 @@
 
     <span class="spacer" />
 
+    <!-- 收银台入口放顶栏：它不在菜单里（全屏页，进去就没有侧栏了） -->
+    <div class="top-cashier" title="进入全屏收银台" @click="$router.push('/b/cashier')">
+      <el-icon><Money /></el-icon>
+      <span>收银台</span>
+    </div>
+
     <div class="top-icon" title="全局搜索">
       <el-icon><Search /></el-icon>
     </div>
@@ -119,6 +125,15 @@ function switchRole(cmd) {
 </script>
 
 <style scoped>
+.top-cashier {
+  display: flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 11px; border-radius: 8px;
+  background: var(--el-color-primary); color: #fff;
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: background .15s; margin-right: 2px;
+}
+.top-cashier:hover { background: var(--biz-primary-hover); }
+
 .scope-tag {
   font-size: 12px; line-height: 1; padding: 5px 10px; border-radius: 999px;
   background: rgba(91, 108, 255, .10); color: #5b6cff;

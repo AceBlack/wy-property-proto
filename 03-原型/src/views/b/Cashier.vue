@@ -1,5 +1,15 @@
 <template>
-  <div class="page">
+  <div class="page pos-standalone">
+    <!-- 独立页顶栏：全屏收银时不显示后台菜单，这里给出项目、收银员与退出入口 -->
+    <div class="pos-bar">
+      <div class="pos-bar__logo"><span class="dot">收</span>收银台</div>
+      <span class="pos-bar__sep" />
+      <span class="pos-bar__meta">{{ scopeName }} · 收银员 王芳 · 早班</span>
+      <span class="spacer" />
+      <span class="pos-bar__time">{{ nowText }}</span>
+      <el-button size="small" @click="$router.push('/b/dashboard')">退出收银台</el-button>
+    </div>
+
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
@@ -47,7 +57,7 @@
         </div>
       </div>
 
-      <!-- ============ 中：三类业务 ============ -->
+      <!-- ============ 中：三类业务 + 加收 ============ -->
       <div class="pos-mid">
         <!-- 客户条 -->
         <div class="panel who">
@@ -60,7 +70,7 @@
             </div>
             <div class="who__s">
               {{ activeHouse?.fullName || '—' }} · {{ activeHouse?.area || 0 }}㎡
-              <template v-if="p.houses.length > 1"> · 名下 {{ p.houses.length }} 套房（上图切换）</template>
+              <template v-if="p.houses.length > 1"> · 名下 {{ p.houses.length }} 套房</template>
             </div>
           </div>
           <div class="who__kpi">
@@ -70,12 +80,12 @@
           </div>
         </div>
 
-        <!-- ① 物业服务费：能欠 → 账期格子 -->
+        <!-- ① 物业服务费：能欠 → 账期格子；没出账的月份点了就是预缴 -->
         <div class="panel blk">
           <div class="blk__hd">
             <b>物业服务费</b>
             <span class="blk__sub">2.8 元/㎡ · {{ money(activeHouse?.area ? activeHouse.area * 2.8 : 0) }} / 月</span>
-            <span class="md md--due">按账期 · 可欠费</span>
+            <span class="md md--due">按账期 · 可欠费 · 可预缴</span>
             <span class="spacer" />
             <el-button v-if="periodDebtCount" link type="primary" size="small" @click="selectAllPeriodDebt">
               全选欠费（{{ periodDebtCount }}）
@@ -94,7 +104,7 @@
               <span v-if="c.bill" class="pcell__bill">{{ c.billId.slice(-4) }}</span>
             </div>
           </div>
-          <div v-if="!periodCells.length" class="blk__empty">该房屋没有物业费账期</div>
+          <div class="blk__foot">点红格收欠费，点虚线格是<b>预缴</b>（收完即记已收，不生成账单）</div>
         </div>
 
         <!-- ② 车位：不欠费，到期失效 → 有效期 + 续期 -->
@@ -142,7 +152,7 @@
             <b>水电</b>
             <span class="blk__sub">单价按业态自动取价</span>
             <span class="spacer" />
-            <span class="blk__tip">本项目：电={{ utilityCards[0]?.mode === 'meter' ? '抄表' : utilityCards[0]?.mode === 'card' ? '预充' : '自缴' }} · 水={{ utilityCards[1]?.mode === 'meter' ? '抄表' : utilityCards[1]?.mode === 'card' ? '预充' : '自缴' }}</span>
+            <span class="blk__tip">本项目：电={{ utilityModeText(utilityCards[0]?.mode) }} · 水={{ utilityModeText(utilityCards[1]?.mode) }}</span>
           </div>
           <div class="util">
             <div v-for="card in utilityCards" :key="card.meterType" class="ucard" :class="{ 'is-off': card.mode === 'none' }">
@@ -153,17 +163,15 @@
                 <el-button v-if="card.mode !== 'none' && card.price" link type="primary" size="small" @click="openPriceSwitch(card)">切换</el-button>
                 <span class="spacer" />
                 <span class="md" :class="card.mode === 'card' ? 'md--pre' : card.mode === 'meter' ? 'md--meter' : 'md--off'">
-                  {{ card.mode === 'card' ? '预充买量' : card.mode === 'meter' ? '抄表账单' : '系统不参与' }}
+                  {{ utilityModeText(card.mode) }}
                 </span>
               </div>
 
-              <!-- 自缴 -->
               <div v-if="card.mode === 'none'" class="ucard__off">
                 <template v-if="card.priceErr">{{ card.priceErr }}</template>
                 <template v-else>本项目该项由业主自缴，不产生应收、不收款、不计收入</template>
               </div>
 
-              <!-- 抄表：待缴单，金额不可改 -->
               <template v-else-if="card.mode === 'meter'">
                 <div v-if="card.dueBills.length" class="olist2">
                   <div
@@ -180,36 +188,103 @@
                 <div v-else class="ucard__off">本期暂无待缴账单（抄表后自动推单）</div>
               </template>
 
-              <!-- 预充：钱 ⇄ 量 -->
               <template v-else>
                 <div v-if="card.priceErr" class="ucard__off">{{ card.priceErr }}</div>
                 <template v-else>
                   <div class="ucard__b">
                     <el-input-number
-                      v-model="utilityInput.amount" :min="0" :precision="2" :step="100" :controls="false"
+                      v-model="utilityInput[card.key].amount" :min="0" :precision="2" :step="100" :controls="false"
                       size="small" style="flex:1;" placeholder="金额"
-                      @change="utilityInput.mode = 'amount'"
+                      @change="v => onUtilAmount(card, v)"
                     />
                     <span class="ucard__eq">⇄</span>
                     <el-input-number
-                      v-model="utilityInput.qty" :min="0" :precision="2" :step="50" :controls="false"
+                      v-model="utilityInput[card.key].qty" :min="0" :precision="2" :step="50" :controls="false"
                       size="small" style="flex:1;" :placeholder="card.unitShort"
-                      @change="utilityInput.mode = 'qty'"
+                      @change="v => onUtilQty(card, v)"
                     />
                     <el-button size="small" type="primary" plain @click="addUtilityCharge(card)">加入</el-button>
                   </div>
                   <div class="ucard__f">
-                    <template v-if="utilityInput.mode === 'qty' && utilityInput.qty > 0">
-                      = {{ money(utilityInput.qty * card.price.price) }} 元
+                    <template v-if="utilityInput[card.key].amount > 0 && utilityInput[card.key].qty > 0">
+                      <b>{{ money(utilityInput[card.key].amount) }}</b> 元 =
+                      <b>{{ utilityInput[card.key].qty }}</b> {{ card.unitShort }}
+                      <span class="ucard__hint">（任一格改，另一格自动换算）</span>
                     </template>
-                    <template v-else-if="utilityInput.amount > 0">
-                      = {{ (utilityInput.amount / card.price.price).toFixed(2) }} {{ card.unitShort }}
-                    </template>
-                    <template v-else>输金额或用量任一即可</template>
+                    <template v-else>输金额或用量任一即可，另一项自动换算</template>
                   </div>
                 </template>
               </template>
             </div>
+          </div>
+        </div>
+
+        <!-- ④ 加收：其他科目 / 押金 / 临时收费
+             放中栏不放右栏：右栏职责是"结账"，加收是"选收什么"；
+             而且右栏 320px 一条条堆表单，加完还得往上翻着看清单 -->
+        <div class="panel blk addblk">
+          <div class="blk__hd">
+            <b>加收</b>
+            <span class="blk__sub">不进账期、不产生欠费的一次性收款</span>
+            <span class="spacer" />
+            <div class="addtabs">
+              <span :class="{ 'is-on': extraPanel === 'item' }" @click="toggleExtraPanel('item')">其他科目</span>
+              <span :class="{ 'is-on': extraPanel === 'deposit' }" @click="toggleExtraPanel('deposit')">押金</span>
+              <span :class="{ 'is-on': extraPanel === 'temp' }" @click="toggleExtraPanel('temp')">临时收费</span>
+            </div>
+          </div>
+
+          <div v-if="extraPanel === 'item'" class="addrow">
+            <el-select v-model="extraForm.itemId" placeholder="选择收费科目" style="width:232px;" @change="syncExtraAmount">
+              <el-option v-for="o in extraItemOpts" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-input-number v-model="extraForm.itemQty" :min="1" :controls="false" style="width:82px;"
+              placeholder="数量" @change="syncExtraAmount" />
+            <el-input-number v-model="extraForm.itemAmount" :min="0" :precision="2" :controls="false"
+              style="width:128px;" placeholder="金额" />
+            <span class="addrow__eq">元</span>
+            <el-button type="primary" plain @click="addExtraItem">加入</el-button>
+            <span class="addrow__tip">金额按「单价 × 数量」自动带出，可微调</span>
+          </div>
+
+          <div v-else-if="extraPanel === 'deposit'" class="addrow">
+            <el-select v-model="extraForm.depositType" style="width:196px;">
+              <el-option v-for="o in extraDepositOpts" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-input-number v-model="extraForm.depositQty" :min="1" :controls="false" style="width:82px;"
+              placeholder="数量" />
+            <span class="addrow__amt">{{ money(extraDepositAmount) }}</span>
+            <span class="addrow__eq">元</span>
+            <el-button type="primary" plain @click="addDeposit">加入</el-button>
+            <span class="addrow__tip is-warn">金额不可改；只收不退，退还走押金台账</span>
+          </div>
+
+          <div v-else-if="extraPanel === 'temp'" class="addrow">
+            <el-input v-model="extraForm.tempName" placeholder="事项（临停 / 场地 / 摆摊）" style="width:232px;" />
+            <el-input-number v-model="extraForm.tempAmount" :min="0" :precision="2" :controls="false"
+              style="width:128px;" placeholder="金额" />
+            <span class="addrow__eq">元</span>
+            <el-button type="primary" plain @click="addTempCharge">加入</el-button>
+            <el-input v-model="extraForm.tempNote" placeholder="说明（必填）" style="flex:1;" />
+          </div>
+
+          <div v-else class="addrow addrow--hint">选一个类型开始加收：其他科目 / 押金 / 临时收费</div>
+        </div>
+
+        <!-- ⑤ 本户收款记录：业主说"我上个月交过"时当场核对 -->
+        <div class="panel blk">
+          <div class="blk__hd">
+            <b>本户收款记录</b>
+            <span class="blk__sub">近 {{ recentPaid.length }} 笔 · 有争议时当场核对</span>
+          </div>
+          <div class="recent">
+            <div v-for="b in recentPaid" :key="b.billId" class="rrow">
+              <span class="rrow__t">{{ b.payTime }}</span>
+              <span class="rrow__n">{{ b.itemName }} · {{ b.period }}</span>
+              <span class="rrow__w">{{ b.payMethod }}</span>
+              <span class="rrow__a">{{ money(b.paidAmount) }}</span>
+            </div>
+            <div v-if="!recentPaid.length" class="blk__empty">该客户暂无收款记录</div>
           </div>
         </div>
       </div>
@@ -236,58 +311,13 @@
               <div class="ci__n">
                 {{ e.title }}
                 <span v-if="e.type === 'deposit'" class="tagm tagm--y">不计收入</span>
+                <span v-if="e.type === 'prepay'" class="tagm tagm--b">预缴</span>
               </div>
               <div class="ci__s">{{ e.sub }}</div>
             </div>
             <div class="ci__v">{{ money(e.amount) }}</div>
           </div>
-          <div v-if="!pickedCount" class="cart__empty">点中间的账期格子 / 续期 / 充值，或从下面「加收」</div>
-        </div>
-
-        <!-- 加收：其他科目 / 押金 / 临时收费 -->
-        <div class="add">
-          <div class="add__tabs">
-            <span :class="{ 'is-on': extraPanel === 'item' }" @click="toggleExtraPanel('item')">其他科目</span>
-            <span :class="{ 'is-on': extraPanel === 'deposit' }" @click="toggleExtraPanel('deposit')">押金</span>
-            <span :class="{ 'is-on': extraPanel === 'temp' }" @click="toggleExtraPanel('temp')">临时收费</span>
-          </div>
-
-          <div v-if="extraPanel === 'item'" class="add__body">
-            <el-select v-model="extraForm.itemId" size="small" placeholder="选择收费科目" style="width:100%;">
-              <el-option v-for="o in extraItemOpts" :key="o.value" :label="o.label" :value="o.value" />
-            </el-select>
-            <div class="add__row">
-              <el-input-number v-model="extraForm.itemQty" :min="1" size="small" :controls="false" style="width:76px;" placeholder="数量" />
-              <el-input-number v-model="extraForm.itemAmount" :min="0" :precision="2" :controls="false" size="small" style="flex:1;" placeholder="金额（留空按单价）" />
-              <el-button size="small" type="primary" @click="addExtraItem">加入</el-button>
-            </div>
-          </div>
-
-          <div v-if="extraPanel === 'deposit'" class="add__body">
-            <el-select v-model="extraForm.depositType" size="small" style="width:100%;">
-              <el-option v-for="o in extraDepositOpts" :key="o.value" :label="o.label" :value="o.value" />
-            </el-select>
-            <div class="add__row">
-              <el-input-number v-model="extraForm.depositQty" :min="1" size="small" :controls="false" style="width:76px;" placeholder="数量" />
-              <span class="add__amt">{{ money(extraDepositAmount) }}</span>
-              <el-button size="small" type="primary" @click="addDeposit">加入</el-button>
-            </div>
-            <div class="add__warn">押金金额不可改；只收不退，退还走押金台账并需审批</div>
-          </div>
-
-          <div v-if="extraPanel === 'temp'" class="add__body">
-            <el-input v-model="extraForm.tempName" size="small" placeholder="事项（临停 / 场地 / 摆摊）" />
-            <div class="add__row">
-              <el-input-number v-model="extraForm.tempAmount" :min="0" :precision="2" :controls="false" size="small" style="flex:1;" placeholder="金额" />
-              <el-button size="small" type="primary" @click="addTempCharge">加入</el-button>
-            </div>
-            <el-input v-model="extraForm.tempNote" size="small" placeholder="说明（必填，日结对不上时要能查）" />
-            <!-- 外部单位、多科目这类要填付款方与分项的，还是走完整表单；这里只接现场零星收费 -->
-            <div class="add__more">
-              付款方是外部单位 / 要分多个科目？
-              <el-button link type="primary" size="small" @click="tcOpen = true">用完整表单</el-button>
-            </div>
-          </div>
+          <div v-if="!pickedCount" class="cart__empty">点中间的账期格子 / 续期 / 充值，或在「加收」里选科目</div>
         </div>
 
         <!-- 合计：收入与押金分开 -->
@@ -440,7 +470,7 @@ import { ElMessage } from 'element-plus'
 import {
   PAY_METHODS, PAY_SPLIT_MAX, billingMatrixOfHouse, canCollect, canEditTempCharges,
   cashierBuildingOpts, cashierExtraItemOpts, cashierOwnerList, cashierOwnerRoom, cashierUnitOpts,
-  collectDeposit, communityUtilityOf, createPrepayCollect, createUtilityCharge, debtOf,
+  collectDeposit, communityUtilityOf, createPrepayCollect, createPrepayForPeriod, createUtilityCharge, debtOf,
   depositCollectTypeOpts, feeItemCategoryRows, houseOptions, invoiceItemNameOpts,
   invoiceProfilesOfHouse, isDebt, isReceivableItem, issueInvoice, ownerProfile,
   parkingRenewQuote, payBills, paySplitCheck, prepayBalanceOf, prepayPlan,
@@ -454,6 +484,18 @@ import EmptyState from '@/components/EmptyState.vue'
 import TenantSupplementDrawer from '@/components/TenantSupplementDrawer.vue'
 import SensitiveText from '@/components/SensitiveText.vue'
 import { money } from '@/utils/format'
+
+/* 独立页顶栏用：项目名与当前时间（进来一次取一次就够，不必每秒跳） */
+const scopeName = ref('全部项目')
+const nowText = ref('')
+{
+  const d = new Date()
+  nowText.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  try {
+    const raw = localStorage.getItem('wy_proto_scope')
+    if (raw) scopeName.value = JSON.parse(raw)?.name || '全部项目'
+  } catch { /* 读不到就用默认 */ }
+}
 
 const kw = ref('')
 const ownerId = ref('OW00001')
@@ -886,6 +928,7 @@ const PERIOD_FROM = '2026-08'
 const PERIOD_TO = '2027-01'
 
 const periodCells = computed(() => {
+  void payVer.value
   const h = activeHouse.value
   if (!h) return []
   let rows = []
@@ -899,12 +942,20 @@ const periodCells = computed(() => {
       ...r,
       bill,
       billId: bill?.billId || '',
-      picked: !!bill && sel.value.some(x => x.billId === bill.billId)
+      picked: bill
+        ? sel.value.some(x => x.billId === bill.billId)
+        : extras.value.some(e => e.key === `prepay-${h.houseId}-${r.period}`)
     }
   })
 })
 
 const periodDebtCount = computed(() => periodCells.value.filter(c => c.bill).length)
+
+/* 本户近期收款：业主说"我上个月交过"的时候，前台要能当场翻出来 */
+const recentPaid = computed(() => (p.value?.bills || [])
+  .filter(b => b.payTime && (b.paidAmount || 0) > 0)
+  .sort((a, b) => String(b.payTime).localeCompare(String(a.payTime)))
+  .slice(0, 6))
 
 /**
  * 格子的状态与配色。
@@ -914,6 +965,7 @@ const periodDebtCount = computed(() => periodCells.value.filter(c => c.bill).len
  */
 function cellLabel(c) {
   if (c.bill) return '欠费'
+  if (c.picked) return '预缴中'
   if (c.status === '已收' || c.status === '已减免') return c.status
   return c.status
 }
@@ -929,14 +981,36 @@ function cellTone(c) {
  * 未出账的月份不能点：账单制下"应收"要被开成单才算数，
  * 直接收没出账的钱，收缴率与账单销账两套口径立刻就分叉了。
  */
+/**
+ * 点格子 = 收这一期。
+ * 有账单 → 走销账；没账单但也没收过 → 走**预缴**（实际业务里物业费大都是提前收的）。
+ * 已收清的格子点不动。
+ */
 function togglePeriod(cell) {
-  if (!cell.bill) {
-    ElMessage.info(`${cell.period} 还没出账，预收请先到「账单管理」出单`)
+  const h = activeHouse.value
+  if (!h) return
+
+  if (cell.bill) {
+    const i = sel.value.findIndex(x => x.billId === cell.billId)
+    if (i >= 0) sel.value.splice(i, 1)
+    else sel.value.push({ ...cell.bill, room: h.room || '' })
     return
   }
-  const i = sel.value.findIndex(x => x.billId === cell.billId)
-  if (i >= 0) sel.value.splice(i, 1)
-  else sel.value.push({ ...cell.bill, room: activeHouse.value?.room || '' })
+  if (cell.status === '已收' || cell.status === '已减免' || cell.status === '部分收') {
+    ElMessage.info(`${cell.period} 已收清`)
+    return
+  }
+  const key = `prepay-${h.houseId}-${cell.period}`
+  const i = extras.value.findIndex(e => e.key === key)
+  if (i >= 0) { extras.value.splice(i, 1); return }
+  extras.value.push({
+    key,
+    type: 'prepay',
+    title: '物业服务费（预缴）',
+    sub: `${cell.period} · 提前缴纳，收后即记已收`,
+    amount: cell.receivable,
+    meta: { houseId: h.houseId, itemId: 'FI01', period: cell.period }
+  })
 }
 
 function selectAllPeriodDebt() {
@@ -950,6 +1024,9 @@ function selectAllPeriodDebt() {
 /* ---------------- ② 车位：有效期 + 续期 ---------------- */
 const parkMonths = ref(3)
 const parkInfo = computed(() => {
+  /* 收款后要重算：续期改的是 PV_ROWS 里的 expireDate，
+     parkingsOfOwner 返回的仍是同一批对象引用，不加这个依赖界面会停在旧日期 */
+  void payVer.value
   const pk = activePark.value
   if (!pk) return null
   try {
@@ -983,6 +1060,7 @@ function addParkRenew() {
 
 /* ---------------- ③ 水电：三种形态 ---------------- */
 const utilityCards = computed(() => {
+  void payVer.value
   const h = activeHouse.value
   if (!h) return []
   const cfg = communityUtilityOf(h.communityId) || { elec: 'none', water: 'none' }
@@ -1001,18 +1079,35 @@ const utilityCards = computed(() => {
   })
 })
 
-const utilityInput = reactive({ mode: 'amount', amount: 0, qty: 0 })
-
-const utilityQuotePreview = computed(() => {
-  const card = utilityCards.value.find(c => c.mode === 'card' && c.price)
-  if (!card) return null
-  try {
-    return utilityQuoteAt(card.price.price, card.unitShort, {
-      amount: utilityInput.mode === 'amount' ? utilityInput.amount : undefined,
-      qty: utilityInput.mode === 'qty' ? utilityInput.qty : undefined
-    })
-  } catch { return null }
+/* 电、水分开存：同一个输入框状态会让"输 500 元电费"顺带把水费的度数也改了 */
+const utilityInput = reactive({
+  elec: { amount: 0, qty: 0 },
+  water: { amount: 0, qty: 0 }
 })
+
+const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
+/** 三种水电模式的中文名，模板里少写三个三元 */
+const utilityModeText = m =>
+  m === 'card' ? '预充买量' : m === 'meter' ? '抄表账单' : m === 'none' ? '系统不参与' : '—'
+
+/**
+ * 金额 / 用量双向实时换算。
+ * 只靠下面一行提示文字不够 —— 前台输 500 时要知道"这是多少度"，
+ * 输 800 度时也要立刻看到"该收多少钱"，否则得自己按计算器。
+ */
+function onUtilAmount(card, v) {
+  const a = Number(v) || 0
+  const st = utilityInput[card.key]
+  if (!card.price || !a) { st.qty = 0; return }
+  st.qty = round2(a / card.price.price)
+}
+function onUtilQty(card, v) {
+  const q = Number(v) || 0
+  const st = utilityInput[card.key]
+  if (!card.price || !q) { st.amount = 0; return }
+  st.amount = round2(q * card.price.price)
+}
 
 function toggleUtilityBill(card, bill) {
   const i = sel.value.findIndex(x => x.billId === bill.billId)
@@ -1022,12 +1117,11 @@ function toggleUtilityBill(card, bill) {
 
 function addUtilityCharge(card) {
   if (!card.price) { ElMessage.error(card.priceErr || '该表计没有配置价格'); return }
+  const st = utilityInput[card.key]
   let q
   try {
-    q = utilityQuoteAt(card.price.price, card.unitShort, {
-      amount: utilityInput.mode === 'amount' ? utilityInput.amount : undefined,
-      qty: utilityInput.mode === 'qty' ? utilityInput.qty : undefined
-    })
+    q = utilityQuoteAt(card.price.price, card.unitShort,
+      st.amount > 0 ? { amount: st.amount } : { qty: st.qty })
   } catch (e) { ElMessage.error(e.message); return }
   const dup = extras.value.findIndex(e => e.type === 'utility' && e.meta.itemId === card.itemId)
   const row = {
@@ -1040,8 +1134,8 @@ function addUtilityCharge(card) {
   }
   if (dup >= 0) extras.value.splice(dup, 1, row)
   else extras.value.push(row)
-  utilityInput.amount = 0
-  utilityInput.qty = 0
+  st.amount = 0
+  st.qty = 0
 }
 
 /* 改单人价：默认按业态取价，例外才改，且必须写原因 */
@@ -1084,6 +1178,14 @@ const extraDepositAmount = computed(() => {
 })
 
 function toggleExtraPanel(k) { extraPanel.value = extraPanel.value === k ? '' : k }
+
+/** 选了科目就按单价×数量带出金额 —— 留个 0.00 在那儿，没人知道该填什么 */
+function syncExtraAmount() {
+  const opt = extraItemOpts.find(o => o.value === extraForm.itemId)
+  if (!opt) return
+  const qty = Number(extraForm.itemQty) || 1
+  extraForm.itemAmount = round2(opt.price * qty)
+}
 
 function addExtraItem() {
   const opt = extraItemOpts.find(o => o.value === extraForm.itemId)
@@ -1231,6 +1333,9 @@ async function confirmPay() {
           payMethod: splitRows.value[0]?.method || '微信支付'
         })
         done.push(`${r.itemName}充值 ${r.qty} ${r.unit}`)
+      } else if (e.type === 'prepay') {
+        const r = createPrepayForPeriod(e.meta)
+        done.push(`${r.period} 预缴 ¥${money(r.amount)}`)
       } else if (e.type === 'deposit') {
         const r = collectDeposit({
           houseId: activeHouse.value.houseId,
@@ -1494,7 +1599,7 @@ async function confirmPay() {
   padding: 9px 10px; background: #fff; cursor: pointer;
   transition: border-color .15s, box-shadow .15s; position: relative;
 }
-.pcell:hover { border-color: var(--biz-primary); }
+.pcell:hover { border-color: var(--el-color-primary); }
 .pcell__m { font-size: 10.5px; color: var(--biz-text-3); font-family: var(--biz-font-num); }
 .pcell__v { font-size: 12.5px; font-family: var(--biz-font-num); font-weight: 600; margin-top: 3px; }
 .pcell__s { font-size: 10px; margin-top: 2px; color: var(--biz-text-3); }
@@ -1509,7 +1614,7 @@ async function confirmPay() {
 .pcell.is-fut { background: var(--biz-bg-fill); border-style: dashed; }
 .pcell.is-fut .pcell__v { color: var(--biz-text-3); }
 .pcell.is-picked {
-  border-color: var(--biz-primary);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px rgba(91,108,255,.18);
   background: #fbfbff;
 }
@@ -1531,7 +1636,7 @@ async function confirmPay() {
   border-radius: 7px; color: var(--biz-text-2); cursor: pointer; background: #fff;
 }
 .park__act > span.is-on {
-  border-color: var(--biz-primary); color: var(--biz-primary);
+  border-color: var(--el-color-primary); color: var(--el-color-primary);
   background: rgba(91,108,255,.08); font-weight: 500;
 }
 
@@ -1588,8 +1693,8 @@ async function confirmPay() {
   color: var(--biz-text-2); cursor: pointer;
 }
 .add__tabs > span.is-on {
-  background: #fff; color: var(--biz-primary); font-weight: 500;
-  box-shadow: inset 0 -2px 0 var(--biz-primary);
+  background: #fff; color: var(--el-color-primary); font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--el-color-primary);
 }
 .add__body { padding: 9px 10px; display: flex; flex-direction: column; gap: 7px; }
 .add__row { display: flex; align-items: center; gap: 7px; }
@@ -1626,4 +1731,56 @@ async function confirmPay() {
   .pos { grid-template-columns: 240px minmax(0, 1fr) 300px; }
   .pgrid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* 块脚注 */
+.blk__foot { margin-top: 10px; font-size: 11px; color: var(--biz-text-3); }
+.blk__foot b { color: var(--biz-text-2); font-weight: 500; }
+
+/* 加收：中栏一行式 */
+.addblk .blk__hd { align-items: center; }
+.addtabs { display: flex; gap: 0; border: 1px solid var(--biz-border); border-radius: 7px; overflow: hidden; }
+.addtabs > span {
+  font-size: 12px; padding: 5px 12px; color: var(--biz-text-2);
+  cursor: pointer; background: #fff; border-right: 1px solid var(--biz-border);
+}
+.addtabs > span:last-child { border-right: none; }
+.addtabs > span:hover { background: var(--biz-bg-hover); }
+.addtabs > span.is-on { background: var(--el-color-primary); color: #fff; font-weight: 500; }
+.addrow { display: flex; align-items: center; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+.addrow__eq { font-size: 12px; color: var(--biz-text-3); }
+.addrow__amt { font-family: var(--biz-font-num); font-size: 14px; font-weight: 600; min-width: 76px; }
+.addrow__tip { font-size: 11px; color: var(--biz-text-3); }
+.addrow__tip.is-warn { color: #a76b13; }
+.addrow--hint { font-size: 12px; color: var(--biz-text-3); padding: 6px 0 2px; }
+.ucard__hint { color: var(--biz-text-3); }
+
+/* 独立页（无后台外壳） */
+.pos-standalone { padding: 14px 20px 20px; }
+.pos-bar {
+  display: flex; align-items: center; gap: 12px;
+  height: 46px; padding: 0 16px; margin-bottom: 12px;
+  background: #fff; border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(31,37,64,.05);
+}
+.pos-bar__logo { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; }
+.pos-bar__logo .dot {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: var(--biz-gradient); color: #fff;
+  display: grid; place-items: center; font-size: 11.5px;
+}
+.pos-bar__sep { width: 1px; height: 18px; background: var(--biz-border); }
+.pos-bar__meta { font-size: 12.5px; color: var(--biz-text-3); }
+.pos-bar__time { font-size: 12.5px; color: var(--biz-text-2); font-family: var(--biz-font-num); }
+
+.recent { margin-top: 10px; }
+.rrow {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; padding: 6px 0; color: var(--biz-text-2);
+  border-bottom: 1px dashed var(--biz-border-light);
+}
+.rrow:last-child { border-bottom: none; }
+.rrow__t { font-family: var(--biz-font-num); color: var(--biz-text-3); flex: 0 0 88px; }
+.rrow__n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rrow__w { color: var(--biz-text-3); flex: 0 0 64px; }
+.rrow__a { font-family: var(--biz-font-num); font-weight: 600; flex: 0 0 78px; text-align: right; }
 </style>
