@@ -453,7 +453,7 @@
         <div class="sec__hd" style="margin:0 0 8px;"><h4>支付方式</h4><span class="desc">最多 {{ PAY_SPLIT_MAX }} 种</span></div>
         <div class="splits" :key="splitKey">
           <div v-for="(row, i) in splitRows" :key="i" class="split-row">
-            <el-select v-model="row.method" size="small" style="width:98px" @change="onMethodChange(row)">
+            <el-select v-model="row.method" size="small" style="width:98px">
               <el-option v-for="m in PAY_METHODS" :key="m" :label="m" :value="m"
                 :disabled="m !== row.method && isMethodUsed(m)" />
             </el-select>
@@ -598,7 +598,7 @@ import {
   cashierUnitOpts, collectDeposit, communityOpts, communityUtilityOf, createPrepayCollect, createPrepayForPeriod, createUtilityCharge, debtOf,
   depositCollectTypeOpts, feeItemCategoryRows, houseOptions, invoiceItemNameOpts,
   invoiceProfilesOfHouse, isDebt, isReceivableItem, issueInvoice, ownerProfile,
-  parkingRenewQuote, payBills, paySplitCheck, payTempCharge, prepayBalanceOf, prepayPlan,
+  parkingRenewQuote, payBills, paySplitCheck, payTempCharge, prepayPlan,
   recentTempCharges,
   renewParking, saveTempCharge, setHouseUtilityPrice, tenantsOfOwner,
   utilityBillsOf, utilityPriceOf, utilityQuote, utilityQuoteAt, utilityTierRows, waiveReasonOpts
@@ -918,11 +918,6 @@ const sum = computed(() => {
 /* splitCheck 同样移后 */
 const isMethodUsed = m => splitRows.value.some(r => r.method === m)
 
-/** 选中账单涉及房屋的预存余额合计（跨房时是各房账户之和） */
-const prepayAvail = computed(() => {
-  const hs = [...new Set(sel.value.map(b => b.houseId))]
-  return hs.reduce((a, h) => a + prepayBalanceOf(h), 0)
-})
 
 /* canPay 同样移后 */
 
@@ -948,31 +943,10 @@ function addSplit() {
   const half = Math.round((Number(host.amount) || 0) / 2 * 100) / 100
   host.amount = Math.round(((Number(host.amount) || 0) - half) * 100) / 100
   splitRows.value.push({ method: next, amount: half })
-  if (next === '预存抵扣') onMethodChange(splitRows.value[splitRows.value.length - 1])
 }
 function removeSplit(i) {
   if (splitRows.value.length === 1) return
   splitRows.value.splice(i, 1)
-}
-/** 选到预存抵扣时自动填「余额与该行剩余额度里较小的那个」 */
-function onMethodChange(row) {
-  if (row.method !== '预存抵扣') return
-  /* 车位费没有 houseId，挂不到房屋预存账户上；不给提示的话这里会出现
-     "选了预存抵扣但金额填不进去"，看着像坏了 */
-  if (prepayAvail.value <= 0) {
-    ElMessage.warning('这些账单没有可用的预存账户（车位费不挂房屋，用不了房屋预存）')
-    row.amount = 0
-    return
-  }
-  const others = splitCheck.value.sum - (Number(row.amount) || 0)
-  const rest = Math.max(0, payableTotal.value - others)
-  row.amount = Math.min(prepayAvail.value, rest)
-  /* 预存只抵一部分时，剩下的要由另一行补上 —— 不补的话合计对不上，
-     用户还得自己算「总价减余额是多少」 */
-  const restRows = splitRows.value.filter(r => r !== row)
-  if (restRows.length === 1) {
-    restRows[0].amount = Math.round((payableTotal.value - row.amount) * 100) / 100
-  }
 }
 function onAmountChange() { /* el-input-number 双向绑定即生效，这里只留钩子便于以后加千分位 */ }
 

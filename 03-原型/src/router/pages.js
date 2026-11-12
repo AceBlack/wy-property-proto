@@ -120,9 +120,10 @@ export const PAGES = [
     component: () => import('@/views/b/TempChargeList.vue') },
   { path: '/b/deposits', name: 'DepositList', title: '装修押金台账', group: 'b', status: 'done', icon: 'CreditCard', desc: '收取 · 验收 · 退款扣款全流程',
     component: () => import('@/views/b/DepositList.vue') },
-  { path: '/b/meters', name: 'Meter', title: '抄表与公摊', group: 'b', status: 'done', icon: 'Odometer', desc: '抄表录入 · 用量复核 · 公摊分摊',
+  { path: '/b/meters', name: 'Meter', title: '抄表与公摊', group: 'b', status: 'done', icon: 'Odometer', desc: '抄表录入 · 推单出账 · 公摊分摊',
     component: () => import('@/views/b/Meter.vue') },
-  { path: '/b/prepay', name: 'Prepay', title: '预存与抵扣', group: 'b', status: 'done', icon: 'Wallet', desc: '预存账户 · 充值 · 余额抵扣账单',
+  /* 预存账户体系 2026-11-13 停用：入口保留，但只剩"退还存量余额"，不再受理充值 */
+  { path: '/b/prepay', name: 'Prepay', title: '预存清退（已停用）', group: 'b', status: 'done', icon: 'Wallet', desc: '历史模块 · 仅退还存量余额，不再充值/抵扣',
     component: () => import('@/views/b/Prepay.vue') },
 
   // ---------- N 邻里（业主端「邻里」的后台一侧） ----------

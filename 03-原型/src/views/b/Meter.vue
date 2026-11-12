@@ -4,13 +4,16 @@
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
         <b>抄表与公摊 · A 级交互</b>：①「抄表录入」按账期逐表抄录，改读数自动算用量，波动超阈值标异常；
-        ②复核通过后进入「已计费」；③「公摊计算」把公共用水、公共用电分别归集后按建筑面积摊到户，可预览并一键生成账单。
+        ②「抄表推单」把复核过的读数按业态单价出成水电账单（插卡代充 / 国网自缴的项目不出账）；
+        ③「公摊计算」把公共用水、公共用电分别归集后按建筑面积摊到户，可预览并一键生成账单。
         写操作均为<b>内存态</b>；公摊系数（分户合计 8%）为演示固定值，正式实现应取总表与分表的实际差额；
         读数录入受表具量程约束（水表 99999 吨 / 电表 999999 度），超量程拒绝保存。
+        <b>复核只是承认读数，出账才产生应收</b> —— 所以推单前必须没有未抄/待复核的表。
       </div>
     </div>
 
-    <div class="grid" style="margin-top:16px;grid-template-columns:repeat(5,minmax(0,1fr));">
+    <!-- 抄表录入的汇总卡：推单页有自己的一套指标，两套并排会打架（一个说 3176 吨，一个说 105 吨） -->
+    <div v-if="tab !== 'bill'" class="grid" style="margin-top:16px;grid-template-columns:repeat(5,minmax(0,1fr));">
       <div class="panel rsum" data-card="m-period"><div class="rsum__l">账期</div><div class="rsum__v" style="font-size:17px;">{{ sum.period }}</div></div>
       <div class="panel rsum" data-card="m-meters"><div class="rsum__l">表具 / 抄表数</div><div class="rsum__v">{{ sum.meterCount }}<span class="unit">/ {{ sum.readingCount }}</span></div></div>
       <div class="panel rsum" data-card="m-pending"><div class="rsum__l">待录入 / 待复核</div><div class="rsum__v">{{ sum.pending }}<span class="unit">/ {{ sum.review }}</span></div></div>
@@ -108,6 +111,113 @@
         </div>
       </el-tab-pane>
 
+      <el-tab-pane label="抄表推单" name="bill">
+        <div class="panel" style="margin-top:12px;">
+          <el-form :model="billQuery" class="filter-bar" data-area="bill" label-width="60px" @submit.prevent>
+            <el-form-item label="账期">
+              <el-select v-model="billQuery.period" style="width:110px" @change="doPreview">
+                <el-option v-for="p in periods" :key="p" :label="p" :value="p" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="项目">
+              <el-select v-model="billQuery.communityId" placeholder="全部项目" clearable style="width:130px" @change="doPreview">
+                <el-option v-for="c in communityOpts()" :key="c.id" :label="c.name" :value="c.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="视图">
+              <el-switch v-model="onlyBillable" size="small" active-text="只看要处理的" @change="doPreview" />
+            </el-form-item>
+            <el-form-item class="acts">
+              <el-button type="primary" :icon="'DocumentAdd'" :disabled="!canBill" @click="doBill">
+                生成水电账单{{ pv.billableCount ? `（${pv.billableCount}）` : '' }}
+              </el-button>
+              <el-button :icon="'Refresh'" @click="doPreview">重新预览</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <div class="grid" style="margin-top:16px;grid-template-columns:repeat(4,minmax(0,1fr));">
+          <div class="panel rsum" data-card="b-count">
+            <div class="rsum__l">可出账 / 全量</div>
+            <div class="rsum__v">{{ pv.billableCount }}<span class="unit">/ {{ pv.total }} 条</span></div>
+          </div>
+          <div class="panel rsum" data-card="b-amount">
+            <div class="rsum__l">应出账金额</div>
+            <div class="rsum__v">¥ {{ money(pv.amount) }}</div>
+          </div>
+          <div class="panel rsum" data-card="b-split">
+            <div class="rsum__l">水 / 电</div>
+            <div class="rsum__v" style="font-size:15px;">
+              {{ pv.waterUsage }} 吨<span class="unit">/ {{ pv.elecUsage }} 度</span>
+            </div>
+          </div>
+          <div class="panel rsum" data-card="b-block">
+            <div class="rsum__l">阻断项 / 已推单</div>
+            <div class="rsum__v" :class="pv.blockingCount ? 'money--out' : ''">
+              {{ pv.blockingCount }}<span class="unit">/ {{ pv.billedCount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="pv.blockingCount" class="blockbar">
+          <b>还有 {{ pv.blockingCount }} 条读数不能出账，整批已拦住</b>
+          <span>{{ pv.blockingTop.join('；') }}{{ pv.blockingCount > 3 ? ' 等' : '' }}</span>
+          <span class="blockbar__hint">
+            只出一半的话，另一半户这个月就没有应收，收缴率的分母凭空少一截，而且没人会发现少了谁。
+            请先补抄 / 复核缺的表。
+          </span>
+        </div>
+
+        <div class="panel" data-area="bill-table" style="margin-top:16px;">
+          <div class="toolbar">
+            <span class="muted" style="font-size:12.5px;">
+              单价按<b>业态价目表</b>取（住宅电 0.568、零售铺 0.80、餐饮铺 0.90、办公 1.00、商业水 5.55），
+              不是收费科目上的 4.2 / 0.62 —— 拿参考价给商业户出账，每户每月都少收。
+              插卡代充与国网自缴的项目不出账：<b>{{ pv.byMode.card }}</b> 条代充、<b>{{ pv.byMode.none }}</b> 条自缴。
+            </span>
+            <span class="spacer" />
+            <span class="muted" style="font-size:12.5px;">预览 {{ billRows.length }} 行 · 单次最多推 500 户</span>
+          </div>
+          <el-table :data="billRows.slice(0, 200)" style="width:100%" max-height="calc(100vh - 470px)">
+            <el-table-column prop="houseName" label="房屋" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="meterNo" label="表号" width="90" />
+            <el-table-column prop="type" label="类型" width="70" />
+            <el-table-column label="本期用量" width="100" align="right">
+              <template #default="{ row }">{{ row.usage }} {{ row.unit }}</template>
+            </el-table-column>
+            <el-table-column label="单价" width="110" align="right">
+              <template #default="{ row }">
+                <span v-if="row.price">{{ row.price }} 元/{{ row.unit }}</span>
+                <span v-else class="muted">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="应出金额" width="110" align="right">
+              <template #default="{ row }">
+                <span class="money" :class="{ 'money--out': row.amount > 0 }">¥ {{ money(row.amount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="项目模式" width="130">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain" :type="row.mode === 'meter' ? 'primary' : 'info'">
+                  {{ row.mode === 'meter' ? '抄表出账' : (row.mode === 'card' ? '物业代充' : '业主自缴') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" min-width="150">
+              <template #default="{ row }">
+                <el-tag v-if="row.billable" size="small" type="success" effect="plain">可出账</el-tag>
+                <el-tag v-else-if="row.blocking.length" size="small" type="danger" effect="plain">{{ row.blocking[0] }}</el-tag>
+                <el-tag v-else-if="row.billId" size="small" effect="plain">已推单</el-tag>
+                <span v-else class="muted">{{ row.info[0] || '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="billId" label="账单号" width="120">
+              <template #default="{ row }"><span class="muted">{{ row.billId || '—' }}</span></template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="公摊计算" name="share">
         <div class="panel" style="margin-top:12px;">
           <el-form class="filter-bar" label-width="60px" @submit.prevent>
@@ -169,14 +279,15 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { useListQuery } from '@/composables/useQuery'
 import { exportList } from '@/utils/export'
 import { money } from '@/utils/format'
 import {
   METER_CAP, METER_PERIODS, PAGE_SIZES, READING_STATUS, approveReadings, communityOpts,
-  computeShare, generateShareBills, meterSummary, queryMeterReadings, saveReading
+  computeShare, generateMeterBills, generateShareBills, meterBillPreview, meterSummary,
+  queryMeterReadings, saveReading
 } from '@/utils/api'
 
 const tab = ref('read')
@@ -214,6 +325,49 @@ async function doApprove() {
   } catch (e) { ElMessage.error(e?.message || '复核失败') }
 }
 
+// —— 抄表推单 ——
+/* 推单是"抄表"与"收钱"之间的那一步：复核通过只是承认读数，出账才产生应收 */
+const billQuery = ref({ period: periods[0], communityId: '' })
+const onlyBillable = ref(true)
+const pv = ref(meterBillPreview({ period: periods[0] }))
+const canBill = computed(() => pv.value.billableCount > 0)
+/** 默认只显示"要处理的"：三种模式混在一起时，代充/自缴会占掉 2/3 的行 */
+const billRows = computed(() => {
+  const rs = pv.value.rows
+  if (!onlyBillable.value) return rs
+  return rs.filter(r => r.billable || r.blocking.length || r.billId)
+})
+function doPreview() { pv.value = meterBillPreview({ ...billQuery.value }) }
+
+/**
+ * 推单。
+ * 抄表是分批的（先抄完的楼栋先出账），所以阻断时不硬拦，而是把"会跳过 N 户"说清楚再确认 ——
+ * 默默少出一半才是最坏的结果：业主这个月没账单，收缴率也看不出少了谁。
+ */
+async function doBill() {
+  const p = pv.value
+  if (!p.billableCount) { ElMessage.warning('没有可出账的读数'); return }
+  if (p.blockingCount) {
+    try {
+      await ElMessageBox.confirm(
+        `还有 ${p.blockingCount} 条读数未抄或待复核，本次只出已抄完的 ${p.billableCount} 户（¥${money(p.amount)}）。` +
+        `被跳过的户这个月不会有账单，补抄后可再推一次（已推的不会重复）。`,
+        '仅推已抄完的', { type: 'warning', confirmButtonText: '仍然推单', cancelButtonText: '先去补抄' }
+      )
+    } catch { return }
+  }
+  try {
+    const r = generateMeterBills({ ...billQuery.value, allowPartial: p.blockingCount > 0 })
+    ElMessage.success(
+      `已生成 ${r.count} 张水电账单（水 ${r.waterCount} / 电 ${r.elecCount}），合计 ¥${money(r.amount)}` +
+      (r.skipped ? `；跳过 ${r.skipped} 户未抄/待复核` : '') + '。业主端「待缴账单」立即可见'
+    )
+    doPreview()
+    load()
+    sum.value = meterSummary(query.period)
+  } catch (e) { ElMessage.error(e?.message || '生成失败') }
+}
+
 // —— 公摊 ——
 const sharePeriod = ref(periods[0])
 const shareCommunity = ref('')
@@ -222,8 +376,11 @@ function doCalc(notify = true) {
   calc.value = computeShare({ communityId: shareCommunity.value, period: sharePeriod.value })
   if (notify) ElMessage.success('已按最新抄表数据重新计算')
 }
-/** 切到「公摊计算」时自动重算，避免沿用进入页面时的旧结果 */
-function onTab(name) { if (name === 'share') doCalc(false) }
+/** 切到「公摊计算」/「抄表推单」时自动重算，避免沿用进入页面时的旧结果 */
+function onTab(name) {
+  if (name === 'share') doCalc(false)
+  if (name === 'bill') doPreview()
+}
 async function doGenerate() {
   try {
     doCalc(false)   // 先对齐卡片，保证「看到的」与「生成的」同一口径
@@ -254,3 +411,14 @@ function onExportShare() {
   })
 }
 </script>
+
+<style scoped>
+.blockbar {
+  margin-top: 14px; padding: 12px 16px; border-radius: 10px;
+  background: #fff5f5; border: 1px solid #f5c2c2; color: #a33;
+  display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; line-height: 1.6;
+}
+.blockbar b { font-size: 13px; }
+.blockbar span { color: #b45; }
+.blockbar__hint { color: #9a6a1f !important; font-size: 12px; }
+</style>

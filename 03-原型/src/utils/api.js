@@ -8098,6 +8098,146 @@ export function generateShareBills({ communityId = '', period = METER_PERIODS()[
   return { count: n, amount: Math.round(calc.rows.reduce((s, r) => s + r.shareAmount, 0) * 100) / 100, period }
 }
 
+/* ==================================================================
+ * 批 3 · 抄表推单（2026-11-13）
+ * ------------------------------------------------------------
+ * 原来「复核通过」只是把状态改成「已计费」—— 没有账单、没有金额、没有应收，
+ * 等于表抄了一堆、钱一分没收。这里把最后一段接上：
+ *   读数（已复核）→ 用量 × 业态价 → 水电账单 → 业主缴费 → 进收入与日结
+ *
+ * 三类项目模式必须分开，混着推会出两类错账：
+ *   meter 抄表 → 系统出账（本函数）
+ *   card  插卡 → 物业代充，业主先买量，本来就没有账单
+ *   none  自缴 → 国网/水司直收，系统只留用量
+ * 对 card / none 的项目推单，等于凭空给业主开一张不该缴的账单。
+ *
+ * 单价走 utilityPriceOf（按业态取价），不用 feeItems 上的 4.2 / 0.62 ——
+ * 那两个数字是"住宅参考价"，拿它给商业户出账，每户每月都少收。
+ * ================================================================ */
+
+const METER_ITEM_ID = { 电表: 'FI06', 水表: 'FI05' }
+const UTIL_MODE_TEXT = { meter: '抄表出账', card: '物业代充（插卡买量）', none: '业主自缴（系统不收费）' }
+
+const _mR2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+/** 账期次月 10 日为缴费截止：抄表在月初，给业主 10 天 */
+const _dueDateOf = period => {
+  const [y, m] = String(period).split('-').map(Number)
+  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-10`
+}
+
+/**
+ * 推单预览：每条读数能不能出账、出多少钱、为什么不能出。
+ * 页面拿它渲染表格，也拿 blocking 决定「生成账单」按钮是否可用。
+ */
+export function meterBillPreview({ period = METER_PERIODS()[0], communityId = '' } = {}) {
+  const rs = meterReadings.filter(r => r.period === period && (!communityId || r.communityId === communityId))
+  const rows = rs.map(r => {
+    const mode = communityUtilityOf(r.communityId)[r.type === '电表' ? 'elec' : 'water']
+    let price = 0
+    let priceErr = ''
+    if (mode === 'meter') {
+      try { price = utilityPriceOf(r.houseId, r.type).price } catch (e) { priceErr = e.message }
+    }
+    const usage = Number(r.usage) || 0
+    const amount = price > 0 ? _mR2(usage * price) : 0
+
+    /* blocking = 必须解决才能出账；info = 只是说明为什么这行不出账 */
+    const blocking = []
+    if (mode === 'meter') {
+      if (r.status === '待录入') blocking.push('未抄表')
+      else if (r.status === '待复核') blocking.push('待复核')
+      if (!price) blocking.push(priceErr || '该项目没有对应的水电价')
+    }
+    const info = []
+    if (mode !== 'meter') info.push(UTIL_MODE_TEXT[mode])
+    if (r.billId) info.push(`已推单 ${r.billId}`)
+    if (mode === 'meter' && !r.billId && usage <= 0) info.push('用量为 0，不出账')
+
+    const billable = mode === 'meter' && !r.billId && usage > 0 && blocking.length === 0
+    return { ...r, mode, price, amount, billable, blocking, info }
+  })
+
+  const billable = rows.filter(r => r.billable)
+  const sumOf = list => _mR2(list.reduce((s, r) => s + r.amount, 0))
+  const water = billable.filter(r => r.type === '水表')
+  const elec = billable.filter(r => r.type === '电表')
+  const blocking = rows.filter(r => r.blocking.length)
+
+  return {
+    period, communityId, total: rows.length,
+    billableCount: billable.length,
+    amount: sumOf(billable),
+    waterCount: water.length, waterAmount: sumOf(water), waterUsage: _mR2(water.reduce((s, r) => s + (r.usage || 0), 0)),
+    elecCount: elec.length, elecAmount: sumOf(elec), elecUsage: _mR2(elec.reduce((s, r) => s + (r.usage || 0), 0)),
+    billedCount: rows.filter(r => r.billId).length,
+    blockingCount: blocking.length,
+    blockingTop: blocking.slice(0, 3).map(r => `${r.houseName} ${r.type}：${r.blocking.join('、')}`),
+    byMode: {
+      card: rows.filter(r => r.mode === 'card').length,
+      none: rows.filter(r => r.mode === 'none').length
+    },
+    rows
+  }
+}
+
+let BILL_SEQ_METER = 0
+
+/**
+ * 生成水电账单（幂等）。
+ *
+ * `allowPartial=false`（默认）：有 blocking 就整批拒绝 —— 只出一半，
+ *   另一半户这个月没有应收，收缴率的分母凭空少一截，且没人发现少了谁。
+ * `allowPartial=true`：抄表分批进行时用（先出抄完的楼栋），
+ *   必须由操作人显式确认"知道会跳过 N 户"，不能默默少出。
+ * 已推单的（billId 有值）不算 blocking，重复点只是提示"已推过"。
+ */
+export function generateMeterBills({ period = METER_PERIODS()[0], communityId = '', allowPartial = false } = {}) {
+  const pv = meterBillPreview({ period, communityId })
+  if (pv.blockingCount && !allowPartial) {
+    throw new Error(`还有 ${pv.blockingCount} 条读数不能出账：${pv.blockingTop.join('；')}${pv.blockingCount > 3 ? ' 等' : ''}。请先补抄 / 复核，或改为「仅推已抄完的」`)
+  }
+  const todo = pv.rows.filter(r => r.billable)
+  if (!todo.length) {
+    throw new Error(pv.billedCount ? `${period} 已全部推过单，无需重复生成` : '没有可出账的读数（用量为 0 或项目为代充/自缴）')
+  }
+
+  const created = []
+  for (const r of todo) {
+    const itemId = METER_ITEM_ID[r.type]
+    const item = feeItems.find(i => i.itemId === itemId)
+    if (!item) throw new Error(`收费科目缺失：${r.type} 对应的 ${itemId}`)
+
+    BILL_SEQ_METER += 1
+    const b = {
+      billId: 'BL-MT' + String(BILL_SEQ_METER).padStart(6, '0'),
+      period, status: '未缴', paidAmount: 0, payTime: '', payMethod: '', invoiceNo: '',
+      lateFee: 0, discount: 0,
+      communityId: r.communityId, houseId: r.houseId,
+      ownerId: (houses.find(h => h.houseId === r.houseId) || {}).ownerId || '',
+      itemId, itemName: item.name,
+      amount: r.amount, quantity: r.usage, price: r.price, unit: r.unit,
+      /* 抄表账必须能追回读数：业主质疑"这个月怎么用了 80 度"时，
+         账单 → readingId → 上期/本期读数，一条链走完 */
+      readingId: r.readingId, meterNo: r.meterNo,
+      createTime: TODAY, dueDate: _dueDateOf(period),
+      payable: r.amount, unpaid: r.amount, overdueDays: 0, _isNew: true
+    }
+    bills.push(b)
+    r.billId = b.billId
+    const rec = meterReadings.find(x => x.readingId === r.readingId)
+    if (rec) rec.billId = b.billId
+    created.push(b)
+  }
+  for (const b of created) { _syncBillRow(b, { insert: true }); delete b._isNew }
+
+  return {
+    period, count: created.length, amount: _mR2(created.reduce((s, b) => s + b.amount, 0)),
+    waterCount: created.filter(b => b.itemId === 'FI05').length,
+    elecCount: created.filter(b => b.itemId === 'FI06').length,
+    skipped: pv.blockingCount
+  }
+}
+
 /* ---------------- C3 考勤 ---------------- */
 
 export const SHIFTS = ['行政班', '早班', '晚班', '轮班']
@@ -8789,94 +8929,23 @@ export function prepaySummary() {
   }
 }
 
-/** 充值：余额增加，写流水 */
-export function recharge(accountId, amount, method = '微信') {
-  const a = prepayAccounts.find(x => x.accountId === accountId)
-  if (!a) throw new Error('预存账户不存在')
-  if (a.status === '已销户') throw new Error('已销户账户不可充值')
-  const amt = Number(amount)
-  if (!amt || amt <= 0) throw new Error('充值金额须大于 0')
-  if (amt > 50000) throw new Error('单次充值不得超过 ¥50,000')
-  a.balance = Math.round((a.balance + amt) * 100) / 100
-  a.totalRecharge = Math.round((a.totalRecharge + amt) * 100) / 100
-  a.lastRechargeDate = _now().slice(0, 10)
-  if (a.status === '冻结') a.status = '正常'
-  PL_SEQ += 1
-  PREPAY_LOGS.unshift({
-    logId: 'PL' + String(PL_SEQ).padStart(6, '0'), accountId, type: '充值',
-    amount: amt, balance: a.balance, method, time: _now(), operator: '当前登录人',
-    remark: `${method}充值 ¥${amt}`
-  })
-  return { ...a }
+/** 充值：**已停用**（2026-11-13 取消预存账户体系）。水电改走「抄表推单 → 账单缴费」，不再先存钱后扣费 */
+export function recharge() {
+  throw new Error('预存账户体系已停用：不再受理充值，水电请按账单缴纳')
 }
 
-/** 余额抵扣：按「账期最早的未缴账单」逐笔冲抵，返回抵扣明细 */
-export function deductPrepay(accountId, amount) {
-  const a = prepayAccounts.find(x => x.accountId === accountId)
-  if (!a) throw new Error('预存账户不存在')
-  if (a.status !== '正常') throw new Error(`账户状态「${a.status}」不可抵扣`)
-  const amt = Number(amount)
-  if (!amt || amt <= 0) throw new Error('抵扣金额须大于 0')
-  if (amt > a.balance) throw new Error(`余额不足：可用 ¥${a.balance}，需抵扣 ¥${amt}`)
-
-  // 必须改原 bills（feeSummary / 催缴池 / 房屋欠费都读它），再同步 BILL_ROWS 派生行；
-  // 只改派生行会出现「账单列表已缴、催缴台仍显示欠费」的同会话不一致。
-  const unpaid = bills.filter(b => b.houseId === a.houseId && (b.unpaid || 0) > 0)
-    .sort((x, y) => String(x.period).localeCompare(String(y.period)))
-  if (!unpaid.length) throw new Error('该房屋没有待抵扣的未缴账单')
-
-  let rest = amt
-  const detail = []
-  for (const b of unpaid) {
-    if (rest <= 0.009) break
-    const use = Math.min(rest, b.unpaid)
-    b.paidAmount = Math.round((b.paidAmount + use) * 100) / 100
-    b.unpaid = Math.round((b.unpaid - use) * 100) / 100
-    b.payMethod = '预存抵扣'
-    b.status = b.unpaid <= 0.009 ? '已缴' : '部分缴'   // 与 DEBT_STATUS / BILL_VF.part 同枚举
-    if (b.status === '已缴') { b.payTime = _now(); b.overdueDays = 0 }
-    rest = Math.round((rest - use) * 100) / 100
-    _syncBillRow(b)
-    detail.push({ billId: b.billId, period: b.period, itemName: b.itemName, amount: use })
-  }
-  const used = Math.round((amt - rest) * 100) / 100
-  // 预存抵扣是一种缴费方式：与 seed 里 129 条 channel='预存抵扣' 的流水同口径，
-  // 补一条 payment，保证「应收 = 实收 + 欠费」在缴费流水页也自洽
-  if (used > 0) {
-    PAY_SEQ += 1
-    const pay = {
-      payId: 'PM-PD' + String(PAY_SEQ).padStart(6, '0'),
-      billId: detail[0].billId, houseId: a.houseId, ownerId: a.ownerId,
-      amount: used, method: '预存抵扣', payTime: _now(),
-      transNo: 'PD' + Date.now().toString().slice(-10),
-      operator: '当前登录人', invoiceStatus: '未开票', invoiceNo: '',
-      channel: '预存抵扣', _isNew: true
-    }
-    payments.unshift(pay)
-    _syncPayRow(pay, { insert: true })
-  }
-  a.balance = Math.round((a.balance - used) * 100) / 100
-  a.totalDeduct = Math.round((a.totalDeduct + used) * 100) / 100
-  a.lastDeductDate = _now().slice(0, 10)
-  PL_SEQ += 1
-  PREPAY_LOGS.unshift({
-    logId: 'PL' + String(PL_SEQ).padStart(6, '0'), accountId, type: '抵扣',
-    amount: -used, balance: a.balance, method: '余额抵扣', time: _now(), operator: '当前登录人',
-    remark: `冲抵 ${detail.length} 笔账单`
-  })
-  return { account: { ...a }, used, rest, detail }
+/** 余额抵扣：**已停用**（2026-11-13 取消预存账户体系）—— 抵扣入口已下线，只留退款出口 */
+export function deductPrepay() {
+  throw new Error('预存账户体系已停用：抵扣入口已下线，存量余额请到「预存清退」退还')
 }
 
 export function prepayLogs(accountId) {
   return PREPAY_LOGS.filter(l => !accountId || l.accountId === accountId)
 }
 
-/** 切换自动抵扣 */
-export function toggleAutoDeduct(accountId) {
-  const a = prepayAccounts.find(x => x.accountId === accountId)
-  if (!a) throw new Error('预存账户不存在')
-  a.autoDeduct = !a.autoDeduct
-  return { ...a }
+/** 自动抵扣：**已停用**。账户只退不再扣，开关留着只会让人以为还能用 */
+export function toggleAutoDeduct() {
+  throw new Error('预存账户体系已停用：自动抵扣已关闭，不再提供该开关')
 }
 
 export const prepayAccountOf = houseId => prepayAccounts.find(a => a.houseId === houseId) || null
@@ -9015,6 +9084,11 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
 
   const chk = paySplitCheck(splits, received)
   if (!chk.ok) throw _payErr(chk.msg, 42212)
+  /* 预存账户体系已停用（批 3）。前端下拉里已经没有这一项，
+     但旧页面/旧链接仍可能传进来：留着不拦，就会又扣一次预存余额 */
+  if (chk.rows.some(s => s.method === '预存抵扣')) {
+    throw _payErr('预存账户已停用，不能再抵扣；请改用现金 / 微信 / POS 等方式，存量余额走「预存清退」退还', 40929)
+  }
 
   /* 每条账单的实收：按应缴比例分减免，最后一条兜底 */
   const weights = list.map(b => b.unpaid || 0)
@@ -9032,28 +9106,8 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
   const billReceived = list.map((b, i) => _cash2((b.unpaid || 0) - discParts[i]))
   const billSplits = _allocSplits(chk.rows, billReceived)
 
-  /* 预存抵扣：按账单所属房屋逐笔扣，先验证再加账 ——
-     边扣边失败会留下"扣了钱但没销账"的中间态 */
-  const prepayPlan = []
-  for (let i = 0; i < list.length; i++) {
-    const need = _cash2(billSplits[i].filter(s => s.method === '预存抵扣').reduce((a, s) => a + s.amount, 0))
-    if (need <= 0) continue
-    const hid = list[i].houseId
-    const acc = prepayAccounts.find(a => a.houseId === hid)
-    if (!acc) throw _payErr(`房屋 ${houseName(hid)} 没有预存账户，不能用预存抵扣`, 40928)
-    if (acc.status !== '正常') throw _payErr(`房屋 ${houseName(hid)} 的预存账户状态为「${acc.status}」，不可抵扣`, 40929)
-    prepayPlan.push({ acc, need })
-  }
-  {
-    const byAcc = new Map()
-    for (const p of prepayPlan) byAcc.set(p.acc.accountId, (byAcc.get(p.acc.accountId) || 0) + p.need)
-    for (const [accountId, need] of byAcc) {
-      const acc = prepayAccounts.find(a => a.accountId === accountId)
-      if (_cash2(need) > _cash2(acc.balance) + 0.01) {
-        throw _payErr(`预存余额不足：${houseName(acc.houseId)} 可用 ¥${_cash2(acc.balance)}，本次要抵扣 ¥${_cash2(need)}`, 42213)
-      }
-    }
-  }
+  /* 预存抵扣的整段校验与扣款已随「取消预存账户体系」一起移除（批 3）。
+     留着是两套口径并存：账上余额不动、账单却被抵掉，日结里就找不到这笔钱的来源。 */
 
   /* ---- 写入 ----
      时间用**数据集当下**（TODAY）的日期 + 真实时分：种子数据全在 2026-10-21，
@@ -9103,23 +9157,26 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
     b.payMethod = pay.method
     b.overdueDays = 0
     _syncBillRow(b)
-  }
 
-  /* 预存扣款：放在流水写完之后，扣不动上面的校验已经拦住了 */
-  const prepayTouched = []
-  for (const p of prepayPlan) {
-    const amt = _cash2(p.need)
-    if (amt <= 0) continue
-    p.acc.balance = _cash2(p.acc.balance - amt)
-    p.acc.totalDeduct = _cash2((p.acc.totalDeduct || 0) + amt)
-    p.acc.lastDeductDate = day
-    PL_SEQ += 1
-    PREPAY_LOGS.unshift({
-      logId: 'PL' + String(PL_SEQ).padStart(6, '0'), accountId: p.acc.accountId, type: '抵扣',
-      amount: -amt, balance: p.acc.balance, method: '收银台抵扣', time,
-      operator, remark: `收银台收款抵扣（${batchNo}）`
-    })
-    prepayTouched.push({ accountId: p.acc.accountId, houseId: p.acc.houseId, amount: amt })
+    /* 账单缴清即落应收矩阵（批 3）。
+       之前矩阵的"已收"只有 createPrepay* 在写 —— 走账单缴费的这户，
+       收缴率永远不涨，账单列表已缴、报表却说没收钱。两个入口必须落同一张表。 */
+    if (b.period && isReceivableItem(b.itemId)) {
+      _MTX_SEQ += 1
+      MATRIX_TX.push({
+        txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+        houseId: b.houseId, itemId: b.itemId, period: b.period,
+        amount: billReceived[i], source: 'bill', billId: b.billId, at: time
+      })
+      if (discParts[i] > 0) {
+        _MTX_SEQ += 1
+        MATRIX_TX.push({
+          txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+          houseId: b.houseId, itemId: b.itemId, period: b.period,
+          amount: discParts[i], source: 'waive', billId: b.billId, at: time
+        })
+      }
+    }
   }
 
   track('cashier_pay', { batchNo, count: created.length, amount: received, splits: chk.rows.length })
@@ -9132,7 +9189,7 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
     received,
     splits: chk.rows,
     payments: created,
-    prepay: prepayTouched,
+    prepay: [],
     methodText: chk.rows.length > 1
       ? chk.rows.map(s => `${s.method} ${_cash2(s.amount)}`).join(' + ')
       : (chk.rows[0] ? chk.rows[0].method : '')
@@ -9143,6 +9200,69 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
 export const prepayBalanceOf = houseId => {
   const a = prepayAccounts.find(x => x.houseId === houseId)
   return a && a.status === '正常' ? _cash2(a.balance) : 0
+}
+
+/* ==================================================================
+ * 预存余额清退（批 3 · 2026-11-13）
+ * ------------------------------------------------------------
+ * 预存账户体系**停用**，但账上的钱不能跟着消失 —— 137 个账户、几十万在账余额，
+ * 直接删页面等于让这笔钱既不是收入、也不在负债里，审计一问就哑。
+ *
+ * 所以这里只做一件事：**把存量余额退还给业主**，账户随之销户、永久留档。
+ *   · 不再充值（充值入口已下线，recharge 只保留给历史单据回放）
+ *   · 不再抵扣（PAY_METHODS 里已去掉「预存抵扣」，payBills 会直接拒绝）
+ *   · 余额 → 退款流水（PREPAY_LOGS，type=退款）→ 账户置「已销户」
+ * ================================================================ */
+
+/** 清退进度：还有多少户、多少钱没退 */
+export function prepayClearanceSummary() {
+  const live = prepayAccounts.filter(a => a.status !== '已销户')
+  const pending = live.filter(a => _cash2(a.balance) > 0)
+  const r2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+  return {
+    accounts: prepayAccounts.length,
+    live: live.length,
+    closed: prepayAccounts.length - live.length,
+    pending: pending.length,
+    balance: r2(pending.reduce((s, a) => s + _cash2(a.balance), 0)),
+    /* 已销户账户里仍挂着余额的，说明当年是人工作废而不是退款 —— 要单列出来核对 */
+    closedWithBalance: prepayAccounts.filter(a => a.status === '已销户' && _cash2(a.balance) > 0).length
+  }
+}
+
+/**
+ * 退还某账户的全部余额并销户。
+ * 必须整额退：留 0.01 元的账户永远关不掉，而部分退款要和业主重新对一次账。
+ */
+export function refundPrepay(accountId, { method = '现金', remark = '', operator = '' } = {}) {
+  /* 退款是资金动作，跟收款同一个权限位：能收钱的人才能退钱 */
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权做退款')
+  const acc = prepayAccounts.find(a => a.accountId === accountId)
+  if (!acc) throw new Error('预存账户不存在')
+  if (acc.status === '已销户') throw new Error(`账户 ${acc.accountId} 已销户，不能重复退款`)
+  const amt = _cash2(acc.balance)
+  if (!(amt > 0)) throw new Error('该账户余额为 0，无需退款')
+
+  const time = `${TODAY} ${new Date().toTimeString().slice(0, 5)}`
+  const who = operator || currentOperator().name || '财务'
+
+  PL_SEQ += 1
+  PREPAY_LOGS.unshift({
+    logId: 'PL' + String(PL_SEQ).padStart(6, '0'),
+    accountId: acc.accountId, type: '退款', amount: -amt, balance: 0,
+    method, time, operator: who,
+    remark: String(remark || '').trim() || `预存余额清退（原余额 ¥${amt}）`
+  })
+
+  acc.balance = 0
+  acc.status = '已销户'
+  acc.refundAmount = amt
+  acc.refundDate = TODAY
+  acc.refundMethod = method
+  acc.refundBy = who
+
+  track('prepay_refund', { accountId, amount: amt, method })
+  return { accountId: acc.accountId, houseName: acc.houseName, amount: amt, method, at: time }
 }
 
 /* ==================================================================
