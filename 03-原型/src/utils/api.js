@@ -4957,6 +4957,7 @@ export function houseOptions(n = 300, { onlyVacant = false, communityId = '' } =
     .slice(0, n)
     .map(h => ({
       houseId: h.houseId, label: h.fullName, room: h.room, buildingId: h.buildingId,
+      communityId: h.communityId,
       ownerId: h.ownerId || '', ownerName: ownerName(h.ownerId), useStatus: h.useStatus, area: h.area,
       phone: _OWNER_OF.get(h.ownerId || '')?.phone || ''
     }))
@@ -19033,6 +19034,300 @@ export function saveCommunityUtility(communityId, patch = {}) {
   return { ...row }
 }
 
+/** 收款权限：预收/充值都走收银台口径 */
+export const canCollect = () => _hasPerm('b.cashier.edit')
+
 /** 该项目某种表计是否需要系统计费（A 类 false） */
 export const utilityBilling = (communityId, meterType) =>
   communityUtilityOf(communityId)[meterType === '电表' || meterType === 'elec' ? 'elec' : 'water'] !== 'none'
+
+/* ============================================================
+ * 应收矩阵 · 收银台预收（批 2 · 2026-11-12）
+ * ------------------------------------------------------------
+ * 「应收」不再依赖"有没有生成账单"：它由 面积 × 单价 × 账期 直接算出。
+ * 账单只是应收的一种呈现；不这样拆，没开单的月份就没有应收，收缴率会虚高。
+ *
+ * 两个时间维度（这是财务那段"2000 摊 16 个月"能算对的前提）：
+ *   paidAt —— 收款日，算现金收入、开票日
+ *   period —— 归属账期，算收缴率 / 预缴率 / 欠费账龄
+ *
+ * 平摊不是无条件的：只有「金额 == 月应收 × 月数」才允许平均分；
+ * 否则逐月冲抵最早的未缴月份，剩余部分才作为预付。
+ * 平均分会把"还差 100"抹成"每月差一点"，账龄就废了。
+ * ============================================================ */
+
+const MATRIX_START = '2025-01'
+const MATRIX_END = '2027-12'
+
+/** 收款/减免落格记录：矩阵的"已收"只从这里来，不再各页各写一份 */
+const MATRIX_TX = []
+let _MTX_SEQ = 0
+
+/** 预收收款单（非计量项按账期摊、计量项按金额换量） */
+const PREPAY_COLLECTS = []
+let _PP_SEQ = 0
+
+const monthRange = (from, to) => {
+  const out = []
+  let [y, m] = String(from).split('-').map(Number)
+  const [ey, em] = String(to).split('-').map(Number)
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+    m += 1
+    if (m > 12) { m = 1; y += 1 }
+  }
+  return out
+}
+
+const periodOf = (date = TODAY) => String(date).slice(0, 7)
+const addMonths = (period, n) => {
+  let [y, m] = String(period).split('-').map(Number)
+  m += n
+  while (m > 12) { m -= 12; y += 1 }
+  while (m < 1) { m += 12; y -= 1 }
+  return `${y}-${String(m).padStart(2, '0')}`
+}
+const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
+/** 某户某项的月应收：按面积计费的按面积，按车位的按车位，其余按月固定 */
+export function monthlyFeeOf(houseId, itemId) {
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  const item = feeItems.find(i => i.itemId === itemId)
+  if (!item) throw new Error('收费项不存在')
+  if (item.status !== '启用') throw new Error(`收费项「${item.name}」已停用`)
+  if (item.calcType === '按面积') return round2((h.area || h.buildArea || 0) * item.price)
+  if (item.calcType === '按车位') return round2(item.price)
+  return round2(item.price)
+}
+
+/** 只给"有应收"的收费项铺矩阵：水电没有月度应收，走充值 */
+export const isReceivableItem = itemId => {
+  const it = feeItems.find(i => i.itemId === itemId)
+  return !!it && ['按面积', '按车位', '按户'].includes(it.calcType) && it.cycle === '月'
+}
+
+const _mtxRow = (houseId, itemId, period) => {
+  const monthly = monthlyFeeOf(houseId, itemId)
+  const txs = MATRIX_TX.filter(t => t.houseId === houseId && t.itemId === itemId && t.period === period)
+  const received = round2(txs.reduce((n, t) => n + (t.amount || 0), 0))
+  const waived = round2(txs.filter(t => t.source === 'waive').reduce((n, t) => n + (t.amount || 0), 0))
+  const paid = round2(txs.filter(t => t.source !== 'waive').reduce((n, t) => n + (t.amount || 0), 0))
+  return {
+    houseId, itemId, period,
+    receivable: monthly,
+    received: paid,
+    waived,
+    unpaid: round2(Math.max(0, monthly - paid - waived)),
+    status: waived >= monthly ? '已减免' : paid >= monthly ? '已收' : (paid + waived > 0 ? '部分收' : (period < periodOf() ? '欠费' : '未到期'))
+  }
+}
+
+/** 单户矩阵：默认铺满 MATRIX_START..MATRIX_END，也可指定区间 */
+export function billingMatrixOfHouse(houseId, { itemId = '', from = MATRIX_START, to = MATRIX_END } = {}) {
+  const item = itemId || 'FI01'
+  return monthRange(from, to).map(p => _mtxRow(houseId, item, p))
+}
+
+/** 区间汇总：报表与三率都从这里取，口径只有一处 */
+export function billingMatrixSummary({ from = '2026-01', to = periodOf(), itemId = 'FI01', communityId = '' } = {}) {
+  const periods = monthRange(from, to)
+  let receivable = 0; let received = 0; let waived = 0; let housesCount = 0
+  for (const h of houses) {
+    if (communityId && h.communityId !== communityId) continue
+    housesCount += 1
+    const monthly = (h.area || h.buildArea || 0) * ((feeItems.find(i => i.itemId === itemId) || {}).price || 0)
+    receivable += monthly * periods.length
+    for (const p of periods) {
+      const r = _mtxRow(h.houseId, itemId, p)
+      received += r.received
+      waived += r.waived
+    }
+  }
+  receivable = round2(receivable)
+  received = round2(received)
+  waived = round2(waived)
+  const base = round2(receivable - waived)
+  return {
+    from, to, periods: periods.length, houses: housesCount, itemId,
+    receivable, received, waived,
+    collectionRate: base > 0 ? round2(received / base * 100) / 100 : 0,
+    arrears: round2(Math.max(0, base - received))
+  }
+}
+
+/** 平摊预演：收银台输"几个月"时先算给前台看，避免收完才发现金额对不上 */
+export function prepayPlan({ houseId, itemId = 'FI01', months = 1, startPeriod = periodOf() } = {}) {
+  if (!isReceivableItem(itemId)) throw new Error('该收费项没有月度应收，请走充值')
+  const n = Number(months)
+  if (!Number.isFinite(n) || n <= 0) throw new Error('月份数必须大于 0')
+  if (n > 36) throw new Error('一次最多预收 36 个月')
+  const monthly = monthlyFeeOf(houseId, itemId)
+  const periods = Array.from({ length: n }, (_, i) => addMonths(startPeriod, i))
+  const details = periods.map(p => ({ period: p, amount: monthly, before: _mtxRow(houseId, itemId, p) }))
+  return { monthly, months: n, amount: round2(monthly * n), details, startPeriod }
+}
+
+/**
+ * 预收收款（非计量项）。
+ * 金额 == 月应收 × 月数 → 平均摊（这是财务给的例子）；
+ * 不等 → 从最早未结账期起逐月冲抵，分摊不完的部分记到最后一期之外（预付余额）。
+ */
+export function createPrepayCollect({
+  houseId, itemId = 'FI01', months = 0, amount, startPeriod = periodOf(),
+  payMethod = '微信支付', waive = 0, waiveReasonId = '', operator = ''
+} = {}) {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  if (!isReceivableItem(itemId)) throw new Error('该收费项没有月度应收')
+  const monthly = monthlyFeeOf(houseId, itemId)
+  const total = round2(Number(amount))
+  if (!Number.isFinite(total) || total <= 0) throw new Error('收款金额必须大于 0')
+  const waiveAmt = round2(Number(waive) || 0)
+  if (waiveAmt < 0) throw new Error('减免金额不能为负')
+  if (waiveAmt > 0) {
+    if (!waiveReasonId) throw new Error('减免必须选择原因 —— 报表要按原因统计')
+    const wr = waiveReasons.find(r => r.reasonId === waiveReasonId)
+    if (!wr) throw new Error('减免原因不存在')
+    if (!wr.enabled) throw new Error(`减免原因「${wr.name}」已停用`)
+    if (waiveAmt > total + monthly * (months || 0)) throw new Error('减免金额超过本次应收')
+  }
+
+  const n = Number(months) || 0
+  let details = []
+  let mode = 'even'
+  if (n > 0 && Math.abs(total - monthly * n) < 0.01) {
+    /* 财务口径：金额正好等于"月费 × 月数"，平均摊到这些账期 */
+    details = Array.from({ length: n }, (_, i) => {
+      const p = addMonths(startPeriod, i)
+      return { period: p, amount: monthly }
+    })
+  } else {
+    /* 不等额：从最早未结账期起逐月冲抵，剩下的才是真预付 */
+    mode = 'fifo'
+    const periods = monthRange(MATRIX_START, MATRIX_END)
+    let left = total
+    for (const p of periods) {
+      if (left <= 0) break
+      const row = _mtxRow(houseId, itemId, p)
+      const gap = round2(row.receivable - row.received - row.waived)
+      if (gap <= 0) continue
+      const take = round2(Math.min(left, gap))
+      details.push({ period: p, amount: take })
+      left = round2(left - take)
+    }
+    if (left > 0.01) details.push({ period: 'PREPAID', amount: left })
+    if (!details.length) throw new Error('没有可冲抵的账期，请确认金额')
+  }
+
+  _PP_SEQ += 1
+  const collect = {
+    collectId: 'PC' + String(_PP_SEQ).padStart(5, '0'),
+    houseId, houseName: h.shortName || h.fullName || houseId, itemId, itemName: (feeItems.find(i => i.itemId === itemId) || {}).name,
+    monthly, months: n, amount: total, waive: waiveAmt, waiveReasonId,
+    payMethod, mode, details, paidAt: `${TODAY} ${new Date().toTimeString().slice(0, 5)}`,
+    operator: operator || currentOperator().name || '前台'
+  }
+  PREPAY_COLLECTS.push(collect)
+
+  /* 落矩阵：这是"已收"的唯一写入口 */
+  for (const d of details) {
+    if (d.period === 'PREPAID') continue
+    _MTX_SEQ += 1
+    MATRIX_TX.push({
+      txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+      houseId, itemId, period: d.period, amount: d.amount,
+      source: 'prepay', collectId: collect.collectId, at: collect.paidAt
+    })
+  }
+  if (waiveAmt > 0) {
+    const first = details.find(d => d.period !== 'PREPAID')
+    if (first) {
+      _MTX_SEQ += 1
+      MATRIX_TX.push({
+        txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+        houseId, itemId, period: first.period, amount: waiveAmt,
+        source: 'waive', waiveReasonId, collectId: collect.collectId, at: collect.paidAt
+      })
+    }
+  }
+  return collect
+}
+
+export const prepayCollectRows = () => PREPAY_COLLECTS.map(c => ({ ...c }))
+
+/**
+ * 把历史账单的实收/减免灌进矩阵 —— 否则刚上线时矩阵"已收"全为 0，
+ * 收缴率一片 0%，谁看都以为系统坏了。
+ * 只灌有月度应收的收费项；水电走充值，不进矩阵。
+ */
+function _seedMatrixFromBills() {
+  if (MATRIX_TX.length) return
+  for (const b of bills) {
+    if (!b.houseId || !b.period) continue
+    const item = feeItems.find(i => i.itemId === b.itemId)
+    if (!item || !['按面积', '按车位', '按户'].includes(item.calcType)) continue
+    const paid = Number(b.paidAmount) || 0
+    if (paid > 0) {
+      _MTX_SEQ += 1
+      MATRIX_TX.push({
+        txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+        houseId: b.houseId, itemId: b.itemId, period: b.period, amount: round2(paid),
+        source: 'bill', billId: b.billId, at: b.payTime || '', legacy: true
+      })
+    }
+    const disc = Number(b.discount) || 0
+    if (disc > 0) {
+      _MTX_SEQ += 1
+      MATRIX_TX.push({
+        txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+        houseId: b.houseId, itemId: b.itemId, period: b.period, amount: round2(disc),
+        source: 'waive', waiveReasonId: '', billId: b.billId, at: b.payTime || '', legacy: true
+      })
+    }
+  }
+}
+_seedMatrixFromBills()
+
+
+/* ---------------- 计量项（水电）充值：金额 ⇄ 用量 ---------------- */
+const UTILITY_CHARGES = []
+let _UC_SEQ = 0
+
+/** 换算：单价取收费项，单据存快照 —— 调价后历史充值对应的度数不能变 */
+export function utilityQuote({ itemId, amount, qty } = {}) {
+  const it = feeItems.find(i => i.itemId === itemId)
+  if (!it) throw new Error('收费项不存在')
+  const unitPrice = Number(it.price) || 0
+  if (!unitPrice) throw new Error('该收费项没有单价，无法换算')
+  const a = Number(amount)
+  const q = Number(qty)
+  if (Number.isFinite(a) && a > 0) return { itemId, unitPrice, unit: it.unit, amount: round2(a), qty: round2(a / unitPrice) }
+  if (Number.isFinite(q) && q > 0) return { itemId, unitPrice, unit: it.unit, amount: round2(q * unitPrice), qty: round2(q) }
+  throw new Error('金额或用量必须填一个')
+}
+
+export function createUtilityCharge({ houseId, itemId, amount, qty, payMethod = '微信支付', operator = '' } = {}) {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
+  const h = houses.find(x => x.houseId === houseId)
+  if (!h) throw new Error('房屋不存在')
+  const mode = communityUtilityOf(h.communityId)[meterTypeOf(itemId)]
+  if (mode === 'none') throw new Error('该项目该表计由业主自缴，系统不收费')
+  const q = utilityQuote({ itemId, amount, qty })
+  _UC_SEQ += 1
+  const row = {
+    chargeId: 'UC' + String(_UC_SEQ).padStart(5, '0'),
+    houseId, houseName: h.shortName || houseId, itemId,
+    itemName: (feeItems.find(i => i.itemId === itemId) || {}).name,
+    mode, amount: q.amount, qty: q.qty, unitPrice: q.unitPrice, unit: q.unit,
+    payMethod, paidAt: `${TODAY} ${new Date().toTimeString().slice(0, 5)}`,
+    operator: operator || currentOperator().name || '前台'
+  }
+  UTILITY_CHARGES.push(row)
+  return row
+}
+
+const meterTypeOf = itemId => (feeItemCategoryMap.find(m => m.itemId === itemId) || {}).meterType || '水表'
+export const utilityChargeRows = () => UTILITY_CHARGES.map(r => ({ ...r }))
+export { MATRIX_START, MATRIX_END, monthRange }

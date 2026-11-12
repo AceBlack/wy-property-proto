@@ -3,12 +3,16 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>PC 收银台</b>：前台按「业主」检索，一次带出名下全部房产与账单，勾选后合并收款。
-        左侧选人（一人多房）、中间选账单（可按房筛选）、右侧结算。
+        <b>PC 收银台</b>：两种模式，各走各的单据，不混在一起。
         <br />
-        <b>支持组合支付</b>：一笔收款可以拆到最多 <b>3 种</b>方式（现金 + 微信 + 预存抵扣…），
-        各方式金额合计必须等于实收，差一分都不让提交。收款后<b>真实写流水</b>（不是只改账单状态）——
-        日结、开票池、报表都读它。
+        <b>① 账单收款</b>：按业主检索，带出名下账单，勾选后合并收款，支持组合支付（现金 + 微信 + 预存抵扣）。
+        收款后真实写流水 —— 日结、开票池、报表都读它。
+        <br />
+        <b>② 预收 / 充值</b>：按房屋收费，<b>不生成账单</b>。物业费、车位费输「月数」，
+        金额 = 月应收 × 月数，并<b>平摊到对应账期</b>；水电输金额 ⇄ 用量按单价换算。
+        <br />
+        为什么分两种：账单是"欠费要核销"，预收是"先把钱收进来、再按月归属"。
+        合成一张单，收缴率与预缴率就再也分不开了。
       </div>
     </div>
 
@@ -36,7 +40,119 @@
       </div>
     </div>
 
-    <div class="cashier">
+    <!-- 模式切换（批 2）：账单收款保留原链路；预收/充值走新流程，两者不共用一张单 -->
+    <div class="mode-row">
+      <el-radio-group v-model="mode">
+        <el-radio-button label="bill">账单收款</el-radio-button>
+        <el-radio-button label="prepay">预收 / 充值</el-radio-button>
+      </el-radio-group>
+      <span class="desc">
+        账单收款核销已有欠费；预收/充值不生成账单 —— 物业费按月摊到账期，水电直接换算用量。
+      </span>
+    </div>
+
+    <!-- 预收 / 充值（批 2）：不挂账单，选房 → 选收费项 → 输入 → 收款 -->
+    <div v-if="mode === 'prepay'" class="panel pp">
+      <div class="pp__hd">
+        <b>预收 / 充值</b>
+        <span class="desc">按房屋收费：非计量项收「月数」，计量项收「金额 ⇄ 用量」；都不生成账单</span>
+      </div>
+
+      <div class="pp__form">
+        <div class="pp__f">
+          <label>房屋</label>
+          <el-select v-model="pp.houseId" filterable clearable placeholder="搜索房号 / 业主" style="width:100%" @change="onPickHouse">
+            <el-option v-for="h in houseOpts" :key="h.houseId" :label="`${h.label} · ${h.ownerName || '—'}`" :value="h.houseId" />
+          </el-select>
+        </div>
+        <div class="pp__f">
+          <label>收费项</label>
+          <el-select v-model="pp.itemId" placeholder="先选房屋" style="width:100%" @change="onItemChange">
+            <el-option v-for="o in ppItemOpts" :key="o.itemId" :label="o.label" :value="o.itemId" :disabled="o.disabled" />
+          </el-select>
+        </div>
+        <div class="pp__f">
+          <label>{{ pp.meter ? '按金额 / 按用量' : '按月份' }}</label>
+          <div v-if="pp.meter" class="pp__seg">
+            <el-radio-group v-model="pp.inputMode" size="small" @change="recalc">
+              <el-radio-button label="amount">金额</el-radio-button>
+              <el-radio-button label="qty">用量</el-radio-button>
+            </el-radio-group>
+          </div>
+          <el-input-number v-else v-model="pp.months" :min="1" :max="36" :step="1" style="width:100%" @change="onMonthsChange" />
+        </div>
+      </div>
+
+      <div class="pp__form" style="margin-top:12px;">
+        <div class="pp__f">
+          <label>{{ pp.meter ? (pp.inputMode === 'qty' ? '充值度数' : '充值金额') : '收款金额' }}</label>
+          <el-input-number
+            v-if="pp.meter && pp.inputMode === 'qty'"
+            v-model="pp.qty" :min="0" :precision="2" :step="10" style="width:100%" @change="onQtyChange"
+          />
+          <el-input-number
+            v-else
+            v-model="pp.amount" :min="0" :precision="2" :step="100" style="width:100%" :disabled="!pp.itemId" @change="recalc"
+          />
+        </div>
+        <div class="pp__f">
+          <label>减免</label>
+          <el-input-number v-model="pp.waive" :min="0" :precision="2" style="width:100%" :disabled="!!pp.meter" @change="recalc" />
+        </div>
+        <div class="pp__f">
+          <label>减免原因 <span class="req">必选</span></label>
+          <el-select v-model="pp.waiveReasonId" placeholder="有减免时必须选" clearable style="width:100%" :disabled="!pp.waive">
+            <el-option v-for="r in waiveOpts" :key="r.value" :label="r.label" :value="r.value" />
+          </el-select>
+        </div>
+        <div class="pp__f">
+          <label>支付方式</label>
+          <el-select v-model="pp.payMethod" style="width:100%">
+            <el-option v-for="m in PAY_METHODS" :key="m" :label="m" :value="m" />
+          </el-select>
+        </div>
+      </div>
+
+      <div v-if="pp.preview" class="pp__preview">
+        <div class="pp__nums">
+          <div><span class="k">月应收</span><b>{{ money(pp.preview.monthly) }}</b></div>
+          <div v-if="pp.meter"><span class="k">单价</span><b>{{ pp.preview.unitPrice }} {{ pp.preview.unit }}</b></div>
+          <div v-if="pp.meter"><span class="k">折合用量</span><b>{{ pp.preview.qty }} {{ pp.preview.unit }}</b></div>
+          <div><span class="k">应收合计</span><b>{{ money(pp.preview.amount) }}</b></div>
+          <div><span class="k">减免</span><b>{{ money(pp.waive || 0) }}</b></div>
+          <div><span class="k">实收</span><b class="is-ok">{{ money(pp.preview.amount - (pp.waive || 0)) }}</b></div>
+        </div>
+
+        <div v-if="!pp.meter && pp.preview.details" class="pp__detail">
+          <div class="pp__detail-hd">平摊到账期（{{ pp.preview.details.length }} 期）</div>
+          <div class="pp__detail-b">
+            <span v-for="d in pp.preview.details.slice(0, 6)" :key="d.period" class="pp__chip">{{ d.period }} · {{ money(d.amount) }}</span>
+            <span v-if="pp.preview.details.length > 6" class="pp__chip">…共 {{ pp.preview.details.length }} 期</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pp__foot">
+        <span v-if="pp.planMode === 'fifo'" class="warn">金额与月数不匹配，将按最早欠费逐月冲抵（不平均分）</span>
+        <span class="spacer" />
+        <el-button @click="resetPrepay">重置</el-button>
+        <el-button type="primary" :loading="pp.saving" :disabled="!canPrepay" @click="doPrepay">确认收款</el-button>
+      </div>
+
+      <div v-if="pp.result" class="pp__result">
+        <div class="pp__result-hd">
+          <b>已收款 {{ money(pp.result.amount) }}</b>
+          <span class="desc">{{ pp.result.collectId }} · {{ pp.result.payMethod }} · 方式：{{ pp.result.mode === 'even' ? '按账期平均摊' : '逐月冲抵' }}</span>
+        </div>
+        <div class="pp__detail-b">
+          <span v-for="d in pp.result.details" :key="d.period" class="pp__chip">
+            {{ d.period === 'PREPAID' ? '预付余额' : d.period }} · {{ money(d.amount) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="mode === 'bill'" class="cashier">
       <!-- 左：业主 -->
       <div class="panel side">
         <div class="panel__hd"><h3>业主</h3><span class="spacer" /><span class="desc">{{ resultList.length }} 位</span></div>
@@ -331,7 +447,9 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  PAY_METHODS, PAY_SPLIT_MAX, canEditTempCharges, cashierBuildingOpts, cashierOwnerList,
+  PAY_METHODS, PAY_SPLIT_MAX, canCollect, canEditTempCharges, cashierBuildingOpts, cashierOwnerList,
+  communityUtilityOf, createPrepayCollect, createUtilityCharge, feeItemCategoryRows, houseOptions,
+  isReceivableItem, prepayPlan, utilityQuote, waiveReasonOpts,
   cashierOwnerRoom, cashierUnitOpts, debtOf, invoiceItemNameOpts, invoiceProfilesOfHouse,
   isDebt, issueInvoice, ownerProfile, payBills, paySplitCheck, prepayBalanceOf, tenantsOfOwner
 } from '@/utils/api'
@@ -355,6 +473,131 @@ const tableRef = ref()
 const payVer = ref(0)
 const lastResult = ref(null)
 /* 临时收费弹窗：不选账单单据，直接建单 + 收款 */
+/* ---------- 预收 / 充值（批 2） ---------- */
+const mode = ref('bill')
+const houseOpts = houseOptions(400)
+const waiveOpts = waiveReasonOpts()
+const pp = reactive({
+  houseId: '', itemId: '', meter: false, months: 1, inputMode: 'amount',
+  amount: 0, qty: 0, waive: 0, waiveReasonId: '',
+  payMethod: '微信支付', preview: null, result: null, saving: false, planMode: 'even'
+})
+const ppHouse = computed(() => houseOpts.find(h => h.houseId === pp.houseId) || null)
+
+/* 可收项：有月度应收的进"按月"；水电按项目配置决定能不能充（A 类直接禁用） */
+const ppItemOpts = computed(() => {
+  if (!pp.houseId) return []
+  const cid = ppHouse.value?.communityId || ''
+  return feeItemCategoryRows().filter(r => r.status === '启用').map(r => {
+    if (r.meterType) {
+      const key = r.meterType === '电表' ? 'elec' : 'water'
+      const m = communityUtilityOf(cid)[key]
+      return { itemId: r.itemId, label: `${r.name}（充值 ${r.price}${r.unit}）`, meter: true, disabled: m === 'none', mode: m }
+    }
+    const recv = isReceivableItem(r.itemId)
+    return { itemId: r.itemId, label: recv ? `${r.name}（月费）` : `${r.name}`, meter: false, disabled: !recv }
+  })
+})
+
+function onPickHouse() {
+  Object.assign(pp, { itemId: '', amount: 0, qty: 0, waive: 0, waiveReasonId: '', preview: null, result: null })
+}
+
+function onItemChange() {
+  const opt = ppItemOpts.value.find(o => o.itemId === pp.itemId)
+  pp.result = null
+  pp.preview = null
+  pp.amount = 0
+  pp.qty = 0
+  pp.meter = !!opt?.meter
+  if (!opt) return
+  if (opt.meter) { pp.inputMode = 'amount'; return }
+  onMonthsChange()
+}
+
+/* 非计量项：输月份 → 金额 = 月应收 × 月数（可再手改，改了就按逐月冲抵） */
+function onMonthsChange() {
+  if (!pp.houseId || !pp.itemId) return
+  try {
+    const plan = prepayPlan({ houseId: pp.houseId, itemId: pp.itemId, months: pp.months })
+    pp.amount = plan.amount
+    pp.preview = plan
+    pp.planMode = 'even'
+    pp.result = null
+  } catch (e) { ElMessage.error(e?.message || '计算失败'); pp.preview = null }
+}
+
+/* 金额/用量变化：计量项换算，非计量项只判断是否还等额 */
+function recalc() {
+  const opt = ppItemOpts.value.find(o => o.itemId === pp.itemId)
+  if (!opt) return
+  try {
+    if (opt.meter) {
+      const q = utilityQuote({
+        itemId: pp.itemId,
+        amount: pp.inputMode === 'amount' ? pp.amount : undefined,
+        qty: pp.inputMode === 'qty' ? pp.qty : undefined
+      })
+      pp.preview = { monthly: 0, amount: q.amount, qty: q.qty, unitPrice: q.unitPrice, unit: q.unit, details: null }
+      if (pp.inputMode === 'amount') pp.qty = q.qty
+      else pp.amount = q.amount
+      return
+    }
+    if (!pp.preview) return
+    const monthly = pp.preview.monthly
+    pp.planMode = Math.abs(pp.amount - monthly * pp.months) < 0.01 ? 'even' : 'fifo'
+  } catch (e) { pp.preview = null }
+}
+
+function onQtyChange() {
+  pp.inputMode = 'qty'
+  recalc()
+}
+
+const canPrepay = computed(() => canCollect() && !!pp.houseId && !!pp.itemId && Number(pp.amount) > 0
+  && (!pp.waive || !!pp.waiveReasonId))
+
+function resetPrepay() {
+  Object.assign(pp, {
+    houseId: '', itemId: '', meter: false, months: 1, inputMode: 'amount', amount: 0, qty: 0,
+    waive: 0, waiveReasonId: '', preview: null, result: null, planMode: 'even'
+  })
+}
+
+async function doPrepay() {
+  const opt = ppItemOpts.value.find(o => o.itemId === pp.itemId)
+  if (!opt) return
+  pp.saving = true
+  try {
+    if (opt.meter) {
+      const row = createUtilityCharge({
+        houseId: pp.houseId, itemId: pp.itemId,
+        amount: pp.inputMode === 'amount' ? pp.amount : undefined,
+        qty: pp.inputMode === 'qty' ? pp.qty : undefined,
+        payMethod: pp.payMethod
+      })
+      pp.result = { collectId: row.chargeId, amount: row.amount, payMethod: row.payMethod, mode: 'charge', details: [{ period: '充值', amount: row.amount }] }
+      ElMessage.success(`已充值 ${row.qty} ${row.unit}，收款 ${money(row.amount)}`)
+    } else {
+      const c = createPrepayCollect({
+        houseId: pp.houseId, itemId: pp.itemId, months: pp.months, amount: pp.amount,
+        payMethod: pp.payMethod, waive: pp.waive, waiveReasonId: pp.waiveReasonId
+      })
+      pp.result = c
+      ElMessage.success(`已收款 ${money(c.amount)}，${c.mode === 'even' ? `平摊到 ${c.details.length} 个账期` : '按欠费逐月冲抵'}`)
+    }
+    pp.preview = null
+    pp.amount = 0
+    pp.qty = 0
+    pp.waive = 0
+    pp.waiveReasonId = ''
+  } catch (e) {
+    ElMessage.error(e?.message || '收款失败')
+  } finally {
+    pp.saving = false
+  }
+}
+
 const tcOpen = ref(false)
 
 /* ---------------- 收款后同页开票 ----------------
@@ -758,4 +1001,38 @@ async function confirmPay() {
 .tline__r { font-size: 11px; color: var(--biz-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tline__m { font-size: 11px; color: var(--biz-text-3); margin-top: 1px; }
 .tline__m .is-warn { color: var(--biz-danger); }
+
+/* ---------- 预收 / 充值（批 2） ---------- */
+.mode-row {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 16px; padding: 10px 14px;
+  background: var(--biz-bg-2); border-radius: 10px;
+}
+.mode-row .desc { font-size: 12px; color: var(--biz-text-3); }
+.pp { margin-top: 16px; padding: 16px 18px; }
+.pp__hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.pp__hd .desc { font-size: 12px; color: var(--biz-text-3); }
+.pp__form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.pp__f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pp__f label { font-size: 12px; color: var(--biz-text-2); }
+.pp__f .req { color: #d9534f; }
+.pp__seg { display: flex; }
+.pp__preview { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--biz-bg-2); }
+.pp__nums { display: flex; flex-wrap: wrap; gap: 26px; }
+.pp__nums .k { font-size: 12px; color: var(--biz-text-3); margin-right: 6px; }
+.pp__nums b { font-family: var(--biz-font-num); font-size: 15px; }
+.pp__nums b.is-ok { color: #2f9e6e; }
+.pp__detail { margin-top: 12px; }
+.pp__detail-hd { font-size: 12px; color: var(--biz-text-3); margin-bottom: 6px; }
+.pp__detail-b { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp__chip {
+  font-size: 12px; font-family: var(--biz-font-num);
+  padding: 3px 8px; border-radius: 6px; background: #fff; border: 1px solid var(--biz-border);
+}
+.pp__foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.pp__foot .warn { font-size: 12px; color: #d98a1f; }
+.pp__foot .spacer { flex: 1; }
+.pp__result { margin-top: 14px; padding: 12px 14px; border-radius: 10px; border: 1px solid #2f9e6e33; background: #2f9e6e0d; }
+.pp__result-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.pp__result-hd .desc { font-size: 12px; color: var(--biz-text-3); }
 </style>
