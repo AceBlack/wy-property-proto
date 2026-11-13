@@ -391,31 +391,73 @@ const fewActs = buildFeed({
 add('首页流', '只有 1 场活动时，其余位由公告补满', fewActs.length, 4)
 add('首页流', '活动少时流里仍只有 1 条活动', fewActs.filter(r => r.kind === 'activity').length, 1)
 
-/* ============================ 水电与预存账户（11-11） ============================ */
+/* ============================ 水电（2026-11-13 改口径） ============================ */
 /**
- * 预存账户是**一个房一个**（`prepayAccounts` 的主键语义是 houseId）。
+ * 预存账户体系已下线，这里守的是**新口径**：
  *
- * 旧实现把 `balance` 挂在每个户号上、顶部再把各户号余额相加 ——
- * 同一套房有水电两个表时，余额被显示成两倍。这条守卫盯的就是"别再按户号摊余额"。
+ *   1. 能不能缴由**项目模式**决定（meter / card / none），不是由有没有账单；
+ *   2. `card` / `none` 下即使库里有账单，也不能出现支付入口 ——
+ *      P03 就有一张电费逾期单而它的电是 card，正是这个情形；
+ *   3. 计费两块表（FI05 水 / FI06 电）必须与表具类型对得上，否则页面上
+ *      "水费"那一行会挂到电表户号上。
+ *
+ * 变量都带 `u`（utility）前缀：这个脚本里 `bills` / `meters` / `DEBT` 早就有同名常量。
  */
-const meters = read('meters')
-const prepayAccounts = read('prepayAccounts')
-const livePrepay = prepayAccounts.filter(p => p.status !== '已销户')
-const perHouse = new Map()
-for (const p of livePrepay) perHouse.set(p.houseId, (perHouse.get(p.houseId) || 0) + 1)
-add('预存账户', '一个房最多一个有效账户', [...perHouse.values()].filter(n => n > 1).length, 0)
-add('预存账户', '账户都挂在房屋上', livePrepay.filter(p => !p.houseId).length, 0)
-add('表具', '每个表具都归属房屋', meters.filter(m => !m.houseId).length, 0)
-/**
- * 预存账户是**可选**的：样例里 249 个有表具的房，只有 126 个开了账户（51%）。
- * 所以这里不断言覆盖率 —— 没账户按 0 处理、页面提示"未开通预存"才是正确行为。
- * 要守的是"一个房不能有两个有效账户"，上面那条已经钉住。
- */
-const meterHouses = new Set(meters.map(m => m.houseId))
-add('预存账户', '账户数不超过有表具的房数', livePrepay.length <= meterHouses.size, true)
-console.log(`  · 有表具的房 ${meterHouses.size} / 已开预存 ${[...meterHouses].filter(h => perHouse.has(h)).length}（其余按 0 处理）`)
-const multiMeter = [...meterHouses].filter(h => meters.filter(m => m.houseId === h).length > 1).length
-add('表具', '存在水+电双表的房（这正是"余额翻倍"的现场）', multiMeter > 0, true)
+const uCommUtil = read('communityUtility')
+const uMeters = read('meters')
+const uHouses = read('houses')
+const uHouseOf = new Map(uHouses.map(h => [h.houseId, h]))
+const uBills = read('bills')
+const U_METER_ITEM = { 水表: 'FI05', 电表: 'FI06' }
+const U_MODES = ['meter', 'card', 'none']
+const U_DEBT = ['未缴', '部分缴', '逾期']
+
+add('水电', '每个表具都归属房屋', uMeters.filter(m => !m.houseId).length, 0)
+add('水电', '表类型与科目对得上', uMeters.filter(m => U_METER_ITEM[m.type] !== m.itemId).length, 0)
+add('水电', '每个项目都配了模式', ['P01', 'P02', 'P03'].filter(c => !uCommUtil.some(u => u.communityId === c)).length, 0)
+add('水电', '模式取值合法', uCommUtil.filter(u => !U_MODES.includes(u.elec) || !U_MODES.includes(u.water)).length, 0)
+
+/* 三种模式都要有项目在用 —— 少一种，端上那一支就永远没人走 */
+const uUsedModes = new Set(uCommUtil.flatMap(u => [u.elec, u.water]))
+add('水电', '三种模式都有项目在用', U_MODES.filter(m => !uUsedModes.has(m)).length, 0)
+
+/* 端上规则：可缴 = meter 模式且有未缴账单。这里在纯数据上复算一遍 */
+const uModeOf = (communityId, key) => (uCommUtil.find(x => x.communityId === communityId) || {})[key] || 'none'
+function uCanPay(houseId, itemId) {
+  const meter = uMeters.find(m => m.houseId === houseId && m.itemId === itemId)
+  const key = itemId === 'FI05' ? 'water' : 'elec'
+  /* 项目从**房屋**取，不从表具取：P02 的水是插卡表，压根没有远传表记录，
+     从表具反推 communityId 会拿到空串、模式落 none，断言就会假通过 */
+  const mode = uModeOf((uHouseOf.get(houseId) || {}).communityId || '', key)
+  const debt = uBills.filter(b => b.houseId === houseId && b.itemId === itemId && U_DEBT.includes(b.status) && (b.unpaid || 0) > 0)
+  return { mode, canPay: mode === 'meter' && debt.length > 0, debt: debt.length }
+}
+
+/* P01 张建国的 0501：水、电都是 meter，都有未缴 —— 两块都该可缴 */
+const uP01 = { water: uCanPay('H010110501', 'FI05'), elec: uCanPay('H010110501', 'FI06') }
+add('水电', 'P01 两块表都是抄表出账', `${uP01.water.mode}/${uP01.elec.mode}`, 'meter/meter')
+add('水电', 'P01 水费可缴', uP01.water.canPay, true)
+add('水电', 'P01 电费可缴', uP01.elec.canPay, true)
+
+/* P02 王浩然：电 none / 水 card —— 两块都不可缴（物业不收这笔钱） */
+const uP02 = { water: uCanPay('H020110601', 'FI05'), elec: uCanPay('H020110601', 'FI06') }
+add('水电', 'P02 电是国网直收（none）', uP02.elec.mode, 'none')
+add('水电', 'P02 水是插卡表（card）', uP02.water.mode, 'card')
+add('水电', 'P02 两块都不可缴', uP02.water.canPay || uP02.elec.canPay, false)
+
+/* P03 赵春梅：电 card 但库里有逾期单 —— 这条是本轮的真守卫：
+   只看"有没有账单"会给出支付按钮，等于替插卡表代收 */
+const uP03 = { water: uCanPay('H030110205', 'FI05'), elec: uCanPay('H030110205', 'FI06') }
+add('水电', 'P03 电是插卡表（card）', uP03.elec.mode, 'card')
+add('水电', 'P03 电有历史账单', uP03.elec.debt > 0, true)
+add('水电', 'P03 电仍不可缴（模式优先于账单）', uP03.elec.canPay, false)
+add('水电', 'P03 水是抄表出账（meter）', uP03.water.mode, 'meter')
+
+/* 金额以账单为准：水电单的 用量 × 单价 不一定等于金额（滞纳金 / 阶梯价），
+   所以端上不自己乘。这里只把"确实存在不吻合"记下来，不作断言失败 */
+const uBillRows = uBills.filter(b => ['FI05', 'FI06'].includes(b.itemId))
+const uMismatch = uBillRows.filter(b => Math.abs((b.quantity || 0) * (b.price || 0) - (b.amount || 0)) > 0.5)
+console.log(`  · 水电账单 ${uBillRows.length} 张，用量×单价 与金额不吻合 ${uMismatch.length} 张（端上按账单金额显示，不自己乘）`)
 
 /* ============================ 打印 ============================ */
 console.log('数据源：' + MOCK)

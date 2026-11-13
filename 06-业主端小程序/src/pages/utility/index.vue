@@ -1,9 +1,15 @@
 <!--
-  便民缴费（水电燃气）
+  生活缴费（水电）—— 抄表出账 → 待缴账单 → 缴费
   ------------------------------------------------------------
-  数据：meters（户号）+ meterReadings（本期用量）+ prepayAccounts（余额）
-  燃气：mock 里没有表具，**如实标"未开通"**，不编一个燃气表出来。
-  充值走模拟支付，只加余额，不接真实通道。
+  2026-11-13 改口径：预存账户下线，没有"余额"，也没有"充值"。
+  页面按**项目模式**分三种长相（模式由 `communityUtility` 配，不是由有没有账单决定）：
+
+    meter 抄表出账 → 用量 / 单价 / 应缴 / 账期 / 账单号 + 「去缴费」
+    card  插卡买量 → 「插卡表 · 到物业服务中心买量」（无金额、无按钮）
+    none  业主自缴 → 「由自来水公司 / 国家电网直接收取」（无金额、无按钮）
+
+  把 card 当"待缴"，业主会在小程序里找不到缴费入口；给 none 加支付按钮，
+  等于替国网代收 —— 这两种错都不会报错，只会被业主当成"系统坏了"。
 -->
 <template>
   <view class="page">
@@ -16,34 +22,55 @@
     <view class="body">
       <view class="ut__hd">
         <view class="ut__hd-l">
-          <text class="ut__hd-k">预存账户余额</text>
-          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(sum.prepay.balance) }}</text></view>
-          <text class="ut__hd-d">可抵扣水费、电费与物业费 · 本期水电气应缴 {{ money(sum.due) }}</text>
-          <text v-if="!sum.prepay.hasAccount" class="ut__hd-note">本房还未开通预存账户，充值后自动开通</text>
+          <text class="ut__hd-k">本期应缴</text>
+          <view class="big"><text class="big__cur">¥</text><text class="big__num">{{ amount(u.dueTotal) }}</text></view>
+          <text class="ut__hd-d">{{ payableText(u) }}</text>
+          <text v-if="!u.payableCount" class="ut__hd-d">水电按抄表账单缴纳，缴费后不影响其他账单</text>
         </view>
         <view class="ut__sw" @tap="houseSheet = true"><text>切换房屋</text></view>
       </view>
 
-      <view v-for="a in sum.accounts" :key="a.accountId" class="card ut">
+      <view v-for="a in u.accounts" :key="a.itemId" class="card ut" :class="{ 'ut--off': !a.canPay }">
         <view class="ut__top">
-          <view class="ut__ico" :style="{ background: a.typeKey === 'power' ? '#fff4e6' : 'var(--biz-primary-light-9)', color: a.color }">
+          <view class="ut__ico" :style="{ background: a.canPay ? 'var(--biz-primary-light-9)' : 'var(--biz-bg-fill)', color: a.color }">
             <text>{{ a.icon }}</text>
           </view>
           <view class="ut__b">
             <text class="ut__t">{{ a.label }}</text>
-            <text class="ut__d">户号 {{ a.meterNo }} · {{ a.price }} 元/{{ a.unit }}</text>
+            <text class="ut__d">{{ a.meterNo ? `户号 ${a.meterNo}` : '未登记远传表' }} · {{ a.modeLabel }}</text>
           </view>
-          <Tag :text="a.due > 0 ? '本期待缴' : '本期已结清'" size="sm" :color="a.due > 0 ? 'var(--biz-warning)' : 'var(--biz-text-3)'" />
+          <Tag
+            :text="a.canPay ? (a.billStatus || '待缴') : modeTag(a)"
+            size="sm"
+            :color="a.canPay ? 'var(--biz-warning)' : 'var(--biz-text-3)'"
+          />
         </view>
-        <view class="ut__rows">
-          <view class="ut__r"><text class="ut__k">本期用量</text><text class="ut__v">{{ a.usage }} {{ a.unit }}</text></view>
-          <view class="ut__r"><text class="ut__k">本期应缴</text><text class="ut__v danger">{{ money(a.due) }}</text></view>
-          <view class="ut__r"><text class="ut__k">单价</text><text class="ut__v">{{ a.price }} 元/{{ a.unit }}</text></view>
-          <view class="ut__r"><text class="ut__k">抄表日</text><text class="ut__v">{{ a.readDate || '—' }}</text></view>
-        </view>
-        <view class="ut__acts">
-          <view :id="`ut-recharge-${a.accountId}`" class="btn btn--primary btn--sm" @tap="goRecharge()"><text>充值</text></view>
-          <view class="btn btn--line btn--sm" @tap="tab = 'record'"><text>缴费记录</text></view>
+
+        <!-- meter：把"这个数怎么来的"摆出来 -->
+        <template v-if="a.canPay">
+          <view class="ut__rows">
+            <view class="ut__r"><text class="ut__k">本期用量</text><text class="ut__v">{{ a.usage }} {{ a.unit }}</text></view>
+            <view class="ut__r"><text class="ut__k">单价</text><text class="ut__v">{{ a.price }} 元/{{ a.unit }}</text></view>
+            <view class="ut__r"><text class="ut__k">应缴</text><text class="ut__v danger">{{ money(a.amount) }}</text></view>
+            <view class="ut__r"><text class="ut__k">账期</text><text class="ut__v">{{ a.period }}</text></view>
+          </view>
+          <text v-if="a.readingText" class="ut__rd">读数 {{ a.readingText }}</text>
+          <text class="ut__rd">账单号 {{ a.billId }}{{ a.unpaidCount > 1 ? ` · 还有 ${a.unpaidCount - 1} 期未缴` : '' }}</text>
+          <!--
+            单价是**基准价**，应缴可能含污水处理、阶梯电价等附加 ——
+            两份数并排放着却乘不出应缴，业主一定会问。所以这里写明口径，
+            金额以账单为准（后台改价、减免、滞纳金都体现在账单里）。
+          -->
+          <text class="ut__rd">单价为基准价，应缴含附加费或阶梯价，以账单金额为准</text>
+          <view class="ut__acts">
+            <view :id="`ut-pay-${a.itemId}`" class="btn btn--primary btn--sm" @tap="goPay(a)"><text>去缴费</text></view>
+            <view class="btn btn--line btn--sm" @tap="go('/pages/bills/index', { tab: 'record' })"><text>缴费记录</text></view>
+          </view>
+        </template>
+
+        <!-- card / none：说明白"这钱不在这儿交" -->
+        <view v-else class="ut__note">
+          <text class="ut__note-t">{{ modeNote(a) }}</text>
         </view>
       </view>
 
@@ -59,23 +86,11 @@
         </view>
       </view>
 
-      <Empty v-if="!sum.count" text="本房未安装远传表" sub="水电气仍按账单缴纳；户号可联系管家登记" />
-
-      <view v-if="records.length" class="sec-hd ut__sec">
-        <text class="sec-hd__t">最近充值</text>
-        <text class="sec-hd__d">{{ records.length }} 笔</text>
-      </view>
-      <view v-for="r in records.slice(0, 5)" :key="r.payId" class="card ut__rec">
-        <view class="ut__rec-b">
-          <text class="ut__rec-t">{{ r.label }} 充值</text>
-          <text class="ut__rec-d">{{ r.at }} · {{ r.meterNo || '预存账户' }}</text>
-        </view>
-        <text class="ut__rec-v">+{{ money(r.amount) }}</text>
-      </view>
+      <Empty v-if="loaded && !u.accounts.length" text="本房没有登记水电表" sub="户号可联系管家登记；账单仍按抄表出账" />
 
       <view class="ut__tip">
         <text class="demo-tip">演示</text>
-        <text class="ut__tip-t">充值是往本房预存账户存钱（模拟支付），到账后可抵扣水费、电费与物业费账单。真实接入要对接缴费平台或表厂，涉及销账对账，本轮不接。</text>
+        <text class="ut__tip-t">水电按抄表账单缴纳，缴费后不影响其他账单。真实接入要对接缴费平台或表厂，涉及销账对账，本轮不接。</text>
       </view>
     </view>
 
@@ -90,16 +105,16 @@ import NavBar from '@/components/NavBar.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import { app, switchHouse } from '@/store/app'
+import { switchHouse } from '@/store/app'
 import { activeHouse, myHouses } from '@/api/mp'
-import { accountsOf, gasAccount, utilityRecords, utilitySummary } from '@/api/utility'
+import { gasAccount, loadUtility, payableText, utilityLoaded, utilityOf } from '@/api/utility'
 import { amount, money } from '@/utils/format'
-import { go, toast } from '@/utils/ui'
+import { go } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
 
 const houseSheet = ref(false)
-const tab = ref('due')
 const ver = ref(0)
+const loaded = ref(false)
 
 const houses = computed(() => {
   ver.value
@@ -109,23 +124,40 @@ const house = computed(() => {
   ver.value
   return activeHouse()
 })
-const sum = computed(() => {
+const u = computed(() => {
   ver.value
-  return house.value
-    ? utilitySummary(house.value.houseId)
-    : { accounts: [], due: 0, count: 0, prepay: { balance: 0, hasAccount: false } }
+  return house.value ? utilityOf(house.value.houseId) : { dueTotal: 0, payableCount: 0, accounts: [] }
 })
 const gas = gasAccount()
-const records = computed(() => {
-  ver.value
-  return utilityRecords({ houseId: house.value?.houseId || '' })
-})
+
 const houseActions = computed(() =>
   houses.value.map(h => ({ label: h.fullName, desc: `${h.identity} · ${h.area}㎡`, value: h.houseId, active: h.houseId === house.value?.houseId }))
 )
 
-onShow(() => {
+/**
+ * 模式标签。三种"不可缴"要分开说，不能都写「待缴」：
+ *   card → 插卡表（去物业买量）
+ *   none → 自缴（国网/水司直收）
+ *   meter 但没账单 → 已结清（这时写"待缴"却不给金额，业主会以为页面坏了）
+ */
+const modeTag = a => (a.mode === 'card' ? '插卡表' : a.mode === 'none' ? '自缴' : '已结清')
+/* 说明文字直接用接口给的 modeLabel 起头，不再自己写死"自来水公司 / 国家电网" ——
+   写死的话，电费卡上会出现"由自来水公司…"，一句话挂在两种表上总有一种是错的 */
+const modeNote = a => {
+  if (a.mode === 'card') return `${a.modeLabel}：系统不记录金额，物业不代收，小程序里无需缴费`
+  if (a.mode === 'none') return `${a.modeLabel}，物业不代收，无需在小程序缴费`
+  /* meter 且没有未缴账单 —— 不是"不在这儿交"，而是"现在没得交" */
+  return '本期没有待缴账单；物业抄表出账后，这里会显示用量与应缴'
+}
+
+onShow(async () => {
   if (!gateOwner('水电燃气缴费')) return
+  try {
+    if (house.value) await loadUtility(house.value.houseId)
+  } catch (e) {
+    /* 拉不到就让页面按空数据渲染，不弹错：这一屏挂了不该挡住"切换房屋" */
+  }
+  loaded.value = utilityLoaded()
   ver.value++
 })
 
@@ -133,7 +165,8 @@ function onPickHouse(id) {
   switchHouse(id)
   ver.value++
 }
-const goRecharge = () => go('/pages/utility/recharge')
+
+const goPay = a => go('/pages/bills/detail', { id: a.billId })
 </script>
 
 <style scoped>
@@ -146,12 +179,11 @@ const goRecharge = () => go('/pages/utility/recharge')
 .ut__hd-k { font-size: 22rpx; color: var(--biz-text-3); }
 .ut__hd .big { margin-top: 6rpx; color: var(--biz-text-1); }
 .ut__hd-d { display: block; margin-top: 6rpx; font-size: 21rpx; color: var(--biz-text-3); }
-.ut__hd-note { display: block; margin-top: 8rpx; font-size: 20rpx; color: var(--biz-warning); }
 .ut__sw { flex: none; font-size: 21rpx; color: var(--biz-primary); background: #fff; border-radius: 999rpx; padding: 8rpx 18rpx; }
 
 .ut { margin-top: 20rpx; }
 .ut__top { display: flex; align-items: center; gap: 16rpx; }
-.ut__ico { flex: none; width: 72rpx; height: 72rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; background: var(--biz-bg-fill); color: var(--biz-text-3); }
+.ut__ico { flex: none; width: 72rpx; height: 72rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; color: var(--biz-text-3); }
 .ut__b { flex: 1; min-width: 0; }
 .ut__t { font-size: 28rpx; font-weight: 600; color: var(--biz-text-1); }
 .ut__d { display: block; margin-top: 4rpx; font-size: 21rpx; color: var(--biz-text-3); }
@@ -159,16 +191,12 @@ const goRecharge = () => go('/pages/utility/recharge')
 .ut__r { width: 50%; display: flex; gap: 10rpx; padding: 8rpx 0; }
 .ut__k { font-size: 22rpx; color: var(--biz-text-3); }
 .ut__v { font-size: 23rpx; color: var(--biz-text-1); font-family: var(--biz-font-num); }
+.ut__rd { display: block; margin-top: 4rpx; font-size: 20rpx; color: var(--biz-text-4); }
 .ut__acts { display: flex; gap: 16rpx; margin-top: 18rpx; }
 .ut__acts .btn { flex: 1; }
-.ut--off { opacity: 0.86; }
-
-.ut__sec { margin: 30rpx 0 14rpx; }
-.ut__rec { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 22rpx; }
-.ut__rec-b { flex: 1; min-width: 0; }
-.ut__rec-t { font-size: 25rpx; color: var(--biz-text-1); }
-.ut__rec-d { display: block; margin-top: 4rpx; font-size: 20rpx; color: var(--biz-text-4); }
-.ut__rec-v { font-family: var(--biz-font-num); font-size: 26rpx; font-weight: 700; color: var(--biz-accent-dark); }
+.ut__note { margin-top: 16rpx; padding: 16rpx 18rpx; border-radius: 14rpx; background: var(--biz-bg-fill); }
+.ut__note-t { font-size: 21rpx; line-height: 1.6; color: var(--biz-text-3); }
+.ut--off { opacity: 0.9; }
 
 .ut__tip { margin-top: 26rpx; display: flex; gap: 12rpx; align-items: flex-start; }
 .ut__tip-t { flex: 1; font-size: 21rpx; color: var(--biz-text-4); line-height: 1.6; }

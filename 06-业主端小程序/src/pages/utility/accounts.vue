@@ -1,9 +1,13 @@
-<!-- 户号管理：本房的水电户号（只读 + 可解除本地绑定，真实解除需物业核验） -->
+<!--
+  户号管理：本房的水电户号（只读 + 可解除本地绑定，真实解除需物业核验）
+  2026-11-13：这里**不再有余额**。预存账户体系已下线，水电按抄表账单缴纳，
+  所以这一屏只回答"哪个户号、本期多少、单价多少、什么时候抄的表"。
+-->
 <template>
   <view class="page">
     <NavBar title="户号管理" :subtitle="house?.fullName" />
     <view class="body">
-      <view v-for="a in accounts" :key="a.accountId" class="card ua">
+      <view v-for="a in accounts" :key="a.itemId" class="card ua">
         <view class="ua__hd">
           <view class="ua__ico"><text>{{ a.icon }}</text></view>
           <view class="ua__b">
@@ -13,9 +17,11 @@
           <text class="ua__del" @tap="remove(a)">解除</text>
         </view>
         <view class="ua__rows">
-          <text class="ua__r">本期 {{ a.usage }} {{ a.unit }}</text>
-          <text class="ua__r">应缴 {{ money(a.due) }}</text>
-          <text class="ua__r">抄表 {{ a.readDate }}</text>
+          <text class="ua__r">{{ a.modeLabel }}</text>
+          <text v-if="a.usage != null" class="ua__r">用量 {{ a.usage }} {{ a.unit }}</text>
+          <text v-if="a.price != null" class="ua__r">{{ a.price }} 元/{{ a.unit }}</text>
+          <text v-if="a.amount != null" class="ua__r">应缴 {{ money(a.amount) }}</text>
+          <text v-if="a.period" class="ua__r">账期 {{ a.period }}</text>
         </view>
       </view>
 
@@ -34,7 +40,7 @@
 
       <view class="ua__tip">
         <text class="demo-tip">说明</text>
-        <text class="ua__tip-t">户号与表具按房绑定，只能由物业登记与解除；业主端解除只是本地隐藏，真实解绑要走后台（避免业主误删后重复缴费）。余额不挂在这里 —— 一个房只有一个预存账户，见生活缴费首页。</text>
+        <text class="ua__tip-t">户号与表具按房绑定，只能由物业登记与解除；业主端解除只是本地隐藏，真实解绑要走后台（避免业主误删后重复缴费）。水电按抄表账单缴纳，这一屏不显示余额。</text>
       </view>
     </view>
   </view>
@@ -47,7 +53,7 @@ import NavBar from '@/components/NavBar.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import { activeHouse } from '@/api/mp'
-import { accountsOf, gasAccount } from '@/api/utility'
+import { gasAccount, loadUtility, utilityOf } from '@/api/utility'
 import { money } from '@/utils/format'
 import { toast } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
@@ -62,21 +68,24 @@ const house = computed(() => {
 const accounts = computed(() => {
   ver.value
   if (!house.value) return []
-  return accountsOf(house.value.houseId).filter(a => !hidden.value.includes(a.accountId))
+  return utilityOf(house.value.houseId).accounts.filter(a => !hidden.value.includes(a.meterNo))
 })
 
-onShow(() => {
+onShow(async () => {
   if (!gateOwner('户号管理')) return
+  try {
+    if (house.value) await loadUtility(house.value.houseId)
+  } catch (e) { /* 拉不到就按空渲染 */ }
   ver.value++
 })
 
 function remove(a) {
   uni.showModal({
     title: '解除户号',
-    content: `确定解除「${a.label} ${a.meterNo}」？解除后本房不再显示该户号余额。`,
+    content: `确定解除「${a.label} ${a.meterNo}」？解除后本房不再显示该户号。`,
     success: res => {
       if (!res.confirm) return
-      hidden.value.push(a.accountId)
+      hidden.value.push(a.meterNo)
       toast('已解除（演示态：真实环境需物业复核）')
     }
   })

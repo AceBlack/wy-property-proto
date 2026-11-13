@@ -179,7 +179,6 @@ import {
 } from '@/api/mp'
 import { communityFeed, NEARBY_LIMIT } from '@/api/home-feed'
 import { lifeHome } from '@/api/life'
-import { utilitySummary } from '@/api/utility'
 import { amount, money } from '@/utils/format'
 import { go, toast } from '@/utils/ui'
 import { can, gateLogin, gateOwner, gatePerm } from '@/utils/guard'

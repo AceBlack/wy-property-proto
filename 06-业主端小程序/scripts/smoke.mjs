@@ -7,7 +7,7 @@
  *   ③ 认证自动匹配：档案对得上立即生效；对不上进人工审核（模拟通过）
  *   ④ 家庭账单多房合并：合计 = 按房分组之和；跨房合并缴费
  *   ⑤ 报修双线：个人（价目 / 预付 / 增项 / 补付 / 评价）、公共（免认证、免费）
- *   ⑥ 便民缴费：水电户号 / 充值 / 余额
+ *   ⑥ 生活缴费：水电户号 / 抄表账单 / 去缴费（没有余额与充值）
  *   ⑦ 邻里：动态评论（先审后发）、活动报名、投票、闲置想要
  *   ⑧ 身份权限：租客不能看业主账单
  *   ⑨ 双模式（dev / 构建产物）+ 零 console 错误
@@ -446,19 +446,32 @@ async function runSuite(base, tag) {
   check('公共单据金额为免费', (await has('¥0.00')) || (await has('无需支付')))
   await shot('24-repair-public-detail')
 
-  /* ---------- 8. 便民缴费 ---------- */
-  console.log('\n[8] 便民缴费：水电户号 + 充值')
+  /* ---------- 8. 生活缴费（2026-11-13 改：抄表账单缴费，预存下线） ---------- */
+  console.log('\n[8] 生活缴费：按抄表账单缴，没有余额与充值')
   await goto('/pages/utility/index')
-  check('本房有水电户号', (await has('水费')) && (await has('电费')))
+  check('本房有水电户号', (await waitText('水费')) && (await has('电费')))
   check('燃气如实标注未开通', await has('未开通'))
+  /* 这一屏上不该再出现"预存 / 余额 / 充值"三个词 —— 它们会让人以为还能存钱 */
+  const utilText = await bodyText()
+  check('没有预存/余额/充值字样', !/预存|余额|充值/.test(utilText), utilText.slice(0, 200))
+  check('顶部是本期应缴', await has('本期应缴'))
+  check('抄表出账说明在', await has('抄表出账'))
   await shot('25-utility')
-  await tap('[id^="ut-recharge-"]', 0, 1200)
-  check('充值页出现快捷金额', await waitText('充值金额'))
-  await tapText('200 元')
-  await shot('26-utility-recharge')
-  await tap('#ut-pay', 0, 1600)
-  await sleep(1200)
-  check('充值后余额增加', await waitText('余额') || (await has('充值成功')))
+  /*
+    这一段跑在前面已经"所有账单已结清"之后 —— 所以这里没有待缴是**正确**的，
+    而不是页面少了按钮。两种状态都断言，因为 canPay 的规则是两半：
+      canPay = meter 模式 **且** 有未缴账单。
+    可缴那一半在接口模式走查里验（`api-g-5x`），这里验"结清了就不给按钮"。
+  */
+  const hasPay = await visible('[id^="ut-pay-"]')
+  if (hasPay) {
+    await tap('[id^="ut-pay-"]', 0, 1400)
+    check('去缴费进的是账单详情', await waitText('账单编号') || (await waitText('立即支付')))
+    await shot('26-utility-bill')
+  } else {
+    check('已结清时没有去缴费按钮（canPay 看账单状态）', await has('本期无待缴'), await bodyText())
+    await shot('26-utility-clear')
+  }
 
   /* ---------- 9. 邻里：公告签收 / 收费活动报名 / 多选投票 / 闲置发布 ---------- */
   console.log('\n[9] 邻里：四种参与方式')

@@ -9467,6 +9467,15 @@ const MP_MODE_LABEL = {
   card: '插卡表 · 到物业服务中心买量',
   none: '由自来水公司 / 国家电网直接收取'
 }
+/**
+ * 文案要按表种说：电说"国家电网"、水说"自来水公司"。
+ * 一句"由自来水公司 / 国家电网直接收取"挂在电费卡上，业主会愣一下 ——
+ * 原来就是这么写的，截图里一眼就看出来了。
+ */
+const mpModeLabelOf = (mode, meterType) => {
+  if (mode === 'none') return meterType === '电表' ? '由国家电网直接收取' : '由自来水公司直接收取'
+  return MP_MODE_LABEL[mode]
+}
 const mpUtilModeOf = (communityId, key) => {
   const u = communityUtility.find(x => x.communityId === communityId) || {}
   return u[key] || 'none'
@@ -9501,7 +9510,7 @@ on('GET', '/mp/utility', (ctx) => {
       itemId: t.itemId,
       itemName: (meter && meter.itemName) || t.itemName,
       mode,
-      modeLabel: MP_MODE_LABEL[mode],
+      modeLabel: mpModeLabelOf(mode, t.meterType),
       unit: first ? mpUnitOf(first.unit) : (meter ? meter.unit : ''),
       unpaidCount: open.length,
       unpaidTotal: r2(open.reduce((s, b) => s + (b.unpaid || 0), 0)),
