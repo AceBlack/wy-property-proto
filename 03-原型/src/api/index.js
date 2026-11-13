@@ -24,6 +24,8 @@ export * from '@/api/reports'
 export * from '@/api/payments'
 export * from '@/api/quality'
 export * from '@/api/close'
+// 批 5（2026-11-13）：支出归集 / 手工补录 / 押金口径
+export * from '@/api/expenses'
 export * from '@/api/contracts'
 export * from '@/api/oa'
 export * from '@/api/multiRevenue'

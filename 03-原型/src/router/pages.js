@@ -99,6 +99,13 @@ export const PAGES = [
   // 费用分类字典（批 1 · 2026-11-12）：所有统计报表的根，收费项/合同/报销/补录都往这里挂
   { path: '/b/fee-categories', name: 'FeeCategory', title: '费用分类字典', group: 'b', status: 'done', icon: 'Files', desc: '收入 / 支出 / 负债 · 两级 · 允许来源',
     component: () => import('@/views/b/FeeCategory.vue') },
+  /* 批 5（2026-11-13）：支出归集 = 报销 + 工资 + 合同摊 + 手工补录，四类来源确认时点不同 */
+  { path: '/b/expense-collect', name: 'ExpenseCollect', title: '支出归集', group: 'b', status: 'done', icon: 'PieChart',
+    desc: '报销 / 工资 / 合同摊 / 补录 四源合一 · 按分类与来源拆开',
+    component: () => import('@/views/b/ExpenseCollect.vue') },
+  { path: '/b/manual-entries', name: 'ManualEntry', title: '手工补录', group: 'b', status: 'done', icon: 'EditPen',
+    desc: '税费 / 通道手续费 / 赔偿 · 没有单据流的钱只能在这里入账',
+    component: () => import('@/views/b/ManualEntry.vue') },
   // 减免原因字典（批 1）：收银台减免必选，报表按原因汇总
   { path: '/b/waive-reasons', name: 'WaiveReason', title: '减免原因', group: 'b', status: 'done', icon: 'Discount', desc: '减免原因 · 类型 · 是否计入考核',
     component: () => import('@/views/b/WaiveReason.vue') },

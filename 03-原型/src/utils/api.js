@@ -10,7 +10,9 @@ import {
   utilityPrices, houseUtilityBinding,
   prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders,
   // N 域（邻里）复用的存量数据：公告不另建源，投票/活动/闲置都从业主端同一份数据出发
-  activities, activityEnrollments, secondhandItems, surveys
+  activities, activityEnrollments, secondhandItems, surveys,
+  // 批 5（2026-11-13）：支出归集的两条来源 —— 费用报销单与手工补录
+  expenses, manualEntries
 } from '@/mock'
 import repairPrices from '@/mock/repairPrices.json'
 import { TODAY, daysBetween, maskId, maskPhone } from '@/utils/format'
@@ -19936,3 +19938,304 @@ export function cashierExtraItemOpts() {
     .map(i => ({ value: i.itemId, label: `${i.name}（${i.price} ${i.unit || ''}）`, price: i.price, unit: i.unit, calcType: i.calcType }))
 }
 
+
+/* ==================================================================
+ * 批 5 · 支出归集 / 手工补录 / 押金口径（2026-11-13）
+ * ------------------------------------------------------------
+ * 支出不是一张表：它从四类来源汇过来，各自的"确认时点"还不一样。
+ *
+ *   费用报销  按**付款日**确认（钱出去才算支出，报销单批了没付不算）
+ *   工资      按**当月**计（薪酬是期间费用，发薪日跨月不改变归属月）
+ *   合同支出  按**期间摊**（3 年的保洁合同不能一次性记进当月）
+ *   手工补录  按**补录的账期**（税费、通道手续费这类没有单据流）
+ *
+ * 四个来源混成一张表就再也拆不开：问"这个月运营费用为什么涨了"，
+ * 分不清是报销多了还是合同摊多了。所以归集表必须保留来源列。
+ * ================================================================== */
+
+export const EXPENSE_SOURCES = ['费用报销', '工资', '手工补录', '合同支出']
+
+const _e2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
+/** 某员工归属项目（orgId → communityId），拿不到就算集团 */
+const _empCommunity = e => communityOfOrg(e.orgId) || ''
+
+/**
+ * 工资成本（单月）。
+ * 应发取 monthlySalary；社保公积金与福利按 baseSalary 比例估算并**标注估算**——
+ * 真实数在社保申报表里，原型不编造，页面会写明"估算"。
+ */
+export function payrollCostOf({ communityId = '' } = {}) {
+  const live = employees.filter(e => e.status !== '离职')
+  const rows = live.filter(e => !communityId || _empCommunity(e) === communityId)
+  const salary = _e2(rows.reduce((s, e) => s + (Number(e.monthlySalary) || 0), 0))
+  const base = rows.reduce((s, e) => s + (Number(e.baseSalary) || 0), 0)
+  const insurance = _e2(base * 0.22)
+  const welfare = _e2(base * 0.03)
+  return {
+    headcount: rows.length,
+    salary, insurance, welfare,
+    total: _e2(salary + insurance + welfare),
+    estimated: true
+  }
+}
+
+/** 合同支出摊到某月：期间覆盖该月才摊，摊法 = 合同额 ÷ 期间月数 */
+function _contractExpenseOf(period, communityId) {
+  let amount = 0
+  const rows = []
+  for (const c of contracts) {
+    if (contractDirectionOf(c) !== '支出') continue
+    if (communityId && c.communityId !== communityId) continue
+    const s = String(c.startDate).slice(0, 7)
+    const e = String(c.endDate).slice(0, 7)
+    if (!s || !e || period < s || period > e) continue
+    const m = contractMonthsOf(c) || 1
+    const share = _e2((Number(c.amount) || 0) / m)
+    if (share <= 0) continue
+    amount += share
+    /* 分类是**派生**的：原始合同上没有 categoryId 字段，
+       直接读 c.categoryId 会全落进"未归类"，报表看着像有一大笔来源不明的支出 */
+    rows.push({
+      contractId: c.contractId, contractNo: c.contractNo, name: c.name,
+      categoryId: contractCategoryOf(c), amount: share
+    })
+  }
+  return { amount: _e2(amount), rows }
+}
+
+/**
+ * 支出归集：某账期的支出，按「分类二级 × 来源」拆开。
+ * 只统计**已付款**的报销 —— 审批通过但没付款的，钱还在账上，记成支出就是提前确认成本。
+ */
+export function expenseCollect({ period = periodOf(), communityId = '', source = '' } = {}) {
+  const rows = new Map()
+  const add = (categoryId, src, amount, count = 1) => {
+    if (!(amount > 0)) return
+    const cat = feeCategories.find(f => f.code === categoryId) || {}
+    const key = categoryId
+    const cur = rows.get(key) || {
+      categoryId,
+      categoryName: cat.name || categoryId,
+      parentCode: cat.parentCode || '',
+      parentName: (feeCategories.find(f => f.code === cat.parentCode) || {}).name || '未归类',
+      amount: 0, count: 0,
+      bySource: {}
+    }
+    cur.amount = _e2(cur.amount + amount)
+    cur.count += count
+    cur.bySource[src] = _e2((cur.bySource[src] || 0) + amount)
+    rows.set(key, cur)
+  }
+
+  /* ① 费用报销：只认已付款 */
+  const paidExpenses = expenses.filter(x =>
+    x.period === period && x.status === '已付款' && (!communityId || x.communityId === communityId))
+  for (const x of paidExpenses) add(x.categoryId, '费用报销', x.amount)
+
+  /* ② 工资：三条成本，按月各一份 */
+  const pay = payrollCostOf({ communityId })
+  add('EXP_LABOR_SALARY', '工资', pay.salary)
+  add('EXP_LABOR_INSURANCE', '工资', pay.insurance)
+  add('EXP_LABOR_WELFARE', '工资', pay.welfare)
+
+  /* ③ 手工补录：只取支出方向且已入账 */
+  const manual = manualEntries.filter(x =>
+    x.period === period && x.direction === 'expense' && x.status === '已入账'
+    && (!communityId || x.communityId === communityId))
+  for (const x of manual) add(x.categoryCode, '手工补录', x.amount)
+
+  /* ④ 合同支出：按期间摊到月 */
+  const ce = _contractExpenseOf(period, communityId)
+  for (const r of ce.rows) add(r.categoryId, '合同支出', r.amount)
+
+  let list = [...rows.values()].sort((a, b) => b.amount - a.amount)
+  if (source) list = list.filter(r => (r.bySource[source] || 0) > 0)
+
+  const bySource = {}
+  for (const r of list) for (const [k, v] of Object.entries(r.bySource)) bySource[k] = _e2((bySource[k] || 0) + v)
+
+  /* 一级分类汇总：报表第一层看的是「人力 / 合同 / 运营」，不是几十个二级 */
+  const byParent = new Map()
+  for (const r of list) {
+    const cur = byParent.get(r.parentCode) || { code: r.parentCode, name: r.parentName, amount: 0, count: 0 }
+    cur.amount = _e2(cur.amount + r.amount)
+    cur.count += r.count
+    byParent.set(r.parentCode, cur)
+  }
+
+  const total = _e2(list.reduce((s, r) => s + r.amount, 0))
+  return {
+    period, communityId, source,
+    total,
+    count: list.reduce((s, r) => s + r.count, 0),
+    rows: list,
+    bySource: EXPENSE_SOURCES.filter(s => bySource[s]).map(s => ({ source: s, amount: bySource[s] })),
+    byParent: [...byParent.values()].sort((a, b) => b.amount - a.amount),
+    payroll: pay,
+    contractCount: ce.rows.length,
+    expenseCount: paidExpenses.length,
+    /* 未付款的报销单：列出来提醒"这个月还有多少已批未付"，但它不进上面的合计 */
+    unpaidExpense: _e2(expenses.filter(x =>
+      x.period === period && x.status === '待付款' && (!communityId || x.communityId === communityId))
+      .reduce((s, x) => s + x.amount, 0))
+  }
+}
+
+/* ---------------- 手工补录 ---------------- */
+
+export const MANUAL_ENTRY_STATUS = ['已入账', '已作废']
+
+/**
+ * 可补录的分类：**二级**、方向匹配、且 `allowSources` 里含 `manual`。
+ * 这就是"税费只能补录、日常费用必须走报销"的落点 ——
+ * 不是靠页面不给选，而是分类字典里那条 `allowSources` 说了算。
+ */
+export function manualCategoryOpts(direction = 'expense') {
+  return feeCategories
+    .filter(c => c.level === 2 && c.direction === direction && (c.allowSources || []).includes('manual'))
+    .map(c => ({
+      value: c.code, label: c.name,
+      parentName: (feeCategories.find(f => f.code === c.parentCode) || {}).name || '',
+      desc: c.desc || ''
+    }))
+}
+
+let ME_SEQ = manualEntries.length
+
+export function queryManualEntries({ pageNo = 1, size = 20, filters = {} } = {}) {
+  return delay(() => {
+    const { communityId = '', direction = '', categoryCode = '', period = '', kw = '' } = filters
+    const list = manualEntries
+      .filter(x => !communityId || x.communityId === communityId)
+      .filter(x => !direction || x.direction === direction)
+      .filter(x => !categoryCode || x.categoryCode === categoryCode)
+      .filter(x => !period || x.period === period)
+      .filter(x => !kw || `${x.entryNo}${x.reason}${x.objectName}${x.source}`.includes(kw))
+      .sort((a, b) => String(b.bizDate).localeCompare(String(a.bizDate)))
+    return paged(list, pageNo, size)
+  })
+}
+
+export function manualEntrySummary() {
+  const live = manualEntries.filter(x => x.status === '已入账')
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const exp = live.filter(x => x.direction === 'expense')
+  const inc = live.filter(x => x.direction === 'income')
+  return {
+    count: live.length,
+    expense: r2(exp.reduce((s, x) => s + x.amount, 0)),
+    income: r2(inc.reduce((s, x) => s + x.amount, 0)),
+    tax: r2(live.filter(x => x.categoryCode === 'EXP_OP_TAX').reduce((s, x) => s + x.amount, 0)),
+    taxCount: live.filter(x => x.categoryCode === 'EXP_OP_TAX').length,
+    voided: manualEntries.filter(x => x.status === '已作废').length
+  }
+}
+
+/**
+ * 建单 / 改单。
+ * 三条硬规则：
+ *   ① 分类必须接受补录 —— 日常费用（办公/差旅/维修材料）只有报销一条路，
+ *      允许补录等于给"绕过审批直接入账"开口子；
+ *   ② 税费必须走这里（EXP_OP_TAX 的 allowSources 只有 manual），所以不需要额外标记；
+ *   ③ 改单只允许改「已作废」以外的原值 → 已入账的只能作废重录，不能就地改金额。
+ */
+export function saveManualEntry(payload = {}, entryId = '') {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权手工补录')
+
+  const direction = payload.direction === 'income' ? 'income' : 'expense'
+  const code = String(payload.categoryCode || '')
+  const cat = feeCategories.find(f => f.code === code)
+  if (!cat) throw new Error('请选择费用分类')
+  if (cat.level !== 2) throw new Error('只能挂到二级分类 —— 一级只是汇总口径，不能直接入账')
+  if (cat.direction !== direction) throw new Error(`「${cat.name}」是${cat.direction === 'income' ? '收入' : '支出'}分类，方向不一致`)
+  if (!(cat.allowSources || []).includes('manual')) {
+    throw new Error(`「${cat.name}」不接受手工补录：日常费用请走报销，合同类请走合同台账`)
+  }
+
+  const amount = _e2(payload.amount)
+  if (!(amount > 0)) throw new Error('金额必须大于 0')
+  if (amount > 10000000) throw new Error('单笔金额超过 1000 万，请拆分或走线下')
+
+  const period = String(payload.period || '').trim()
+  if (!/^\d{4}-\d{2}$/.test(period)) throw new Error('账期格式应为 YYYY-MM')
+  const bizDate = String(payload.bizDate || `${period}-01`)
+  const reason = String(payload.reason || '').trim()
+  if (!reason) throw new Error('必须写补录原因 —— 否则以后没人说得清这笔钱是哪来的')
+
+  const now = `${TODAY} ${new Date().toTimeString().slice(0, 5)}`
+  if (entryId) {
+    const cur = manualEntries.find(x => x.entryId === entryId)
+    if (!cur) throw new Error('补录单不存在')
+    if (cur.status === '已作废') throw new Error('已作废的单据不能修改，请重新建单')
+    Object.assign(cur, {
+      direction, categoryCode: code, categoryName: cat.name, amount, period, bizDate,
+      objectType: payload.objectType || cur.objectType,
+      objectName: String(payload.objectName || '').trim(),
+      communityId: String(payload.communityId || ''),
+      source: String(payload.source || '').trim(),
+      attachment: String(payload.attachment || '').trim(),
+      reason
+    })
+    return { ...cur }
+  }
+
+  ME_SEQ += 1
+  const rec = {
+    entryId: 'ME' + String(ME_SEQ).padStart(4, '0'),
+    entryNo: `BL-${period.slice(0, 4)}-${String(ME_SEQ).padStart(3, '0')}`,
+    direction, categoryCode: code, categoryName: cat.name, amount, period, bizDate,
+    objectType: payload.objectType || '项目',
+    objectName: String(payload.objectName || '').trim(),
+    communityId: String(payload.communityId || ''),
+    source: String(payload.source || '').trim(),
+    attachment: String(payload.attachment || '').trim(),
+    reason, operator: currentOperator().name || '财务',
+    status: '已入账', createdAt: now
+  }
+  manualEntries.unshift(rec)
+  track('manual_entry', { direction, category: code, amount })
+  return { ...rec }
+}
+
+/** 作废：**不删**。补录是"没有单据流"的钱，删掉就再也查不到它曾经存在过 */
+export function voidManualEntry(entryId, reason = '') {
+  assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权作废补录')
+  const cur = manualEntries.find(x => x.entryId === entryId)
+  if (!cur) throw new Error('补录单不存在')
+  if (cur.status === '已作废') throw new Error('该单据已作废')
+  const why = String(reason || '').trim()
+  if (!why) throw new Error('作废必须写原因 —— 报表要能解释这笔记账为什么被撤回')
+  cur.status = '已作废'
+  cur.voidReason = why.slice(0, 60)
+  cur.voidAt = TODAY
+  cur.voidBy = currentOperator().name || '财务'
+  return { ...cur }
+}
+
+/* ---------------- 押金口径 ---------------- */
+
+/**
+ * 押金是**负债**，不是收入：收进来那天现金增加了，但钱不是公司的。
+ * 报表里必须单独一行，混进收入就是虚增营收（和预存是同一类错误）。
+ */
+export const DEPOSIT_CATEGORY_CODE = 'LIA_DEPOSIT'
+
+export function depositLedger() {
+  const rows = decorationDeposits
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const received = r2(rows.reduce((s, d) => s + (Number(d.amount) || 0), 0))
+  const refunded = r2(rows.reduce((s, d) => s + (Number(d.refundAmount) || 0), 0))
+  const deducted = r2(rows.filter(d => Number(d.deductAmount) > 0)
+    .reduce((s, d) => s + (Number(d.deductAmount) || 0), 0))
+  return {
+    count: rows.length,
+    received,
+    refunded,
+    deducted,
+    /* 在账 = 收 − 退 − 扣。这三个数必须严格相等，否则台账里有一笔去向不明 */
+    balance: r2(received - refunded - deducted),
+    categoryName: (feeCategories.find(f => f.code === DEPOSIT_CATEGORY_CODE) || {}).name || '押金及保证金',
+    note: '收取时计入“其他应付款”，退款时冲减；只有扣款部分（业主违约）才转成收入'
+  }
+}
