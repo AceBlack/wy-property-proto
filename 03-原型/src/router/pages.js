@@ -125,6 +125,10 @@ export const PAGES = [
   /* 预存账户体系 2026-11-13 停用：入口保留，但只剩"退还存量余额"，不再受理充值 */
   { path: '/b/prepay', name: 'Prepay', title: '预存清退（已停用）', group: 'b', status: 'done', icon: 'Wallet', desc: '历史模块 · 仅退还存量余额，不再充值/抵扣',
     component: () => import('@/views/b/Prepay.vue') },
+  /* 批 4：公共收益归全体业主，物业只拿分成。合同台账里的 publicRevenue 是唯一数据源 */
+  { path: '/b/public-revenue', name: 'PublicRevenue', title: '公共收益台账', group: 'b', status: 'done', icon: 'Coin',
+    desc: '广告 / 场地 / 商铺 / 基站 · 归业主与归物业分列 · 可直接出公示表',
+    component: () => import('@/views/b/PublicRevenue.vue') },
 
   // ---------- N 邻里（业主端「邻里」的后台一侧） ----------
   /* 2026-11-06 第 68 批。四条频道：公告 / 投票 / 活动 / 闲置，外加举报处理。

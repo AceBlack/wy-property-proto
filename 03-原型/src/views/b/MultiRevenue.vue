@@ -117,7 +117,10 @@
           <div class="cmp__row">
             <span class="cmp__k">公共收益</span>
             <span class="cmp__v is-muted">不涉及</span>
-            <span class="cmp__v">归业主 ¥{{ money(multi.cooperation.publicRevenue) }}<br />已在收入中扣除</span>
+            <span class="cmp__v">
+              归业主 ¥{{ money(multi.cooperation.publicRevenue) }}<br />已在收入中扣除
+              <el-button link type="primary" size="small" @click="$router.push('/b/public-revenue')">看台账</el-button>
+            </span>
           </div>
         </div>
       </div>

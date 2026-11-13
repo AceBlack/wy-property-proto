@@ -3848,11 +3848,157 @@ export function contractMonthsOf(c = {}) {
   return Math.max(1, Math.round(days / 30.44))
 }
 
+/* ==================================================================
+ * 批 4 · 合同收支方向 / 类型两级 / 公共收益台账（2026-11-13）
+ * ------------------------------------------------------------
+ * 「方向」和「是否计入收入」是两个维度，不能互相代替：
+ *   方向看**合同类型** —— 租赁 / 物业服务是收入，外包 / 采购 / 劳动是支出；
+ *   是否计入收入看 incomeCategory —— 6 份物业服务合同标了「不计入」，
+ *   意思是钱已经按物业费账单收过了，合同只登记、不再重复计一笔收入。
+ *
+ * 拿 incomeCategory === '不计入' 当"支出"，会把 322 万物业服务合同算进成本，
+ * 成本虚增、利润虚减，而且报表上看不出错在哪 —— 因为两个字段本来都叫"不计入"。
+ * ================================================================ */
+
+export const CONTRACT_DIRECTIONS = ['收入', '支出']
+
+const CONTRACT_DIR_OF_TYPE = {
+  物业服务: '收入',
+  租赁: '收入',
+  外包服务: '支出',
+  采购: '支出',
+  劳动: '支出'
+}
+
+/** 方向：认不出的类型按收入处理（宁可少算成本，也不要凭一个陌生类型虚增支出） */
+export const contractDirectionOf = c => CONTRACT_DIR_OF_TYPE[c?.type] || '收入'
+
+/** 这笔合同额是否构成一笔收入。false = 已经在别处计过（物业费账单），或本来就是支出 */
+export const contractCountsInRevenue = c =>
+  contractDirectionOf(c) === '收入' && (c?.incomeCategory || '') !== '不计入'
+
+/** 类型 → 分类字典二级（合同的钱最终要落到收支分项里，不能各页各起名字） */
+const CONTRACT_CATEGORY_OF = {
+  '租赁/广告位租赁': 'INC_MULTI_AD',
+  '租赁/通信基站': 'INC_MULTI_TOWER',
+  '租赁/场地租赁': 'INC_MULTI_VENUE',
+  '租赁/商铺租赁': 'INC_MULTI_VENUE',
+  '租赁/房屋租赁': 'INC_MULTI_VENUE',
+  '租赁/车位租赁': 'INC_MULTI_VENUE',
+  '物业服务/物业服务合同': 'INC_MAIN_PROPERTY',
+  '物业服务/前期物业服务合同': 'INC_MAIN_PROPERTY',
+  '物业服务/物业顾问服务合同': 'INC_MAIN_PROPERTY',
+  '外包服务/保洁服务外包': 'EXP_CON_SERVICE',
+  '外包服务/垃圾清运': 'EXP_CON_SERVICE',
+  '外包服务/绿化养护外包': 'EXP_CON_GREEN',
+  '外包服务/安保服务外包': 'EXP_CON_SECURITY',
+  '外包服务/电梯维保': 'EXP_CON_ELEV',
+  '外包服务/二次供水设施维保': 'EXP_CON_ELEV',
+  '外包服务/消防设施维保': 'EXP_CON_FIRE',
+  '采购/办公用品采购': 'EXP_OP_OFFICE',
+  '采购/维修材料采购': 'EXP_OP_REPAIR',
+  '采购/设施设备采购': 'EXP_CON_PROJECT',
+  '劳动/劳动合同': 'EXP_LABOR_SALARY',
+  '劳动/劳务协议': 'EXP_LABOR_OUTSOURCE',
+  '劳动/实习协议': 'EXP_LABOR_OUTSOURCE'
+}
+
+export const contractCategoryOf = c =>
+  CONTRACT_CATEGORY_OF[`${c?.type}/${c?.subtype}`]
+  || (contractDirectionOf(c) === '支出' ? 'EXP_OP_OTHER' : 'INC_MULTI_VENUE')
+
+/** 分类名称（页面显示用；取不到就显原始码，不吞掉） */
+export const contractCategoryName = code =>
+  (feeCategories.find(f => f.code === code) || {}).name || code || '未分类'
+
+/** 合同类型两级树：方向 → 一级类型 → 二级子类型，带份数（筛选联动与侧栏共用） */
+export function contractTypeTree(direction = '') {
+  const rows = CONTRACT_ROWS.filter(c => !direction || c.direction === direction)
+  const map = new Map()
+  for (const c of rows) {
+    if (!map.has(c.type)) map.set(c.type, { type: c.type, count: 0, subs: new Map() })
+    const t = map.get(c.type)
+    t.count += 1
+    t.subs.set(c.subtype, (t.subs.get(c.subtype) || 0) + 1)
+  }
+  return [...map.values()].map(t => ({
+    type: t.type,
+    count: t.count,
+    subs: [...t.subs.entries()].map(([subtype, count]) => ({ subtype, count }))
+      .sort((a, b) => b.count - a.count)
+  })).sort((a, b) => b.count - a.count)
+}
+
+/**
+ * 公共收益台账（行）。
+ * 口径只有一条：**公共收益归全体业主**，物业只能按合同分成拿服务费。
+ * 所以台账同时给"合同额 / 归业主 / 归物业"三个数 —— 只给合同额，
+ * 汇报时会被当成公司收入，而这笔钱大部分不是公司的。
+ */
+export function publicRevenueRows({ communityId = '', year = '' } = {}) {
+  return CONTRACT_ROWS
+    .filter(c => (Number(c.publicRevenue) || 0) > 0)
+    .filter(c => !communityId || c.communityId === communityId)
+    .filter(c => !year || (String(c.startDate).slice(0, 4) <= year && String(c.endDate).slice(0, 4) >= year))
+    .map(c => {
+      const pub = Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0)
+      return {
+        ...c,
+        publicRevenue: pub,
+        ownerShare: pub,
+        companyShare: Math.round((Number(c.amount) - pub) * 100) / 100,
+        publicRate: c.amount ? Math.round(pub / c.amount * 10000) / 100 : 0,
+        annualOwner: c.annualPublicRevenue || 0,
+        annualCompany: Math.round((Number(c.annualRevenue) || 0) * 100) / 100
+      }
+    })
+    .sort((a, b) => b.annualOwner - a.annualOwner)
+}
+
+export function publicRevenueSummary({ communityId = '', year = '' } = {}) {
+  const rows = publicRevenueRows({ communityId, year })
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const sum = k => r2(rows.reduce((s, x) => s + (Number(x[k]) || 0), 0))
+  const byCommunity = new Map()
+  for (const r of rows) {
+    const k = r.communityName
+    const cur = byCommunity.get(k) || { communityName: k, count: 0, amount: 0, ownerShare: 0, companyShare: 0, annualOwner: 0 }
+    cur.count += 1
+    cur.amount = r2(cur.amount + r.amount)
+    cur.ownerShare = r2(cur.ownerShare + r.ownerShare)
+    cur.companyShare = r2(cur.companyShare + r.companyShare)
+    cur.annualOwner = r2(cur.annualOwner + r.annualOwner)
+    byCommunity.set(k, cur)
+  }
+  return {
+    count: rows.length,
+    amount: sum('amount'),
+    ownerShare: sum('ownerShare'),
+    companyShare: sum('companyShare'),
+    annualOwner: sum('annualOwner'),
+    annualCompany: sum('annualCompany'),
+    avgRate: sum('amount') ? Math.round(sum('ownerShare') / sum('amount') * 10000) / 100 : 0,
+    byCommunity: [...byCommunity.values()].sort((a, b) => b.ownerShare - a.ownerShare)
+  }
+}
+
+/** 台账可选年份：合同跨年，按覆盖年份给 */
+export function publicRevenueYears() {
+  const ys = new Set()
+  for (const c of CONTRACT_ROWS) {
+    if (!(Number(c.publicRevenue) > 0)) continue
+    const s = Number(String(c.startDate).slice(0, 4))
+    const e = Number(String(c.endDate).slice(0, 4))
+    for (let y = s; y <= e; y++) if (y) ys.add(String(y))
+  }
+  return [...ys].sort().reverse()
+}
+
 /**
  * 年化的**商业合作收入** = (合同金额 − 公共收益) ÷ 期间月数 × 12。
  *
  * 三条硬约束都写在这里，不交给调用方判断：
- *   ① 只有 `incomeCategory=多种经营` 才有值 —— 68 份支出合同算进收入会凭空多出 1074 万；
+ *   ① 只有 `incomeCategory=多种经营` 才有值 —— 62 份支出合同算进收入会凭空多出上千万；
  *   ② 公共收益按「归业主的部分」扣，方向与合同里的分成条款一致；
  *   ③ 期间总额年化 —— 36 个月的合同不年化会让当年虚高 3 倍。
  */
@@ -3867,9 +4013,16 @@ export function annualRevenueOf(c = {}) {
 
 /** 合同行 + 派生字段。派生值只在读的时候算，写回不落库（落库就会和原始值打架） */
 function _contractRow(c) {
+  const categoryId = contractCategoryOf(c)
   return {
     ...c,
     communityName: c.communityId ? communityName(c.communityId) : '集团 / 全项目',
+    /* 批 4：方向与分类都是派生的 —— 85 份合同没有 direction 字段，
+       但方向由类型唯一确定，存一份冗余只会给以后的写操作留下"改了类型没改方向"的坑 */
+    direction: contractDirectionOf(c),
+    countsInRevenue: contractCountsInRevenue(c),
+    categoryId,
+    categoryName: contractCategoryName(categoryId),
     // 剩余天数：正数=还在履约，负数=已过期
     restDays: daysBetween(c.endDate) === null ? null : -daysBetween(c.endDate),
     contractMonths: contractMonthsOf(c),
@@ -3929,34 +4082,50 @@ export function queryContracts({ pageNo = 1, size = 20, filters = {} } = {}) {
   return delay(() => {
     const vf = CONTRACT_VF[filters.vf]
     const list = scopeFilter(CONTRACT_ROWS).filter(c =>
+      (!filters.direction || c.direction === filters.direction) &&
       eq(c, filters.ctype, 'type') &&
       eq(c, filters.csub, 'subtype') &&
       eq(c, filters.communityId, 'communityId') &&
       eq(c, filters.status, 'status') &&
       eq(c, filters.incomeCategory, 'incomeCategory') &&
+      eq(c, filters.categoryId, 'categoryId') &&
       (!vf || vf(c)) &&
       kwHit(c, filters.kw, ['contractNo', 'name', 'partyB', 'contact', 'owner', 'subtype'])
     )
     return paged(list, pageNo, size)
   })
 }
-export function contractSummary() {
-  const st = s => CONTRACT_ROWS.filter(c => c.status === s).length
-  const ops = CONTRACT_ROWS.filter(c => c.incomeCategory === '多种经营')
+export function contractSummary(direction = '') {
+  const rows = direction ? CONTRACT_ROWS.filter(c => c.direction === direction) : CONTRACT_ROWS
+  const st = s => rows.filter(c => c.status === s).length
+  const ops = rows.filter(c => c.incomeCategory === '多种经营')
   const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const amountOf = list => r2(list.reduce((s, c) => s + (Number(c.amount) || 0), 0))
+  const income = rows.filter(c => c.direction === '收入')
+  const expense = rows.filter(c => c.direction === '支出')
   return {
-    total: CONTRACT_ROWS.length,
-    amount: Math.round(CONTRACT_ROWS.reduce((s, c) => s + c.amount, 0)),
+    total: rows.length,
+    amount: Math.round(rows.reduce((s, c) => s + c.amount, 0)),
     running: st('履行中'),
-    expiring: CONTRACT_ROWS.filter(CONTRACT_VF.expiring).length,
-    expired: CONTRACT_ROWS.filter(CONTRACT_VF.expired).length,
-    pending: CONTRACT_ROWS.filter(CONTRACT_VF.pending).length,
+    expiring: rows.filter(CONTRACT_VF.expiring).length,
+    expired: rows.filter(CONTRACT_VF.expired).length,
+    pending: rows.filter(CONTRACT_VF.pending).length,
     /* 经营口径：合同规模 ≠ 收入规模。这四项让「85 份 / 1567 万」不再被误读成收入 */
     operationCount: ops.length,
     operationAmount: r2(ops.reduce((s, c) => s + (c.annualRevenue || 0), 0)),
     publicRevenue: r2(ops.reduce((s, c) => s + (c.annualPublicRevenue || 0), 0)),
-    expenseCount: CONTRACT_ROWS.filter(c => c.incomeCategory === '不计入').length,
-    mainCount: CONTRACT_ROWS.filter(c => c.incomeCategory === '主营业务').length
+    expenseCount: rows.filter(c => c.incomeCategory === '不计入').length,
+    mainCount: rows.filter(c => c.incomeCategory === '主营业务').length,
+
+    /* 批 4：收支分列。合同总额 1567 万里有 1064 万是支出，混在一起看会以为公司收了 1567 万 */
+    incomeCount: income.length,
+    incomeAmount: amountOf(income),
+    /* 「计入收入」的只有 17 份：另 6 份物业服务合同的钱已按账单收过，合同不再重复计 */
+    incomeCountedCount: income.filter(c => c.countsInRevenue).length,
+    incomeCountedAmount: amountOf(income.filter(c => c.countsInRevenue)),
+    expenseTotalCount: expense.length,
+    expenseTotalAmount: amountOf(expense),
+    netAmount: r2(amountOf(income) - amountOf(expense))
   }
 }
 /**

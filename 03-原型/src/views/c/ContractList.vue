@@ -11,25 +11,47 @@
 
     <div class="panel" style="margin-top:16px;">
       <div class="grid" style="grid-template-columns:repeat(5,minmax(0,1fr));">
-        <div class="dstat"><div class="dstat__k">合同总数</div><div class="dstat__v">{{ summary.total }}<span class="unit">份</span></div></div>
         <div class="dstat">
-          <div class="dstat__k">合同总金额</div>
-          <div class="dstat__v">{{ wan(summary.amount) }}<span class="unit">元</span></div>
-          <div class="dstat__s">期间总额，不是年额</div>
+          <div class="dstat__k">合同总数</div>
+          <div class="dstat__v">{{ summary.total }}<span class="unit">份</span></div>
+          <div class="dstat__s">收入 {{ summary.incomeCount }} · 支出 {{ summary.expenseTotalCount }}</div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">收入合同（期间额）</div>
+          <div class="dstat__v">{{ wan(summary.incomeAmount) }}<span class="unit">元</span></div>
+          <div class="dstat__s">
+            其中计入收入 {{ summary.incomeCountedCount }} 份 · {{ wan(summary.incomeCountedAmount) }} 元
+          </div>
+        </div>
+        <div class="dstat">
+          <div class="dstat__k">支出合同（期间额）</div>
+          <div class="dstat__v is-warn">{{ wan(summary.expenseTotalAmount) }}<span class="unit">元</span></div>
+          <div class="dstat__s">采购 / 外包 / 劳动，只进成本</div>
         </div>
         <div class="dstat">
           <div class="dstat__k">年化商业合作收入</div>
           <div class="dstat__v">{{ wan(summary.operationAmount) }}<span class="unit">元</span></div>
           <div class="dstat__s">{{ summary.operationCount }} 份经营合同 · 已扣公共收益</div>
         </div>
-        <div class="dstat"><div class="dstat__k">90 天内到期</div><div class="dstat__v" :class="summary.expiring > 0 ? 'is-warn' : ''">{{ summary.expiring }}<span class="unit">份</span></div></div>
-        <div class="dstat"><div class="dstat__k">已到期 / 待审批</div><div class="dstat__v" :class="summary.expired > 0 ? 'is-warn' : ''">{{ summary.expired }} / {{ summary.pending }}<span class="unit">份</span></div></div>
+        <div class="dstat">
+          <div class="dstat__k">到期 / 待审批</div>
+          <div class="dstat__v" :class="summary.expiring > 0 ? 'is-warn' : ''">
+            {{ summary.expiring }} / {{ summary.expired }} / {{ summary.pending }}
+            <span class="unit">份</span>
+          </div>
+          <div class="dstat__s">90 天内 / 已到期 / 待审批</div>
+        </div>
       </div>
       <div class="sum-note">
-        口径：履行中 {{ summary.running }} 份；「集团级合同」指未绑定具体项目（communityId 为空）的合同，走常用视图单独筛。
-        <b>合同金额是期间总额</b>，直接加起来不等于收入 —— 收入看「年化商业合作收入」这一列
-        （只算 16 份经营合同，扣掉归业主的公共收益 ¥{{ wan(summary.publicRevenue) }}）；
-        另有 {{ summary.expenseCount }} 份是支出合同（采购 / 外包 / 劳动 / 顾问服务），只进成本不进收入。
+        口径：合同总额是<b>期间总额</b>，不是一个月的钱；收入与支出必须分列 ——
+        85 份合同里 {{ summary.expenseTotalCount }} 份是支出（{{ wan(summary.expenseTotalAmount) }} 元），
+        混在一起看会以为公司收了 {{ wan(summary.amount) }} 元。
+        <br />
+        另有 {{ summary.expenseCount - summary.expenseTotalCount }} 份物业服务合同标了「不计入」：
+        它们的钱已经按物业费账单逐月收过，合同只做登记、不再重复计一笔收入 ——
+        <b>方向看合同类型，是否计收入看「收入分类」</b>，两者不是一回事。
+        收入看「年化商业合作收入」（{{ summary.operationCount }} 份经营合同，扣掉归业主的公共收益
+        ¥{{ wan(summary.publicRevenue) }}）。
       </div>
     </div>
 
@@ -41,6 +63,11 @@
           </div>
 
           <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
+            <el-form-item label="方向">
+              <el-select v-model="query.direction" placeholder="全部" clearable style="width:92px" @change="onDirection">
+                <el-option v-for="o in CONTRACT_DIRECTIONS" :key="o" :label="o" :value="o" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="类型">
               <el-select v-model="query.ctype" placeholder="全部" clearable style="width:118px" @change="onType">
                 <el-option v-for="o in typeOpts" :key="o" :label="o" :value="o" />
@@ -57,17 +84,17 @@
               </el-select>
             </el-form-item>
             <el-form-item label="收入分类">
-              <el-select v-model="query.incomeCategory" placeholder="全部" clearable style="width:112px">
+              <el-select v-model="query.incomeCategory" placeholder="全部" clearable style="width:104px">
                 <el-option v-for="o in CONTRACT_INCOME_CATEGORIES" :key="o" :label="o" :value="o" />
               </el-select>
             </el-form-item>
             <el-form-item label="项目">
-              <el-select v-model="query.communityId" placeholder="全部" clearable style="width:110px">
+              <el-select v-model="query.communityId" placeholder="全部" clearable style="width:104px">
                 <el-option v-for="o in communities" :key="o.id" :label="o.name" :value="o.id" />
               </el-select>
             </el-form-item>
             <el-form-item label="关键字">
-              <el-input v-model="query.kw" placeholder="合同号 / 名称 / 相对方" clearable style="width:150px" @keyup.enter="search" />
+              <el-input v-model="query.kw" placeholder="合同号 / 名称 / 相对方" clearable style="width:142px" @keyup.enter="search" />
             </el-form-item>
             <el-form-item class="acts">
               <el-button :icon="'Search'" @click="run">查询</el-button>
@@ -91,6 +118,7 @@
           <div class="toolbar">
             <el-button type="primary" :icon="'Plus'" @click="$router.push('/c/contracts/new')">新建合同</el-button>
             <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
+            <el-button :icon="'Coin'" @click="$router.push('/b/public-revenue')">公共收益台账</el-button>
             <span class="spacer" />
             <el-button :icon="'Refresh'" circle title="刷新" @click="load" />
             <span class="muted" style="font-size:12.5px;">共 {{ total }} 份合同</span>
@@ -104,17 +132,21 @@
                 <div class="ps-sub">{{ row.contractNo }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="类型 / 子类型" min-width="104">
+            <el-table-column label="方向 / 类型" min-width="132">
               <template #default="{ row }">
-                <div class="nowrap">{{ row.type }}</div>
+                <div class="nowrap">
+                  <span class="tag" :class="row.direction === '收入' ? 'tag--success' : 'tag--muted'">{{ row.direction }}</span>
+                  {{ row.type }}
+                </div>
                 <div class="ps-sub">{{ row.subtype }}</div>
               </template>
             </el-table-column>
             <el-table-column prop="partyB" label="相对方" min-width="120" show-overflow-tooltip />
             <el-table-column prop="communityName" label="项目" min-width="104" show-overflow-tooltip />
-            <el-table-column label="收入归属" width="132">
+            <el-table-column label="收入归属" width="140">
               <template #default="{ row }">
                 <span class="tag" :class="incomeTone(row.incomeCategory)">{{ row.incomeCategory }}</span>
+                <div class="ps-sub">{{ row.categoryName }}</div>
                 <div v-if="row.incomeCategory === '多种经营'" class="ps-sub">
                   公共收益 ¥{{ wan(row.publicRevenue) }}
                 </div>
@@ -366,10 +398,10 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  CONTRACT_CHANGE_TYPES, CONTRACT_INCOME_CATEGORIES, PAGE_SIZES, communityOpts, contractApprovalOf,
-  contractAttachmentRows, contractChanges,
-  contractStatusOpts, contractSubtypeOpts, contractSummary, contractTypeOpts, contractVirtualNodes,
-  getContractDetail, queryContracts, submitContractChange
+  CONTRACT_CHANGE_TYPES, CONTRACT_DIRECTIONS, CONTRACT_INCOME_CATEGORIES, PAGE_SIZES,
+  communityOpts, contractApprovalOf, contractAttachmentRows, contractChanges,
+  contractStatusOpts, contractSubtypeOpts, contractSummary, contractTypeOpts, contractTypeTree,
+  contractVirtualNodes, getContractDetail, queryContracts, submitContractChange
 } from '@/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import { useFocusLanding } from '@/composables/useFocus'
@@ -383,7 +415,7 @@ import { exportList } from '@/utils/export'
 const router = useRouter()
 const route = useRoute()
 const BLANK = { ctype: '', csub: '', vf: '' }
-const BLANK_ALL = { ...BLANK, communityId: '', status: '', incomeCategory: '', kw: '' }
+const BLANK_ALL = { ...BLANK, direction: '', communityId: '', status: '', incomeCategory: '', kw: '' }
 
 
 /* 导出：只提交任务，文件在下载中心生成与下载 */
@@ -394,10 +426,12 @@ const incomeTone = c => INCOME_TONE[c] || 'tag--muted'
 const EXPORT_COLS = [
   { prop: 'contractId', label: '合同编号' },
   { prop: 'name', label: '合同名称' },
+  { prop: 'direction', label: '收支方向' },
   { prop: 'type', label: '类型' },
   { prop: 'partyB', label: '相对方' },
   { prop: 'communityName', label: '项目' },
   { prop: 'incomeCategory', label: '收入分类' },
+  { prop: 'categoryName', label: '分类（字典二级）' },
   { prop: 'amount', label: '合同金额' },
   { prop: 'publicRevenue', label: '公共收益' },
   { prop: 'annualRevenue', label: '年化经营收入' },
@@ -463,19 +497,24 @@ syncSummary()
 const quickViews = [{ key: '', label: '全部', n: summary.value.total }, ...vnodes]
 const expiringN = vnodes.find(v => v.key === 'expiring')?.n || 0
 const statusOpts = contractStatusOpts()
-const typeOpts = contractTypeOpts()
+/* 类型两级：先选方向，类型下拉只给这个方向下有的类型 ——
+   收入里不会出现「保洁服务外包」，支出里也不会出现「广告位租赁」 */
+const typeOpts = computed(() =>
+  query.direction ? contractTypeTree(query.direction).map(t => t.type) : contractTypeOpts())
 const communities = communityOpts()
 /* 子类型随类型联动 */
 const subOpts = computed(() => (query.ctype ? contractSubtypeOpts(query.ctype) : []))
+function onDirection() { query.ctype = ''; query.csub = ''; run() }
 function onType() { query.csub = ''; run() }
 
 const highlightId = ref('')
 const vnLabel = computed(() => (query.vf ? (quickViews.find(v => v.key === query.vf)?.label || '') : ''))
 function run() { search() }
 
-const hasScope = computed(() => !!(query.ctype || query.csub || query.vf || query.communityId || query.status || query.kw))
+const hasScope = computed(() => !!(query.direction || query.ctype || query.csub || query.vf || query.communityId || query.status || query.kw))
 const scopeText = computed(() => {
   const parts = []
+  if (query.direction) parts.push(query.direction + '合同')
   if (query.ctype) parts.push(query.ctype)
   if (query.csub) parts.push(query.csub)
   if (query.communityId) parts.push((communities.find(c => c.id === query.communityId) || {}).name || '')
