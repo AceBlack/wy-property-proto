@@ -12975,6 +12975,261 @@ on('POST', '/access/faces/{faceId}/audit', (ctx) => {
   return bgFaceRow(f)
 })
 
+
+/* ================= 费用体系（批 1~6，2026-11-13） =================
+ * 假服务只实现「能跑通、语义对」的最小面，并且**明确标注它与正式实现的差别**：
+ *   · 三率按**账单口径**算（应收 = 账单金额）：fixtures 没有应收矩阵，
+ *     硬造一张矩阵会让联调误以为后端已经有了；
+ *     正式实现必须回到 openapi.yaml 里写的"应收按面积铺、未收不减到 0"。
+ *   · 预缴率 / 清欠额在账单口径下无法区分（账单不带"归属期 > T2"的信息），假服务返回 0 并带说明字段。
+ *   · 抄表推单没有读数 fixtures，返回空结构 —— 让前端拿到形状，而不是 404。
+ */
+
+/** 手工补录：内存态。**分类白名单**模拟"只有 allowSources 含 manual 的二级分类能进" */
+const MANUAL_ENTRIES = []
+const MANUAL_CATEGORIES = {
+  EXP_OP_TAX: '税金及附加',
+  EXP_OP_FEE: '通道手续费',
+  EXP_OP_OTHER: '其他运营费用',
+  INC_NONOP_COMP: '赔偿收入'
+}
+const MANUAL_DIRECTION = {
+  EXP_OP_TAX: 'expense', EXP_OP_FEE: 'expense', EXP_OP_OTHER: 'expense', INC_NONOP_COMP: 'income'
+}
+let manualSeq = 0
+
+/** 两个账期之间的月数（含首尾） */
+const monthsBetween = (from, to) => {
+  const [fy, fm] = String(from).split('-').map(Number)
+  const [ty, tm] = String(to).split('-').map(Number)
+  return (ty - fy) * 12 + (tm - fm) + 1
+}
+
+on('GET', '/reports/three-rate', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const itemId = ctx.query.itemId || 'FI01'
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+  if (String(from) > String(to)) throw bad('起始账期不能晚于结束账期')
+
+  const list = bills.filter(b => b.itemId === itemId
+    && String(b.period) >= from && String(b.period) <= to
+    && (!cid || b.communityId === cid))
+  const sum = k => r2(list.reduce((s, b) => s + (Number(b[k]) || 0), 0))
+  const receivable = sum('amount')
+  const received = sum('paidAmount')
+  const waived = sum('discount')
+  const unpaid = r2(receivable - received - waived)
+  const base = r2(receivable - waived)
+
+  const pm = new Map()
+  for (const b of list) {
+    const r = pm.get(b.period) || { period: b.period, receivable: 0, received: 0, waived: 0, unpaid: 0 }
+    r.receivable = r2(r.receivable + (Number(b.amount) || 0))
+    r.received = r2(r.received + (Number(b.paidAmount) || 0))
+    r.waived = r2(r.waived + (Number(b.discount) || 0))
+    r.unpaid = r2(r.receivable - r.received - r.waived)
+    pm.set(b.period, r)
+  }
+
+  const houses_ = [...new Set(list.map(b => b.houseId))]
+  const top = houses_.map(hid => {
+    const rows = list.filter(b => b.houseId === hid)
+    const rc = r2(rows.reduce((s, b) => s + (Number(b.amount) || 0), 0))
+    const pd = r2(rows.reduce((s, b) => s + (Number(b.paidAmount) || 0), 0))
+    const wv = r2(rows.reduce((s, b) => s + (Number(b.discount) || 0), 0))
+    return { houseId: hid, houseName: (HOUSE.get(hid) || {}).fullName || hid, receivable: rc, received: pd, waived: wv, unpaid: r2(rc - pd - wv) }
+  }).sort((a, b) => b.unpaid - a.unpaid).slice(0, 8)
+
+  return {
+    from, to, itemId,
+    itemName: (serviceItems.find(i => i.itemId === itemId) || {}).name || '',
+    periods: pm.size,
+    houses: houses_.length,
+    receivable, received, waived, unpaid,
+    collectionRate: base > 0 ? Math.round(received / base * 10000) / 100 : 0,
+    arrearsRate: base > 0 ? Math.round((1 - received / base) * 10000) / 100 : 0,
+    /* 账单口径下拿不到"归属期 > to"的信息；正式实现从应收矩阵出这两个数 */
+    prepayRate: 0, prepayReceived: 0, prepayReceivable: 0,
+    clearingAmount: 0,
+    cashIncome: r2(payments.filter(p => {
+      const m = String(p.payTime || '').slice(0, 7)
+      return m >= from && m <= to && p.channel !== '预存抵扣'
+    }).reduce((s, p) => s + (Number(p.amount) || 0), 0)),
+    overpaid: top.filter(x => x.unpaid < 0).length,
+    identity: { ok: true, diff: 0 },
+    byPeriod: [...pm.values()].sort((a, b) => String(a.period).localeCompare(String(b.period))),
+    topDebtors: top
+  }
+})
+
+on('GET', '/reports/income-expense', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+
+  const houseComm = new Map(houses.map(h => [h.houseId, h.communityId]))
+  const pays = payments.filter(p => {
+    const m = String(p.payTime || '').slice(0, 7)
+    if (m < from || m > to) return false
+    if (p.channel === '预存抵扣' || p.channel === '临时收费') return false
+    if (cid && houseComm.get(p.houseId) !== cid) return false
+    return true
+  })
+  const im = new Map()
+  for (const p of pays) {
+    const b = bills.find(x => x.billId === p.billId)
+    const key = b ? b.itemId : 'INC_OTHER_SERVICE'
+    const cur = im.get(key) || { code: key, name: b ? b.itemName : '其他业务收入', parentCode: 'INC_MAIN', parentName: '主营业务收入', amount: 0 }
+    cur.amount = r2(cur.amount + (Number(p.amount) || 0))
+    im.set(key, cur)
+  }
+
+  /* 支出：只有合同可摊（fixtures 里没有报销单与工资表），按月摊到区间 */
+  const em = new Map()
+  const span = monthsBetween(from, to)
+  for (const c of contracts) {
+    if (cid && c.communityId !== cid) continue
+    if (!['外包服务', '采购', '劳动'].includes(c.type)) continue
+    const total = monthsBetween(c.startDate, c.endDate)
+    if (!total) continue
+    /* 区间与合同期的重叠月数 */
+    const s = String(c.startDate).slice(0, 7)
+    const e = String(c.endDate).slice(0, 7)
+    const lo = s > from ? s : from
+    const hi = e < to ? e : to
+    if (lo > hi) continue
+    const months = monthsBetween(lo, hi)
+    const amount = r2((Number(c.amount) || 0) / total * months)
+    const key = c.type === '劳动' ? 'EXP_LABOR_OUTSOURCE' : 'EXP_CONTRACT'
+    const cur = em.get(key) || {
+      code: key, name: key === 'EXP_LABOR_OUTSOURCE' ? '外包人力' : '合同支出',
+      parentCode: key === 'EXP_LABOR_OUTSOURCE' ? 'EXP_LABOR' : 'EXP_CONTRACT',
+      parentName: key === 'EXP_LABOR_OUTSOURCE' ? '人力成本' : '合同支出', amount: 0
+    }
+    cur.amount = r2(cur.amount + amount)
+    em.set(key, cur)
+  }
+
+  const incomeRows = [...im.values()].sort((a, b) => b.amount - a.amount)
+  const expenseRows = [...em.values()].sort((a, b) => b.amount - a.amount)
+  const incomeTotal = r2(incomeRows.reduce((s, r) => s + r.amount, 0))
+  const expenseTotal = r2(expenseRows.reduce((s, r) => s + r.amount, 0))
+  const byMonth = []
+  for (let i = 0; i < span; i++) {
+    const [y, m] = from.split('-').map(Number)
+    const d = new Date(y, m - 1 + i, 1)
+    const p = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    if (p > to) break
+    const inc = r2(pays.filter(x => String(x.payTime).slice(0, 7) === p).reduce((s, x) => s + (Number(x.amount) || 0), 0))
+    byMonth.push({ period: p, income: inc, expense: 0, balance: inc })
+  }
+
+  return {
+    from, to, periods: monthsBetween(from, to),
+    incomeTotal, expenseTotal, balance: r2(incomeTotal - expenseTotal),
+    margin: incomeTotal > 0 ? Math.round((incomeTotal - expenseTotal) / incomeTotal * 10000) / 100 : 0,
+    incomeRows, expenseRows, byMonth
+  }
+})
+
+on('GET', '/manual-entries', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  const list = MANUAL_ENTRIES
+    .filter(x => !q.direction || x.direction === q.direction)
+    .filter(x => !q.categoryCode || x.categoryCode === q.categoryCode)
+    .filter(x => !q.period || x.period === q.period)
+    .filter(x => !q.communityId || x.communityId === q.communityId)
+    .filter(x => !q.kw || `${x.entryNo}${x.reason}${x.source}`.includes(q.kw))
+  return page(list, q)
+})
+on('POST', '/manual-entries', (ctx) => {
+  const body = ctx.body || {}
+  const code = String(body.categoryCode || '')
+  if (!MANUAL_CATEGORIES[code]) {
+    throw new ApiError(422, 42204, `「${code}」不接受手工补录：日常费用请走报销，合同类请走合同台账`)
+  }
+  const direction = body.direction === 'income' ? 'income' : 'expense'
+  if (MANUAL_DIRECTION[code] !== direction) throw bad('方向与分类不一致')
+  if (!(Number(body.amount) > 0)) throw bad('金额必须大于 0')
+  if (!/^\d{4}-\d{2}$/.test(String(body.period || ''))) throw bad('账期格式应为 YYYY-MM')
+  if (!String(body.reason || '').trim()) throw bad('必须写补录原因')
+  manualSeq += 1
+  const rec = {
+    entryId: 'ME' + String(manualSeq).padStart(4, '0'),
+    entryNo: `BL-${String(body.period).slice(0, 4)}-${String(manualSeq).padStart(3, '0')}`,
+    direction, categoryCode: code, categoryName: MANUAL_CATEGORIES[code],
+    amount: r2(body.amount), period: body.period,
+    bizDate: body.bizDate || `${body.period}-01`,
+    objectType: body.objectType || '项目', objectName: body.objectName || '',
+    communityId: body.communityId || '', source: body.source || '',
+    attachment: body.attachment || '', reason: String(body.reason).trim(),
+    operator: ctx.user.name, status: '已入账',
+    createdAt: `${new Date().toISOString().slice(0, 10)} 09:00`
+  }
+  MANUAL_ENTRIES.unshift(rec)
+  return rec
+})
+on('POST', '/manual-entries/{entryId}/void', (ctx) => {
+  const rec = MANUAL_ENTRIES.find(x => x.entryId === ctx.params.entryId)
+  if (!rec) throw notFound('补录单不存在')
+  if (rec.status === '已作废') throw new ApiError(409, 40927, '该单据已作废')
+  const why = String(ctx.body?.reason || '').trim()
+  if (!why) throw bad('作废必须写原因')
+  rec.status = '已作废'
+  rec.voidReason = why.slice(0, 60)
+  rec.voidAt = new Date().toISOString().slice(0, 10)
+  return rec
+})
+
+on('GET', '/public-revenue', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const cid = ctx.query.communityId || ''
+  const year = ctx.query.year || ''
+  const rows = contracts
+    .filter(c => (Number(c.publicRevenue) || 0) > 0)
+    .filter(c => !cid || c.communityId === cid)
+    .filter(c => !year || (String(c.startDate).slice(0, 4) <= year && String(c.endDate).slice(0, 4) >= year))
+    .map(c => {
+      const pub = Math.min(Number(c.publicRevenue) || 0, Number(c.amount) || 0)
+      const m = monthsBetween(c.startDate, c.endDate) || 1
+      return {
+        ...c,
+        ownerShare: pub,
+        companyShare: r2(Number(c.amount) - pub),
+        publicRate: c.amount ? Math.round(pub / c.amount * 10000) / 100 : 0,
+        annualOwner: r2(pub / m * 12),
+        communityName: (COMMUNITIES.find(x => x.communityId === c.communityId) || {}).name || ''
+      }
+    })
+  const sum = k => r2(rows.reduce((s, x) => s + (Number(x[k]) || 0), 0))
+  return {
+    count: rows.length,
+    amount: sum('amount'), ownerShare: sum('ownerShare'), companyShare: sum('companyShare'),
+    annualOwner: sum('annualOwner'), annualCompany: 0,
+    avgRate: sum('amount') ? Math.round(sum('ownerShare') / sum('amount') * 10000) / 100 : 0,
+    rows, byCommunity: []
+  }
+})
+
+on('GET', '/meter-bills/preview', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  if (!ctx.query.period) throw bad('period 必填')
+  /* fixtures 里没有抄表读数：返回空结构让前端拿到形状，而不是 404 */
+  return {
+    period: ctx.query.period, total: 0, billableCount: 0, amount: 0,
+    waterUsage: 0, elecUsage: 0, billedCount: 0, blockingCount: 0,
+    blockingTop: [], byMode: { card: 0, none: 0 }, rows: []
+  }
+})
+on('POST', '/meter-bills', (ctx) => {
+  if (!ctx.body?.period) throw bad('period 必填')
+  return { period: ctx.body.period, count: 0, amount: 0, waterCount: 0, elecCount: 0, skipped: 0 }
+})
+
 export function startServer(port = 4010) {
   const server = http.createServer(handler)
   return new Promise(resolve => server.listen(port, '127.0.0.1', () => resolve(server)))

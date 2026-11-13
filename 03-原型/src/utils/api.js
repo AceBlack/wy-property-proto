@@ -19394,6 +19394,39 @@ const addMonths = (period, n) => {
 }
 const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100
 
+/* 户级单价：**同一个收费项对不同房屋可能是不同价**。
+ * 数据集里物业服务费有三档：住宅 2.8、公寓 3.2、商业 8.5（120 户）。
+ * 统一取 feeItems.price 的后果是：商业户每月按 2.8 算应收，
+ * 报表上"应收"比真实账单少 39 万，收缴率却虚高到 126% —— 一个错、两个指标同时失真。
+ *
+ * 取价顺序：该户该科目**最近一张账单上的 price 快照** → 收费项单价。
+ * 用账单快照而不是按 usage 硬编码，是因为快照本身记录了"这户当时按什么价开的"，
+ * 调价、一房一价都能自动跟上。 */
+let _PRICE_CACHE = { itemId: '', map: null }
+
+function _priceMapOf(itemId) {
+  if (_PRICE_CACHE.itemId === itemId && _PRICE_CACHE.map) return _PRICE_CACHE.map
+  const latest = new Map()
+  for (const b of bills) {
+    if (b.itemId !== itemId || !(Number(b.price) > 0)) continue
+    const prev = latest.get(b.houseId)
+    if (!prev || String(b.period) > prev.period) {
+      latest.set(b.houseId, { period: String(b.period), price: Number(b.price) })
+    }
+  }
+  const flat = new Map([...latest].map(([k, v]) => [k, v.price]))
+  _PRICE_CACHE = { itemId, map: flat }
+  return flat
+}
+
+/** 某户某科目的实际单价（没有账单历史的户回落收费项单价） */
+export function houseUnitPriceOf(houseId, itemId) {
+  const p = _priceMapOf(itemId).get(houseId)
+  if (p) return p
+  const item = feeItems.find(i => i.itemId === itemId)
+  return item ? Number(item.price) || 0 : 0
+}
+
 /** 某户某项的月应收：按面积计费的按面积，按车位的按车位，其余按月固定 */
 export function monthlyFeeOf(houseId, itemId) {
   const h = houses.find(x => x.houseId === houseId)
@@ -19401,7 +19434,9 @@ export function monthlyFeeOf(houseId, itemId) {
   const item = feeItems.find(i => i.itemId === itemId)
   if (!item) throw new Error('收费项不存在')
   if (item.status !== '启用') throw new Error(`收费项「${item.name}」已停用`)
-  if (item.calcType === '按面积') return round2((h.area || h.buildArea || 0) * item.price)
+  if (item.calcType === '按面积') {
+    return round2((h.area || h.buildArea || 0) * houseUnitPriceOf(houseId, itemId))
+  }
   if (item.calcType === '按车位') return round2(item.price)
   return round2(item.price)
 }
@@ -19594,6 +19629,38 @@ function _seedMatrixFromBills() {
   }
 }
 _seedMatrixFromBills()
+
+/**
+ * 预缴种子（2026-11-13 · 批 6）。
+ * 演示数据集里只有"已缴账单"，没有一笔提前缴的 —— 预缴率会恒为 0，
+ * 报表上看着像"这个指标没用"，实际是没数据。
+ * 取前 80 户有月度应收的住宅，把 2026-11 ~ 2027-04 六期标成已预缴，
+ * 这样预缴率大约 5%，能看出指标是活的。
+ * **只影响演示**：正式上线后这段不会存在，预缴全部来自真实收款。
+ */
+function _seedPrepay() {
+  const item = feeItems.find(i => i.itemId === 'FI01')
+  if (!item) return
+  /* 只取"演示常用户"之后的房子（前 20 户是收银台默认客户，占满它们的未来月份，
+     演示"预缴 12 个月"时就点不动了），间隔抽样让预缴分布看起来像真的 */
+  const pool = houses.filter(h => (h.area || 0) > 0 && h.usage === '住宅').slice(20)
+  const targets = pool.filter((h, i) => i % 4 === 0).slice(0, 80)
+  const periods = monthRange('2026-11', '2027-01')
+  for (const h of targets) {
+    /* 用「最近账单单价」而不是收费项单价：商业户预缴按 2.8 算，会和它的应收对不上 */
+    const price = (bills.find(b => b.houseId === h.houseId && b.itemId === 'FI01' && Number(b.price) > 0) || {}).price || item.price
+    const monthly = round2((h.area || 0) * price)
+    for (const p of periods) {
+      _MTX_SEQ += 1
+      MATRIX_TX.push({
+        txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+        houseId: h.houseId, itemId: 'FI01', period: p, amount: monthly,
+        source: 'prepay', at: '2026-10-08', legacy: true, demoSeed: true
+      })
+    }
+  }
+}
+_seedPrepay()
 
 
 /* ---------------- 计量项（水电）充值：金额 ⇄ 用量 ---------------- */
@@ -20238,4 +20305,297 @@ export function depositLedger() {
     categoryName: (feeCategories.find(f => f.code === DEPOSIT_CATEGORY_CODE) || {}).name || '押金及保证金',
     note: '收取时计入“其他应付款”，退款时冲减；只有扣款部分（业主违约）才转成收入'
   }
+}
+
+/* ==================================================================
+ * 批 6 · 三率报表 / 收支分项 / 结余（2026-11-13）
+ * ------------------------------------------------------------
+ * 三率不是三个百分比，是**同一套数的三种切法**，所以必须一次算完：
+ *
+ *   应收   = Σ 面积 × 单价 × 期数        （按账期铺，不看有没有开单）
+ *   已收   = Σ 矩阵流水（不含减免）
+ *   减免   = Σ 矩阵流水中 source=waive
+ *   未收   = 应收 − 已收 − 减免          ← **不减到 0**：超额收款是负数，要让人看见
+ *
+ *   收缴率 = 已收 ÷ (应收 − 减免)
+ *   欠费率 = 1 − 收缴率
+ *   预缴率 = Σ(归属期 > T2 的已收) ÷ Σ(归属期 > T2 的应收)
+ *   清欠额 = Σ(归属期 < T1 的已收)        ← 和预缴分开，混算没有意义
+ *   现金收入 = Σ(paidAt ∈ 区间)           ← 按收款日，与归属口径互为勾稽
+ *
+ * 恒等式 `已收 + 减免 + 未收 = 应收` 是这张报表的自检线：
+ * 对不上就是矩阵有孤儿流水，或者某期应收算错了。
+ * ================================================================ */
+
+/**
+ * 矩阵索引：houseId|itemId|period → { paid, waived }
+ * 756 户 × 12 期的报表不能每次都线性扫 MATRIX_TX（那是 3000 万次比较，页面会卡死）。
+ * 索引只在调用时建一次，且只建需要的账期范围。
+ */
+function _matrixIndex(itemId, periods) {
+  const want = new Set(periods)
+  const idx = new Map()
+  for (const t of MATRIX_TX) {
+    if (t.itemId !== itemId || !want.has(t.period)) continue
+    const k = `${t.houseId}|${t.period}`
+    const cur = idx.get(k) || { paid: 0, waived: 0 }
+    if (t.source === 'waive') cur.waived += Number(t.amount) || 0
+    else cur.paid += Number(t.amount) || 0
+    idx.set(k, cur)
+  }
+  return idx
+}
+
+/**
+ * 某户某收费项的月应收。
+ * 按面积时必须取**户级单价**（住宅 2.8 / 公寓 3.2 / 商业 8.5），
+ * 用收费项上的一个价会把商业户的应收算少一大截，收缴率随之虚高。
+ */
+function _monthlyOf(h, item, priceMap) {
+  if (!item) return 0
+  if (item.calcType === '按面积') {
+    const p = (priceMap && priceMap.get(h.houseId)) || Number(item.price) || 0
+    return _e2((h.area || h.buildArea || 0) * p)
+  }
+  return _e2(Number(item.price) || 0)
+}
+
+/**
+ * 三率报表。
+ * @param {{from?:string,to?:string,communityId?:string,itemId?:string,prepayMonths?:number}} p
+ */
+export function threeRateReport({
+  from = '2026-01', to = periodOf(), communityId = '', itemId = 'FI01', prepayMonths = 12
+} = {}) {
+  const periods = monthRange(from, to)
+  if (!periods.length) throw new Error('开始账期不能晚于结束账期')
+  if (periods.length > 36) throw new Error('一次最多统计 36 个账期')
+
+  const item = feeItems.find(i => i.itemId === itemId)
+  if (!item) throw new Error('收费项不存在')
+  if (!isReceivableItem(itemId)) throw new Error(`「${item.name}」没有月度应收，三率不适用（水电按账单缴，走收入分项）`)
+
+  const hs = houses.filter(h => !communityId || h.communityId === communityId)
+  const idx = _matrixIndex(itemId, periods)
+  const priceMap = _priceMapOf(itemId)
+
+  let receivable = 0
+  let received = 0
+  let waived = 0
+  const byPeriod = periods.map(p => ({ period: p, receivable: 0, received: 0, waived: 0, unpaid: 0 }))
+  const byHouse = new Map()
+
+  hs.forEach(h => {
+    const monthly = _monthlyOf(h, item, priceMap)
+    if (monthly <= 0) return
+    let hp = 0
+    let hr = 0
+    let hw = 0
+    byPeriod.forEach((row, i) => {
+      const t = idx.get(`${h.houseId}|${row.period}`) || { paid: 0, waived: 0 }
+      row.receivable = _e2(row.receivable + monthly)
+      row.received = _e2(row.received + t.paid)
+      row.waived = _e2(row.waived + t.waived)
+      hp += monthly
+      hr += t.paid
+      hw += t.waived
+    })
+    receivable += hp
+    received += hr
+    waived += hw
+    byHouse.set(h.houseId, { receivable: _e2(hp), received: _e2(hr), waived: _e2(hw), unpaid: _e2(hp - hr - hw) })
+  })
+
+  receivable = _e2(receivable)
+  received = _e2(received)
+  waived = _e2(waived)
+  /* 不减到 0：超额收款（预缴冲抵到已收满的期）会出现负数，那是有用的信息 */
+  const unpaid = _e2(receivable - received - waived)
+  byPeriod.forEach(r => { r.unpaid = _e2(r.receivable - r.received - r.waived) })
+
+  const base = _e2(receivable - waived)
+  const collectionRate = base > 0 ? Math.round(received / base * 10000) / 100 : 0
+  const arrearsRate = Math.round((100 - collectionRate) * 100) / 100
+
+  /* 预缴：归属期 > T2 的已收 ÷ 应收（往后看 prepayMonths 期） */
+  const futurePeriods = monthRange(addMonths(to, 1), addMonths(to, prepayMonths))
+  const fIdx = _matrixIndex(itemId, futurePeriods)
+  let prepayReceived = 0
+  let prepayReceivable = 0
+  for (const h of hs) {
+    const monthly = _monthlyOf(h, item, priceMap)
+    if (monthly <= 0) continue
+    for (const p of futurePeriods) {
+      prepayReceivable += monthly
+      const t = fIdx.get(`${h.houseId}|${p}`) || { paid: 0 }
+      prepayReceived += t.paid
+    }
+  }
+  prepayReceived = _e2(prepayReceived)
+  prepayReceivable = _e2(prepayReceivable)
+  const prepayRate = prepayReceivable > 0 ? Math.round(prepayReceived / prepayReceivable * 10000) / 100 : 0
+
+  /* 清欠：归属期 < T1 的已收 */
+  const pastPeriods = monthRange(MATRIX_START, addMonths(from, -1))
+  const pIdx = _matrixIndex(itemId, pastPeriods)
+  let clearingAmount = 0
+  for (const h of hs) {
+    for (const p of pastPeriods) {
+      const t = pIdx.get(`${h.houseId}|${p}`)
+      if (t) clearingAmount += t.paid
+    }
+  }
+  clearingAmount = _e2(clearingAmount)
+
+  /* 现金收入：按 paidAt 落在区间（排除预存抵扣 —— 那是负债抵扣，钱早就收过了） */
+  const cashIncome = _e2(payments
+    .filter(p => {
+      const m = String(p.payTime || '').slice(0, 7)
+      return m >= from && m <= to && p.channel !== '预存抵扣'
+    })
+    .reduce((s, p) => s + (Number(p.amount) || 0), 0))
+
+  const unreceived = [...byHouse.entries()]
+    .map(([houseId, v]) => ({ houseId, houseName: houseName(houseId), ...v }))
+    .filter(x => Math.abs(x.unpaid) > 0.01)
+    .sort((a, b) => b.unpaid - a.unpaid)
+
+  return {
+    from, to, itemId, itemName: item.name, communityId,
+    periods: periods.length,
+    houses: hs.length,
+    receivable, received, waived, unpaid,
+    collectionRate, arrearsRate, prepayRate,
+    prepayReceived, prepayReceivable,
+    clearingAmount, cashIncome,
+    byPeriod,
+    /* 自检线：对不上就是矩阵有孤儿流水，或者某期应收算错了 */
+    identity: {
+      ok: Math.abs(received + waived + unpaid - receivable) < 0.01,
+      diff: _e2(received + waived + unpaid - receivable)
+    },
+    topDebtors: unreceived.slice(0, 8),
+    overpaid: unreceived.filter(x => x.unpaid < 0).length
+  }
+}
+
+/**
+ * 收支分项 + 结余（区间）。
+ * 收入侧与支出侧的来源不同，不能套同一套模板：
+ *   收入：账单实收（按科目）+ 合同收入（按期间摊）+ 临时收费 + 手工补录收入
+ *   支出：报销 + 工资 + 合同摊 + 补录（直接复用 expenseCollect，按月累加）
+ */
+export function incomeExpenseReport({ from = '2026-01', to = periodOf(), communityId = '' } = {}) {
+  const periods = monthRange(from, to)
+  if (!periods.length) throw new Error('开始账期不能晚于结束账期')
+
+  const catOf = code => {
+    const c = feeCategories.find(f => f.code === code) || {}
+    return {
+      code,
+      name: c.name || code,
+      parentCode: c.parentCode || '',
+      parentName: (feeCategories.find(f => f.code === c.parentCode) || {}).name || '未归类'
+    }
+  }
+
+  const income = new Map()
+  const addIncome = (code, amount) => {
+    if (!(amount > 0)) return
+    const c = catOf(code)
+    const cur = income.get(code) || { ...c, amount: 0 }
+    cur.amount = _e2(cur.amount + amount)
+    income.set(code, cur)
+  }
+
+  /* ① 账单实收：按科目（payments 是按笔的现金，比账单的 paidAmount 更接近"收到多少"）
+     payments 上没有 communityId，只能经 houseId 反查；756 户 × 3986 笔不能每次都 find */
+  const commOfHouse = new Map(houses.map(h => [h.houseId, h.communityId]))
+  const billOf = new Map(bills.map(b => [b.billId, b]))
+  const catOfItem = new Map(feeItemCategoryMap.map(m => [m.itemId, m.categoryCode]))
+  const payRows = payments.filter(p => {
+    const m = String(p.payTime || '').slice(0, 7)
+    if (m < from || m > to) return false
+    if (p.channel === '预存抵扣' || p.channel === '临时收费') return false
+    if (communityId && commOfHouse.get(p.houseId) !== communityId) return false
+    return true
+  })
+  for (const p of payRows) {
+    const b = billOf.get(p.billId)
+    const itemId = b ? b.itemId : ''
+    /* 字段名是 categoryCode，不是 categoryId —— 写错一个字，整张收入表会全落进"其他业务收入" */
+    addIncome(catOfItem.get(itemId) || 'INC_OTHER_SERVICE', p.amount)
+  }
+
+  /* ② 合同收入：只算计入收入的经营合同，按期间摊到本月 */
+  for (const p of periods) {
+    for (const c of contracts) {
+      if (contractDirectionOf(c) !== '收入' || !contractCountsInRevenue(c)) continue
+      if (communityId && c.communityId !== communityId) continue
+      const s = String(c.startDate).slice(0, 7)
+      const e = String(c.endDate).slice(0, 7)
+      if (!s || !e || p < s || p > e) continue
+      const m = contractMonthsOf(c) || 1
+      addIncome(contractCategoryOf(c), _e2((Number(c.amount) || 0) / m))
+    }
+  }
+
+  /* ③ 临时收费：已收款，按笔归入临时服务费 */
+  const tc = TEMP_CHARGES_LIST()
+    .filter(x => x.status === '已收款')
+    .filter(x => { const m = String(x.payTime || '').slice(0, 7); return m >= from && m <= to })
+    .filter(x => !communityId || x.communityId === communityId)
+  for (const x of tc) addIncome('INC_OTHER_SERVICE', x.amount)
+
+  /* ④ 手工补录收入 */
+  for (const x of manualEntries) {
+    if (x.direction !== 'income' || x.status !== '已入账') continue
+    if (x.period < from || x.period > to) continue
+    if (communityId && x.communityId !== communityId) continue
+    addIncome(x.categoryCode, x.amount)
+  }
+
+  /* 支出：逐月归集再合并（expenseCollect 是单月的） */
+  const expense = new Map()
+  for (const p of periods) {
+    const ec = expenseCollect({ period: p, communityId })
+    for (const r of ec.rows) {
+      const cur = expense.get(r.categoryId) || {
+        code: r.categoryId, name: r.categoryName,
+        parentCode: r.parentCode, parentName: r.parentName, amount: 0
+      }
+      cur.amount = _e2(cur.amount + r.amount)
+      expense.set(r.categoryId, cur)
+    }
+  }
+
+  const deco = list => [...list.values()].sort((a, b) => b.amount - a.amount)
+  const sum = list => _e2(list.reduce((s, r) => s + r.amount, 0))
+  const incomeRows = deco(income)
+  const expenseRows = deco(expense)
+  const incomeTotal = sum(incomeRows)
+  const expenseTotal = sum(expenseRows)
+
+  /* 按月看趋势：结余为负的月份要能一眼找出来 */
+  const byMonth = periods.map(p => {
+    const inc = _e2(payRows.filter(x => String(x.payTime).slice(0, 7) === p)
+      .reduce((s, x) => s + x.amount, 0))
+    const ec = expenseCollect({ period: p, communityId })
+    return { period: p, income: inc, expense: ec.total, balance: _e2(inc - ec.total) }
+  })
+
+  return {
+    from, to, communityId, periods: periods.length,
+    incomeRows, expenseRows, incomeTotal, expenseTotal,
+    balance: _e2(incomeTotal - expenseTotal),
+    margin: incomeTotal > 0 ? Math.round((incomeTotal - expenseTotal) / incomeTotal * 10000) / 100 : 0,
+    byMonth,
+    cashCount: payRows.length
+  }
+}
+
+/** 临时收费的原始数组（内部只读用）。写成函数是为了避免顶层 TDZ：
+    TEMP_CHARGES 声明在文件中部，这里的代码在模块初始化时不会立即取它 */
+function TEMP_CHARGES_LIST() {
+  return TEMP_CHARGES
 }

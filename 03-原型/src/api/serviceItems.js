@@ -39,3 +39,6 @@ export {
   isEmptyWoType, publicCategoryOpts, serviceCategoryRows, serviceItemHistory,
   serviceItemOptions, serviceItemRows, woCategoryOpts, woTypeOpts
 } from '@/utils/api'
+
+/* 批 6：三率报表要按「有月度应收的收费项」切，需要收费项列表（纯派生，不走接口） */
+export { feeItemRows } from '@/utils/api'

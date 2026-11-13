@@ -100,6 +100,10 @@ export const PAGES = [
   { path: '/b/fee-categories', name: 'FeeCategory', title: '费用分类字典', group: 'b', status: 'done', icon: 'Files', desc: '收入 / 支出 / 负债 · 两级 · 允许来源',
     component: () => import('@/views/b/FeeCategory.vue') },
   /* 批 5（2026-11-13）：支出归集 = 报销 + 工资 + 合同摊 + 手工补录，四类来源确认时点不同 */
+  /* 批 6（2026-11-13）：三率 / 收支分项 / 结余 —— 报表自带恒等式自检 */
+  { path: '/b/revenue-report', name: 'RevenueReport', title: '经营报表', group: 'b', status: 'done', icon: 'TrendCharts',
+    desc: '三率（收缴/欠费/预缴）· 清欠 · 收支分项 · 结余',
+    component: () => import('@/views/b/RevenueReport.vue') },
   { path: '/b/expense-collect', name: 'ExpenseCollect', title: '支出归集', group: 'b', status: 'done', icon: 'PieChart',
     desc: '报销 / 工资 / 合同摊 / 补录 四源合一 · 按分类与来源拆开',
     component: () => import('@/views/b/ExpenseCollect.vue') },

@@ -48,3 +48,9 @@ export {
   PERIOD_TYPES, REPORT_PERIOD_MONTHS, REPORT_PERIOD_YEARS, REPORT_CLOSED_THROUGH,
   periodLabelOf, periodRawOf, latestSnapshot, snapshotOf, mapReportSummary, reportSummaryMapped
 } from '@/utils/api'
+
+/* ---------- 批 6（2026-11-13）：三率 / 收支分项 ----------
+ * 两个都是**区间立即算**（不是跑批产物），因为前台要能换任意区间看趋势；
+ * 恒等式自检随结果一起返回，页面不需要再算一遍。
+ */
+export { threeRateReport, incomeExpenseReport } from '@/utils/api'

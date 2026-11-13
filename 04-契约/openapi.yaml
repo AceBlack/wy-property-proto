@@ -11686,6 +11686,251 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  # ================= 费用体系（批 1~6，2026-11-13） =================
+  # 这一组对应用户侧的"费用与财务体系"改造：三率报表、收支分项、手工补录、公共收益、抄表推单。
+  # 口径随响应一起返回（identity / estimated / mode），前端不要自己再算一遍 —— 两处算一定漂移。
+  /reports/three-rate:
+    get:
+      tags: [reports]
+      operationId: getThreeRate
+      summary: 三率报表（收缴率 / 欠费率 / 预缴率）
+      description: |
+        一次返回**同一套数的三种切法**：
+        应收按账期铺（不看有没有开单）、已收与减免来自同一张矩阵、未收 = 应收 − 已收 − 减免（**不减到 0**，超额收款为负）。
+        `identity.ok=false` 时说明矩阵有孤儿流水或某期应收算错，此时 `collectionRate` 不可用。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: 起始账期（YYYY-MM）
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: to
+          in: query
+          required: true
+          description: 结束账期（YYYY-MM，含）
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+        - name: itemId
+          in: query
+          description: 收费项。只有「按面积 / 按车位 / 按户 + 月」的项有月度应收，水电走账单不算三率
+          schema: { type: string, default: FI01 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThreeRateEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/income-expense:
+    get:
+      tags: [reports]
+      operationId: getIncomeExpense
+      summary: 收支分项与结余（区间）
+      description: |
+        收入侧来源：账单实收（按科目）+ 合同收入（按期间摊）+ 临时收费 + 手工补录收入。
+        支出侧来源：报销 + 工资 + 合同摊 + 手工补录。
+        两侧来源不同，**不能套同一套模板**；`byMonth` 用于看单月亏损。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeExpenseEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /manual-entries:
+    get:
+      tags: [expenses]
+      operationId: queryManualEntries
+      summary: 手工补录列表
+      description: 只有 `allowSources` 含 `manual` 的二级分类能进来；税费只能走这里。
+      parameters:
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/communityId'
+        - name: direction
+          in: query
+          schema: { type: string, enum: [income, expense] }
+        - name: categoryCode
+          in: query
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/kw'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualEntryPageEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [expenses]
+      operationId: createManualEntry
+      summary: 新建手工补录
+      description: |
+        三条硬规则：只能挂二级分类、方向必须与分类一致、分类的 `allowSources` 必须含 `manual`。
+        校验不过返回 42204（分类不接受补录）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManualEntryInput' }
+      responses:
+        '201':
+          description: 已入账
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualEntryEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /manual-entries/{entryId}/void:
+    post:
+      tags: [expenses]
+      operationId: voidManualEntry
+      summary: 作废补录（不删除）
+      description: 补录是"没有单据流"的钱，作废后保留原记录并置 `status=已作废`，`reason` 必填。
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 已作废
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualEntryEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /public-revenue:
+    get:
+      tags: [contracts]
+      operationId: queryPublicRevenue
+      summary: 公共收益台账
+      description: |
+        公共收益归全体业主，物业只能按合同分成拿服务费。
+        三个数必须同时给：合同额 = 归业主 + 归物业；只给合同额会被当成公司收入。
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+        - name: year
+          in: query
+          description: 覆盖该年度的合同
+          schema: { type: string, pattern: '^\d{4}$' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicRevenueEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /meter-bills/preview:
+    get:
+      tags: [meters]
+      operationId: previewMeterBills
+      summary: 抄表推单预览
+      description: |
+        逐表返回"能不能出账、出多少钱、为什么不能出"。
+        只对 `communityUtility` 里配置为 `meter` 的表计出账；`card`（插卡买量）与 `none`（国网自缴）不出账。
+        `blocking` 非空的整批不能推（除非显式 `allowPartial`）。
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeterBillPreviewEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /meter-bills:
+    post:
+      tags: [meters]
+      operationId: generateMeterBills
+      summary: 抄表推单（生成水电账单，幂等）
+      description: |
+        读数复核后按「用量 × 业态单价」生成水电账单。已推过的（readingId 已回填 billId）不重复生成。
+        `allowPartial=true` 时允许在有未抄/待复核的情况下只推已抄完的，响应里带 `skipped` 说明跳过了多少户。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [period]
+              properties:
+                period: { type: string, pattern: '^\d{4}-\d{2}$' }
+                communityId: { type: string }
+                allowPartial:
+                  type: boolean
+                  default: false
+                  description: 抄表分批进行时用；必须由操作人显式确认
+      responses:
+        '201':
+          description: 已生成
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeterBillResultEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -18775,3 +19020,288 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/FaceRequestStats' }
+
+    # ---------- 费用体系（批 1~6，2026-11-13） ----------
+    ThreeRate:
+      type: object
+      description: 三率报表。identity 不通过时 collectionRate / arrearsRate 不可用。
+      required: [from, to, receivable, received, waived, unpaid, collectionRate, identity]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        itemId: { type: string }
+        itemName: { type: string }
+        periods: { type: integer, description: 区间内的账期数 }
+        houses: { type: integer }
+        receivable: { type: number, description: 'Σ 面积 × 户级单价 × 期数' }
+        received: { type: number }
+        waived: { type: number }
+        unpaid:
+          type: number
+          description: 应收 − 已收 − 减免。**不减到 0**：负数表示超额收款
+        collectionRate: { type: number, description: 已收 ÷ (应收 − 减免)，百分数 }
+        arrearsRate: { type: number, description: 1 − 收缴率 }
+        prepayRate: { type: number, description: '归属期 > to 的已收 ÷ 应收' }
+        prepayReceived: { type: number }
+        prepayReceivable: { type: number }
+        clearingAmount: { type: number, description: '归属期 < from 的已收（清欠），与预缴分开' }
+        cashIncome: { type: number, description: '按收款日落在区间的现金收入' }
+        overpaid: { type: integer, description: 未收为负的户数 }
+        identity:
+          type: object
+          description: 自检线。ok=false 时说明矩阵有孤儿流水或某期应收算错了
+          properties:
+            ok: { type: boolean }
+            diff: { type: number }
+        byPeriod:
+          type: array
+          items:
+            type: object
+            properties:
+              period: { type: string }
+              receivable: { type: number }
+              received: { type: number }
+              waived: { type: number }
+              unpaid: { type: number }
+        topDebtors:
+          type: array
+          items:
+            type: object
+            properties:
+              houseId: { type: string }
+              houseName: { type: string }
+              receivable: { type: number }
+              received: { type: number }
+              waived: { type: number }
+              unpaid: { type: number }
+
+    ThreeRateEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ThreeRate' }
+
+    IncomeExpenseRow:
+      type: object
+      properties:
+        code: { type: string, description: 分类字典二级编码 }
+        name: { type: string }
+        parentCode: { type: string }
+        parentName: { type: string }
+        amount: { type: number }
+
+    IncomeExpense:
+      type: object
+      properties:
+        from: { type: string }
+        to: { type: string }
+        periods: { type: integer }
+        incomeTotal: { type: number }
+        expenseTotal: { type: number }
+        balance: { type: number, description: 收入 − 支出；不含押金（负债） }
+        margin: { type: number, description: 结余率，百分数 }
+        incomeRows:
+          type: array
+          items: { $ref: '#/components/schemas/IncomeExpenseRow' }
+        expenseRows:
+          type: array
+          items: { $ref: '#/components/schemas/IncomeExpenseRow' }
+        byMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              period: { type: string }
+              income: { type: number }
+              expense: { type: number }
+              balance: { type: number }
+
+    IncomeExpenseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/IncomeExpense' }
+
+    ManualEntry:
+      type: object
+      properties:
+        entryId: { type: string }
+        entryNo: { type: string }
+        direction: { type: string, enum: [income, expense] }
+        categoryCode: { type: string }
+        categoryName: { type: string }
+        amount: { type: number }
+        period: { type: string, pattern: '^\d{4}-\d{2}$' }
+        bizDate: { type: string, format: date }
+        objectType: { type: string }
+        objectName: { type: string }
+        communityId: { type: string }
+        source: { type: string, description: '如：增值税及附加 / 支付通道结算' }
+        attachment: { type: string }
+        reason: { type: string, description: 必填；没有它以后没人说得清这笔钱是哪来的 }
+        operator: { type: string }
+        status: { type: string, enum: [已入账, 已作废] }
+        voidReason: { type: string }
+        voidAt: { type: string }
+        createdAt: { type: string }
+
+    ManualEntryInput:
+      type: object
+      required: [direction, categoryCode, amount, period, reason]
+      properties:
+        direction: { type: string, enum: [income, expense] }
+        categoryCode: { type: string, description: 必须是 allowSources 含 manual 的二级分类 }
+        amount: { type: number, exclusiveMinimum: 0 }
+        period: { type: string, pattern: '^\d{4}-\d{2}$' }
+        bizDate: { type: string, format: date }
+        objectType: { type: string }
+        objectName: { type: string }
+        communityId: { type: string }
+        source: { type: string }
+        attachment: { type: string }
+        reason: { type: string, maxLength: 120 }
+
+    ManualEntryEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ManualEntry' }
+
+    ManualEntryPageEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/Page'
+                - type: object
+                  properties:
+                    rows:
+                      type: array
+                      items: { $ref: '#/components/schemas/ManualEntry' }
+                    total: { type: integer }
+
+    PublicRevenueRow:
+      type: object
+      description: 合同额 = ownerShare + companyShare，三个数缺一不可
+      properties:
+        contractId: { type: string }
+        contractNo: { type: string }
+        name: { type: string }
+        communityName: { type: string }
+        partyB: { type: string }
+        subtype: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        amount: { type: number, description: 合同金额 }
+        ownerShare: { type: number, description: 归全体业主的部分 }
+        companyShare: { type: number, description: 归物业的服务费，这部分才是公司收入 }
+        publicRate: { type: number, description: 归业主比例，百分数 }
+        annualOwner: { type: number }
+        status: { type: string }
+
+    PublicRevenue:
+      type: object
+      properties:
+        count: { type: integer }
+        amount: { type: number }
+        ownerShare: { type: number }
+        companyShare: { type: number }
+        annualOwner: { type: number }
+        annualCompany: { type: number }
+        avgRate: { type: number }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/PublicRevenueRow' }
+        byCommunity:
+          type: array
+          items:
+            type: object
+            properties:
+              communityName: { type: string }
+              count: { type: integer }
+              amount: { type: number }
+              ownerShare: { type: number }
+              companyShare: { type: number }
+              annualOwner: { type: number }
+
+    PublicRevenueEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/PublicRevenue' }
+
+    MeterBillRow:
+      type: object
+      properties:
+        readingId: { type: string }
+        houseId: { type: string }
+        houseName: { type: string }
+        meterNo: { type: string }
+        type: { type: string, enum: [水表, 电表] }
+        usage: { type: number }
+        price: { type: number, description: 按业态取自价目表，取不到则为 0 并进 blocking }
+        amount: { type: number }
+        mode: { type: string, enum: [meter, card, none] }
+        billable: { type: boolean }
+        blocking:
+          type: array
+          description: 必须解决才能出账（未抄表 / 待复核 / 无价）
+          items: { type: string }
+        info:
+          type: array
+          description: 说明为什么这行不出账（已推单 / 代充 / 自缴 / 用量为 0）
+          items: { type: string }
+        billId: { type: string }
+
+    MeterBillPreview:
+      type: object
+      properties:
+        period: { type: string }
+        total: { type: integer }
+        billableCount: { type: integer }
+        amount: { type: number }
+        waterUsage: { type: number }
+        elecUsage: { type: number }
+        billedCount: { type: integer }
+        blockingCount: { type: integer }
+        blockingTop:
+          type: array
+          items: { type: string }
+        byMode:
+          type: object
+          properties:
+            card: { type: integer }
+            none: { type: integer }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/MeterBillRow' }
+
+    MeterBillPreviewEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MeterBillPreview' }
+
+    MeterBillResult:
+      type: object
+      properties:
+        period: { type: string }
+        count: { type: integer }
+        amount: { type: number }
+        waterCount: { type: integer }
+        elecCount: { type: integer }
+        skipped: { type: integer, description: 因未抄/待复核被跳过的户数 }
+
+    MeterBillResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MeterBillResult' }
