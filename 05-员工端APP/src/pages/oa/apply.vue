@@ -265,14 +265,6 @@ const itemTotal = oaItemTotal
 const itemsTotal = oaItemsTotal
 const fmtMoney = n => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2)
 
-/* 明细一变就回写金额字段：审批路径按金额分级，金额不同步会走错流程 */
-watch(() => JSON.stringify(form.items || []), () => {
-  const af = amountFieldOf(bizType.value)
-  if (!af || af.derived !== 'items') return
-  const total = oaItemsTotal(form.items || [])
-  form[af.key] = total > 0 ? total.toFixed(2) : ''
-})
-
 const defs = APPLY_DEFS
 const bizType = ref(defs[0]?.bizType || '')
 
@@ -283,6 +275,16 @@ const fields = computed(() => curDef.value?.fields || [])
 
 const form = reactive({})
 const files = reactive({})
+
+/* 明细一变就回写金额字段：审批路径按金额分级，金额不同步会走错流程。
+   必须放在 form 声明**之后** —— watch 建立时会先跑一次 getter 收集依赖，
+   放前面就是 TDZ（Cannot access 'form' before initialization）。 */
+watch(() => JSON.stringify(form.items || []), () => {
+  const af = amountFieldOf(bizType.value)
+  if (!af || af.derived !== 'items') return
+  const total = oaItemsTotal(form.items || [])
+  form[af.key] = total > 0 ? total.toFixed(2) : ''
+})
 const done = reactive({ show: false, no: '', title: '', node: '', handler: '' })
 
 function reset() {
