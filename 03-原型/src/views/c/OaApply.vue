@@ -56,7 +56,8 @@
 
           <el-form ref="formRef" :model="form" label-width="112px" class="oa-form" @submit.prevent>
             <el-row :gutter="24">
-              <el-col v-for="f in curDef.fields" :key="f.key" :span="f.type === 'textarea' || f.type === 'file' ? 24 : 12">
+              <el-col v-for="f in curDef.fields" :key="f.key"
+                :span="f.type === 'items' || f.type === 'textarea' || f.type === 'file' ? 24 : 12">
                 <el-form-item :label="f.label" :required="f.required">
                   <!-- 文本 -->
                   <el-input v-if="f.type === 'text'" v-model="form[f.key]" :maxlength="f.maxlength"
@@ -67,9 +68,38 @@
                   <!-- 数字 -->
                   <el-input-number v-else-if="f.type === 'number'" v-model="form[f.key]" :min="f.min" :max="f.max"
                     controls-position="right" style="width:180px" />
-                  <!-- 金额 -->
-                  <el-input v-else-if="f.type === 'money'" v-model.number="form[f.key]" placeholder="请输入金额"
+                  <!-- 金额：派生字段（= 明细合计）只读，避免"明细 800 / 报销 1000" -->
+                  <el-input v-else-if="f.type === 'money'" v-model.number="form[f.key]"
+                    :disabled="!!f.derived" :placeholder="f.derived ? '自动取明细合计' : '请输入金额'"
                     style="width:200px"><template #append>元</template></el-input>
+
+                  <!-- 明细表：采购类报销要能逐项列 -->
+                  <div v-else-if="f.type === 'items'" class="oaitems">
+                    <el-table :data="form[f.key]" size="small" border class="oaitems__t">
+                      <el-table-column v-for="c in f.columns" :key="c.key" :label="c.label" :width="c.width">
+                        <template #default="{ row }">
+                          <el-input v-if="c.type === 'text'" v-model="row[c.key]" size="small"
+                            :placeholder="c.required ? '必填' : ''" />
+                          <el-input-number v-else-if="c.type === 'number'" v-model="row[c.key]" :min="0"
+                            :controls="false" size="small" style="width:100%" />
+                          <el-input-number v-else-if="c.type === 'money'" v-model="row[c.key]" :min="0"
+                            :precision="2" :controls="false" size="small" style="width:100%" />
+                          <span v-else-if="c.type === 'computed'" class="oaitems__sum">{{ money(itemTotal(row)) }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="" width="52" align="center">
+                        <template #default="{ $index }">
+                          <el-button link type="danger" size="small" @click="removeItem(f.key, $index)">删</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <div class="oaitems__ft">
+                      <el-button link type="primary" :icon="'Plus'" @click="addItem(f.key)">添加一行</el-button>
+                      <span v-if="f.hint" class="oaitems__hint">{{ f.hint }}</span>
+                      <span class="spacer" />
+                      <span>合计 <b class="oaitems__total">{{ money(itemsTotal(form[f.key])) }}</b></span>
+                    </div>
+                  </div>
                   <!-- 日期 -->
                   <el-date-picker v-else-if="f.type === 'date'" v-model="form[f.key]" type="date"
                     value-format="YYYY-MM-DD" style="width:200px" placeholder="选择日期" />
@@ -161,7 +191,7 @@
           </span>
         </div>
         <div class="oa-done__note">
-          单子已进入审批流。本期审批通过即结束，不自动生成付款单 / 考勤 / 采购单。
+          单子已进入审批流。<b>费用报销</b>审批通过后会生成一张「待付款」报销单，财务在支出归集里确认付款后才计入成本；其余单据本期审批通过即结束。
         </div>
       </div>
       <template #footer>
@@ -173,12 +203,13 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  createOaRequest, currentOperator, communityOpts, oaFormCheck, oaNodesFor, oaPreviewFlow,
-  oaSummary, OA_FORM_DEFS
+  createOaRequest, currentOperator, communityOpts, oaFormCheck, oaItemTotal, oaItemsTotal,
+  oaNodesFor, oaPreviewFlow, oaSummary, OA_FORM_DEFS
 } from '@/api'
+import { money } from '@/utils/format'
 
 const defs = OA_FORM_DEFS
 const bizType = ref(defs[0].bizType)
@@ -199,11 +230,37 @@ function resetForm() {
   for (const k of Object.keys(form)) delete form[k]
   for (const k of Object.keys(files)) delete files[k]
   for (const f of curDef.value.fields) {
+    if (f.type === 'items') { form[f.key] = [blankItem(f)]; continue }
     form[f.key] = f.default !== undefined ? f.default : (f.type === 'number' || f.type === 'money' ? undefined : '')
     if (f.type === 'file') files[f.key] = []
   }
 }
 resetForm()
+
+/* 明细行：只放 columns 里定义过的键，避免把 UI 临时字段写进审批单 */
+function blankItem(f) {
+  const row = {}
+  for (const c of f.columns || []) {
+    row[c.key] = c.type === 'number' || c.type === 'money' ? undefined : ''
+  }
+  row.buyQty = 1
+  return row
+}
+const addItem = key => { form[key].push({ name: '', spec: '', unit: '', needQty: undefined, stockQty: undefined, buyQty: 1, price: undefined, note: '' }) }
+const removeItem = (key, i) => {
+  if (form[key].length <= 1) { ElMessage.warning('至少保留一行明细'); return }
+  form[key].splice(i, 1)
+}
+const itemTotal = oaItemTotal
+const itemsTotal = oaItemsTotal
+
+/* 明细一变就同步金额字段：派生值不能靠用户手填 */
+watch(() => JSON.stringify(form.items || []), () => {
+  const af = curDef.value.fields.find(f => f.derived === 'items')
+  if (!af) return
+  const total = oaItemsTotal(form.items || [])
+  form[af.key] = total > 0 ? total : undefined
+})
 
 function pickType(t) {
   if (bizType.value === t) return
@@ -282,6 +339,15 @@ async function onSubmit() {
 .oa-hint { margin-top: 2px; font-size: 11.5px; color: var(--biz-text-3); }
 .oa-file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .oa-file__list { font-size: 12px; color: var(--biz-text-2); }
+
+/* 明细表：表头紧凑一点，9 列才放得下 */
+.oaitems { width: 100%; }
+.oaitems__t :deep(.el-table__cell) { padding: 4px 0; }
+.oaitems__sum { font-family: var(--biz-font-num); font-weight: 600; }
+.oaitems__ft { display: flex; align-items: center; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+.oaitems__hint { font-size: 11.5px; color: var(--biz-text-3); }
+.oaitems__total { font-family: var(--biz-font-num); color: var(--el-color-primary); }
+.spacer { flex: 1; }
 
 /* 审批路径：申请人提交前要看得到 */
 .oa-flow { padding: 4px 0 2px; }

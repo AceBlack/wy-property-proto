@@ -1173,8 +1173,10 @@ paths:
         六类单据（用车 / 费用报销 / 请假 / 加班 / 用印 / 采购）的**字段描述**。
         页面按这份描述渲染表单，不给每种单据写一个页面 —— 加第七种只加一条定义。
 
-        字段类型：`text / textarea / number / money / date / datetime / select / file`。
+        字段类型：`text / textarea / number / money / date / datetime / select / file / items`。
         `role: amount` 的字段参与金额条件分支（决定走基础流程还是超额流程）。
+        `items` 是**明细表**（2026-11-13）：按 `columns` 逐行填写，总价 = 单价 × 本次采购数量；
+        带 `derived: items` 的金额字段由明细合计派生，客户端不传值（传了也会被重算）。
       responses:
         '200':
           description: 成功
@@ -11931,6 +11933,402 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  # ================= 第 83 批（2026-11-13）：押金 / 减免原因 / 工单评价 / 报销明细 =================
+  /waive-reasons:
+    get:
+      tags: [fees]
+      operationId: listWaiveReasons
+      summary: 减免原因字典
+      description: |
+        收银台减免必须选一条。字段里 **approveAbove** 是免审额度：
+        减免金额超过它时，收银台必须填写依据（审批单号 / 会议纪要），否则 42218。
+        **scope** 为「指定项目」时，只对 `communityIds` 里的项目可选 ——
+        政策性减免常常只针对一个小区，让它到处可选，前台会拿不适用的依据去减免。
+      parameters:
+        - name: enabled
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/WaiveReason' }
+    post:
+      tags: [fees]
+      operationId: createWaiveReason
+      summary: 新增减免原因
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaiveReasonInput' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/WaiveReason' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /waive-reasons/{reasonId}:
+    patch:
+      tags: [fees]
+      operationId: updateWaiveReason
+      summary: 修改 / 启停减免原因（停用不删）
+      parameters:
+        - name: reasonId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaiveReasonInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/WaiveReason' }
+
+  /deposit-types:
+    get:
+      tags: [deposits]
+      operationId: listDepositTypes
+      summary: 押金类型字典
+      description: |
+        押金不止装修一种：门禁卡、车牌、履约保证金、租约押金都进同一张台账。
+        类型决定四件事：**needDates** 要不要工期、**needCheck** 要不要验收、
+        **standardAmount** 金额是否固定（0 = 按合同约定）、**allowPartial** 能否部分退。
+      parameters:
+        - name: enabled
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DepositType' }
+    post:
+      tags: [deposits]
+      operationId: createDepositType
+      summary: 新增押金类型
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepositTypeInput' }
+      responses:
+        '201':
+          description: 已创建
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/DepositType' }
+
+  /deposit-types/{typeId}:
+    patch:
+      tags: [deposits]
+      operationId: updateDepositType
+      summary: 修改 / 启停押金类型
+      description: 停用只是不给新收，**已收的仍可退款**（押金是负债，钱必须能还回去）。
+      parameters:
+        - name: typeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepositTypeInput' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/DepositType' }
+
+  /deposits:
+    get:
+      tags: [deposits]
+      operationId: queryDeposits
+      summary: 押金台账
+      description: 口径 `收 = 退 + 扣 + 在账`。押金是负债（LIA_DEPOSIT），只有扣款部分转收入。
+      parameters:
+        - $ref: '#/components/parameters/pageNo'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/communityId'
+        - name: type
+          in: query
+          description: 押金类型（来自 /deposit-types）
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [在押, 装修中, 已逾期, 待退款, 已退还, 部分扣除, 已没收]
+        - $ref: '#/components/parameters/kw'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepositPageEnvelope' }
+    post:
+      tags: [deposits]
+      operationId: createDeposit
+      summary: 登记押金
+      description: |
+        按类型校验：`needDates` 的类型必须给开工与计划完工；
+        `standardAmount = 0` 的类型必须给 amount（按合同/租约）。
+        收银台收取也走这里，不另开接口 —— 两个入口两套校验必然漂移。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepositInput' }
+      responses:
+        '201':
+          description: 已登记
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Deposit' }
+
+  /deposits/{depositId}/check:
+    post:
+      tags: [deposits]
+      operationId: checkDeposit
+      summary: 押金验收（扣款在此登记）
+      description: 只有 `needCheck=true` 的类型能验收；门禁卡、车牌退卡即退，不应出现这一步。
+      parameters:
+        - name: depositId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checkDate]
+              properties:
+                checkDate: { type: string, format: date }
+                deductAmount: { type: number, minimum: 0 }
+                deductReason: { type: string, maxLength: 60, description: 有扣款时必填 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Deposit' }
+
+  /deposits/{depositId}/refund:
+    post:
+      tags: [deposits]
+      operationId: refundDeposit
+      summary: 押金退款
+      description: 需验收的类型必须先验收；`allowPartial=false` 的类型必须一次退清。
+      parameters:
+        - name: depositId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refundAmount: { type: number, description: 不传则退全部余额 }
+                refundDate: { type: string, format: date }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Deposit' }
+
+  /work-orders/{woId}/evaluate:
+    post:
+      tags: [work-orders]
+      operationId: evaluateWorkOrder
+      summary: 业主评价工单（1~5 星 + 固定五项标签）
+      description: |
+        评价写回 workOrders 的 `score / evalTags / evaluate / evaluateAt`。
+        标签固定五项（准时上门 / 讲解清楚 / 收拾干净 / 收费透明 / 态度好），三端同一份。
+        **未评价时 score=0**，满意度统计必须排除 0，否则均值被"没评"的单拉垮。
+      parameters:
+        - name: woId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                tags:
+                  type: array
+                  maxItems: 5
+                  items: { type: string, enum: [准时上门, 讲解清楚, 收拾干净, 收费透明, 态度好] }
+                text: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/WorkOrderSatisfaction' }
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /work-orders/satisfaction:
+    get:
+      tags: [work-orders]
+      operationId: getWorkOrderSatisfaction
+      summary: 工单满意度
+      description: |
+        三条口径：① 未评价（score=0）不参与均值；② 参评率分母 = 已完工 + 已评价 + 已关闭；
+        ③ 差评（≤2 星）单独给名单，用于回访。
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+        - name: from
+          in: query
+          schema: { type: string, pattern: '^\\d{4}-\\d{2}$' }
+        - name: to
+          in: query
+          schema: { type: string, pattern: '^\\d{4}-\\d{2}$' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/WorkOrderSatisfaction' }
+
+  /expenses/pending:
+    get:
+      tags: [expenses]
+      operationId: listPendingExpenses
+      summary: 已批未付的报销单
+      description: 审批通过 ≠ 已付款。付款日才确认支出，批了没付不算成本。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Expense' }
+
+  /expenses/{expenseId}/pay:
+    post:
+      tags: [expenses]
+      operationId: payExpense
+      summary: 确认付款（付款日决定归属账期）
+      parameters:
+        - name: expenseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payDate: { type: string, format: date }
+                remark: { type: string, maxLength: 60 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Expense' }
+        '409':
+          $ref: '#/components/responses/Conflict'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -14296,8 +14694,24 @@ components:
       properties:
         key: { type: string, example: amount }
         label: { type: string, example: 报销金额 }
-        type: { type: string, enum: [text, textarea, number, money, date, datetime, select, file] }
+        type: { type: string, enum: [text, textarea, number, money, date, datetime, select, file, items] }
         required: { type: boolean }
+        derived:
+          type: string
+          description: 派生来源。`items` = 取明细行合计（报销金额即此类，只读）
+        columns:
+          type: array
+          description: type=items 时的列定义
+          items:
+            type: object
+            required: [key, label, type]
+            properties:
+              key: { type: string }
+              label: { type: string }
+              type: { type: string, enum: [text, number, money, computed] }
+              required: { type: boolean }
+              width: { type: integer }
+
         maxlength: { type: integer }
         min: { type: number }
         max: { type: number }
@@ -19305,3 +19719,213 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/MeterBillResult' }
+
+    # ---------- 第 83 批（2026-11-13） ----------
+    WaiveReason:
+      type: object
+      properties:
+        reasonId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [政策性, 个案, 差错] }
+        countInAssess: { type: boolean, description: 是否计入考核（差错纠正常开） }
+        needProof: { type: boolean, description: 打开后收银台必须填写依据 }
+        scope: { type: string, enum: [全部, 指定项目] }
+        communityIds:
+          type: array
+          items: { type: string }
+        approveAbove:
+          type: number
+          description: 免审额度（元）。超过必须填依据；0 = 不设上限
+        enabled: { type: boolean }
+        sort: { type: integer }
+        desc: { type: string }
+
+    WaiveReasonInput:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 12 }
+        type: { type: string, enum: [政策性, 个案, 差错] }
+        countInAssess: { type: boolean }
+        needProof: { type: boolean }
+        scope: { type: string, enum: [全部, 指定项目] }
+        communityIds:
+          type: array
+          items: { type: string }
+        approveAbove: { type: number, minimum: 0 }
+        enabled: { type: boolean }
+        sort: { type: integer }
+        desc: { type: string, maxLength: 60 }
+
+    DepositType:
+      type: object
+      properties:
+        typeId: { type: string }
+        name: { type: string }
+        standardAmount:
+          type: number
+          description: 标准额。0 = 金额按合同/租约约定，收取时手填
+        needDates: { type: boolean, description: 是否需要工期（装修类） }
+        needCheck: { type: boolean, description: 是否需要验收（装修 / 履约 / 租约） }
+        allowPartial: { type: boolean, description: 能否部分退；false = 一次退清 }
+        byQuantity: { type: boolean, description: 按数量收（门禁卡 / 车牌） }
+        enabled: { type: boolean }
+        sort: { type: integer }
+        desc: { type: string }
+
+    DepositTypeInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 12 }
+        standardAmount: { type: number, minimum: 0 }
+        needDates: { type: boolean }
+        needCheck: { type: boolean }
+        allowPartial: { type: boolean }
+        byQuantity: { type: boolean }
+        enabled: { type: boolean }
+        sort: { type: integer }
+        desc: { type: string, maxLength: 80 }
+
+    Deposit:
+      type: object
+      description: 押金是负债（LIA_DEPOSIT）；收 = 退 + 扣 + 在账
+      properties:
+        depositId: { type: string }
+        applyNo: { type: string }
+        type: { type: string }
+        communityId: { type: string }
+        houseId: { type: string }
+        ownerId: { type: string }
+        amount: { type: number }
+        quantity: { type: integer }
+        paidDate: { type: string, format: date }
+        startDate: { type: string, description: 仅 needDates 类型有值 }
+        planEndDate: { type: string }
+        checkDate: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [在押, 装修中, 已逾期, 待退款, 已退还, 部分扣除, 已没收]
+        deductAmount: { type: number }
+        deductReason: { type: string }
+        refundAmount: { type: number }
+        refundDate: { type: string, nullable: true }
+        balance: { type: number, description: amount − refundAmount − deductAmount }
+        operator: { type: string }
+        remark: { type: string }
+
+    DepositInput:
+      type: object
+      required: [type, houseId, paidDate]
+      properties:
+        type: { type: string }
+        houseId: { type: string }
+        quantity: { type: integer, minimum: 1, default: 1 }
+        amount:
+          type: number
+          description: standardAmount = 0 的类型必填；有标准额时按 标准额 × 数量
+        paidDate: { type: string, format: date }
+        startDate: { type: string, description: needDates 类型必填 }
+        planEndDate: { type: string, description: needDates 类型必填 }
+        remark: { type: string, maxLength: 120 }
+
+    DepositPageEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/Page'
+                - type: object
+                  properties:
+                    rows:
+                      type: array
+                      items: { $ref: '#/components/schemas/Deposit' }
+                    total: { type: integer }
+                    summary:
+                      type: object
+                      properties:
+                        count: { type: integer }
+                        payable: { type: number, description: 收 }
+                        paid: { type: number, description: 退 }
+                        deduct: { type: number, description: 扣 }
+                        unpaid: { type: number, description: 在账 }
+                        byType:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              type: { type: string }
+                              count: { type: integer }
+                              amount: { type: number }
+                              balance: { type: number }
+
+    WorkOrderSatisfaction:
+      type: object
+      description: 未评价（score=0）不计入均值；参评率分母 = 已完工 + 已评价 + 已关闭
+      properties:
+        total: { type: integer }
+        rateable: { type: integer }
+        ratedCount: { type: integer }
+        unratedCount: { type: integer }
+        evalRate: { type: number, description: 百分数 }
+        avg: { type: number, description: 平均分，排除未评价 }
+        lowCount: { type: integer, description: 1~2 星的单数 }
+        dist:
+          type: array
+          items:
+            type: object
+            properties:
+              score: { type: integer }
+              n: { type: integer }
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              n: { type: integer }
+        lowList:
+          type: array
+          items:
+            type: object
+            properties:
+              woId: { type: string }
+              woNo: { type: string }
+              score: { type: integer }
+              assignee: { type: string }
+              evaluate: { type: string }
+
+    Expense:
+      type: object
+      properties:
+        expenseId: { type: string }
+        applyNo: { type: string }
+        expenseType: { type: string }
+        categoryId: { type: string, description: 映射到费用分类字典二级 }
+        amount: { type: number, description: 明细合计 }
+        happenDate: { type: string, format: date }
+        period: { type: string, pattern: '^\\d{4}-\\d{2}$' }
+        communityId: { type: string }
+        applicant: { type: string }
+        status: { type: string, enum: [待付款, 已付款, 审批中, 已驳回] }
+        payDate: { type: string, description: 付款日决定归属账期 }
+        approvalId: { type: string }
+        items:
+          type: array
+          description: OA 报销明细行（总价 = 单价 × 本次采购数量）
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              spec: { type: string }
+              unit: { type: string }
+              needQty: { type: number }
+              stockQty: { type: number }
+              buyQty: { type: number }
+              price: { type: number }
+              total: { type: number, description: 服务端计算，不取客户端传值 }
+              note: { type: string }
+

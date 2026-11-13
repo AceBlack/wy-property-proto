@@ -723,15 +723,29 @@ test('OA 单据定义：六类齐全，字段是「描述」不是固定列', as
 })
 
 test('OA 发起：表单校验拦在前，金额决定审批级数', async () => {
+  /*
+   * 2026-11-13：报销改成**明细行 + 金额派生**。
+   * 只填一个总额时审批人核不了账，所以 `amount` 由 `items` 合计算出，客户端传值会被重算。
+   */
+  const items = [{ name: 'A4 打印纸', spec: '70g', unit: '包', needQty: 5, stockQty: 2, buyQty: 3, price: 1000, note: '' }]
   const base = {
     expenseType: '办公费', happenDate: '2026-11-01', communityId: 'P01',
-    reason: '十月办公用品采购报销'
+    reason: '十月办公用品采购报销', items
   }
-  /* 缺金额 → 422/42211 */
-  const noAmount = await call('POST', '/oa/requests', { body: { bizType: '费用报销', formData: base } })
-  eq(noAmount.status, 422, '缺必填 HTTP 状态')
-  eq(noAmount.code, 42211, '缺必填业务码')
-  assert(noAmount.message.includes('报销金额'), `提示应点名缺哪个字段：${noAmount.message}`)
+  /* 缺明细 → 422/42211，且提示要点名「采购明细」 */
+  const noItems = await call('POST', '/oa/requests', {
+    body: { bizType: '费用报销', formData: { ...base, items: [] } }
+  })
+  eq(noItems.status, 422, '缺明细 HTTP 状态')
+  eq(noItems.code, 42211, '缺明细业务码')
+  assert(noItems.message.includes('采购明细'), `提示应点名缺哪个字段：${noItems.message}`)
+
+  /* 传了错金额也不认：以明细合计为准（3 × 1000 = 3000） */
+  const staleAmount = await call('POST', '/oa/requests', {
+    body: { bizType: '费用报销', formData: { ...base, amount: 1 } }
+  })
+  eq(staleAmount.status, 200, '带错金额仍可提交（金额被重算）')
+  eq(staleAmount.data.amount, 3000, '金额取明细合计，不取客户端传值')
 
   /* 未知类型 */
   const unknown = await call('POST', '/oa/requests', { body: { bizType: '不存在的单据', formData: {} } })
@@ -739,7 +753,7 @@ test('OA 发起：表单校验拦在前，金额决定审批级数', async () =>
 
   /* 3000 → 两级（部门负责人 → 财务复核） */
   const small = await call('POST', '/oa/requests', {
-    body: { bizType: '费用报销', formData: { ...base, amount: 3000 } }
+    body: { bizType: '费用报销', formData: { ...base } }
   })
   eq(small.status, 200, '发起 HTTP 状态')
   assertSchema(small, 'OaRequestEnvelope', 'POST /oa/requests')
@@ -753,9 +767,12 @@ test('OA 发起：表单校验拦在前，金额决定审批级数', async () =>
   assert(a1.formData.expenseType === '办公费', 'formData 原样落库')
   assert(a1.title.includes('办公费'), `标题带摘要：${a1.title}`)
 
-  /* 8000 → 三级（多一级项目经理） */
+  /* 8000 → 三级（多一级项目经理）：明细改成 8 × 1000 */
   const big = await call('POST', '/oa/requests', {
-    body: { bizType: '费用报销', formData: { ...base, amount: 8000 } }
+    body: { bizType: '费用报销', formData: {
+      ...base,
+      items: [{ name: '维修材料', unit: '批', buyQty: 8, price: 1000, note: '整批采购' }]
+    } }
   })
   eq(big.data.flow.length, 3, '8000 元走三级（超 5000 加项目经理）')
   eq(big.data.flow[2].node, '项目经理审批', '第三级是项目经理')

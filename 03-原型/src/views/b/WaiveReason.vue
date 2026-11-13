@@ -55,6 +55,17 @@
         <el-table-column label="需凭证" width="90" align="center">
           <template #default="{ row }">{{ row.needProof ? '是' : '—' }}</template>
         </el-table-column>
+        <el-table-column label="适用范围" width="120">
+          <template #default="{ row }">
+            {{ row.scope === '指定项目' ? '指定项目' : '全部项目' }}
+            <div v-if="row.scope === '指定项目'" class="sub">{{ (row.communityIds || []).length }} 个</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="免审额度" width="100" align="right">
+          <template #default="{ row }">
+            {{ row.approveAbove ? '¥' + row.approveAbove : '不设上限' }}
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
             <el-switch :model-value="row.enabled" size="small" :disabled="!canEdit" @change="v => onToggle(row, v)" />
@@ -89,7 +100,22 @@
         </el-form-item>
         <el-form-item label="需凭证">
           <el-switch v-model="dlg.form.needProof" />
-          <span class="hint">打开后收银台减免必须上传附件</span>
+          <span class="hint">打开后收银台减免必须填写依据（单号/纪要/证明）</span>
+        </el-form-item>
+        <el-form-item label="适用范围">
+          <el-radio-group v-model="dlg.form.scope">
+            <el-radio label="全部">全部项目</el-radio>
+            <el-radio label="指定项目">指定项目</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="dlg.form.scope === '指定项目'" label="适用项目">
+          <el-select v-model="dlg.form.communityIds" multiple collapse-tags placeholder="选择项目" style="width:100%;">
+            <el-option v-for="c in communities" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="免审额度">
+          <el-input-number v-model="dlg.form.approveAbove" :min="0" :max="1000000" :step="100" />
+          <span class="hint">超过这个金额，收银台必须填写依据；0 = 不设上限</span>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="dlg.form.sort" :min="0" :max="999" :step="10" />
@@ -109,14 +135,18 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { canEditFeeConfig, saveWaiveReason, toggleWaiveReason, waiveReasonRows } from '@/utils/api'
+import { canEditFeeConfig, communityOpts, saveWaiveReason, toggleWaiveReason, waiveReasonRows } from '@/utils/api'
 
 const list = ref([])
 const kw = ref('')
 const dlg = reactive({
   visible: false, saving: false,
-  form: { reasonId: '', name: '', type: '个案', countInAssess: false, needProof: true, sort: 0, desc: '' }
+  form: {
+    reasonId: '', name: '', type: '个案', countInAssess: false, needProof: true,
+    sort: 0, desc: '', scope: '全部', communityIds: [], approveAbove: 0
+  }
 })
+const communities = communityOpts()
 const canEdit = computed(() => canEditFeeConfig())
 const filtered = computed(() => {
   const k = kw.value.trim()
@@ -128,11 +158,17 @@ function load() { list.value = waiveReasonRows() }
 function openCreate() {
   Object.assign(dlg, {
     visible: true, saving: false,
-    form: { reasonId: '', name: '', type: '个案', countInAssess: false, needProof: true, sort: (list.value.length + 1) * 10, desc: '' }
+    form: {
+      reasonId: '', name: '', type: '个案', countInAssess: false, needProof: true,
+      sort: (list.value.length + 1) * 10, desc: '', scope: '全部', communityIds: [], approveAbove: 0
+    }
   })
 }
 function openEdit(row) {
-  Object.assign(dlg, { visible: true, saving: false, form: { ...row } })
+  Object.assign(dlg, {
+    visible: true, saving: false,
+    form: { ...row, communityIds: [...(row.communityIds || [])] }
+  })
 }
 
 function doSave() {
@@ -167,5 +203,6 @@ onMounted(load)
 .muted { color: var(--biz-text-3); }
 .is-off { color: var(--biz-text-3); text-decoration: line-through; }
 .hint { font-size: 11.5px; color: var(--biz-text-3); margin-left: 8px; }
+.sub { font-size: 11px; color: var(--biz-text-3); }
 .spacer { flex: 1; }
 </style>

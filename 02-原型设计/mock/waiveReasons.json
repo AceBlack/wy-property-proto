@@ -8,7 +8,10 @@
     "needProof": true,
     "enabled": true,
     "sort": 10,
-    "desc": "政府或行业规定必须减免的（老旧小区优惠、疫情减免等），需附文件"
+    "desc": "政府或行业规定必须减免的（老旧小区优惠、疫情减免等），需附文件",
+    "scope": "全部",
+    "communityIds": [],
+    "approveAbove": 0
   },
   {
     "reasonId": "WR02",
@@ -19,7 +22,10 @@
     "needProof": true,
     "enabled": true,
     "sort": 20,
-    "desc": "低保、重病、独居老人等，需居委或社区证明"
+    "desc": "低保、重病、独居老人等，需居委或社区证明",
+    "scope": "全部",
+    "communityIds": [],
+    "approveAbove": 1000
   },
   {
     "reasonId": "WR03",
@@ -30,7 +36,10 @@
     "needProof": false,
     "enabled": true,
     "sort": 30,
-    "desc": "计费错误、面积口径错误导致的冲减；计入考核，说明不是白让的"
+    "desc": "计费错误、面积口径错误导致的冲减；计入考核，说明不是白让的",
+    "scope": "全部",
+    "communityIds": [],
+    "approveAbove": 2000
   },
   {
     "reasonId": "WR04",
@@ -41,7 +50,10 @@
     "needProof": true,
     "enabled": true,
     "sort": 40,
-    "desc": "诉讼和解、投诉补偿等，需审批单号"
+    "desc": "诉讼和解、投诉补偿等，需审批单号",
+    "scope": "全部",
+    "communityIds": [],
+    "approveAbove": 500
   },
   {
     "reasonId": "WR05",
@@ -52,6 +64,9 @@
     "needProof": true,
     "enabled": true,
     "sort": 90,
-    "desc": "以上都不属于时选它，必须写清原因"
+    "desc": "以上都不属于时选它，必须写清原因",
+    "scope": "全部",
+    "communityIds": [],
+    "approveAbove": 0
   }
 ]

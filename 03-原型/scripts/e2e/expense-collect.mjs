@@ -211,7 +211,7 @@ console.log('\n【五】押金是负债，不进收入')
 await page.evaluate(() => { location.hash = '#/b/deposits' })
 await sleep(1800)
 const dep = await allTxt()
-ok(/押金是负债，不是收入/.test(dep), '押金页写明「负债，不是收入」')
+ok(/押金是负债[，,]?\s*不是收入/.test(dep), '押金页写明「负债不是收入」')
 ok(/LIA_DEPOSIT|押金及保证金/.test(dep), '挂到分类「押金及保证金」')
 ok(/收 = 退 \+ 扣 \+ 在账|收 = 退/.test(dep), '保留「收 = 退 + 扣 + 在账」口径')
 

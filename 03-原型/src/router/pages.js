@@ -129,8 +129,11 @@ export const PAGES = [
   { path: '/b/temp-charges', name: 'TempChargeList', title: '临时收费', group: 'b', status: 'done', icon: 'Yen',
     desc: '摆摊费 · 场地租用等非业务收费（计入收入、不计收缴率）',
     component: () => import('@/views/b/TempChargeList.vue') },
-  { path: '/b/deposits', name: 'DepositList', title: '装修押金台账', group: 'b', status: 'done', icon: 'CreditCard', desc: '收取 · 验收 · 退款扣款全流程',
+  /* 押金台账（2026-11-13 升级）：押金不止装修一种，类型驱动流程 */
+  { path: '/b/deposits', name: 'DepositList', title: '押金台账', group: 'b', status: 'done', icon: 'CreditCard', desc: '装修 / 门禁卡 / 履约 / 租约 · 收取 · 验收 · 退款',
     component: () => import('@/views/b/DepositList.vue') },
+  { path: '/b/deposit-types', name: 'DepositTypeList', title: '押金类型', group: 'b', status: 'done', icon: 'Tickets', desc: '工期 / 验收 / 金额规则 · 停用不删',
+    component: () => import('@/views/b/DepositTypeList.vue') },
   { path: '/b/meters', name: 'Meter', title: '抄表与公摊', group: 'b', status: 'done', icon: 'Odometer', desc: '抄表录入 · 推单出账 · 公摊分摊',
     component: () => import('@/views/b/Meter.vue') },
   /* 预存账户体系 2026-11-13 停用：入口保留，但只剩"退还存量余额"，不再受理充值 */
@@ -322,7 +325,7 @@ export const PAGES = [
     desc: '设备档案回填与修改 · 维保周期', component: () => import('@/views/d/DeviceForm.vue') },
   { path: '/f/workorders/new', name: 'WorkOrderNew', title: '发起工单', group: 'f', status: 'done', icon: 'Plus', hidden: true,
     desc: '客服代客报事 · 优先级与 SLA', component: () => import('@/views/f/WorkOrderForm.vue') },
-  { path: '/b/deposits/new', name: 'DepositNew', title: '登记装修押金', group: 'b', status: 'done', icon: 'CreditCard', hidden: true,
+  { path: '/b/deposits/new', name: 'DepositNew', title: '登记押金', group: 'b', status: 'done', icon: 'CreditCard', hidden: true,
     desc: '押金收取 · 工期校验', component: () => import('@/views/b/DepositForm.vue') },
   // 部门计划：提报表单与详情（详情用 :id 承接，编辑走 /edit）
   { path: '/f/plans/new', name: 'PlanNew', title: '提报月度计划', group: 'f', status: 'done', icon: 'Calendar', hidden: true,

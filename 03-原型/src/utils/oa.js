@@ -42,7 +42,25 @@ export const OA_FORM_DEFS = [
     fields: [
       { key: 'expenseType', label: '费用类型', type: 'select', required: true,
         options: ['办公费', '差旅费', '招待费', '维修材料', '其他'] },
-      { key: 'amount', label: '报销金额', type: 'money', required: true, role: 'amount', min: 1, max: 200000 },
+      /* 明细表（2026-11-13）：采购类报销要能逐项列，只填一个总额事后核不了账。
+         字段类型 `items` 由渲染层按 columns 画表格，后台与员工端共用这一份定义。 */
+      { key: 'items', label: '采购明细', type: 'items', required: true,
+        columns: [
+          { key: 'name', label: '物品名称', type: 'text', required: true, width: 130 },
+          { key: 'spec', label: '型号规格', type: 'text', width: 120 },
+          { key: 'unit', label: '单位', type: 'text', width: 60 },
+          { key: 'needQty', label: '需求数量', type: 'number', width: 84 },
+          { key: 'stockQty', label: '库存数量', type: 'number', width: 84 },
+          { key: 'buyQty', label: '本次采购', type: 'number', required: true, width: 88 },
+          { key: 'price', label: '单价', type: 'money', required: true, width: 90 },
+          { key: 'total', label: '总价', type: 'computed', width: 96 },
+          { key: 'note', label: '备注', type: 'text', width: 120 }
+        ],
+        hint: '总价 = 单价 × 本次采购数量；本次采购数量不得超过「需求数量 − 库存数量」，超了请在备注里说明'
+      },
+      /* 金额改为明细合计，只读：明细 3 行合计 800、报销填 1000，审批人没法判断该信哪个 */
+      { key: 'amount', label: '报销金额', type: 'money', required: true, role: 'amount', min: 1, max: 200000,
+        derived: 'items' },
       { key: 'happenDate', label: '发生日期', type: 'date', required: true },
       { key: 'communityId', label: '所属项目', type: 'select', required: true, opts: 'community' },
       { key: 'invoiceCount', label: '发票张数', type: 'number', min: 0, max: 50, default: 1 },

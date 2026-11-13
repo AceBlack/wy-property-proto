@@ -171,7 +171,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-11 23:20"
   },
   {
     "woId": "WO000005",
@@ -215,7 +216,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-17 23:20"
   },
   {
     "woId": "WO000006",
@@ -307,7 +309,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-20 14:08"
+    "pointsAt": "2026-10-20 14:08",
+    "evaluateAt": "2026-10-20 16:20"
   },
   {
     "woId": "WO000008",
@@ -391,7 +394,8 @@
     "isPublic": false,
     "priceCode": "RP-P01",
     "serviceName": "墙面裂缝修补（≤1㎡）",
-    "serviceCost": 104
+    "serviceCost": 104,
+    "evaluateAt": "2026-09-24 15:20"
   },
   {
     "woId": "WO000010",
@@ -690,7 +694,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-06 16:27"
+    "pointsAt": "2026-09-06 16:27",
+    "evaluateAt": "2026-09-06 18:20"
   },
   {
     "woId": "WO000017",
@@ -1062,7 +1067,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-08-23 23:20"
   },
   {
     "woId": "WO000026",
@@ -1155,7 +1161,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-14 17:37"
+    "pointsAt": "2026-09-14 17:37",
+    "evaluateAt": "2026-09-14 19:20"
   },
   {
     "woId": "WO000028",
@@ -1199,7 +1206,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-11 23:20"
   },
   {
     "woId": "WO000029",
@@ -1242,7 +1250,8 @@
     "isPublic": false,
     "priceCode": "RP-E02",
     "serviceName": "灯具/光源更换（不含灯具）",
-    "serviceCost": 20
+    "serviceCost": 20,
+    "evaluateAt": "2026-08-28 23:20"
   },
   {
     "woId": "WO000030",
@@ -1418,7 +1427,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-29 02:45"
+    "pointsAt": "2026-09-29 02:45",
+    "evaluateAt": "2026-09-29 04:20"
   },
   {
     "woId": "WO000034",
@@ -1668,7 +1678,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-10-18 23:20"
   },
   {
     "woId": "WO000040",
@@ -1711,7 +1722,8 @@
     "isPublic": false,
     "priceCode": "RP-M02",
     "serviceName": "门窗五金调整",
-    "serviceCost": 53
+    "serviceCost": 53,
+    "evaluateAt": "2026-10-13 23:20"
   },
   {
     "woId": "WO000041",
@@ -1763,7 +1775,8 @@
     "pointsPeriod": "2026-08",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-08-24 20:07"
+    "pointsAt": "2026-08-24 20:07",
+    "evaluateAt": "2026-08-24 22:20"
   },
   {
     "woId": "WO000042",
@@ -1816,7 +1829,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-15 09:13"
+    "pointsAt": "2026-10-15 09:13",
+    "evaluateAt": "2026-10-15 11:20"
   },
   {
     "woId": "WO000043",
@@ -1860,7 +1874,8 @@
     "isPublic": false,
     "priceCode": "RP-A01",
     "serviceName": "空调清洗加氟（挂机）",
-    "serviceCost": 136
+    "serviceCost": 136,
+    "evaluateAt": "2026-10-16 06:20"
   },
   {
     "woId": "WO000044",
@@ -1994,7 +2009,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-17 01:18"
+    "pointsAt": "2026-09-17 01:18",
+    "evaluateAt": "2026-09-17 03:20"
   },
   {
     "woId": "WO000047",
@@ -2039,7 +2055,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-06 23:20"
   },
   {
     "woId": "WO000048",
@@ -2091,7 +2108,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-22 08:04"
+    "pointsAt": "2026-10-22 08:04",
+    "evaluateAt": "2026-10-20 10:20"
   },
   {
     "woId": "WO000049",
@@ -2421,7 +2439,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-29 08:20"
   },
   {
     "woId": "WO000057",
@@ -2465,7 +2484,8 @@
     "isPublic": false,
     "priceCode": "RP-P01",
     "serviceName": "墙面裂缝修补（≤1㎡）",
-    "serviceCost": 104
+    "serviceCost": 104,
+    "evaluateAt": "2026-08-29 05:20"
   },
   {
     "woId": "WO000058",
@@ -2518,7 +2538,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-19 12:20"
+    "pointsAt": "2026-09-19 12:20",
+    "evaluateAt": "2026-09-19 14:20"
   },
   {
     "woId": "WO000059",
@@ -2562,7 +2583,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-09 09:20"
   },
   {
     "woId": "WO000060",
@@ -2738,7 +2760,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-22 13:29"
+    "pointsAt": "2026-10-22 13:29",
+    "evaluateAt": "2026-10-19 15:20"
   },
   {
     "woId": "WO000064",
@@ -2781,7 +2804,8 @@
     "isPublic": false,
     "priceCode": "RP-A01",
     "serviceName": "空调清洗加氟（挂机）",
-    "serviceCost": 136
+    "serviceCost": 136,
+    "evaluateAt": "2026-10-02 10:20"
   },
   {
     "woId": "WO000065",
@@ -2874,7 +2898,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-17 12:26"
+    "pointsAt": "2026-10-17 12:26",
+    "evaluateAt": "2026-10-17 14:20"
   },
   {
     "woId": "WO000067",
@@ -3007,7 +3032,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-07 13:26"
+    "pointsAt": "2026-10-07 13:26",
+    "evaluateAt": "2026-10-07 15:20"
   },
   {
     "woId": "WO000070",
@@ -3099,7 +3125,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-20 15:26"
+    "pointsAt": "2026-10-20 15:26",
+    "evaluateAt": "2026-10-20 17:20"
   },
   {
     "woId": "WO000072",
@@ -3152,7 +3179,8 @@
     "pointsPeriod": "2026-08",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-08-26 19:54"
+    "pointsAt": "2026-08-26 19:54",
+    "evaluateAt": "2026-08-26 21:20"
   },
   {
     "woId": "WO000073",
@@ -3237,7 +3265,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-15 22:20"
   },
   {
     "woId": "WO000075",
@@ -3329,7 +3358,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-24 19:04"
+    "pointsAt": "2026-09-24 19:04",
+    "evaluateAt": "2026-09-24 21:20"
   },
   {
     "woId": "WO000077",
@@ -3972,7 +4002,8 @@
     "isPublic": false,
     "priceCode": "RP-M02",
     "serviceName": "门窗五金调整",
-    "serviceCost": 53
+    "serviceCost": 53,
+    "evaluateAt": "2026-10-07 23:20"
   },
   {
     "woId": "WO000092",
@@ -4441,7 +4472,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-06 09:20"
   },
   {
     "woId": "WO000103",
@@ -4493,7 +4525,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-18 05:14"
+    "pointsAt": "2026-09-18 05:14",
+    "evaluateAt": "2026-09-18 07:20"
   },
   {
     "woId": "WO000104",
@@ -4618,7 +4651,8 @@
     "isPublic": false,
     "priceCode": "RP-A01",
     "serviceName": "空调清洗加氟（挂机）",
-    "serviceCost": 136
+    "serviceCost": 136,
+    "evaluateAt": "2026-10-21 06:20"
   },
   {
     "woId": "WO000107",
@@ -4703,7 +4737,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-10-13 06:20"
   },
   {
     "woId": "WO000109",
@@ -4879,7 +4914,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-12 22:11"
+    "pointsAt": "2026-09-12 22:11",
+    "evaluateAt": "2026-09-12 23:20"
   },
   {
     "woId": "WO000113",
@@ -4932,7 +4968,8 @@
     "pointsPeriod": "2026-10",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-10-10 23:35"
+    "pointsAt": "2026-10-10 23:35",
+    "evaluateAt": "2026-10-10 23:20"
   },
   {
     "woId": "WO000114",
@@ -5141,7 +5178,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-09-16 07:20"
   },
   {
     "woId": "WO000119",
@@ -5315,7 +5353,8 @@
     "isPublic": false,
     "priceCode": "RP-W02",
     "serviceName": "下水道疏通（台盆/地漏）",
-    "serviceCost": 40
+    "serviceCost": 40,
+    "evaluateAt": "2026-09-24 08:20"
   },
   {
     "woId": "WO000123",
@@ -5399,7 +5438,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-10-18 06:20"
   },
   {
     "woId": "WO000125",
@@ -5566,7 +5606,8 @@
     "isPublic": false,
     "priceCode": "",
     "serviceName": "",
-    "serviceCost": 0
+    "serviceCost": 0,
+    "evaluateAt": "2026-10-19 05:20"
   },
   {
     "woId": "WO000129",
@@ -5863,7 +5904,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-15 07:27"
+    "pointsAt": "2026-09-15 07:27",
+    "evaluateAt": "2026-09-15 09:20"
   },
   {
     "woId": "WO000136",
@@ -5955,7 +5997,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-26 14:35"
+    "pointsAt": "2026-09-26 14:35",
+    "evaluateAt": "2026-09-26 16:20"
   },
   {
     "woId": "WO000138",
@@ -6040,7 +6083,8 @@
     "isPublic": false,
     "priceCode": "RP-W02",
     "serviceName": "下水道疏通（台盆/地漏）",
-    "serviceCost": 40
+    "serviceCost": 40,
+    "evaluateAt": "2026-10-16 13:20"
   },
   {
     "woId": "WO000140",
@@ -6222,7 +6266,8 @@
     "pointsPeriod": "2026-09",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-09-21 21:08"
+    "pointsAt": "2026-09-21 21:08",
+    "evaluateAt": "2026-09-21 23:20"
   },
   {
     "woId": "WO000144",
@@ -6267,7 +6312,8 @@
     "isPublic": false,
     "priceCode": "RP-W02",
     "serviceName": "下水道疏通（台盆/地漏）",
-    "serviceCost": 40
+    "serviceCost": 40,
+    "evaluateAt": "2026-09-13 23:20"
   },
   {
     "woId": "WO000145",
@@ -6319,7 +6365,8 @@
     "pointsPeriod": "2026-08",
     "pointsStatus": "待结算",
     "pointsBy": "工程主管",
-    "pointsAt": "2026-08-24 23:47"
+    "pointsAt": "2026-08-24 23:47",
+    "evaluateAt": "2026-08-24 23:20"
   },
   {
     "woId": "WO000146",
@@ -6445,7 +6492,8 @@
     "isPublic": false,
     "priceCode": "RP-A01",
     "serviceName": "空调清洗加氟（挂机）",
-    "serviceCost": 136
+    "serviceCost": 136,
+    "evaluateAt": "2026-10-11 19:20"
   },
   {
     "woId": "WO000149",

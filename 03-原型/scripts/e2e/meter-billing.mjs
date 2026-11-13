@@ -192,7 +192,8 @@ console.log('\n【六】收款方式里不再有「预存抵扣」')
 await page.evaluate(() => { location.hash = '#/b/cashier' })
 await sleep(2000)
 await page.evaluate(() => {
-  document.querySelector('.pos-right .el-select__wrapper')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  /* 右栏现在第一个 select 是「减免原因」（2026-11-13 新增），要精确到支付方式那一行 */
+  document.querySelector('.split-row .el-select__wrapper')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 })
 await sleep(600)
 const methods = await page.evaluate(() =>

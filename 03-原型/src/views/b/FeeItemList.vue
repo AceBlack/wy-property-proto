@@ -3,9 +3,13 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>收费科目 · L4 批量页</b>：继承列表模板。科目本身只有 10 条，取数仍走
-        <code>api.queryFeeItems</code>，以便换真接口时页面零改动；
-        应收 / 实收 / 收缴率由数据层按账单聚合，口径与费用驾驶舱一致。
+        <b>收费科目</b>：管的是「能开单的物」—— 计价方式、单价、单位、周期、税率、启停。
+        <b>会计口径不在这里</b>（收入还是负债、计不计收缴率，在「费用分类字典」里）。
+        <br />
+        <b>单价有两种</b>：`标准价` 就是成交价；`参考价` 只做展示，真实价在价目表或账单快照里
+        （水电就是这样，住宅 3.85 / 商业 5.55 不能写死在科目上）。
+        <br />
+        <b>押金是负债</b>（`direction=liability`），不参与应收与收缴率统计 —— 押金没有"应收"这回事。
       </div>
     </div>
 
@@ -20,9 +24,9 @@
 
     <div class="panel" style="margin-top:16px;">
       <el-form :model="query" class="filter-bar" label-width="72px" @submit.prevent>
-        <el-form-item label="分类">
-          <el-select v-model="query.category" placeholder="全部" clearable style="width:130px">
-            <el-option v-for="o in categoryOpts" :key="o" :label="o" :value="o" />
+        <el-form-item label="方向">
+          <el-select v-model="query.direction" placeholder="全部" clearable style="width:130px" @change="search">
+            <el-option v-for="o in directionOpts" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="计费方式">
@@ -57,7 +61,13 @@
       <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 400px)" @row-click="onRow">
         <el-table-column prop="itemId" label="编号" width="72" />
         <el-table-column prop="name" label="科目名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="category" label="分类" width="100" />
+        <el-table-column label="方向" width="106">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.direction === 'liability' ? 'warning' : 'success'" effect="plain">
+              {{ row.directionName }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="收入分类" min-width="170" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="catMap.get(row.itemId)?.categoryPath">{{ catMap.get(row.itemId).categoryPath }}</span>
@@ -65,10 +75,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="calcType" label="计费方式" width="95" />
-        <el-table-column label="单价" width="120" align="right">
+        <el-table-column label="单价" width="150" align="right">
           <template #default="{ row }">
             <span class="money">{{ money(row.price) }}</span>
             <span class="muted" style="font-size:12px;"> {{ row.unit }}</span>
+            <el-tooltip v-if="row.priceMode === 'reference'" placement="top"
+              content="参考价：实际按项目价目表 / 房屋覆盖价结算，本字段不参与计算">
+              <el-tag size="small" type="info" effect="plain" style="margin-left:4px;">参考价</el-tag>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column prop="cycle" label="周期" width="70" />
@@ -107,7 +121,7 @@
 
     <DetailDrawer
       v-model="detailVisible" :loading="detailLoading" :title="detailData?.item?.name"
-      :subtitle="detailData ? `${detailData.item.itemId} · ${detailData.item.category} · ${detailData.item.calcType}` : ''"
+      :subtitle="detailData ? `${detailData.item.itemId} · ${detailData.item.direction === 'liability' ? '负债（押金）' : '收入科目'} · ${detailData.item.calcType}` : ''"
       :tag="detailData?.item?.status"
     >
       <template v-if="detailData">
@@ -120,7 +134,13 @@
 
         <div class="sec__hd" style="margin-top:18px;"><h4>计费规则</h4></div>
         <div class="dl">
-          <div class="dl__i"><span class="dl__k">单价</span><span class="dl__v money">{{ money(detailData.item.price) }} {{ detailData.item.unit }}</span></div>
+          <div class="dl__i">
+            <span class="dl__k">单价</span>
+            <span class="dl__v money">
+              {{ money(detailData.item.price) }} {{ detailData.item.unit }}
+              <span v-if="detailData.item.priceMode === 'reference'" class="muted">（参考价，实际按价目表）</span>
+            </span>
+          </div>
           <div class="dl__i"><span class="dl__k">计费方式</span><span class="dl__v">{{ detailData.item.calcType }}</span></div>
           <div class="dl__i"><span class="dl__k">收费周期</span><span class="dl__v">{{ detailData.item.cycle }}</span></div>
           <div class="dl__i"><span class="dl__k">适用业态</span><span class="dl__v">{{ detailData.item.bizType }}</span></div>
@@ -169,7 +189,8 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import {
-  PAGE_SIZES, feeCalcTypeOpts, feeCategoryOpts, feeItemCategoryRows, feeItemRows, getFeeItemDetail, queryFeeItems, subjectLabel
+  FEE_ITEM_DIRECTIONS, PAGE_SIZES, feeCalcTypeOpts, feeItemCategoryRows, feeItemRows,
+  getFeeItemDetail, queryFeeItems, subjectLabel
 } from '@/utils/api'
 import { useDetail, useListQuery } from '@/composables/useQuery'
 import DetailDrawer from '@/components/DetailDrawer.vue'
@@ -179,9 +200,9 @@ import { money, pct, wan } from '@/utils/format'
 import { exportList } from '@/utils/export'
 
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(
-  queryFeeItems, { filters: { category: '', calcType: '', status: '', kw: '' } }
+  queryFeeItems, { filters: { direction: '', calcType: '', status: '', kw: '' } }
 )
-const categoryOpts = feeCategoryOpts()
+const directionOpts = FEE_ITEM_DIRECTIONS
 /* 收入分类（批 1）：收费项挂到费用分类字典后的"报表归属"，没挂的当场标出来 */
 const catMap = new Map(feeItemCategoryRows().map(r => [r.itemId, r]))
 const calcOpts = feeCalcTypeOpts()
@@ -189,7 +210,7 @@ const calcOpts = feeCalcTypeOpts()
 /* 导出：只提交任务，文件在下载中心生成与下载 */
 const EXPORT_COLS = [
   { prop: 'itemId', label: '编号' }, { prop: 'name', label: '科目名称' },
-  { prop: 'category', label: '分类' }, { prop: 'calcType', label: '计费方式' },
+  { prop: 'directionName', label: '方向' }, { prop: 'calcType', label: '计费方式' },
   { prop: 'price', label: '单价' }, { prop: 'cycle', label: '周期' },
   { prop: 'bizType', label: '业态' }, { prop: 'taxRate', label: '税率' },
   { prop: 'billCount', label: '账单数' }, { prop: 'collectRate', label: '收缴率' }
@@ -198,13 +219,15 @@ function onExport() {
   exportList({ name: '收费科目', source: '/b/fee-items', columns: EXPORT_COLS, rows: rows.value, filters: { ...query } })
 }
 const all = feeItemRows()
+/* 收缴率只算收入科目：押金没有应收，混进分母等于把"负债"当成"该收没收" */
+const incomeItems = all.filter(i => i.direction !== 'liability')
 const summary = {
   total: all.length,
   enabled: all.filter(i => i.status === '启用').length,
-  billCount: all.reduce((s, i) => s + i.billCount, 0),
+  billCount: incomeItems.reduce((s, i) => s + i.billCount, 0),
   rate: (() => {
-    const r = all.reduce((s, i) => s + i.receivable, 0)
-    return r ? (all.reduce((s, i) => s + i.received, 0) / r) * 100 : 0
+    const r = incomeItems.reduce((s, i) => s + i.receivable, 0)
+    return r ? (incomeItems.reduce((s, i) => s + i.received, 0) / r) * 100 : 0
   })()
 }
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getFeeItemDetail)

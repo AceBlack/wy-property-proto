@@ -8,7 +8,7 @@
  *      一张 payOrder 可以覆盖多张账单，但 lines 里逐条带 houseId，后台入账仍按房拆分。
  */
 import { buildings, bills, communities, employees, houses, members, owners, tenants, units, workOrders } from '@pc/mock'
-import { createWorkOrder } from '@pc/utils/api'
+import { WO_EVAL_TAGS, createWorkOrder } from '@pc/utils/api'
 import { addonsOf, app, applyPatch, markBillPaid, persist, writeAddons } from '@/store/app'
 import { DEMO, stamp } from '@/config/demo'
 import { addonFee, orderFee, priceOfCode, round2 } from '@/api/pricing'
@@ -833,7 +833,13 @@ export async function confirmAddons(woId) {
   return orderOf(woId)
 }
 
-export const EVAL_TAGS = ['准时上门', '穿着规范', '讲解清楚', '收拾干净', '收费透明', '态度好']
+/**
+ * 评价标签：**固定五项**（2026-11-13 与后台统一）。
+ * 原来这里是 6 个、后台另有一份，报表按标签分组时同一个意思拼不出同一个词；
+ * 现在直接读 PC 的那一份，三端（业主端 / 员工端 / 后台）不会漂移。
+ * 去掉了「穿着规范」——五项里"态度好"已经覆盖大体印象，标签超过五个业主就不点了。
+ */
+export const EVAL_TAGS = WO_EVAL_TAGS
 export const EVAL_MOODS = [
   { score: 2, label: '不满意', icon: '☹' },
   { score: 3, label: '一般', icon: '·' },

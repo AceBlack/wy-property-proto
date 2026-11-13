@@ -6,7 +6,7 @@ import {
   decorationDeposits, devices, employees, feeItems, houses, inspectPlans, inspectTasks,
   inspectTemplates, invoices, maintenanceRecords, members, meterReadings, meters, metrics,
   notices, operationLogs, orgs, ownerTags, owners, parkings, passRecords, payments, permissions,
-  feeCategories, feeItemCategoryMap, waiveReasons, communityUtility,
+  feeCategories, feeItemCategoryMap, waiveReasons, communityUtility, depositTypes,
   utilityPrices, houseUtilityBinding,
   prepayAccounts, qualityChecks, roles, tenants, units, vehicles, workOrders,
   // N 域（邻里）复用的存量数据：公告不另建源，投票/活动/闲置都从业主端同一份数据出发
@@ -1854,7 +1854,10 @@ const WO_VF = {
   pending: w => w.status === '待派单',
   overdue: w => !!w.isOverdue,
   urgent: w => w.priority === '特急' || w.priority === '紧急',
-  open: w => WO_OPEN.includes(w.status)
+  open: w => WO_OPEN.includes(w.status),
+  /* 完工未评价：业主端只在「已完工 且 无评分」时给评价入口，
+     所以后台这个视图与业主能评的范围必须是同一个条件 —— 否则催评催不到人 */
+  unrated: w => w.status === '已完工' && !(Number(w.score) > 0)
 }
 
 /** 工单树：项目 → 楼栋 → 单元；无房屋的公共/投诉类挂在项目下的「公共/非入户」分支 */
@@ -1917,11 +1920,71 @@ export const woVirtualNodes = () => Object.entries(WO_VF)
     key,
     label: {
       business: '商业服务（收费）',
-      pending: '待派单', overdue: '已超时', urgent: '紧急及以上', open: '未闭环'
+      pending: '待派单', overdue: '已超时', urgent: '紧急及以上', open: '未闭环',
+      unrated: '完工未评价'
     }[key],
     n: WO_ROWS.filter(hit).length,
     patch: { vf: key, communityId: '', buildingId: '', unitId: '' }
   }))
+
+/**
+ * 评价标签：**固定五项**（2026-11-13 定）。
+ * 业主端、员工端、后台读同一份，避免三端各写一套、
+ * 最后"准时上门"在报表里拼不出一个词。
+ */
+export const WO_EVAL_TAGS = ['准时上门', '讲解清楚', '收拾干净', '收费透明', '态度好']
+
+/**
+ * 满意度。
+ *
+ * 三条口径写死在这里：
+ *   ① **未评价（score=0）不参与均值** —— 拿 0 分去平均，满意度会被一群"没评"的单拉垮；
+ *   ② 参评率 = 已评价 ÷ 可评单（已完工 + 已评价 + 已关闭），
+ *      分母不含待派单/处理中，那些还没到能评的阶段；
+ *   ③ 差评 = 1~2 星，要能单独拉名单去回访，不混在"平均 4.3 分"里。
+ */
+export function woSatisfaction({ communityId = '', from = '', to = '' } = {}) {
+  const hit = w => (!communityId || w.communityId === communityId)
+    && (!from || String(w.createTime).slice(0, 7) >= from)
+    && (!to || String(w.createTime).slice(0, 7) <= to)
+  const list = WO_ROWS.filter(hit)
+  const rated = list.filter(w => Number(w.score) > 0)
+  const rateable = list.filter(w => ['已完工', '已评价', '已关闭'].includes(w.status))
+  const avg = rated.length
+    ? Math.round(rated.reduce((sum, w) => sum + Number(w.score), 0) / rated.length * 100) / 100
+    : 0
+  const dist = [1, 2, 3, 4, 5].map(n => ({ score: n, n: rated.filter(w => Number(w.score) === n).length }))
+  const tagMap = new Map()
+  for (const w of rated) for (const t of (w.evalTags || [])) tagMap.set(t, (tagMap.get(t) || 0) + 1)
+  const byStaff = new Map()
+  for (const w of rated) {
+    if (!w.assignee) continue
+    const cur = byStaff.get(w.assignee) || { name: w.assignee, count: 0, sum: 0, low: 0 }
+    cur.count += 1
+    cur.sum += Number(w.score)
+    if (Number(w.score) <= 2) cur.low += 1
+    byStaff.set(w.assignee, cur)
+  }
+  return {
+    total: list.length,
+    rateable: rateable.length,
+    ratedCount: rated.length,
+    unratedCount: rateable.filter(w => !(Number(w.score) > 0)).length,
+    evalRate: rateable.length ? Math.round(rated.length / rateable.length * 10000) / 100 : 0,
+    avg,
+    lowCount: rated.filter(w => Number(w.score) <= 2).length,
+    /* 差评名单：平均分看不出"哪位业主很不满"，这里直接给单号 */
+    lowList: rated.filter(w => Number(w.score) <= 2)
+      .sort((a, b) => Number(a.score) - Number(b.score))
+      .slice(0, 10)
+      .map(w => ({ woId: w.woId, woNo: w.woNo, score: Number(w.score), assignee: w.assignee, evaluate: w.evaluate || '', ownerName: w.ownerName })),
+    dist,
+    tags: [...tagMap.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n),
+    byStaff: [...byStaff.values()]
+      .map(x => ({ name: x.name, count: x.count, avg: Math.round(x.sum / x.count * 100) / 100, low: x.low }))
+      .sort((a, b) => b.avg - a.avg)
+  }
+}
 
 export function woQuerySummary() {
   return {
@@ -1936,7 +1999,11 @@ export function woQuerySummary() {
       const s = woSlaState(w)
       return !!s && s.breached
     }).length,
-    pending: WO_ROWS.filter(w => w.status === '待派单').length
+    pending: WO_ROWS.filter(w => w.status === '待派单').length,
+    ...(() => {
+      const sat = woSatisfaction()
+      return { avgScore: sat.avg, evalRate: sat.evalRate, unrated: sat.unratedCount }
+    })()
   }
 }
 
@@ -2022,11 +2089,30 @@ export const invoiceStatusOpts = () => distinct(payments, 'invoiceStatus')
 /* ---------------- 22 · 收费科目 ---------------- */
 
 /** 科目行：挂上账单聚合（应收 / 实收 / 收缴率），口径复用 feeSummary 的定义 */
+/**
+ * 科目行。
+ *
+ * 2026-11-13 清理了一处重复：`feeItems.category`（常规服务费/公摊/代收/能耗/押金/经营性/工本费）
+ * 是**第三套分类**，与费用分类字典、与「一级/二级」都对不上 —— 删掉，
+ * 分类只认 `feeItemCategoryMap` 挂到字典二级。
+ *
+ * 新增 `direction`：billable（可开单的收入科目）/ liability（押金类负债）。
+ * 押金混在收入科目里统计，科目页的"应收/收缴率"会把它算进去 —— 押金根本没有应收。
+ *
+ * 新增 `priceMode`：standard（科目价就是成交价）/ reference（只是参考价，
+ * 真实价在价目表或账单快照里，水电就是这一类）。
+ */
 export function feeItemRows() {
   return feeItems.map(it => {
     const list = bills.filter(b => b.itemId === it.itemId)
     const s = feeSummaryOf(list)
-    return { ...it, ...s }
+    return {
+      ...it,
+      ...s,
+      direction: it.direction || 'billable',
+      directionName: it.direction === 'liability' ? '负债（押金）' : '收入科目',
+      priceMode: it.priceMode || 'standard'
+    }
   })
 }
 function feeSummaryOf(list) {
@@ -2042,10 +2128,16 @@ function feeSummaryOf(list) {
     openCount: valid.filter(isDebt).length
   }
 }
+/** 方向选项（筛选与表单共用） */
+export const FEE_ITEM_DIRECTIONS = [
+  { value: 'billable', label: '收入科目' },
+  { value: 'liability', label: '负债（押金）' }
+]
+
 export function queryFeeItems({ pageNo = 1, size = 20, filters = {} } = {}) {
   return delay(() => {
     const list = feeItemRows().filter(i =>
-      eq(i, filters.category, 'category') &&
+      eq(i, filters.direction, 'direction') &&
       eq(i, filters.status, 'status') &&
       eq(i, filters.calcType, 'calcType') &&
       kwHit(i, filters.kw, ['itemId', 'name', 'remark'])
@@ -5645,18 +5737,84 @@ export function queryRepairSummary({ pageNo = 1, size = 20, filters = {} } = {})
 }
 
 /* ---------------- 装修押金（唯一押金场景） ---------------- */
-// 口径（用户 2026-10-22 确认）：押金场景只保留「装修押金」一种。
-// 租约押金、车位押金等一律不存在，因此 tenants 不设押金字段，押金只在此处出数。
-// 余额 balance = amount - refundAmount - deductAmount；在账 = 未验收（装修中 / 已逾期）或未结清。
+// 押金口径（2026-11-13 升级）：押金**不止装修一种**，但都进同一张台账。
+//
+//   类型（depositTypes 字典）决定三件事：要不要工期 / 要不要验收 / 金额是否固定。
+//   装修押金：要工期、要验收、金额固定 3000；
+//   门禁卡、车牌：不要工期不要验收，按数量收，退卡即退；
+//   履约保证金、租约押金：金额按合同/租约定（不固定），要验收但不设工期。
+//
+// 余额 balance = amount − refundAmount − deductAmount；在账 = 尚未结清。
+// 押金是**负债**：收取时进现金不进收入，只有扣款部分才转收入（见 depositLedger）。
 
-export const DEPOSIT_STATUS = ['在押', '装修中', '已逾期', '已退还', '部分扣除', '已没收']
+export const DEPOSIT_STATUS = ['在押', '装修中', '已逾期', '待退款', '已退还', '部分扣除', '已没收']
 export const depositStatusOpts = () => DEPOSIT_STATUS.map(v => ({ value: v, label: v }))
+
+/* ---------------- 押金类型字典 ---------------- */
+export function depositTypeRows({ enabledOnly = false } = {}) {
+  return depositTypes
+    .filter(t => !enabledOnly || t.enabled)
+    .slice()
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .map(t => ({ ...t }))
+}
+export const depositTypeOpts = () =>
+  depositTypeRows({ enabledOnly: true }).map(t => ({
+    value: t.name,
+    label: t.standardAmount > 0 ? `${t.name}（${t.standardAmount} 元）` : `${t.name}（金额按约定）`,
+    typeId: t.typeId, standardAmount: t.standardAmount, needDates: t.needDates,
+    needCheck: t.needCheck, allowPartial: t.allowPartial, byQuantity: t.byQuantity
+  }))
+export const depositTypeOf = name => depositTypes.find(t => t.name === name) || null
+
+export function saveDepositType(rec = {}) {
+  assertFeeConfigPerm()
+  const name = String(rec.name || '').trim()
+  if (name.length < 2) throw new Error('名称至少 2 个字')
+  if (depositTypes.some(t => t.name === name && t.typeId !== rec.typeId)) throw new Error(`「${name}」已存在`)
+  const payload = {
+    name,
+    standardAmount: Number(rec.standardAmount) || 0,
+    needDates: !!rec.needDates,
+    needCheck: !!rec.needCheck,
+    allowPartial: rec.allowPartial === undefined ? true : !!rec.allowPartial,
+    byQuantity: !!rec.byQuantity,
+    sort: Number(rec.sort) || 0,
+    desc: String(rec.desc || '')
+  }
+  if (payload.standardAmount < 0) throw new Error('标准金额不能为负')
+  if (rec.typeId) {
+    const t = depositTypes.find(x => x.typeId === rec.typeId)
+    if (!t) throw new Error('押金类型不存在')
+    Object.assign(t, payload)
+    return { ...t }
+  }
+  const seq = depositTypes.reduce((m, t) => Math.max(m, Number(String(t.typeId).replace(/\D/g, '')) || 0), 0) + 1
+  const row = { typeId: 'DT' + String(seq).padStart(2, '0'), enabled: true, ...payload, sort: payload.sort || seq * 10 }
+  depositTypes.push(row)
+  return { ...row }
+}
+
+export function toggleDepositType(typeId, enabled) {
+  assertFeeConfigPerm()
+  const t = depositTypes.find(x => x.typeId === typeId)
+  if (!t) throw new Error('押金类型不存在')
+  /* 停用前看有没有在押记录：停用只是不给新收，历史仍要能退 */
+  const live = decorationDeposits.filter(d => d.type === t.name && (d.balance || 0) > 0).length
+  if (!enabled && live > 0 && !t._confirm) {
+    throw new Error(`「${t.name}」还有 ${live} 笔在账押金，停用后只能退不能新收 —— 确认后再停用`)
+  }
+  t.enabled = !!enabled
+  return { ...t, live }
+}
 
 const DEPOSIT_VF = {
   /** 在账：钱还在物业手里 */
   onhand: d => (d.balance || 0) > 0,
   /** 逾期未退：超过申请工期仍未验收 */
   overdue: d => d.status === '已逾期',
+  /** 待退款：验收通过、钱还没退 */
+  toRefund: d => d.status === '待退款',
   /** 已结清：已退还 / 部分扣除 / 已没收 */
   settled: d => ['已退还', '部分扣除', '已没收'].includes(d.status),
   /** 有扣除：验收时扣了钱（部分扣除或全额没收） */
@@ -5664,9 +5822,10 @@ const DEPOSIT_VF = {
 }
 export const depositVirtualNodes = () => {
   const label = {
-    onhand: '在账（未结清）', overdue: '逾期未验收', settled: '已结清', deducted: '有扣款'
+    onhand: '在账（未结清）', overdue: '逾期未验收', toRefund: '待退款',
+    settled: '已结清', deducted: '有扣款'
   }
-  return [{ key: 'all', label: '全部装修押金', n: decorationDeposits.length, patch: { vf: '' } }]
+  return [{ key: 'all', label: '全部押金', n: decorationDeposits.length, patch: { vf: '' } }]
     .concat(Object.keys(DEPOSIT_VF).map(key => ({
       key, label: label[key], n: decorationDeposits.filter(DEPOSIT_VF[key]).length, patch: { vf: key }
     })))
@@ -5675,6 +5834,7 @@ export const depositVirtualNodes = () => {
 function depositRows(filters = {}) {
   return decorationDeposits.filter(d =>
     eq(d, filters.communityId, 'communityId') &&
+    eq(d, filters.type, 'type') &&
     eq(d, filters.status, 'status') &&
     between(d.paidDate, filters.range) &&
     (!filters.vf || (DEPOSIT_VF[filters.vf] || (() => true))(d)) &&
@@ -5696,7 +5856,20 @@ export function depositSummary(filters = {}) {
     unpaid: sum('balance'),
     deduct: sum('deductAmount'),
     overdueCount: list.filter(DEPOSIT_VF.overdue).length,
-    overdueAmount: list.filter(DEPOSIT_VF.overdue).reduce((s, d) => s + (d.balance || 0), 0)
+    overdueAmount: list.filter(DEPOSIT_VF.overdue).reduce((s, d) => s + (d.balance || 0), 0),
+    /* 按类型拆在账：押金是负债，报表要能回答"欠谁的钱、欠多少"，
+       只给一个总数，换类型（比如新收履约保证金）时看不出结构变化 */
+    byType: (() => {
+      const m = new Map()
+      for (const d of list) {
+        const cur = m.get(d.type || '未分类') || { type: d.type || '未分类', count: 0, amount: 0, balance: 0 }
+        cur.count += 1
+        cur.amount = Math.round((cur.amount + (d.amount || 0)) * 100) / 100
+        cur.balance = Math.round((cur.balance + (d.balance || 0)) * 100) / 100
+        m.set(d.type || '未分类', cur)
+      }
+      return [...m.values()].sort((a, b) => b.balance - a.balance)
+    })()
   }
 }
 
@@ -6635,6 +6808,8 @@ export function approvalAction(approvalId, action, { comment = '', to = '' } = {
   _applyContractApproval(a, action)
   // 计划域回写：审批结果决定计划能否进入执行（2026-11-03）
   _applyPlanApproval(a, action)
+  // 报销域回写（2026-11-13）：批了不落 expenses，支出归集就永远收不到这笔钱
+  _applyExpenseApproval(a, action)
   return a
 }
 
@@ -6825,6 +7000,11 @@ export function oaNodesFor(bizType, amount = 0) {
 }
 
 /** 表单校验：必填、数值范围、结束时间晚于开始 */
+/** 明细行小计：总价 = 单价 × 本次采购数量（不取用户填的值，防止手改总价） */
+export const oaItemTotal = row => Math.round((Number(row?.buyQty) || 0) * (Number(row?.price) || 0) * 100) / 100
+export const oaItemsTotal = (rows = []) =>
+  Math.round(rows.reduce((s, r) => s + oaItemTotal(r), 0) * 100) / 100
+
 export function oaFormCheck(bizType, formData = {}) {
   const def = oaFormOf(bizType)
   if (!def) return `未知单据类型：${bizType}`
@@ -6841,8 +7021,38 @@ export function oaFormCheck(bizType, formData = {}) {
       if (f.min !== undefined && n < f.min) return `${f.label}不能小于 ${f.min}`
       if (f.max !== undefined && n > f.max) return `${f.label}不能大于 ${f.max}`
     }
+    if (f.type === 'items') {
+      if (!Array.isArray(v)) return `${f.label}格式不正确`
+      for (let i = 0; i < v.length; i++) {
+        const r = v[i] || {}
+        const no = `第 ${i + 1} 行`
+        if (!String(r.name || '').trim()) return `${no}：请填写物品名称`
+        if (!(Number(r.buyQty) > 0)) return `${no}：本次采购数量必须大于 0`
+        if (!(Number(r.price) > 0)) return `${no}：单价必须大于 0`
+        /* 需求 − 库存 = 可采购上限。超了不硬拦（急件常先买），但必须写清原因，
+           否则审批人只看到"多买了 3 个"，不知道是库存不准还是临时加量 */
+        const need = Number(r.needQty)
+        const stock = Number(r.stockQty) || 0
+        if (Number.isFinite(need) && need > 0) {
+          const cap = Math.max(0, need - stock)
+          if (Number(r.buyQty) > cap && !String(r.note || '').trim()) {
+            return `${no}：本次采购 ${r.buyQty} 超过「需求 ${need} − 库存 ${stock}」的可采购量，请在备注里说明`
+          }
+        }
+      }
+    }
     if (f.maxlength && String(v).length > f.maxlength) return `${f.label}不超过 ${f.maxlength} 字`
     if (f.type === 'select' && f.options && !f.options.includes(v)) return `${f.label}取值不合法`
+  }
+  /* 派生金额：报销金额必须是明细合计。两处不一致时，审批人无法判断该信哪个 */
+  for (const f of def.fields) {
+    if (!f.derived || f.derived !== 'items') continue
+    const rows = Array.isArray(formData.items) ? formData.items : []
+    const expect = oaItemsTotal(rows)
+    const got = Number(formData[f.key])
+    if (Number.isFinite(got) && Math.abs(got - expect) > 0.01) {
+      return `${f.label}应等于明细合计 ¥${expect.toFixed(2)}（当前 ¥${got.toFixed(2)}）`
+    }
   }
   for (const f of def.fields) {
     if (f.role !== 'periodEnd') continue
@@ -6882,14 +7092,19 @@ export function createOaRequest({
 } = {}) {
   const def = oaFormOf(bizType)
   if (!def) throw Object.assign(new Error(`不支持的单据类型：${bizType}`), { code: 42211 })
-  const bad = oaFormCheck(bizType, formData)
+  /* 派生字段先算一遍再校验：页面漏同步（点了添加行没触发 watch）不该让用户看到"金额不等于合计" */
+  const data = { ...formData }
+  for (const f of def.fields || []) {
+    if (f.derived === 'items') data[f.key] = oaItemsTotal(Array.isArray(data.items) ? data.items : [])
+  }
+  const bad = oaFormCheck(bizType, data)
   if (bad) throw Object.assign(new Error(bad), { code: 42211 })
 
   const base = currentOperator()
   /* 组织上下文可以是班组（计划按提报部门），审批人解析用它；人事归属另存一列 */
   const applicant = orgScopeId ? { ...base, orgId: orgScopeId, orgName: orgNameOf(orgScopeId) } : base
   const amountField = (def.fields || []).find(f => f.role === 'amount')
-  const amount = amountField ? Number(formData[amountField.key]) || 0 : 0
+  const amount = amountField ? Number(data[amountField.key]) || 0 : 0
   const nodes = oaNodesFor(bizType, amount)
   if (!nodes.length) throw Object.assign(new Error('该单据没有配置审批流，请先在流程配置里设置节点'), { code: 42212 })
 
@@ -6926,10 +7141,10 @@ export function createOaRequest({
     bizType,
     bizId,                                       /* 空 = 无业务实体；合同 / 计划带自己的主键 */
     changeId: '',
-    title: title || `${bizType} · ${_oaSummary(def, formData)}`,
-    formData: { ...formData },
+    title: title || `${bizType} · ${_oaSummary(def, data)}`,
+    formData: { ...data },
     files: [...files],
-    communityId: formData.communityId || (orgs.find(o => o.orgId === base.orgId)?.type === '项目' ? base.orgId.replace('O-', '') : ''),
+    communityId: data.communityId || (orgs.find(o => o.orgId === base.orgId)?.type === '项目' ? base.orgId.replace('O-', '') : ''),
     communityName: '',
     amount,
     applicant: base.name,
@@ -7062,10 +7277,16 @@ export function oaPreviewFlow(bizType, amount = 0) {
 export function oaFieldRows(approval) {
   const def = OA_FORM_DEFS.find(f => f.bizType === approval?.bizType)
   if (!def) return []
-  return def.fields.map(f => ({
-    key: f.key, label: f.label, type: f.type, unit: f.unit || '',
-    value: approval.formData?.[f.key] ?? ''
-  })).filter(r => r.value !== '' && r.value !== null && r.value !== undefined)
+  return def.fields.map(f => {
+    const raw = approval.formData?.[f.key]
+    /* 明细不能直接塞进详情表：value 是数组，渲染出来会是 [object Object] */
+    const value = f.type === 'items'
+      ? (Array.isArray(raw) && raw.length
+        ? `${raw.length} 项：${raw.slice(0, 3).map(r => r.name).join('、')}${raw.length > 3 ? ' 等' : ''} · 合计 ¥${oaItemsTotal(raw).toFixed(2)}`
+        : '')
+      : (raw ?? '')
+    return { key: f.key, label: f.label, type: f.type, unit: f.unit || '', value, items: f.type === 'items' ? raw : undefined }
+  }).filter(r => r.value !== '' && r.value !== null && r.value !== undefined)
 }
 
 
@@ -8047,31 +8268,52 @@ export function rmbUpper(value) {
 /* ---------------- B4 装修押金台账（写操作） ---------------- */
 
 let DP_SEQ = decorationDeposits.length
-/** 登记装修押金（内存态）：金额按面积分档的建议值由页面给出，此处只落库 */
+/**
+ * 登记押金（内存态）。
+ * 2026-11-13 改为**按类型驱动**：只有 needDates 的类型（装修）才要求开工/计划完工，
+ * 门禁卡、履约保证金、租约押金填工期没有意义 —— 之前表单把这三类也卡在"请填写开工日期"上。
+ */
 export function createDeposit(p = {}) {
   const h = _HOUSE_OF.get(p.houseId)
-  if (!h) throw new Error('请选择装修房屋')
+  if (!h) throw new Error('请选择押金所属房屋')
+  const def = depositTypeOf(p.type || '装修押金')
+  if (!def) throw new Error('押金类型不存在')
+  if (!def.enabled) throw new Error(`押金类型「${def.name}」已停用，不能新收`)
   const ow = _OWNER_OF.get(p.ownerId || h.ownerId) || null
-  const amount = Number(p.amount) || 0
-  if (amount <= 0) throw new Error('押金金额必须大于 0')
-  if (!p.startDate || !p.planEndDate) throw new Error('请填写开工日期与计划完工日期')
-  if (p.planEndDate <= p.startDate) throw new Error('计划完工日期必须晚于开工日期')
+
+  const qty = Math.max(1, Number(p.quantity) || 1)
+  const amount = def.standardAmount > 0
+    ? Math.round(def.standardAmount * qty * 100) / 100
+    : Math.round((Number(p.amount) || 0) * 100) / 100
+  if (amount <= 0) throw new Error(def.standardAmount > 0 ? '押金金额必须大于 0' : `「${def.name}」金额不固定，请按合同/租约填写`)
+
+  if (def.needDates) {
+    if (!p.startDate || !p.planEndDate) throw new Error('该类型需要工期：请填写开工日期与计划完工日期')
+    if (p.planEndDate <= p.startDate) throw new Error('计划完工日期必须晚于开工日期')
+  }
+
   DP_SEQ += 1
+  const prefix = { 装修押金: 'ZX', 门禁卡押金: 'MJ', 非机动车牌押金: 'CP', 履约保证金: 'LY', 租约押金: 'ZY' }[def.name] || 'YJ'
   const rec = {
     depositId: 'DP' + String(DP_SEQ).padStart(5, '0'),
-    applyNo: 'ZX' + new Date().getFullYear() + '-' + String(DP_SEQ).padStart(4, '0'),
+    applyNo: prefix + new Date().getFullYear() + '-' + String(DP_SEQ).padStart(4, '0'),
     communityId: h.communityId, communityName: communityName(h.communityId),
     houseId: h.houseId, houseName: h.fullName,
     ownerId: ow?.ownerId || '', ownerName: ow?.name || p.ownerName || '',
     phone: ow?.phone || p.phone || '',
-    type: '装修押金', amount,
+    type: def.name, quantity: def.byQuantity ? qty : 1, amount,
     paidDate: p.paidDate || _now().slice(0, 10),
-    startDate: p.startDate, planEndDate: p.planEndDate, checkDate: null,
-    status: '装修中', deductAmount: 0, deductReason: '',
+    startDate: def.needDates ? p.startDate : '',
+    planEndDate: def.needDates ? p.planEndDate : '',
+    checkDate: null,
+    /* 装修要开工，所以进「装修中」；其余类型收进来就是「在押」，不需要一个假的施工状态 */
+    status: def.needDates ? '装修中' : '在押',
+    deductAmount: 0, deductReason: '',
     refundAmount: 0, refundDate: null, balance: amount, overdueDays: 0,
     operator: p.operator || '当前登录人', remark: p.remark || '', _isNew: true
   }
   decorationDeposits.unshift(rec)
+  track('deposit_create', { type: def.name, amount })
   return rec
 }
 
@@ -8079,7 +8321,9 @@ export function createDeposit(p = {}) {
 export function checkDeposit(depositId, { checkDate = '', deductAmount = 0, deductReason = '' } = {}) {
   const d = decorationDeposits.find(x => x.depositId === depositId)
   if (!d) throw new Error('押金记录不存在')
-  if (d.status !== '装修中' && d.status !== '已逾期') throw new Error('只有「装修中 / 已逾期」可以验收')
+  const def = depositTypeOf(d.type)
+  if (def && !def.needCheck) throw new Error(`「${d.type}」不需要验收：退卡/退牌时直接办理退款即可`)
+  if (!['装修中', '已逾期', '在押'].includes(d.status)) throw new Error(`当前状态「${d.status}」不能验收`)
   if (!checkDate) throw new Error('请填写验收日期')
   const deduct = Number(deductAmount) || 0
   if (deduct < 0 || deduct > d.amount) throw new Error('扣款金额不得为负且不得超过押金总额')
@@ -8089,7 +8333,7 @@ export function checkDeposit(depositId, { checkDate = '', deductAmount = 0, dedu
   d.deductReason = deduct ? deductReason : ''
   // 验收通过不等于钱已退：无扣款时进入「待退款」，由退款动作最终置「已退还」
   d.status = deduct >= d.amount ? '已没收' : (deduct > 0 ? '部分扣除' : '待退款')
-  d.overdueDays = checkDate > d.planEndDate
+  d.overdueDays = d.planEndDate && checkDate > d.planEndDate
     ? Math.round((new Date(checkDate) - new Date(d.planEndDate)) / 86400000) : 0
   return d
 }
@@ -8098,11 +8342,17 @@ export function checkDeposit(depositId, { checkDate = '', deductAmount = 0, dedu
 export function refundDeposit(depositId, { refundAmount = null, refundDate = '' } = {}) {
   const d = decorationDeposits.find(x => x.depositId === depositId)
   if (!d) throw new Error('押金记录不存在')
-  if (!d.checkDate) throw new Error('请先完成验收')
+  const def = depositTypeOf(d.type)
+  /* 只有"需要验收"的类型才卡验收：门禁卡、车牌退卡即退，
+     硬卡一道"请先验收"会让前台每退一张卡都得造一条验收记录 */
+  if ((!def || def.needCheck) && !d.checkDate) throw new Error('请先完成验收')
   const can = Math.round((d.amount - d.deductAmount - d.refundAmount) * 100) / 100
   if (can <= 0) throw new Error('该押金已无余额可退')
   const amt = refundAmount === null ? can : Number(refundAmount)
   if (amt <= 0 || amt > can) throw new Error(`退款金额应在 0 ~ ${can} 之间`)
+  if (def && def.allowPartial === false && Math.abs(amt - can) > 0.01) {
+    throw new Error(`「${d.type}」不支持部分退：应一次退清 ¥${can}`)
+  }
   d.refundAmount = Math.round((d.refundAmount + amt) * 100) / 100
   d.balance = Math.round((d.amount - d.refundAmount - d.deductAmount) * 100) / 100
   d.refundDate = refundDate || _now().slice(0, 10)
@@ -9174,6 +9424,18 @@ export function paySplitCheck(splits = [], total = 0) {
     .filter(s => s && s.method)
     .map(s => ({ method: s.method, amount: _cash2(s.amount) }))
 
+  /* 全额减免（实收 0）：没有现金进来，就不该要求"选一种收款方式"。
+     以前这里一律要求金额 > 0，结果是「政策性全免」这种最常见的情形反而收不了款 */
+  const targetEarly = _cash2(total)
+  if (targetEarly <= 0.001) {
+    const positive = rows.filter(s => s.amount > 0)
+    return {
+      rows: [], sum: 0, total: 0, diff: 0,
+      ok: positive.length === 0,
+      msg: positive.length ? '本次实收为 0（全额减免），不要再填收款金额' : ''
+    }
+  }
+
   if (!rows.length) errs.push('请至少选择一种收款方式')
   if (rows.length > PAY_SPLIT_MAX) errs.push(`最多 ${PAY_SPLIT_MAX} 种收款方式（再多对账时分不清是系统错还是人填错）`)
 
@@ -9233,7 +9495,7 @@ const _payErr = (msg, code) => Object.assign(new Error(msg), { code: code || 422
  * @param {{billIds:string[], splits:{method:string,amount:number}[], discount?:number,
  *          remark?:string, operator?:string, at?:string}} payload
  */
-export function payBills({ billIds = [], splits = [], discount = 0, remark = '', operator = '当前登录人', at = '' } = {}) {
+export function payBills({ billIds = [], splits = [], discount = 0, waiveReasonId = '', waiveNote = '', remark = '', operator = '当前登录人', at = '' } = {}) {
   const ids = Array.isArray(billIds) ? billIds : [billIds]
   if (!ids.length) throw _payErr('请先勾选要收款的账单')
 
@@ -9252,6 +9514,33 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
   if (disc < 0) throw _payErr('减免金额不能为负')
   if (disc > unpaidSum + 0.01) throw _payErr(`减免 ¥${disc} 超过应缴 ¥${unpaidSum}`)
   const received = _cash2(unpaidSum - disc)
+
+  /* 减免必须落到受控原因上（2026-11-13）。
+     以前这里只收一个金额，报表要按原因统计减免时发现压根没采集 ——
+     前台填了 800 块减免，事后只看到"让利 800"，说不清为什么让。
+     规则与 createPrepayCollect 保持一致，两个入口不能两套口径。 */
+  const waiveReason = disc > 0
+    ? waiveReasons.find(r => r.reasonId === waiveReasonId)
+    : null
+  if (disc > 0) {
+    if (!waiveReasonId) throw _payErr('减免必须选择原因 —— 报表要按原因统计，也必须能追溯到依据', 42214)
+    if (!waiveReason) throw _payErr('减免原因不存在', 42215)
+    if (!waiveReason.enabled) throw _payErr(`减免原因「${waiveReason.name}」已停用，请换一条或先在字典里启用`, 42216)
+    /* 范围：指定项目的减免不能用在别的项目上 */
+    const scopeIds = waiveReason.communityIds || []
+    if (waiveReason.scope === '指定项目') {
+      const bad = list.find(b => !scopeIds.includes((houses.find(h => h.houseId === b.houseId) || {}).communityId))
+      if (bad) {
+        throw _payErr(`「${waiveReason.name}」只适用于指定项目，当前账单（${houseName(bad.houseId)}）不在范围内`, 42217)
+      }
+    }
+    /* 免审额度：超过就要写依据。不硬拦 —— 现场收了钱再补审批是常态，
+       但必须留痕，否则审计问"谁同意让 5000"时答不上来 */
+    const limit = Number(waiveReason.approveAbove) || 0
+    if (limit > 0 && disc > limit && !String(waiveNote || '').trim()) {
+      throw _payErr(`减免 ¥${_cash2(disc)} 超过「${waiveReason.name}」的免审额度 ¥${_cash2(limit)}，必须填写依据（审批单号 / 会议纪要）`, 42218)
+    }
+  }
 
   const chk = paySplitCheck(splits, received)
   if (!chk.ok) throw _payErr(chk.msg, 42212)
@@ -9288,10 +9577,42 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
   const batchNo = _payBatchNo(day)
   const created = []
 
+  let writtenOff = 0
   for (let i = 0; i < list.length; i++) {
     const b = list[i]
     const mine = billSplits[i]
-    if (!mine.length) continue
+    /* 金额为 0 但减免 > 0 的账单**也要核销**：
+       全额减免时没有现金流，`mine` 为空，原来这里直接 continue，
+       于是钱没收到、账单也没销掉，业主下个月还会被催缴 */
+    if (!mine.length && !(billReceived[i] > 0) && !(discParts[i] > 0)) continue
+    writtenOff += 1
+    if (!mine.length) {
+      /* 纯减免：不生成收款流水（没有现金），只销账 */
+      b.paidAmount = _cash2((b.paidAmount || 0) + billReceived[i])
+      b.discount = _cash2((b.discount || 0) + discParts[i])
+      b.unpaid = 0
+      b.status = '已缴'
+      b.payTime = time
+      b.payMethod = '减免'
+      b.overdueDays = 0
+      if (discParts[i] > 0 && waiveReason) {
+        b.discountReasonId = waiveReason.reasonId
+        b.discountReason = waiveReason.name
+        b.waiveNote = String(waiveNote || '').trim()
+        b.waiveOverLimit = (Number(waiveReason.approveAbove) || 0) > 0 && disc > Number(waiveReason.approveAbove)
+      }
+      _syncBillRow(b)
+      if (b.period && isReceivableItem(b.itemId) && discParts[i] > 0) {
+        _MTX_SEQ += 1
+        MATRIX_TX.push({
+          txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
+          houseId: b.houseId, itemId: b.itemId, period: b.period,
+          amount: discParts[i], source: 'waive', billId: b.billId, at: time,
+          reasonId: waiveReason?.reasonId || '', reasonName: waiveReason?.name || ''
+        })
+      }
+      continue
+    }
 
     PAY_SEQ += 1
     const pay = {
@@ -9322,6 +9643,12 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
        否则"减免了多少"事后查不出来），unpaid 归零 */
     b.paidAmount = _cash2((b.paidAmount || 0) + billReceived[i])
     b.discount = _cash2((b.discount || 0) + discParts[i])
+    if (discParts[i] > 0 && waiveReason) {
+      b.discountReasonId = waiveReason.reasonId
+      b.discountReason = waiveReason.name
+      b.waiveNote = String(waiveNote || '').trim()
+      b.waiveOverLimit = (Number(waiveReason.approveAbove) || 0) > 0 && disc > Number(waiveReason.approveAbove)
+    }
     b.unpaid = 0
     b.status = '已缴'
     b.payTime = time
@@ -9344,7 +9671,9 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
         MATRIX_TX.push({
           txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
           houseId: b.houseId, itemId: b.itemId, period: b.period,
-          amount: discParts[i], source: 'waive', billId: b.billId, at: time
+          amount: discParts[i], source: 'waive', billId: b.billId, at: time,
+          /* 原因随流水一起落：报表按原因汇总，账单可能被后续红冲，流水是最终依据 */
+          reasonId: waiveReason?.reasonId || '', reasonName: waiveReason?.name || ''
         })
       }
     }
@@ -9354,16 +9683,19 @@ export function payBills({ billIds = [], splits = [], discount = 0, remark = '',
 
   return {
     batchNo,
-    count: created.length,
+    count: writtenOff,
+    paymentCount: created.length,
     payable: unpaidSum,
     discount: disc,
+    waiveReasonId: waiveReason?.reasonId || '',
+    waiveReasonName: waiveReason?.name || '',
     received,
     splits: chk.rows,
     payments: created,
     prepay: [],
     methodText: chk.rows.length > 1
       ? chk.rows.map(s => `${s.method} ${_cash2(s.amount)}`).join(' + ')
-      : (chk.rows[0] ? chk.rows[0].method : '')
+      : (chk.rows[0] ? chk.rows[0].method : '全额减免（无现金收款）')
   }
 }
 
@@ -10120,6 +10452,84 @@ export function updateOwnerField(ownerId, field, value, ver) {
   return { ...o }
 }
 
+/**
+ * 业主档案整单保存（2026-11-13）。
+ *
+ * 之前这个表单是纯内存态：onSave 只做 400ms 延迟，新增/编辑都不落库 ——
+ * 于是"在档案页给业主打标签"做了也白做，回列表就没了。
+ * 这里补上写库：编辑整单覆盖，新增取 nextOwnerId；枚举字段逐个白名单校验，
+ * 脏值进库后筛选与报表会出现"未知分类"，而且没人知道是哪条进来的。
+ *
+ * 人脸状态不在这里：它只能由「人脸核验」回写，表单改了就是绕过核验。
+ */
+export function saveOwnerProfile(payload = {}, ownerId = '') {
+  const p = payload || {}
+  const name = String(p.name || '').trim()
+  if (name.length < 2 || name.length > 20) throw new Error('姓名应为 2–20 个字符')
+  const phone = String(p.phone || '').trim()
+  if (!PHONE_RE.test(phone)) throw new Error('手机号格式不正确，应为 11 位数字')
+  assertUnique(owners, 'phone', phone, { idKey: 'ownerId', excludeId: ownerId, label: '手机号' })
+
+  const checkEnum = (v, list, label) => {
+    if (v && !list.includes(v)) throw new Error(`${label}只能是 ${list.join(' / ')}`)
+  }
+  checkEnum(p.ownerCategory, OWNER_CATEGORY, '业主分类')
+  checkEnum(p.economicLevel, ECON_LEVELS, '家庭经济状况')
+  checkEnum(p.politicalStatus, POLITICAL_STATUS, '政治面貌')
+  if (p.weddingDate && !/^\d{4}-\d{2}-\d{2}$/.test(String(p.weddingDate))) {
+    throw new Error('结婚纪念日格式应为 YYYY-MM-DD')
+  }
+
+  /* 标签只收字典里存在的 id：词条被删/传错值时静默丢掉，别把孤儿 id 写进业主表 */
+  const tagIds = [...new Set((p.tagIds || []).filter(tid => ownerTags.some(t => t.tagId === tid)))]
+  const houseIds = [...new Set((p.houseIds || []).filter(hid => houses.some(h => h.houseId === hid)))]
+  const base = {
+    name, phone,
+    idCard: String(p.idCard || '').trim(),
+    gender: p.gender || '', birthday: p.birthday || '',
+    ownerType: p.ownerType || '业主',
+    creditLevel: p.creditLevel || 'A',
+    registerDate: p.registerDate || TODAY,
+    houseIds,
+    emergencyContact: String(p.emergencyContact || '').trim(),
+    emergencyPhone: String(p.emergencyPhone || '').trim(),
+    email: String(p.email || '').trim(),
+    certified: !!p.certified,
+    appRegistered: !!p.appRegistered,
+    remark: String(p.remark || ''),
+    tagIds,
+    ownerCategory: p.ownerCategory || '',
+    economicLevel: p.economicLevel || '',
+    politicalStatus: p.politicalStatus || '',
+    occupation: String(p.occupation || '').trim(),
+    employer: String(p.employer || '').trim(),
+    weddingDate: p.weddingDate || '',
+    negativeNotes: String(p.negativeNotes || '')
+  }
+
+  if (ownerId) {
+    const o = owners.find(x => x.ownerId === ownerId)
+    if (!o) throw new Error('业主不存在')
+    Object.assign(o, base)
+    bumpVersion(o)
+    _syncOwnerRow(o)
+    track('owner_update', { ownerId, tags: tagIds.length })
+    return { ...o, tagIds: [...o.tagIds] }
+  }
+
+  const rec = {
+    ownerId: nextOwnerId(),
+    ...base,
+    parkIds: [],
+    faceRegistered: false,
+    wechatBound: false
+  }
+  owners.unshift(rec)
+  _syncOwnerRow(rec, { insert: true })
+  track('owner_create', { ownerId: rec.ownerId })
+  return { ...rec, tagIds: [...rec.tagIds] }
+}
+
 /** 房屋：使用状态 / 产权状态 / 装修情况 / 朝向 / 备注（不动面积与权属，避免影响账单口径） */
 const HOUSE_PROPERTY_STATUS = ['已办证', '办理中', '未办理', '抵押中']
 export const HOUSE_USE_OPTS = HOUSE_USE_STATUS
@@ -10378,6 +10788,84 @@ export const pendingContractChanges = () => CONTRACT_CHANGE_ROWS.filter(x => x.s
  * 审批单流转到合同域后的副作用：
  * 同意到最后一个节点 → 新合同转「待生效 / 履行中」、变更单「已生效」并回写合同；驳回 → 变更单「已驳回」、新合同退回「草稿」。
  */
+/* ---------------- 报销域回写（2026-11-13） ----------------
+ * 这一段以前是空的：「批准即结束」写了好几个版本，结果 OA 报销批完之后，
+ * expenses 里没有这笔、支出归集看不到、财务报表永远少一块。
+ *
+ * 两条口径：
+ *   ① 审批通过 → 落一张 **待付款** 的报销单（不是已付款）。付款日才确认支出，
+ *      批了没付就记支出等于提前确认成本；
+ *   ② 幂等：同一张审批单只落一次（a._expenseId 记下来），
+ *      重复点「同意」不会生成两张报销单。
+ */
+const EXPENSE_CATEGORY_BY_TYPE = {
+  办公费: 'EXP_OP_OFFICE',
+  差旅费: 'EXP_OP_TRAVEL',
+  招待费: 'EXP_OP_ENTERTAIN',
+  维修材料: 'EXP_OP_REPAIR',
+  其他: 'EXP_OP_OTHER'
+}
+
+function _applyExpenseApproval(a, action) {
+  if (a.bizType !== '费用报销') return
+  if (a.status !== '已通过') return
+  if (a._expenseId) return
+  const fd = a.formData || {}
+  const period = String(fd.happenDate || TODAY).slice(0, 7)
+  const amount = Math.round((Number(fd.amount) || oaItemsTotal(fd.items || [])) * 100) / 100
+  if (!(amount > 0)) return
+  const seq = expenses.reduce((m, x) => Math.max(m, Number(String(x.expenseId).replace(/\D/g, '')) || 0), 0) + 1
+  const rows = Array.isArray(fd.items) ? fd.items.map(r => ({
+    ...r, total: oaItemTotal(r)
+  })) : []
+  const rec = {
+    expenseId: 'EX' + String(seq).padStart(4, '0'),
+    applyNo: `EXP-${period.replace('-', '')}-${String(seq).padStart(3, '0')}`,
+    expenseType: fd.expenseType || '其他',
+    categoryId: EXPENSE_CATEGORY_BY_TYPE[fd.expenseType] || 'EXP_OP_OTHER',
+    amount,
+    happenDate: fd.happenDate || TODAY,
+    period,
+    communityId: fd.communityId || a.communityId || '',
+    communityName: communityName(fd.communityId || a.communityId || ''),
+    applicant: a.applicant || currentOperator().name,
+    status: '待付款',
+    payDate: '',
+    invoiceCount: Number(fd.invoiceCount) || 0,
+    reason: fd.reason || `${fd.expenseType || '费用'}报销`,
+    items: rows,
+    approvalId: a.approvalId,
+    source: 'OA',
+    createdAt: _now()
+  }
+  expenses.unshift(rec)
+  a._expenseId = rec.expenseId
+  track('expense_from_oa', { approvalId: a.approvalId, amount })
+}
+
+/** 待付款的报销单：批了没付的钱，支出归集要单独提示 */
+export function pendingExpenses() {
+  return expenses.filter(x => x.status === '待付款')
+    .slice()
+    .sort((a, b) => String(a.happenDate).localeCompare(String(b.happenDate)))
+    .map(x => ({ ...x }))
+}
+
+/**
+ * 确认付款：只有付了款才进支出。
+ * 不做"审批通过即付款"的自动转换 —— 财务实际打款日期与审批日期经常差半个月，
+ * 按审批日确认成本会让当月的支出结构失真。
+ */
+export function payExpense(expenseId, { payDate = '', remark = '' } = {}) {
+  const x = expenses.find(e => e.expenseId === expenseId)
+  if (!x) throw new Error('报销单不存在')
+  if (x.status === '已付款') throw new Error('该报销单已付款')
+  x.status = '已付款'
+  x.payDate = payDate || TODAY
+  if (remark) x.payRemark = String(remark).slice(0, 60)
+  return { ...x }
+}
+
 function _applyContractApproval(a, action) {
   if (a.bizType !== '合同审批') return
   const c = contracts.find(x => x.contractId === a.bizId)
@@ -19246,7 +19734,20 @@ export function waiveReasonRows({ enabledOnly = false } = {}) {
 }
 
 export const waiveReasonOpts = () =>
-  waiveReasonRows({ enabledOnly: true }).map(r => ({ label: r.name, value: r.reasonId }))
+  waiveReasonRows({ enabledOnly: true }).map(r => ({
+    label: r.name, value: r.reasonId,
+    type: r.type, needProof: r.needProof, countInAssess: r.countInAssess,
+    scope: r.scope || '全部', approveAbove: Number(r.approveAbove) || 0
+  }))
+
+/**
+ * 收银台可选的减免原因：按项目过滤。
+ * 政策性减免常常只针对某个小区（老旧小区改造补贴），
+ * 让它在别的项目也能选，前台就会拿一个不适用的依据去减免。
+ */
+export const waiveReasonOptsFor = communityId =>
+  waiveReasonOpts().filter(o => o.scope !== '指定项目'
+    || (waiveReasons.find(r => r.reasonId === o.value)?.communityIds || []).includes(communityId))
 
 export const waiveReasonOf = id => waiveReasons.find(r => r.reasonId === id) || null
 
@@ -19266,7 +19767,10 @@ export function saveWaiveReason(rec = {}) {
       countInAssess: rec.countInAssess === undefined ? r.countInAssess : !!rec.countInAssess,
       needProof: rec.needProof === undefined ? r.needProof : !!rec.needProof,
       desc: rec.desc === undefined ? r.desc : String(rec.desc),
-      sort: rec.sort === undefined ? r.sort : Number(rec.sort) || 0
+      sort: rec.sort === undefined ? r.sort : Number(rec.sort) || 0,
+      scope: rec.scope === undefined ? (r.scope || '全部') : rec.scope,
+      communityIds: rec.communityIds === undefined ? (r.communityIds || []) : rec.communityIds,
+      approveAbove: rec.approveAbove === undefined ? (Number(r.approveAbove) || 0) : Number(rec.approveAbove) || 0
     })
     return { ...r }
   }
@@ -19280,7 +19784,10 @@ export function saveWaiveReason(rec = {}) {
     needProof: rec.needProof === undefined ? true : !!rec.needProof,
     enabled: true,
     sort: rec.sort === undefined ? (seq * 10) : Number(rec.sort) || 0,
-    desc: String(rec.desc || '')
+    desc: String(rec.desc || ''),
+    scope: rec.scope || '全部',
+    communityIds: Array.isArray(rec.communityIds) ? rec.communityIds : [],
+    approveAbove: Number(rec.approveAbove) || 0
   }
   waiveReasons.push(row)
   return { ...row }
@@ -19444,6 +19951,9 @@ export function monthlyFeeOf(houseId, itemId) {
 /** 只给"有应收"的收费项铺矩阵：水电没有月度应收，走充值 */
 export const isReceivableItem = itemId => {
   const it = feeItems.find(i => i.itemId === itemId)
+  /* 负债科目永远没有应收：押金收进来是欠业主的钱，把它铺进应收矩阵，
+     报表上就变成"该收没收"，收缴率、欠费率全部失真 */
+  if (it?.direction === 'liability') return false
   return !!it && ['按面积', '按车位', '按户'].includes(it.calcType) && it.cycle === '月'
 }
 
@@ -19876,28 +20386,35 @@ export function renewParking(parkId, months = 1) {
 
 /* ---------------- 押金（收银台直收，不含退还） ---------------- */
 
-export const DEPOSIT_COLLECT_TYPES = [
-  { type: '装修押金', amount: 3000, refundable: true, needDates: true, note: '需填开工与计划完工日期' },
-  { type: '门禁卡押金', amount: 50, refundable: true, needDates: false, note: '按张收取' },
-  { type: '非机动车牌押金', amount: 20, refundable: true, needDates: false, note: '按牌收取' }
-]
-export const depositCollectTypeOpts = () =>
-  DEPOSIT_COLLECT_TYPES.map(t => ({ value: t.type, label: `${t.type}（${t.amount} 元）` }))
+/** 收银台可收押金类型（读字典，不再硬编码三个） */
+export const DEPOSIT_COLLECT_TYPES = depositTypeOpts().map(o => ({
+  type: o.value, amount: o.standardAmount, refundable: true,
+  needDates: o.needDates, byQuantity: o.byQuantity
+}))
+export const depositCollectTypeOpts = () => depositTypeOpts()
 
 /**
  * 收银台收押金。
- * 金额不可改：押金一改就成了议价，退的时候按哪个数退？所以只允许取字典标准额。
- * 这里只「收」，退还走押金台账并需审批 —— 收银台上退钱，等于给了一条不经审批的出金口。
+ *
+ * 金额规则分两种（2026-11-13）：
+ *   · 有标准额（装修 3000 / 门禁卡 50 / 车牌 20）—— 金额不可改，一改就成了议价，退的时候按哪个数退；
+ *   · 无标准额（履约保证金 / 租约押金）—— 必须按合同或租约填，且要写依据，否则退的时候说不清基数。
+ *
+ * 这里只「收」，退还走押金台账 —— 收银台上退钱等于开了一条不经审批的出金口。
  */
-export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1, remark = '' } = {}) {
+export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1, amount = 0, remark = '' } = {}) {
   assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
   const h = houses.find(x => x.houseId === houseId)
   if (!h) throw new Error('房屋不存在')
-  const def = DEPOSIT_COLLECT_TYPES.find(t => t.type === type)
+  const def = depositTypeOf(type)
   if (!def) throw new Error('押金类型不存在')
-  const q = Number(quantity) || 1
-  if (q < 1) throw new Error('数量至少 1')
-  const amount = Math.round(def.amount * q * 100) / 100
+  if (!def.enabled) throw new Error(`押金类型「${def.name}」已停用`)
+  const q = Math.max(1, Number(quantity) || 1)
+  const fixed = Number(def.standardAmount) > 0
+  const amt = fixed
+    ? Math.round(def.standardAmount * (def.byQuantity ? q : 1) * 100) / 100
+    : Math.round((Number(amount) || 0) * 100) / 100
+  if (amt <= 0) throw new Error(`「${def.name}」金额不固定，请按合同/租约填写金额`)
   DP_SEQ += 1
   const rec = {
     depositId: 'DP' + String(DP_SEQ).padStart(5, '0'),
@@ -19905,10 +20422,11 @@ export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1
     communityId: h.communityId, communityName: communityName(h.communityId),
     houseId: h.houseId, houseName: h.fullName,
     ownerId: h.ownerId || '', ownerName: ownerName(h.ownerId), phone: '',
-    type, amount,
+    type: def.name, quantity: def.byQuantity ? q : 1, amount: amt,
     paidDate: TODAY, startDate: '', planEndDate: '', checkDate: null,
-    status: '在押', deductAmount: 0, deductReason: '',
-    refundAmount: 0, refundDate: null, balance: amount, overdueDays: 0,
+    status: def.needDates ? '装修中' : '在押',
+    deductAmount: 0, deductReason: '',
+    refundAmount: 0, refundDate: null, balance: amt, overdueDays: 0,
     operator: currentOperator().name || '前台', remark: String(remark || ''), _isNew: true
   }
   decorationDeposits.unshift(rec)
@@ -20295,11 +20813,20 @@ export function depositLedger() {
   const refunded = r2(rows.reduce((s, d) => s + (Number(d.refundAmount) || 0), 0))
   const deducted = r2(rows.filter(d => Number(d.deductAmount) > 0)
     .reduce((s, d) => s + (Number(d.deductAmount) || 0), 0))
+  const byType = new Map()
+  for (const d of rows) {
+    const cur = byType.get(d.type || '未分类') || { type: d.type || '未分类', count: 0, received: 0, balance: 0 }
+    cur.count += 1
+    cur.received = r2(cur.received + (Number(d.amount) || 0))
+    cur.balance = r2(cur.balance + (Number(d.balance) || 0))
+    byType.set(d.type || '未分类', cur)
+  }
   return {
     count: rows.length,
     received,
     refunded,
     deducted,
+    byType: [...byType.values()].sort((a, b) => b.balance - a.balance),
     /* 在账 = 收 − 退 − 扣。这三个数必须严格相等，否则台账里有一笔去向不明 */
     balance: r2(received - refunded - deducted),
     categoryName: (feeCategories.find(f => f.code === DEPOSIT_CATEGORY_CODE) || {}).name || '押金及保证金',

@@ -1524,7 +1524,15 @@ on('POST', '/oa/requests', (ctx) => {
   const b = ctx.body || {}
   const def = OA_FORM_DEFS.find(f => f.bizType === b.bizType)
   if (!def) throw new ApiError(422, 42211, `不支持的单据类型：${b.bizType}`)
-  const bad = oaFormCheck(b.bizType, b.formData || {})
+  /* 明细派生金额（2026-11-13）：与 PC 的 createOaRequest 同一规则 ——
+     总价 = 单价 × 本次采购数量，金额取合计，客户端传值一律重算 */
+  const data = { ...(b.formData || {}) }
+  for (const f of def.fields || []) {
+    if (f.derived !== 'items') continue
+    data[f.key] = r2((Array.isArray(data.items) ? data.items : [])
+      .reduce((sum, x) => sum + (Number(x.buyQty) || 0) * (Number(x.price) || 0), 0))
+  }
+  const bad = oaFormCheck(b.bizType, data)
   if (bad) throw new ApiError(422, 42211, bad)
 
   /* USERS 里只有 empId/name/roleName，岗位与部门要从员工档案补 */
@@ -1536,7 +1544,7 @@ on('POST', '/oa/requests', (ctx) => {
     manager: emp.manager || ''
   }
   const amountField = def.fields.find(f => f.role === 'amount')
-  const amount = amountField ? Number((b.formData || {})[amountField.key]) || 0 : 0
+  const amount = amountField ? Number(data[amountField.key]) || 0 : 0
   const nodes = oaNodesFor(b.bizType, amount)
   if (!nodes.length) throw new ApiError(422, 42212, '该单据没有配置审批流')
 
@@ -1545,11 +1553,11 @@ on('POST', '/oa/requests', (ctx) => {
     approvalId: 'AP' + String(AP_SEQ).padStart(5, '0'),
     approvalNo: `SP-${DATA_DATE.slice(0, 4)}-${String(AP_SEQ).padStart(4, '0')}`,
     bizType: b.bizType, bizId: '', changeId: '',
-    title: `${b.bizType} · ${oaSummaryOf(def, b.formData || {})}`,
-    formData: { ...(b.formData || {}) },
+    title: `${b.bizType} · ${oaSummaryOf(def, data)}`,
+    formData: { ...data },
     files: Array.isArray(b.files) ? b.files : [],
-    communityId: (b.formData || {}).communityId || '',
-    communityName: (b.formData || {}).communityId ? communityNameOf(b.formData.communityId) : '集团 / 全项目',
+    communityId: data.communityId || '',
+    communityName: data.communityId ? communityNameOf(data.communityId) : '集团 / 全项目',
     amount,
     applicant: applicant.name, applicantRole: applicant.position,
     applicantEmpId: applicant.empId, applicantOrgId: applicant.orgId,
@@ -13228,6 +13236,266 @@ on('GET', '/meter-bills/preview', (ctx) => {
 on('POST', '/meter-bills', (ctx) => {
   if (!ctx.body?.period) throw bad('period 必填')
   return { period: ctx.body.period, count: 0, amount: 0, waterCount: 0, elecCount: 0, skipped: 0 }
+})
+
+
+/* ================= 第 83 批（2026-11-13）：押金 / 减免原因 / 工单评价 / 报销付款 =================
+ * 假服务只保证「形状对、语义对」，注释里写明它与正式实现的差别：
+ *   · 押金与减免原因从内存字典起（真实实现读配置表）；
+ *   · 报销明细由 PC 侧 OA 审批生成，这里只保留待付款与付款动作；
+ *   · 工单评价直接写 workOrders 的 score/evalTags/evaluate（与业主端同一组字段）。
+ */
+
+const WAIVE_REASONS = [
+  { reasonId: 'WR01', code: 'POLICY', name: '政策性减免', type: '政策性', countInAssess: false, needProof: true, scope: '全部', communityIds: [], approveAbove: 0, enabled: true, sort: 10, desc: '政府或行业规定必须减免的' },
+  { reasonId: 'WR02', code: 'HARDSHIP', name: '困难户减免', type: '个案', countInAssess: false, needProof: true, scope: '全部', communityIds: [], approveAbove: 1000, enabled: true, sort: 20, desc: '低保、重病、独居老人等' },
+  { reasonId: 'WR03', code: 'ERROR_FIX', name: '差错纠正', type: '差错', countInAssess: true, needProof: false, scope: '全部', communityIds: [], approveAbove: 2000, enabled: true, sort: 30, desc: '计费错误冲减' },
+  { reasonId: 'WR04', code: 'NEGOTIATION', name: '协商减免', type: '个案', countInAssess: false, needProof: true, scope: '全部', communityIds: [], approveAbove: 500, enabled: true, sort: 40, desc: '诉讼和解、投诉补偿' },
+  { reasonId: 'WR05', code: 'OTHER', name: '其他', type: '个案', countInAssess: false, needProof: true, scope: '全部', communityIds: [], approveAbove: 0, enabled: true, sort: 90, desc: '以上都不属于时选它' }
+]
+let WR_SEQ = WAIVE_REASONS.length
+
+on('GET', '/waive-reasons', (ctx) => {
+  const q = ctx.query || {}
+  return WAIVE_REASONS
+    .filter(r => q.enabled === undefined || q.enabled === '' || String(r.enabled) === String(q.enabled))
+    .filter(r => !q.communityId || r.scope !== '指定项目' || (r.communityIds || []).includes(q.communityId))
+    .slice().sort((a, b) => a.sort - b.sort)
+})
+on('POST', '/waive-reasons', (ctx) => {
+  const b = ctx.body || {}
+  if (!b.name || !b.type) throw bad('name / type 必填')
+  if (WAIVE_REASONS.some(r => r.name === b.name)) throw new ApiError(409, 40930, '该原因已存在')
+  WR_SEQ += 1
+  const rec = {
+    reasonId: 'WR' + String(WR_SEQ).padStart(2, '0'),
+    code: String(b.code || 'CUSTOM_' + WR_SEQ).toUpperCase(),
+    name: b.name, type: b.type,
+    countInAssess: !!b.countInAssess, needProof: b.needProof !== false,
+    scope: b.scope || '全部', communityIds: b.communityIds || [],
+    approveAbove: Number(b.approveAbove) || 0,
+    enabled: b.enabled !== false, sort: Number(b.sort) || WR_SEQ * 10,
+    desc: b.desc || ''
+  }
+  WAIVE_REASONS.push(rec)
+  return rec
+})
+on('PATCH', '/waive-reasons/{reasonId}', (ctx) => {
+  const r = WAIVE_REASONS.find(x => x.reasonId === ctx.params.reasonId)
+  if (!r) throw notFound('减免原因不存在')
+  Object.assign(r, ctx.body || {}, { reasonId: r.reasonId })
+  /* 至少要留一条启用的，否则收银台减免提交不了 */
+  if (!r.enabled && WAIVE_REASONS.filter(x => x.enabled && x !== r).length === 0) {
+    throw bad('至少要保留一条启用的减免原因')
+  }
+  return r
+})
+
+const DEPOSIT_TYPES = [
+  { typeId: 'DT01', name: '装修押金', standardAmount: 3000, needDates: true, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 10, desc: '装修前收取，验收后退还' },
+  { typeId: 'DT02', name: '门禁卡押金', standardAmount: 50, needDates: false, needCheck: false, allowPartial: false, byQuantity: true, enabled: true, sort: 20, desc: '按张收取，退卡即退' },
+  { typeId: 'DT03', name: '非机动车牌押金', standardAmount: 20, needDates: false, needCheck: false, allowPartial: false, byQuantity: true, enabled: true, sort: 30, desc: '按牌收取' },
+  { typeId: 'DT04', name: '履约保证金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 40, desc: '供应商履约担保，合同期满退还' },
+  { typeId: 'DT05', name: '租约押金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 50, desc: '车位 / 场地 / 商铺出租收取' }
+]
+let DT_SEQ = DEPOSIT_TYPES.length
+
+/* 押金样例：从房屋里取前 12 套，类型轮换，保证「收 = 退 + 扣 + 在账」 */
+const DEPOSITS = houses.slice(0, 12).map((h, i) => {
+  const def = DEPOSIT_TYPES[i % DEPOSIT_TYPES.length]
+  const amount = def.standardAmount > 0 ? def.standardAmount : 20000
+  const refund = i % 4 === 0 ? amount : 0
+  const deduct = i % 5 === 0 ? 500 : 0
+  return {
+    depositId: 'DP' + String(i + 1).padStart(5, '0'),
+    applyNo: 'YJ2026-' + String(i + 1).padStart(4, '0'),
+    type: def.name,
+    communityId: h.communityId,
+    houseId: h.houseId,
+    ownerId: h.ownerId || '',
+    amount, quantity: 1,
+    paidDate: '2026-08-' + String(10 + (i % 18)).padStart(2, '0'),
+    startDate: def.needDates ? '2026-08-15' : '',
+    planEndDate: def.needDates ? '2026-11-15' : '',
+    checkDate: refund || deduct ? '2026-10-10' : null,
+    status: refund ? '已退还' : (deduct ? '部分扣除' : (def.needDates ? '装修中' : '在押')),
+    deductAmount: deduct, deductReason: deduct ? '设施损坏赔偿' : '',
+    refundAmount: refund, refundDate: refund ? '2026-10-12' : null,
+    balance: r2(amount - refund - deduct),
+    operator: '前台', remark: ''
+  }
+})
+let DP_SEQ = DEPOSITS.length
+
+on('GET', '/deposit-types', (ctx) => {
+  const q = ctx.query || {}
+  return DEPOSIT_TYPES
+    .filter(t => q.enabled === undefined || q.enabled === '' || String(t.enabled) === String(q.enabled))
+    .slice().sort((a, b) => a.sort - b.sort)
+})
+on('POST', '/deposit-types', (ctx) => {
+  const b = ctx.body || {}
+  if (!b.name) throw bad('name 必填')
+  if (DEPOSIT_TYPES.some(t => t.name === b.name)) throw new ApiError(409, 40931, '该押金类型已存在')
+  DT_SEQ += 1
+  const rec = {
+    typeId: 'DT' + String(DT_SEQ).padStart(2, '0'),
+    name: b.name,
+    standardAmount: Number(b.standardAmount) || 0,
+    needDates: !!b.needDates, needCheck: !!b.needCheck,
+    allowPartial: b.allowPartial !== false, byQuantity: !!b.byQuantity,
+    enabled: b.enabled !== false, sort: Number(b.sort) || DT_SEQ * 10,
+    desc: b.desc || ''
+  }
+  DEPOSIT_TYPES.push(rec)
+  return rec
+})
+on('PATCH', '/deposit-types/{typeId}', (ctx) => {
+  const t = DEPOSIT_TYPES.find(x => x.typeId === ctx.params.typeId)
+  if (!t) throw notFound('押金类型不存在')
+  Object.assign(t, ctx.body || {}, { typeId: t.typeId })
+  return t
+})
+
+on('GET', '/deposits', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query || {}
+  const list = DEPOSITS
+    .filter(d => !q.type || d.type === q.type)
+    .filter(d => !q.status || d.status === q.status)
+    .filter(d => !q.communityId || d.communityId === q.communityId)
+    .filter(d => !q.kw || `${d.applyNo}${d.houseId}${d.type}`.includes(q.kw))
+    .slice().sort((a, b) => String(b.paidDate).localeCompare(String(a.paidDate)))
+  const sum = k => r2(list.reduce((s, d) => s + (Number(d[k]) || 0), 0))
+  const byType = [...new Set(list.map(d => d.type))].map(type => {
+    const rows = list.filter(d => d.type === type)
+    return {
+      type, count: rows.length,
+      amount: r2(rows.reduce((s, d) => s + d.amount, 0)),
+      balance: r2(rows.reduce((s, d) => s + d.balance, 0))
+    }
+  })
+  const p = page(list, q)
+  return {
+    ...p,
+    summary: {
+      count: list.length, payable: sum('amount'), paid: sum('refundAmount'),
+      deduct: sum('deductAmount'), unpaid: sum('balance'), byType
+    }
+  }
+})
+on('POST', '/deposits', (ctx) => {
+  const b = ctx.body || {}
+  if (!b.type || !b.houseId || !b.paidDate) throw bad('type / houseId / paidDate 必填')
+  const def = DEPOSIT_TYPES.find(t => t.name === b.type)
+  if (!def) throw notFound('押金类型不存在')
+  if (!def.enabled) throw bad('该押金类型已停用')
+  if (def.needDates && (!b.startDate || !b.planEndDate)) throw bad('该类型需要工期：请填写开工与计划完工日期')
+  const amount = def.standardAmount > 0
+    ? r2(def.standardAmount * (def.byQuantity ? (Number(b.quantity) || 1) : 1))
+    : r2(b.amount)
+  if (!(amount > 0)) throw bad('金额必须大于 0')
+  const h = HOUSE.get(b.houseId) || {}
+  DP_SEQ += 1
+  const rec = {
+    depositId: 'DP' + String(DP_SEQ).padStart(5, '0'),
+    applyNo: 'YJ2026-' + String(DP_SEQ).padStart(4, '0'),
+    type: def.name, communityId: h.communityId || '', houseId: b.houseId,
+    ownerId: h.ownerId || '', amount, quantity: def.byQuantity ? (Number(b.quantity) || 1) : 1,
+    paidDate: b.paidDate,
+    startDate: def.needDates ? b.startDate : '', planEndDate: def.needDates ? b.planEndDate : '',
+    checkDate: null, status: def.needDates ? '装修中' : '在押',
+    deductAmount: 0, deductReason: '', refundAmount: 0, refundDate: null,
+    balance: amount, operator: ctx.user.name, remark: b.remark || ''
+  }
+  DEPOSITS.unshift(rec)
+  return rec
+})
+on('POST', '/deposits/{depositId}/check', (ctx) => {
+  const d = DEPOSITS.find(x => x.depositId === ctx.params.depositId)
+  if (!d) throw notFound('押金记录不存在')
+  const def = DEPOSIT_TYPES.find(t => t.name === d.type)
+  if (def && !def.needCheck) throw bad(`「${d.type}」不需要验收：退卡/退牌时直接退款`)
+  const b = ctx.body || {}
+  if (!b.checkDate) throw bad('请填写验收日期')
+  const deduct = Number(b.deductAmount) || 0
+  if (deduct < 0 || deduct > d.amount) throw bad('扣款金额不得为负且不得超过押金总额')
+  if (deduct > 0 && !b.deductReason) throw bad('有扣款时必须填写扣款原因')
+  d.checkDate = b.checkDate
+  d.deductAmount = r2(deduct)
+  d.deductReason = deduct ? b.deductReason : ''
+  d.status = deduct >= d.amount ? '已没收' : (deduct > 0 ? '部分扣除' : '待退款')
+  return d
+})
+on('POST', '/deposits/{depositId}/refund', (ctx) => {
+  const d = DEPOSITS.find(x => x.depositId === ctx.params.depositId)
+  if (!d) throw notFound('押金记录不存在')
+  const def = DEPOSIT_TYPES.find(t => t.name === d.type)
+  if (def && def.needCheck && !d.checkDate) throw bad('请先完成验收')
+  const can = r2(d.amount - d.deductAmount - d.refundAmount)
+  if (can <= 0) throw bad('该押金已无余额可退')
+  const b = ctx.body || {}
+  const amt = b.refundAmount === undefined || b.refundAmount === null ? can : Number(b.refundAmount)
+  if (!(amt > 0) || amt > can) throw bad(`退款金额应在 0 ~ ${can} 之间`)
+  if (def && def.allowPartial === false && Math.abs(amt - can) > 0.01) throw bad(`「${d.type}」不支持部分退`)
+  d.refundAmount = r2(d.refundAmount + amt)
+  d.balance = r2(d.amount - d.refundAmount - d.deductAmount)
+  d.refundDate = b.refundDate || new Date().toISOString().slice(0, 10)
+  if (d.balance <= 0) d.status = d.deductAmount > 0 ? '部分扣除' : '已退还'
+  return d
+})
+
+/* 工单评价：与业主端写的是同一组字段 */
+const WO_EVAL_TAGS = ['准时上门', '讲解清楚', '收拾干净', '收费透明', '态度好']
+const satisfactionOf = (list) => {
+  const rated = list.filter(w => Number(w.score) > 0)
+  const rateable = list.filter(w => ['已完工', '已评价', '已关闭'].includes(w.status))
+  const avg = rated.length ? Math.round(rated.reduce((s, w) => s + Number(w.score), 0) / rated.length * 100) / 100 : 0
+  return {
+    total: list.length, rateable: rateable.length,
+    ratedCount: rated.length,
+    unratedCount: rateable.filter(w => !(Number(w.score) > 0)).length,
+    evalRate: rateable.length ? Math.round(rated.length / rateable.length * 10000) / 100 : 0,
+    avg,
+    lowCount: rated.filter(w => Number(w.score) <= 2).length,
+    dist: [1, 2, 3, 4, 5].map(n => ({ score: n, n: rated.filter(w => Number(w.score) === n).length })),
+    tags: [...new Set(rated.flatMap(w => w.evalTags || []))]
+      .map(name => ({ name, n: rated.filter(w => (w.evalTags || []).includes(name)).length }))
+      .sort((a, b) => b.n - a.n),
+    lowList: rated.filter(w => Number(w.score) <= 2)
+      .map(w => ({ woId: w.woId, woNo: w.woNo, score: Number(w.score), assignee: w.assignee, evaluate: w.evaluate || '' }))
+  }
+}
+on('POST', '/work-orders/{woId}/evaluate', (ctx) => {
+  const w = workOrders.find(x => x.woId === ctx.params.woId)
+  if (!w) throw notFound('工单不存在')
+  if (w.score > 0) throw new ApiError(409, 40932, '该工单已评价')
+  const b = ctx.body || {}
+  const score = Number(b.score)
+  if (!(score >= 1 && score <= 5)) throw bad('score 应为 1~5')
+  w.score = score
+  w.evalTags = (b.tags || []).filter(t => WO_EVAL_TAGS.includes(t))
+  w.evaluate = String(b.text || '')
+  w.evaluateAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  if (['已完工', '待确认'].includes(w.status)) w.status = '已评价'
+  return satisfactionOf(workOrders)
+})
+on('GET', '/work-orders/satisfaction', (ctx) => {
+  const q = ctx.query || {}
+  const list = workOrders.filter(w => !q.communityId || w.communityId === q.communityId)
+  return satisfactionOf(list)
+})
+
+/* 报销：审批通过 → 待付款；财务确认付款后才计入支出 */
+const EXPENSES = []
+on('GET', '/expenses/pending', () => EXPENSES.filter(x => x.status === '待付款'))
+on('POST', '/expenses/{expenseId}/pay', (ctx) => {
+  const x = EXPENSES.find(e => e.expenseId === ctx.params.expenseId)
+  if (!x) throw notFound('报销单不存在')
+  if (x.status === '已付款') throw new ApiError(409, 40933, '该报销单已付款')
+  x.status = '已付款'
+  x.payDate = (ctx.body || {}).payDate || new Date().toISOString().slice(0, 10)
+  return x
 })
 
 export function startServer(port = 4010) {

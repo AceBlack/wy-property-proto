@@ -22,6 +22,10 @@ export { WO_PRIORITY_OPTS } from '@/utils/api'
 export const woVirtualNodes = () => mock.woVirtualNodes()
 export const woQuerySummary = () => mock.woQuerySummary()
 
+/* 满意度与评价标签（2026-11-13）：标签固定五项，三端同一份 */
+export const woSatisfaction = (q = {}) => mock.woSatisfaction(q)
+export { WO_EVAL_TAGS } from '@/utils/api'
+
 /* ---------- 写 ---------- */
 export const createWorkOrder = payload =>
   IS_MOCK ? mock.createWorkOrder(payload) : post('/work-orders', payload)

@@ -25,6 +25,17 @@
       </div>
     </div>
 
+    <!-- 费用字典同组入口：分类是会计口径，其余是作业口径。
+         不做成一张表（改一个减免原因看起来像在动报表），但入口要放在一起，
+         否则用的人会在"收费科目"和"分类字典"之间反复找 -->
+    <div class="dict-nav">
+      <span class="dict-nav__t">费用字典</span>
+      <span class="dict-nav__i is-on">分类字典</span>
+      <span class="dict-nav__i" @click="$router.push('/b/fee-items')">收费科目与价目</span>
+      <span class="dict-nav__i" @click="$router.push('/b/waive-reasons')">减免原因</span>
+      <span class="dict-nav__i" @click="$router.push('/b/deposit-types')">押金类型</span>
+    </div>
+
     <div class="panel" style="margin-top:16px;">
       <div class="grid g4">
         <div class="dstat"><div class="dstat__k">一级分类（当前方向）</div><div class="dstat__v">{{ l1Count }}<span class="unit">个</span></div></div>
@@ -176,4 +187,19 @@ onMounted(load)
   background: var(--biz-bg-2); font-size: 12.5px; color: var(--biz-text-2);
 }
 .hint { font-size: 11.5px; color: var(--biz-text-3); line-height: 1.6; }
+.dict-nav {
+  margin-top: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: var(--biz-bg-2, #fff); border: 1px solid var(--biz-border-light);
+  border-radius: 10px; padding: 8px 12px; font-size: 12.5px;
+}
+.dict-nav__t { color: var(--biz-text-3); margin-right: 4px; }
+.dict-nav__i {
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; color: var(--biz-text-2);
+  border: 1px solid transparent;
+}
+.dict-nav__i:hover { background: var(--biz-bg-3, #f5f7fa); }
+.dict-nav__i.is-on {
+  background: var(--el-color-primary-light-9); color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-7); cursor: default;
+}
 </style>

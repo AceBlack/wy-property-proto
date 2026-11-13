@@ -36,3 +36,6 @@ export const updateOaFlow = (bizType, patch) =>
 
 export { canEditOaFlow, canViewOaFlow } from '@/utils/api'
 export { OA_BIZ_TYPES, OA_FORM_DEFS, OA_FLOW_DEFS, ASSIGNEE_TYPES, SIGN_MODES, ROLE_CODES } from '@/utils/oa'
+
+/* 批 7（2026-11-13）：报销明细行 —— 总价 = 单价 × 本次采购数量，金额取明细合计 */
+export { oaItemTotal, oaItemsTotal, pendingExpenses, payExpense } from '@/utils/api'

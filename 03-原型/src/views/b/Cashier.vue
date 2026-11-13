@@ -331,15 +331,20 @@
           </div>
 
           <div v-else-if="extraPanel === 'deposit'" class="addrow">
-            <el-select v-model="extraForm.depositType" style="width:196px;">
+            <el-select v-model="extraForm.depositType" style="width:190px;" @change="onDepositType">
               <el-option v-for="o in extraDepositOpts" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
-            <el-input-number v-model="extraForm.depositQty" :min="1" :controls="false" style="width:82px;"
-              placeholder="数量" />
+            <el-input-number v-if="extraDepositDef?.byQuantity" v-model="extraForm.depositQty" :min="1"
+              :controls="false" style="width:74px;" placeholder="数量" />
+            <!-- 金额按约定的类型（履约 / 租约）必须手填：押金基数不能靠猜，退的时候按它算 -->
+            <el-input-number v-if="!isFixedDeposit" v-model="extraForm.depositAmount" :min="0" :precision="2"
+              :controls="false" style="width:120px;" placeholder="约定金额" />
             <span class="addrow__amt">{{ money(extraDepositAmount) }}</span>
             <span class="addrow__eq">元</span>
             <el-button type="primary" plain @click="addDeposit">加入</el-button>
-            <span class="addrow__tip is-warn">金额不可改；只收不退，退还走押金台账</span>
+            <span class="addrow__tip is-warn">
+              {{ isFixedDeposit ? '按标准额收取，金额不可改' : '按合同/租约填写，备注写清编号' }}；只收不退，退还走押金台账
+            </span>
           </div>
 
           <div v-else-if="extraPanel === 'temp'" class="addrow">
@@ -437,10 +442,30 @@
         <!-- 合计：收入与押金分开 -->
         <div class="sum">
           <div class="sum__r"><span>收入类合计</span><b>{{ money(incomeSubtotal) }}</b></div>
-          <div class="sum__r">
+          <!-- 减免：金额 + 原因 + 依据。原因不是可选项 —— 报表要按原因统计"让了多少、为什么让" -->
+          <div class="sum__r sum__r--waive">
             <span>减免</span>
-            <el-input-number v-model="discount" :min="0" :max="incomeSubtotal" :step="10" size="small"
-              :controls="false" style="width:92px;" />
+            <span class="waive-fld">
+              <el-input-number v-model="discount" :min="0" :max="incomeSubtotal" :step="10" size="small"
+                :controls="false" style="width:88px;" />
+              <el-select v-model="waiveReasonId" size="small" placeholder="减免原因（必选）" clearable
+                :disabled="!(discount > 0)" style="width:132px;">
+                <el-option v-for="o in waiveOptsHere" :key="o.value" :label="o.label" :value="o.value">
+                  <span>{{ o.label }}</span>
+                  <span class="opt-sub">{{ o.type }}{{ o.approveAbove ? ' · 免审 ≤' + o.approveAbove : '' }}</span>
+                </el-option>
+              </el-select>
+            </span>
+          </div>
+          <div v-if="discount > 0" class="waive-note">
+            <el-input v-model="waiveNote" size="small"
+              :placeholder="waiveNeedNote ? '减免依据（必填：审批单号 / 会议纪要 / 证明编号）' : '减免说明（选填）'" />
+            <div v-if="waiveOverLimit" class="waive-note__warn">
+              「{{ waiveReason?.label }}」免审额度 ¥{{ money(waiveReason.approveAbove) }}，本次已超出，必须填写依据
+            </div>
+            <div v-else-if="waiveReason?.needProof" class="waive-note__tip">
+              该原因需凭证：请在此填写依据，纸质件随单归档
+            </div>
           </div>
           <div class="sum__r"><span>押金（负债，不计收入）</span><b class="is-muted">{{ money(depositIncomeTotal) }}</b></div>
           <div class="sum__total">
@@ -601,7 +626,7 @@ import {
   parkingRenewQuote, payBills, paySplitCheck, payTempCharge, prepayPlan,
   recentTempCharges,
   renewParking, saveTempCharge, setHouseUtilityPrice, tenantsOfOwner,
-  utilityBillsOf, utilityPriceOf, utilityQuote, utilityQuoteAt, utilityTierRows, waiveReasonOpts
+  utilityBillsOf, utilityPriceOf, utilityQuote, utilityQuoteAt, utilityTierRows, waiveReasonOpts, waiveReasonOptsFor
 } from '@/utils/api'
 import TempChargeDialog from '@/components/TempChargeDialog.vue'
 import ReceiptPrint from '@/components/ReceiptPrint.vue'
@@ -642,6 +667,9 @@ const lastResult = ref(null)
 const mode = ref('bill')
 const houseOpts = houseOptions(400)
 const waiveOpts = waiveReasonOpts()
+/* 收银台右栏的减免（与预缴面板的 pp.waiveReasonId 分开：那是单笔预收的减免） */
+const waiveReasonId = ref('')
+const waiveNote = ref('')
 const pp = reactive({
   houseId: '', itemId: '', meter: false, months: 1, inputMode: 'amount',
   amount: 0, qty: 0, waive: 0, waiveReasonId: '',
@@ -1027,6 +1055,19 @@ const activePark = computed(() => {
   return ps.find(x => x.houseId === h?.houseId) || ps[0]
 })
 
+/* 减免原因按当前房屋所属项目过滤：政策性减免常只针对某个小区，
+   让它在别的项目也能选，前台就拿一个不适用的依据去减免 */
+const waiveOptsHere = computed(() => waiveReasonOptsFor(activeHouse.value?.communityId || ''))
+const waiveReason = computed(() => waiveOptsHere.value.find(o => o.value === waiveReasonId.value) || null)
+const waiveOverLimit = computed(() => {
+  const r = waiveReason.value
+  const d = Number(discount.value) || 0
+  return !!r && Number(r.approveAbove) > 0 && d > Number(r.approveAbove)
+})
+/* 需凭证 / 超免审额度 → 依据必填。字典上写了"需凭证"却不拦，这个字段就是装饰 */
+const waiveNeedNote = computed(() =>
+  (Number(discount.value) || 0) > 0 && (waiveOverLimit.value || !!waiveReason.value?.needProof))
+
 /* ---------------- ① 物业费：账期格子 ---------------- */
 /* 预缴段铺 12 期：业主提前交一年是常态，之前只有 2~3 期可点，等于做不了年缴 */
 const PERIOD_FUTURE = 12
@@ -1371,15 +1412,29 @@ const extraDepositOpts = depositCollectTypeOpts()
 
 const extraForm = reactive({
   itemId: '', itemQty: 1, itemAmount: 0,
-  depositType: '门禁卡押金', depositQty: 1,
+  depositType: '门禁卡押金', depositQty: 1, depositAmount: 0,
   tempName: '', tempAmount: 0, tempNote: ''
 })
 
+const extraDepositDef = computed(() => extraDepositOpts.find(o => o.value === extraForm.depositType) || null)
+/* 有标准额就按标准额 × 数量；没有（履约/租约）必须按合同填，不能拿 0 充数 */
+const isFixedDeposit = computed(() => Number(extraDepositDef.value?.standardAmount) > 0)
 const extraDepositAmount = computed(() => {
-  const def = extraDepositOpts.find(o => o.value === extraForm.depositType)
-  const price = { 装修押金: 3000, 门禁卡押金: 50, 非机动车牌押金: 20 }[extraForm.depositType] || 0
-  return Math.round(price * (Number(extraForm.depositQty) || 1) * 100) / 100
+  const d = extraDepositDef.value
+  if (!d) return 0
+  if (Number(d.standardAmount) > 0) {
+    const q = d.byQuantity ? Math.max(1, Number(extraForm.depositQty) || 1) : 1
+    return Math.round(d.standardAmount * q * 100) / 100
+  }
+  return Math.round((Number(extraForm.depositAmount) || 0) * 100) / 100
 })
+function onDepositType() {
+  const d = extraDepositDef.value
+  extraForm.depositQty = 1
+  extraForm.depositAmount = 0
+  /* 切到不要工期的类型时把旧的金额清掉，否则会把上一个类型的大小带过去 */
+  if (!d) return
+}
 
 function toggleExtraPanel(k) { extraPanel.value = extraPanel.value === k ? '' : k }
 
@@ -1412,15 +1467,21 @@ function addExtraItem() {
 function addDeposit() {
   if (isWalkin.value) { ElMessage.warning('押金要挂到房屋台账上，散客请用「临时收费」'); return }
   const amount = extraDepositAmount.value
-  if (!amount) { ElMessage.error('押金类型没有标准金额'); return }
+  if (!(amount > 0)) {
+    ElMessage.error(isFixedDeposit.value ? '押金类型没有标准金额' : '金额按约定：请填写合同/租约约定的押金金额')
+    return
+  }
+  const d = extraDepositDef.value
+  const q = d?.byQuantity ? Math.max(1, Number(extraForm.depositQty) || 1) : 1
   extras.value.push({
     key: 'dep-' + Date.now(),
     type: 'deposit',
     title: extraForm.depositType,
-    sub: `数量 ${extraForm.depositQty} · 可退，不计收入`,
+    sub: `${d?.byQuantity ? '数量 ' + q + ' · ' : ''}${d?.needCheck ? '需验收' : '退卡/退牌即退'} · 可退，不计收入`,
     amount,
-    meta: { type: extraForm.depositType, quantity: extraForm.depositQty }
+    meta: { type: extraForm.depositType, quantity: q, amount }
   })
+  Object.assign(extraForm, { depositQty: 1, depositAmount: 0 })
   extraPanel.value = ''
 }
 
@@ -1566,7 +1627,10 @@ watch(() => payableTotal.value, v => {
 
 const canPay = computed(() =>
   (sel.value.length + extras.value.length) > 0 && splitCheck.value.ok && !paying.value
-  && !guestErr.value)
+  && !guestErr.value
+  /* 减免必须选原因；需凭证/超额度时必须写依据。否则提交会被数据层拦住，
+     但按钮亮着让人白点一次，体验更差 */
+  && (!(Number(discount.value) > 0) || (!!waiveReasonId.value && (!waiveNeedNote.value || !!String(waiveNote.value).trim()))))
 
 const pickedCount = computed(() => sel.value.length + extras.value.length)
 
@@ -1610,6 +1674,8 @@ async function confirmPay() {
         billIds,
         splits: fitSplits(splitRows.value, billTarget),
         discount: disc,
+        waiveReasonId: disc > 0 ? waiveReasonId.value : '',
+        waiveNote: disc > 0 ? waiveNote.value : '',
         remark: remark.value
       })
       done.push(`${res.count} 笔账单已销账`)
@@ -1637,6 +1703,7 @@ async function confirmPay() {
           houseId: activeHouse.value.houseId,
           type: e.meta.type,
           quantity: e.meta.quantity,
+          amount: e.meta.amount,
           remark: remark.value
         })
         done.push(`${r.type} ¥${money(r.amount)}（不计收入）`)
@@ -1678,6 +1745,8 @@ async function confirmPay() {
     /* 散客多半接着收下一个摊位，面板留在临时收费上 */
     extraPanel.value = isWalkin.value ? 'temp' : ''
     discount.value = 0
+    waiveReasonId.value = ''
+    waiveNote.value = ''
     remark.value = ''
     resetSplits()
   } catch (e) {
@@ -2015,6 +2084,14 @@ async function confirmPay() {
 .sum__r { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--biz-text-2); padding: 4px 0; }
 .sum__r b { font-family: var(--biz-font-num); font-weight: 500; color: var(--biz-text-1); }
 .sum__r b.is-muted { color: var(--biz-text-3); }
+.waive-fld { display: flex; align-items: center; gap: 6px; }
+.opt-sub { float: right; margin-left: 10px; color: var(--biz-text-3); font-size: 11px; }
+.waive-note { margin: 2px 0 6px; }
+.waive-note__warn {
+  margin-top: 4px; font-size: 11.5px; color: #a33;
+  background: #fff5f5; border: 1px solid #f5c2c2; border-radius: 6px; padding: 4px 8px;
+}
+.waive-note__tip { margin-top: 4px; font-size: 11.5px; color: var(--biz-text-3); }
 .sum__total {
   display: flex; align-items: baseline; justify-content: space-between;
   margin-top: 7px; padding-top: 9px; border-top: 1px dashed var(--biz-border);

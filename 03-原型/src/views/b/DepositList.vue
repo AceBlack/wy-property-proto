@@ -3,14 +3,15 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>装修押金台账 · A 级交互</b>：押金场景已收敛为<b>装修押金</b>一种（租约押金、车位押金不存在）。
-        流程为「<b>收取 → 装修登记 → 验收 → 退款 / 扣款</b>」：①「登记押金」新建；②装修中 / 已逾期的记录可「验收」，验收时填验收日与扣款；
-        ③验收后可「退款」，支持部分退，退完自动置「已退还」。三项写操作均为<b>内存态</b>。
-        口径：<code>收 = 退 + 扣 + 在账</code>（押金报表与此处同源）。
+        <b>押金台账 · 所有押金类都在这里</b>：装修押金、门禁卡 / 车牌押金、履约保证金、租约押金。
+        流程按<b>类型</b>驱动 —— 要工期的走「收取 → 施工 → 验收 → 退款」，
+        不要工期的走「收取 → 退款」，不硬套一套状态机。
         <br />
-        <b>押金是负债，不是收入</b>：收进来那天现金增加了，但钱不是公司的，对应分类「押金及保证金」
-        （<code>LIA_DEPOSIT</code>）。只有<b>扣款部分</b>（业主违约扣留）才转成收入，
-        所以报表里押金必须单独一行 —— 混进营业收入就是虚增营收（和已下线的预存是同一类错）。
+        口径：<code>收 = 退 + 扣 + 在账</code>；押金是<b>负债不是收入</b>，对应分类「押金及保证金」（<code>LIA_DEPOSIT</code>），
+        只有<b>扣款部分</b>（违约扣留）才转收入 —— 混进营业收入就是虚增营收（和已下线的预存是同一类错）。
+        <br />
+        类型决定四件事：要不要工期 / 要不要验收 / 金额是否固定 / 能否部分退。维护类型去
+        <router-link to="/b/deposit-types">押金类型字典</router-link>。
       </div>
     </div>
 
@@ -22,11 +23,28 @@
       <div class="panel rsum"><div class="rsum__l">在账余额</div><div class="rsum__v money--out">¥ {{ money(sum.unpaid) }}</div></div>
     </div>
 
+    <div v-if="sum.byType?.length" class="panel typebar">
+      <div class="typebar__t">按类型在账</div>
+      <div class="typebar__i" v-for="t in sum.byType" :key="t.type"
+        :class="{ 'is-on': query.type === t.type }" @click="filterType(t.type)">
+        <span class="typebar__n">{{ t.type }}</span>
+        <span class="typebar__c">{{ t.count }} 笔</span>
+        <span class="typebar__v">¥ {{ money(t.balance) }}</span>
+      </div>
+      <span class="spacer" />
+      <span class="muted" style="font-size:11.5px;">在账合计 ¥ {{ money(sum.unpaid) }}</span>
+    </div>
+
     <div class="panel" style="margin-top:16px;">
       <el-form :model="query" class="filter-bar" label-width="72px" @submit.prevent>
         <el-form-item label="项目">
           <el-select v-model="query.communityId" placeholder="全部" clearable style="width:130px">
             <el-option v-for="c in communityOpts()" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="query.type" placeholder="全部" clearable style="width:140px" @change="search">
+            <el-option v-for="o in typeOpts" :key="o.value" :label="o.value" :value="o.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -46,21 +64,28 @@
 
     <div class="panel" style="margin-top:16px;">
       <div class="toolbar">
-        <el-button type="primary" :icon="'Plus'" @click="$router.push('/b/deposits/new')">登记装修押金</el-button>
+        <el-button type="primary" :icon="'Plus'" @click="$router.push('/b/deposits/new')">登记押金</el-button>
         <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
         <span class="spacer" />
         <span class="muted" style="font-size:12.5px;">共 {{ total }} 笔 · 逾期未验收 {{ sum.overdueCount }} 笔</span>
       </div>
       <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 420px)" @row-click="onRow">
         <el-table-column prop="applyNo" label="申请单号" width="130" />
-        <el-table-column prop="houseName" label="房屋" min-width="170" show-overflow-tooltip />
+        <el-table-column label="类型" width="120">
+          <template #default="{ row }"><span class="dtype">{{ row.type }}</span></template>
+        </el-table-column>
+        <el-table-column prop="houseName" label="房屋" min-width="150" show-overflow-tooltip />
         <el-table-column prop="ownerName" label="业主" width="90" />
         <el-table-column label="押金" width="100" align="right">
           <template #default="{ row }"><span class="money">¥ {{ money(row.amount) }}</span></template>
         </el-table-column>
         <el-table-column prop="paidDate" label="收款日" width="110" />
-        <el-table-column prop="startDate" label="开工日" width="110" />
-        <el-table-column prop="planEndDate" label="计划完工" width="110" />
+        <el-table-column label="工期" width="180">
+          <template #default="{ row }">
+            <span v-if="row.startDate" class="muted">{{ row.startDate }} ~ {{ row.planEndDate }}</span>
+            <span v-else class="muted">不设工期</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="checkDate" label="验收日" width="110">
           <template #default="{ row }">{{ row.checkDate || '—' }}</template>
         </el-table-column>
@@ -81,11 +106,11 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button
-              link type="primary" :disabled="!['装修中', '已逾期'].includes(row.status)"
+              link type="primary" :disabled="!canCheck(row)"
               @click.stop="openCheck(row)"
             >验收</el-button>
             <el-button
-              link type="primary" :disabled="!row.checkDate || !canRefund(row)"
+              link type="primary" :disabled="!canRefundRow(row)"
               @click.stop="openRefund(row)"
             >退款</el-button>
           </template>
@@ -101,12 +126,13 @@
     </div>
 
     <!-- 详情抽屉 -->
-    <DetailDrawer v-model="detailVisible" :loading="detailLoading" title="装修押金详情" width="640">
+    <DetailDrawer v-model="detailVisible" :loading="detailLoading" title="押金详情" width="640">
       <template v-if="detailData">
         <div class="sec">
           <div class="sec__hd"><h4>押金信息</h4></div>
           <el-descriptions :column="2" border size="small">
             <el-descriptions-item label="申请单号">{{ detailData.applyNo }}</el-descriptions-item>
+            <el-descriptions-item label="押金类型">{{ detailData.type }}</el-descriptions-item>
             <el-descriptions-item label="房屋">{{ detailData.houseName }}</el-descriptions-item>
             <el-descriptions-item label="业主">{{ detailData.ownerName }}</el-descriptions-item>
             <el-descriptions-item label="联系电话">{{ maskPhone(detailData.phone) }}</el-descriptions-item>
@@ -116,13 +142,16 @@
               <StatusTag domain="deposit" :value="detailData.status" />
             </el-descriptions-item>
             <el-descriptions-item label="经办人">{{ detailData.operator }}</el-descriptions-item>
+            <el-descriptions-item label="是否需验收">{{ needCheckOf(detailData.type) ? '需要' : '不需要（退卡/退牌即退）' }}</el-descriptions-item>
           </el-descriptions>
         </div>
         <div class="sec" style="margin-top:14px;">
           <div class="sec__hd"><h4>时间线</h4></div>
           <el-timeline style="margin-top:10px;">
             <el-timeline-item timestamp="收款" :type="'success'">{{ detailData.paidDate }} 收取押金 ¥{{ money(detailData.amount) }}</el-timeline-item>
-            <el-timeline-item timestamp="开工">{{ detailData.startDate }}（计划完工 {{ detailData.planEndDate }}）</el-timeline-item>
+            <el-timeline-item v-if="detailData.startDate" timestamp="开工">
+              {{ detailData.startDate }}（计划完工 {{ detailData.planEndDate }}）
+            </el-timeline-item>
             <el-timeline-item :timestamp="detailData.checkDate || '未验收'" :type="detailData.checkDate ? 'success' : 'primary'" :hollow="!detailData.checkDate">
               <span v-if="detailData.checkDate">
                 验收完成<span v-if="detailData.deductAmount"> · 扣款 ¥{{ money(detailData.deductAmount) }}（{{ detailData.deductReason }}）</span>
@@ -139,18 +168,18 @@
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
         <el-button
-          type="primary" v-if="detailData && ['装修中', '已逾期'].includes(detailData.status)"
+          type="primary" v-if="detailData && canCheck(detailData)"
           @click="openCheck(detailData); detailVisible = false"
         >验收</el-button>
         <el-button
-          type="primary" v-else-if="detailData && detailData.checkDate && canRefund(detailData)"
+          type="primary" v-else-if="detailData && canRefundRow(detailData)"
           @click="openRefund(detailData); detailVisible = false"
         >退款</el-button>
       </template>
     </DetailDrawer>
 
     <!-- 验收 -->
-    <el-dialog v-model="checkVisible" title="装修验收" width="480">
+    <el-dialog v-model="checkVisible" title="押金验收" width="480">
       <el-form v-if="cur" label-width="96px">
         <el-form-item label="房屋">{{ cur.houseName }} · {{ cur.ownerName }}</el-form-item>
         <el-form-item label="押金金额">¥ {{ money(cur.amount) }}</el-form-item>
@@ -205,14 +234,27 @@ import { useDetail, useListQuery } from '@/composables/useQuery'
 import { exportList } from '@/utils/export'
 import { maskPhone, money } from '@/utils/format'
 import {
-  PAGE_SIZES, checkDeposit, communityOpts, depositStatusOpts, depositSummary,
-  getDepositDetail, queryDeposits, refundDeposit
+  PAGE_SIZES, checkDeposit, communityOpts, depositStatusOpts, depositSummary, depositTypeOf,
+  depositTypeOpts, getDepositDetail, queryDeposits, refundDeposit
 } from '@/utils/api'
 
 const { rows, total, pageNo, size, loading, query, load, search, reset } = useListQuery(queryDeposits, {
-  filters: { communityId: '', status: '', kw: '' }, size: 20
+  filters: { communityId: '', type: '', status: '', kw: '' }, size: 20
 })
 const sum = ref(depositSummary())
+const typeOpts = depositTypeOpts().map(o => ({ value: o.value, label: o.label }))
+function filterType(t) {
+  query.type = query.type === t ? '' : t
+  search()
+}
+const needCheckOf = type => {
+  const def = depositTypeOf(type)
+  return !def || def.needCheck
+}
+/* 验收：类型要验收 + 状态还没验收过。门禁卡、车牌不出现"验收"这个动作 */
+const canCheck = d => needCheckOf(d.type) && ['在押', '装修中', '已逾期'].includes(d.status)
+/* 退款：有余额可退；需验收的类型必须先验收 */
+const canRefundRow = d => canRefund(d) && (!needCheckOf(d.type) || !!d.checkDate)
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getDepositDetail)
 function onRow(row) { openDetail(row.depositId) }
 
@@ -259,13 +301,33 @@ async function doRefund() {
 }
 
 const COlS = [
-  { prop: 'applyNo', label: '申请单号' }, { prop: 'houseName', label: '房屋' },
+  { prop: 'applyNo', label: '申请单号' }, { prop: 'type', label: '押金类型' }, { prop: 'houseName', label: '房屋' },
   { prop: 'ownerName', label: '业主' }, { prop: 'amount', label: '押金' },
   { prop: 'paidDate', label: '收款日' }, { prop: 'planEndDate', label: '计划完工' },
   { prop: 'status', label: '状态' }, { prop: 'deductAmount', label: '扣除' },
   { prop: 'balance', label: '在账' }
 ]
 function onExport() {
-  exportList({ name: '装修押金台账', source: '/b/deposits', columns: COlS, rows: rows.value, filters: { ...query } })
+  exportList({ name: '押金台账', source: '/b/deposits', columns: COlS, rows: rows.value, filters: { ...query } })
 }
 </script>
+
+<style scoped>
+/* 按类型在账：一行铺开、可点筛选。押金是负债，"欠谁的钱、欠多少"要能一眼分类型看出来 */
+.typebar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 16px; padding: 10px 14px;
+}
+.typebar__t { font-size: 12.5px; color: var(--biz-text-3); }
+.typebar__i {
+  display: inline-flex; align-items: baseline; gap: 8px; cursor: pointer;
+  padding: 6px 12px; border: 1px solid var(--biz-border-light); border-radius: 8px;
+  font-size: 12px; background: #fff; transition: all .16s;
+}
+.typebar__i:hover { border-color: var(--el-color-primary-light-5); }
+.typebar__i.is-on { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.typebar__n { color: var(--biz-text-1); font-weight: 500; }
+.typebar__c { color: var(--biz-text-3); }
+.typebar__v { font-family: var(--biz-font-num); font-weight: 600; color: #a33; }
+.dtype { font-size: 12px; color: var(--biz-text-2); }
+</style>

@@ -61,7 +61,11 @@
             placeholder-class="ph-txt"
           />
 
-          <!-- 数字 / 金额 -->
+          <!-- 数字 / 金额：派生金额（= 明细合计）只读，避免明细与报销额两套数 -->
+          <view v-else-if="f.type === 'money' && f.derived" class="derived">
+            <text class="derived__v num">¥ {{ fmtMoney(itemsTotal(form[f.derived] || [])) }}</text>
+            <text class="derived__h">自动取明细合计，不需要手填</text>
+          </view>
           <input
             v-else-if="f.type === 'number' || f.type === 'money'"
             :id="`f-${f.key}`"
@@ -71,6 +75,56 @@
             :placeholder="f.type === 'money' ? '0.00' : `请输入${f.label}`"
             placeholder-class="ph-txt"
           />
+
+          <!-- 明细行：手机上用卡片逐行编。9 列表格在 375px 上没法用 -->
+          <view v-else-if="f.type === 'items'" class="items">
+            <view v-for="(row, i) in form[f.key]" :key="i" class="items__row">
+              <view class="items__hd">
+                <text class="items__no">第 {{ i + 1 }} 项</text>
+                <text class="items__del" @tap="removeItem(f.key, i)">删除</text>
+              </view>
+              <view class="fld2">
+                <text class="fld2__k">物品名称<text class="req">*</text></text>
+                <input v-model="row.name" class="input" placeholder="如：角阀" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2">
+                <text class="fld2__k">型号规格</text>
+                <input v-model="row.spec" class="input" placeholder="选填" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">单位</text>
+                <input v-model="row.unit" class="input" placeholder="个 / 米" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">需求数量</text>
+                <input v-model="row.needQty" class="input num" type="digit" placeholder="选填" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">库存数量</text>
+                <input v-model="row.stockQty" class="input num" type="digit" placeholder="选填" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">本次采购<text class="req">*</text></text>
+                <input v-model="row.buyQty" class="input num" type="digit" placeholder="数量" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">单价（元）<text class="req">*</text></text>
+                <input v-model="row.price" class="input num" type="digit" placeholder="0.00" placeholder-class="ph-txt" />
+              </view>
+              <view class="fld2 fld2--half">
+                <text class="fld2__k">总价</text>
+                <text class="items__sum num">¥ {{ fmtMoney(itemTotal(row)) }}</text>
+              </view>
+              <view class="fld2">
+                <text class="fld2__k">备注</text>
+                <input v-model="row.note" class="input" placeholder="超量采购请在这里说明" placeholder-class="ph-txt" />
+              </view>
+            </view>
+            <view class="items__ft">
+              <text class="items__add" @tap="addItem(f.key)">+ 添加一行</text>
+              <text class="items__total">合计 <text class="num">¥ {{ fmtMoney(itemsTotal(form[f.key])) }}</text></text>
+            </view>
+          </view>
 
           <!-- 日期：给「今天 / 明天」，现场两下就填完，不用在日历里翻 -->
           <view v-else-if="f.type === 'date'">
@@ -170,8 +224,8 @@
           <text class="done__v">{{ done.handler }}</text>
         </view>
         <text class="done__note">
-          审批进度与结果在「我发起」里看。这一版批准即结束：报销批了不生成付款单、请假批了不进考勤 ——
-          落业务结果单独排批（与 PC 同一口径）。
+          审批进度与结果在「我发起」里看。<b>费用报销</b>批准后会生成一张待付款报销单，
+          财务确认付款后才计入成本；其余单据本期批准即结束（与 PC 同一口径）。
         </text>
       </view>
       <view class="sheet-foot">
@@ -193,6 +247,31 @@ import { APPLY_DEFS, amountFieldOf, applyDefOf, checkApplyForm, nextHandlerOf, p
 import { persona } from '@/store/app'
 import { toastErr } from '@/utils/ui'
 import { communities } from '@pc/mock'
+import { oaItemTotal, oaItemsTotal } from '@pc/utils/api'
+
+/* 明细行：与 PC 同一份定义（columns 来自 OA_FORM_DEFS），这里只负责移动端交互 */
+function blankItem(f) {
+  const row = {}
+  for (const c of f.columns || []) row[c.key] = ''
+  row.buyQty = 1
+  return row
+}
+const addItem = key => form[key].push({ name: '', spec: '', unit: '', needQty: '', stockQty: '', buyQty: 1, price: '', note: '' })
+const removeItem = (key, i) => {
+  if (form[key].length <= 1) { toastErr('至少保留一行明细'); return }
+  form[key].splice(i, 1)
+}
+const itemTotal = oaItemTotal
+const itemsTotal = oaItemsTotal
+const fmtMoney = n => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2)
+
+/* 明细一变就回写金额字段：审批路径按金额分级，金额不同步会走错流程 */
+watch(() => JSON.stringify(form.items || []), () => {
+  const af = amountFieldOf(bizType.value)
+  if (!af || af.derived !== 'items') return
+  const total = oaItemsTotal(form.items || [])
+  form[af.key] = total > 0 ? total.toFixed(2) : ''
+})
 
 const defs = APPLY_DEFS
 const bizType = ref(defs[0]?.bizType || '')
@@ -212,6 +291,10 @@ function reset() {
   for (const f of fields.value) {
     if (f.type === 'file') {
       files[f.key] = []
+      continue
+    }
+    if (f.type === 'items') {
+      form[f.key] = [blankItem(f)]
       continue
     }
     if (f.type === 'select') {
@@ -628,4 +711,26 @@ onLoad(o => {
   height: 88rpx;
   font-size: 30rpx;
 }
+
+/* ---------- 明细行 ---------- */
+.items { display: flex; flex-direction: column; gap: 12rpx; }
+.items__row {
+  background: var(--biz-bg-fill, #f7f8fa); border-radius: 14rpx; padding: 16rpx 18rpx;
+  display: flex; flex-direction: column; gap: 10rpx;
+}
+.items__hd { display: flex; justify-content: space-between; align-items: center; }
+.items__no { font-size: 22rpx; font-weight: 600; color: var(--biz-text-1); }
+.items__del { font-size: 22rpx; color: #c0392b; }
+.fld2 { display: flex; align-items: center; gap: 12rpx; }
+.fld2__k { width: 150rpx; font-size: 22rpx; color: var(--biz-text-3); }
+.fld2--half { width: 48%; display: inline-flex; }
+.items__sum { font-size: 24rpx; font-weight: 600; color: var(--biz-text-1); }
+.items__ft { display: flex; justify-content: space-between; align-items: center; padding: 4rpx 2rpx; }
+.items__add { font-size: 24rpx; color: var(--biz-primary, #5b6cff); }
+.items__total { font-size: 22rpx; color: var(--biz-text-2); }
+.items__total .num { font-weight: 600; color: var(--el-color-primary, #5b6cff); }
+.req { color: #c0392b; margin-left: 2rpx; }
+.derived { display: flex; flex-direction: column; gap: 4rpx; }
+.derived__v { font-size: 32rpx; font-weight: 600; color: var(--biz-text-1); }
+.derived__h { font-size: 20rpx; color: var(--biz-text-3); }
 </style>

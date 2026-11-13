@@ -15,10 +15,13 @@
           <el-form-item label="科目名称" prop="name"><el-input v-model="form.name" placeholder="如 物业服务费" /></el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="科目分类" prop="category">
-            <el-select v-model="form.category" allow-create filterable style="width:100%">
-              <el-option v-for="t in feeCategoryOpts()" :key="t" :label="t" :value="t" />
+          <el-form-item label="方向" prop="direction">
+            <el-select v-model="form.direction" style="width:100%">
+              <el-option v-for="o in FEE_ITEM_DIRECTIONS" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
+            <div class="fld-tip">
+              押金类选「负债」：它不参与应收与收缴率，收了进负债表（见押金台账）
+            </div>
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -51,6 +54,10 @@
         <el-col :span="8">
           <el-form-item label="单价" prop="price">
             <el-input v-model.number="form.price" placeholder="请输入"><template #append>元</template></el-input>
+            <div class="fld-tip">
+              <el-checkbox v-model="isReference">这是参考价（不参与计算）</el-checkbox>
+              <span>水电这类按项目价目表 / 房屋覆盖价结算的，勾上；否则账单会拿这个价当成交价</span>
+            </div>
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -86,7 +93,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import FormShell from '@/components/FormShell.vue'
 import { useForm } from '@/composables/useForm'
-import { feeCalcTypeOpts, feeCategoryOpts, getFeeItemDetail } from '@/utils/api'
+import { FEE_ITEM_DIRECTIONS, feeCalcTypeOpts, getFeeItemDetail } from '@/utils/api'
 import { amount, number, reqSel } from '@/utils/rules'
 
 const route = useRoute()
@@ -95,13 +102,14 @@ const editing = computed(() => !!route.params.id)
 const id = computed(() => route.params.id || '')
 
 const EMPTY = {
-  name: '', category: '', bizType: '住宅', status: '启用',
-  calcType: '按面积', price: null, unit: '元/㎡·月', cycle: '月', taxRate: 6, remark: ''
+  name: '', direction: 'billable', bizType: '住宅', status: '启用',
+  calcType: '按面积', price: null, unit: '元/㎡·月', cycle: '月', taxRate: 6, remark: '',
+  priceMode: 'standard'
 }
 const form = reactive({ ...EMPTY })
 const rules = {
   name: [{ required: true, message: '请输入科目名称', trigger: 'blur' }],
-  category: reqSel('科目分类'),
+  direction: reqSel('方向'),
   bizType: reqSel('适用业态'),
   status: reqSel('状态'),
   calcType: reqSel('计费方式'),
@@ -110,6 +118,12 @@ const rules = {
   cycle: reqSel('计费周期'),
   taxRate: number('税率', { min: 0, max: 100, precision: 2 })
 }
+
+/* 参考价开关独立出来：priceMode 是枚举，用 checkbox 表达比下拉块 */
+const isReference = computed({
+  get: () => form.priceMode === 'reference',
+  set: v => { form.priceMode = v ? 'reference' : 'standard' }
+})
 
 const shell = ref()
 const loading = ref(false)
@@ -140,12 +154,16 @@ onMounted(async () => {
     const it = d?.item || d
     if (it) {
       Object.assign(form, {
-        name: it.name, category: it.category, bizType: it.bizType || '住宅', status: it.status || '启用',
+        name: it.name, direction: it.direction || 'billable', bizType: it.bizType || '住宅', status: it.status || '启用',
         calcType: it.calcType, price: it.price, unit: it.unit, cycle: it.cycle || '月',
-        taxRate: it.taxRate ?? 6, remark: it.remark || ''
+        taxRate: it.taxRate ?? 6, remark: it.remark || '', priceMode: it.priceMode || 'standard'
       })
       markSaved()
     }
   } finally { loading.value = false }
 })
 </script>
+
+<style scoped>
+.fld-tip { font-size: 11.5px; line-height: 1.7; color: var(--biz-text-3); margin-top: 4px; }
+</style>

@@ -19,6 +19,9 @@
       </div>
       <div class="sum-note">
         口径：未闭环 = 待派单 / 已派单 / 处理中 / 待确认四态；已超时按 SLA 截止时间判定，与工单驾驶舱同源。
+        <br />
+        <b>满意度 {{ sat.avg || '—' }} 分</b>（{{ sat.ratedCount }} 单已评，未评价不计入均值 · 参评率 {{ sat.evalRate }}%）
+        · <b>完工未评价 {{ sat.unratedCount }} 单</b>，用上方快捷视图「完工未评价」可直接拉出来催评。
       </div>
     </div>
 
@@ -118,6 +121,16 @@
             </el-table-column>
             <el-table-column prop="status" label="状态" min-width="86">
               <template #default="{ row }"><StatusTag domain="workOrder" :value="row.status" /></template>
+            </el-table-column>
+            <el-table-column label="业主评分" width="106">
+              <template #default="{ row }">
+                <span v-if="row.score" class="wos" :class="{ 'is-low': row.score <= 2 }">
+                  <i class="wos__stars">{{ '★'.repeat(row.score) }}<span class="wos__off">{{ '★'.repeat(5 - row.score) }}</span></i>
+                  <b>{{ row.score }}</b>
+                </span>
+                <span v-else-if="row.status === '已完工'" class="is-warn-text">未评价</span>
+                <span v-else class="muted">—</span>
+              </template>
             </el-table-column>
             <el-table-column prop="priority" label="优先级" min-width="72">
               <template #default="{ row }">
@@ -263,7 +276,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   PAGE_SIZES, WO_PRIORITY_OPTS, batchUpdateWorkOrders, cashierBuildingOpts, cashierUnitOpts, communities,
-  getWorkOrder, houseName, queryWorkOrders, updateWorkOrderField, woQuerySummary, woScopeSummary,
+  getWorkOrder, houseName, queryWorkOrders, updateWorkOrderField, woQuerySummary, woSatisfaction, woScopeSummary,
   woSlaState, woVirtualNodes
 } from '@/api'
 import { woTypeOpts } from '@/utils/api'
@@ -285,6 +298,7 @@ const { rows, total, pageNo, size, loading, query, load, search, reset } = useLi
 )
 
 const summary = woQuerySummary()
+const sat = woSatisfaction()
 /* 快捷视图：原左树的虚拟视图节点搬到这里 */
 const quickViews = [{ key: '', label: '全部', n: summary.total }, ...woVirtualNodes()]
 const statusOpts = ['待派单', '已派单', '处理中', '待确认', '已完工', '已评价', '已关闭', '已取消']
@@ -437,4 +451,9 @@ useFocusLanding(async ({ focus, open, location }) => {
 .ps-sub { font-size: 11px; color: var(--biz-text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .is-warn-text { color: var(--biz-warning); }
 .is-warn { color: var(--biz-danger); }
+.wos { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12px; color: #d98c1b; }
+.wos__stars { font-style: normal; letter-spacing: .5px; }
+.wos__off { color: var(--biz-border); }
+.wos b { font-family: var(--biz-font-num); color: var(--biz-text-2); font-weight: 600; }
+.wos.is-low, .wos.is-low b { color: #a33; }
 </style>

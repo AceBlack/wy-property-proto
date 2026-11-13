@@ -67,8 +67,36 @@
     <!-- 已批未付是提醒，不是支出：放在提示条里，不占指标位 -->
     <div v-if="data.unpaidExpense > 0" class="pending">
       <b>{{ period }} 还有 ¥{{ money(data.unpaidExpense) }} 已批未付</b>
-      <span>审批通过但钱还没出去，<b>不计入本月支出</b>。付款后自动进下期账。</span>
+      <span>
+        审批通过但钱还没出去，<b>不计入本月支出</b>。付款后自动进付款日所属账期。
+        <el-button link type="primary" size="small" @click="openPay">去确认付款（{{ pending.length }}）</el-button>
+      </span>
     </div>
+
+    <!-- 付款确认：审批通过 ≠ 已付款，财务打款后才计入成本 -->
+    <el-dialog v-model="payVisible" title="已批未付 · 确认付款" width="640px">
+      <div class="payhint">
+        付款日决定归属账期：<b>按实际打款日入账</b>，不是审批日。审批日与打款日经常差半个月，按审批日记成本会让当月结构失真。
+      </div>
+      <el-table :data="pending" size="small" max-height="420">
+        <el-table-column prop="applyNo" label="单号" width="130" />
+        <el-table-column prop="expenseType" label="费用类型" width="96" />
+        <el-table-column prop="happenDate" label="发生日期" width="110" />
+        <el-table-column prop="applicant" label="申请人" width="86" />
+        <el-table-column label="金额" width="104" align="right">
+          <template #default="{ row }"><span class="money">¥ {{ money(row.amount) }}</span></template>
+        </el-table-column>
+        <el-table-column label="操作" width="88" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="doPay(row)">确认付款</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-if="!pending.length" class="payempty">没有待付款的报销单</div>
+      <template #footer>
+        <el-button @click="payVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <div class="two" style="margin-top:16px;">
       <!-- 一级构成：报表第一层看的是「人力 / 合同 / 运营」，不是几十个二级 -->
@@ -166,7 +194,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { communityOpts, expenseCollect, EXPENSE_SOURCES } from '@/api'
+import { ElMessage } from 'element-plus'
+import { communityOpts, expenseCollect, payExpense, pendingExpenses, EXPENSE_SOURCES } from '@/api'
 import { exportList } from '@/utils/export'
 import { money, wan } from '@/utils/format'
 
@@ -195,6 +224,22 @@ const data = computed(() => expenseCollect({
 }))
 
 const pct = n => (data.value.total ? Math.round(n / data.value.total * 1000) / 10 : 0)
+
+/* 待付款：审批通过但没打款的报销单。列表直接读 expenses，与支出归集同一份数据 */
+const payVisible = ref(false)
+const payVer = ref(0)
+const pending = computed(() => {
+  void payVer.value
+  return pendingExpenses().filter(x => !communityId.value || x.communityId === communityId.value)
+})
+function openPay() { payVisible.value = true }
+function doPay(row) {
+  try {
+    const r = payExpense(row.expenseId)
+    ElMessage.success(`${r.applyNo} 已付款 ¥${money(r.amount)}，计入 ${String(r.payDate).slice(0, 7)} 支出`)
+    payVer.value += 1
+  } catch (e) { ElMessage.error(e?.message || '付款失败') }
+}
 /* 指标卡与「按来源」用同一个数：两处口径一致，才不会出现"上面 22 万、下面 31 万" */
 const srcOf = name => (data.value.bySource.find(s => s.source === name) || {}).amount || 0
 const parentOf = code => (data.value.byParent.find(p => p.code === code) || {}).amount || 0
@@ -276,6 +321,11 @@ function onExport() {
   font-size: 11.5px; line-height: 1.7; color: var(--biz-text-3);
 }
 
+.payhint {
+  margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.7;
+  background: #fdf6e8; border: 1px solid #f0d9a8; color: #8a5a12;
+}
+.payempty { padding: 20px; text-align: center; color: var(--biz-text-3); font-size: 12.5px; }
 .legal {
   margin-top: 14px; padding: 12px 16px; border-radius: 10px;
   background: #f7f9fc; border: 1px solid var(--biz-border-light);

@@ -252,11 +252,22 @@
         </div>
 
         <div class="panel" style="margin-top:16px;">
-          <div class="sec__hd"><h4>业主评价</h4><span class="desc">{{ wo.score ? '已评价' : '完工后可见' }}</span></div>
+          <div class="sec__hd">
+            <h4>业主评价</h4>
+            <span class="desc">
+              {{ wo.score
+                ? `已评价 · ${wo.evaluateAt || ''}`
+                : (wo.status === '已完工' ? '业主未评价（已推送小程序，超 48 小时自动关闭）' : '完工后可见') }}
+            </span>
+          </div>
           <template v-if="wo.score">
             <div class="eval">
-              <div class="eval__s">{{ wo.score }}<span>星</span></div>
+              <div class="eval__s" :class="{ 'is-low': wo.score <= 2 }">{{ wo.score }}<span>星</span></div>
               <div class="eval__b">
+                <div class="eval__meta">
+                  <span v-if="wo.score <= 2" class="eval__bad">差评 · 建议 24 小时内回访</span>
+                  <span class="muted">{{ wo.ownerName || '业主' }} · {{ wo.evaluateAt || '' }}</span>
+                </div>
                 <div class="eval__tags">
                   <span v-for="t in (wo.evalTags || [])" :key="t" class="eval__tag">{{ t }}</span>
                 </div>
@@ -264,7 +275,8 @@
               </div>
             </div>
           </template>
-          <EmptyState v-else type="empty" desc="工单尚未完工，暂无评价" />
+          <EmptyState v-else type="empty"
+            :desc="wo.status === '已完工' ? '完工未评价：业主可在小程序评价，也可在此催评' : '工单尚未完工，暂无评价'" />
         </div>
 
         <div class="panel" style="margin-top:16px;">
@@ -511,6 +523,9 @@ function goList() { router.push('/f/workorders') }
 }
 .eval { display: flex; gap: 14px; align-items: flex-start; padding-top: 2px; }
 .eval__s { font-family: var(--biz-font-num); font-size: 30px; line-height: 1; color: var(--biz-warning, #d98a1f); }
+.eval__meta { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.eval__bad { color: #a33; background: #fff5f5; border: 1px solid #f5c2c2; border-radius: 6px; padding: 1px 8px; font-size: 11.5px; }
+.eval__s.is-low { color: #a33; }
 .eval__s span { font-size: 12px; margin-left: 2px; }
 .eval__tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .eval__tag {
