@@ -3956,50 +3956,85 @@ export function contractMonthsOf(c = {}) {
 
 export const CONTRACT_DIRECTIONS = ['收入', '支出']
 
-const CONTRACT_DIR_OF_TYPE = {
-  物业服务: '收入',
-  租赁: '收入',
-  外包服务: '支出',
-  采购: '支出',
-  劳动: '支出'
-}
+/**
+ * 合同分类字典（2026-11-13 定稿）：6 个一级主项 + 20 个子类。
+ *
+ * 之前是「数据里出现过什么就是什么」（5 个一级、22 个各页各叫的子类），
+ * 结果是新建合同时选项取决于已有数据、报表口径也跟着数据漂。
+ * 现在这一份是**配置**：表单、筛选、方向判断、报表分类都读它。
+ *
+ * 两条口径：
+ *   ① **方向看一级主项** —— 劳动合同 / 运维服务 / 采购协议是支出，
+ *      物业服务协议 / 多种经营 / 租赁协议是收入；
+ *   ② **是否计入收入仍看 incomeCategory** —— 物业服务协议里的 6 份标「不计入」，
+ *      钱已按物业费账单收过，合同只登记、不重复计一笔收入。
+ */
+export const CONTRACT_TYPE_TREE = [
+  { type: '劳动合同', direction: '支出', subs: ['员工劳动合同', '劳务协议'] },
+  { type: '物业服务协议', direction: '收入', subs: ['项目物业服务合同', '补充协议'] },
+  { type: '运维服务', direction: '支出', subs: ['电梯维保', '消防系统运维', '监控维保', '设施设备检修', '供水供电设施维保'] },
+  { type: '多种经营', direction: '收入', subs: ['广告合作', '场地联营', '便民服务合作', '转供电', '转供水', '转供气'] },
+  { type: '租赁协议', direction: '收入', subs: ['房屋租赁', '车位租赁', '场地租赁', '设备租赁'] },
+  { type: '采购协议', direction: '支出', subs: ['物资采购', '耗材采购', '设备采购'] }
+]
+
+export const CONTRACT_TYPES = CONTRACT_TYPE_TREE.map(t => t.type)
+export const contractSubtypesOf = type =>
+  (CONTRACT_TYPE_TREE.find(t => t.type === type) || { subs: [] }).subs
+export const contractDirectionOfType = type =>
+  (CONTRACT_TYPE_TREE.find(t => t.type === type) || {}).direction || '收入'
 
 /** 方向：认不出的类型按收入处理（宁可少算成本，也不要凭一个陌生类型虚增支出） */
-export const contractDirectionOf = c => CONTRACT_DIR_OF_TYPE[c?.type] || '收入'
+export const contractDirectionOf = c => contractDirectionOfType(c?.type)
 
 /** 这笔合同额是否构成一笔收入。false = 已经在别处计过（物业费账单），或本来就是支出 */
 export const contractCountsInRevenue = c =>
   contractDirectionOf(c) === '收入' && (c?.incomeCategory || '') !== '不计入'
 
-/** 类型 → 分类字典二级（合同的钱最终要落到收支分项里，不能各页各起名字） */
+/**
+ * 类型 → 分类字典二级（合同的钱最终要落到收支分项里，不能各页各起名字）。
+ *
+ * 劳务协议同时承载两类内容：**员工劳务**（保安/保洁自有团队签的劳务）与
+ * **服务外包**（保洁/绿化/秩序/垃圾清运整包给第三方）。
+ * 前者进人力成本，后者进合同支出 —— 只看子类分不出来，所以按合同名兜一层，
+ * 免得把整包服务全算成人工成本（报表上"人力成本"会突然翻倍）。
+ */
 const CONTRACT_CATEGORY_OF = {
-  '租赁/广告位租赁': 'INC_MULTI_AD',
-  '租赁/通信基站': 'INC_MULTI_TOWER',
-  '租赁/场地租赁': 'INC_MULTI_VENUE',
-  '租赁/商铺租赁': 'INC_MULTI_VENUE',
-  '租赁/房屋租赁': 'INC_MULTI_VENUE',
-  '租赁/车位租赁': 'INC_MULTI_VENUE',
-  '物业服务/物业服务合同': 'INC_MAIN_PROPERTY',
-  '物业服务/前期物业服务合同': 'INC_MAIN_PROPERTY',
-  '物业服务/物业顾问服务合同': 'INC_MAIN_PROPERTY',
-  '外包服务/保洁服务外包': 'EXP_CON_SERVICE',
-  '外包服务/垃圾清运': 'EXP_CON_SERVICE',
-  '外包服务/绿化养护外包': 'EXP_CON_GREEN',
-  '外包服务/安保服务外包': 'EXP_CON_SECURITY',
-  '外包服务/电梯维保': 'EXP_CON_ELEV',
-  '外包服务/二次供水设施维保': 'EXP_CON_ELEV',
-  '外包服务/消防设施维保': 'EXP_CON_FIRE',
-  '采购/办公用品采购': 'EXP_OP_OFFICE',
-  '采购/维修材料采购': 'EXP_OP_REPAIR',
-  '采购/设施设备采购': 'EXP_CON_PROJECT',
-  '劳动/劳动合同': 'EXP_LABOR_SALARY',
-  '劳动/劳务协议': 'EXP_LABOR_OUTSOURCE',
-  '劳动/实习协议': 'EXP_LABOR_OUTSOURCE'
+  '劳动合同/员工劳动合同': 'EXP_LABOR_SALARY',
+  '劳动合同/劳务协议': 'EXP_LABOR_OUTSOURCE',
+  '物业服务协议/项目物业服务合同': 'INC_MAIN_PROPERTY',
+  '物业服务协议/补充协议': 'INC_MAIN_PROPERTY',
+  '运维服务/电梯维保': 'EXP_CON_ELEV',
+  '运维服务/消防系统运维': 'EXP_CON_FIRE',
+  '运维服务/监控维保': 'EXP_CON_PROJECT',
+  '运维服务/设施设备检修': 'EXP_CON_PROJECT',
+  '运维服务/供水供电设施维保': 'EXP_CON_ELEV',
+  '多种经营/广告合作': 'INC_MULTI_AD',
+  '多种经营/场地联营': 'INC_MULTI_VENUE',
+  '多种经营/便民服务合作': 'INC_MULTI_SELF',
+  '多种经营/转供电': 'INC_OTHER_UTILITY',
+  '多种经营/转供水': 'INC_OTHER_UTILITY',
+  '多种经营/转供气': 'INC_OTHER_UTILITY',
+  '租赁协议/房屋租赁': 'INC_MULTI_VENUE',
+  '租赁协议/车位租赁': 'INC_MULTI_VENUE',
+  '租赁协议/场地租赁': 'INC_MULTI_VENUE',
+  '租赁协议/设备租赁': 'INC_MULTI_SELF',
+  '采购协议/物资采购': 'EXP_OP_REPAIR',
+  '采购协议/耗材采购': 'EXP_OP_OFFICE',
+  '采购协议/设备采购': 'EXP_CON_PROJECT'
 }
 
-export const contractCategoryOf = c =>
-  CONTRACT_CATEGORY_OF[`${c?.type}/${c?.subtype}`]
-  || (contractDirectionOf(c) === '支出' ? 'EXP_OP_OTHER' : 'INC_MULTI_VENUE')
+/** 劳务协议按合同名细分：整包服务进合同支出，自有劳务进外包人力 */
+const SERVICE_OUTSOURCE_HINT = /保洁|绿化|秩序|安保|保安|垃圾清运|清掏|消杀/
+
+export const contractCategoryOf = c => {
+  const key = `${c?.type}/${c?.subtype}`
+  if (key === '劳动合同/劳务协议' && SERVICE_OUTSOURCE_HINT.test(String(c?.name || ''))) {
+    return 'EXP_CON_SERVICE'
+  }
+  return CONTRACT_CATEGORY_OF[key]
+    || (contractDirectionOf(c) === '支出' ? 'EXP_OP_OTHER' : 'INC_MULTI_VENUE')
+}
 
 /** 分类名称（页面显示用；取不到就显原始码，不吞掉） */
 export const contractCategoryName = code =>
@@ -4261,7 +4296,8 @@ export function getContractDetail(contractId) {
   })
 }
 const d = s => new Date(String(s).slice(0, 10))
-export const contractTypeOpts = () => distinct(contracts, 'type')
+/* 类型下拉读**字典**而不是 distinct(contracts)：新建合同时，还没人用过的类型也得能选 */
+export const contractTypeOpts = () => [...CONTRACT_TYPES]
 export const contractStatusOpts = () => distinct(contracts, 'status')
 
 /* ---------------- 31 · 公告通知 ---------------- */
@@ -5237,9 +5273,10 @@ export function orgOptions() {
   return orgs.map(o => ({ orgId: o.orgId, label: o.name, parentId: o.parentId || '' }))
 }
 
-/** 合同子类型：按主类型过滤（type 切换时联动） */
+/** 合同子类型：按主类型过滤（type 切换时联动），读同一份字典 */
 export function contractSubtypeOpts(type = '') {
-  return distinct(contracts.filter(c => !type || c.type === type), 'subtype')
+  if (!type) return CONTRACT_TYPE_TREE.flatMap(t => t.subs)
+  return [...contractSubtypesOf(type)]
 }
 /** 合同付款周期 */
 export const contractPayCycleOpts = () => distinct(contracts, 'payCycle')
@@ -10692,8 +10729,10 @@ export const CONTRACT_INCOME_CATEGORIES = ['主营业务', '多种经营', '不�
 
 /** 按合同类型给的默认收入分类——只是省一次手点，用户随时可改 */
 export function defaultIncomeCategory(type = '', subtype = '') {
-  if (type === '租赁') return '多种经营'
-  if (type === '物业服务' && subtype === '前期物业服务合同') return '主营业务'
+  /* 租赁协议与多种经营都是经营收入；物业服务协议的补充协议通常是对物业费的补充约定，
+     钱已经按账单收过，所以默认「不计入」，真正的收入仍走账单 */
+  if (type === '租赁协议' || type === '多种经营') return '多种经营'
+  if (type === '物业服务协议' && subtype === '项目物业服务合同') return '主营业务'
   return '不计入'
 }
 

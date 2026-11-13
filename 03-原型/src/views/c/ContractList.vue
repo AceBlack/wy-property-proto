@@ -3,7 +3,8 @@
     <div class="proto-note">
       <el-icon class="ico"><InfoFilled /></el-icon>
       <div>
-        <b>合同管理 · 统一合同台账</b>：物业服务 / 外包 / 采购 / 租赁 / 劳动五类合同共用一张表和一套状态机，差异只在「类型 → 子类型」与关联对象上；
+        <b>合同管理 · 统一合同台账</b>：<b>劳动合同 / 物业服务协议 / 运维服务 / 多种经营 / 租赁协议 / 采购协议</b>
+        六个一级主项、20 个子类，共用一张表和一套状态机，差异只在「类型 → 子类」与关联对象上；
         树轴按<b>合同类型</b>切（不是空间树），因为合同的第一诉求是「按类找、按到期盯」。
         <b>{{ summary.expiring }} 份 90 天内到期</b>、<b>{{ summary.expired }} 份已到期</b>进常用视图。
       </div>
@@ -26,7 +27,7 @@
         <div class="dstat">
           <div class="dstat__k">支出合同（期间额）</div>
           <div class="dstat__v is-warn">{{ wan(summary.expenseTotalAmount) }}<span class="unit">元</span></div>
-          <div class="dstat__s">采购 / 外包 / 劳动，只进成本</div>
+          <div class="dstat__s">劳动合同 / 运维服务 / 采购协议，只进成本</div>
         </div>
         <div class="dstat">
           <div class="dstat__k">年化商业合作收入</div>
@@ -47,7 +48,7 @@
         85 份合同里 {{ summary.expenseTotalCount }} 份是支出（{{ wan(summary.expenseTotalAmount) }} 元），
         混在一起看会以为公司收了 {{ wan(summary.amount) }} 元。
         <br />
-        另有 {{ summary.expenseCount - summary.expenseTotalCount }} 份物业服务合同标了「不计入」：
+        另有 {{ summary.expenseCount - summary.expenseTotalCount }} 份物业服务协议标了「不计入」：
         它们的钱已经按物业费账单逐月收过，合同只做登记、不再重复计一笔收入 ——
         <b>方向看合同类型，是否计收入看「收入分类」</b>，两者不是一回事。
         收入看「年化商业合作收入」（{{ summary.operationCount }} 份经营合同，扣掉归业主的公共收益
@@ -343,7 +344,7 @@
           <el-button v-if="detailData.contract.refType === 'house'" size="small" @click="jump('/a/houses', 'house:' + detailData.contract.refId)">房屋台账</el-button>
           <el-button v-if="detailData.contract.refType === 'parking'" size="small" @click="jump('/a/vehicles', 'park:' + detailData.contract.refId)">车位与车辆</el-button>
           <el-button v-if="detailData.contract.refType === 'employee'" size="small" @click="jump('/c/employee', 'employee:' + detailData.contract.refId)">员工档案</el-button>
-          <span class="rel__note">五类合同共用状态机，差异只在类型与关联对象上；续签必须发起审批，不允许在原合同上改期限</span>
+          <span class="rel__note">六个一级主项共用状态机，差异只在类型与关联对象上；续签必须发起审批，不允许在原合同上改期限</span>
         </div>
       </template>
       <template #footer>

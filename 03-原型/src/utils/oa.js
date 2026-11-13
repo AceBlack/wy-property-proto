@@ -128,16 +128,32 @@ export const OA_FORM_DEFS = [
     desc: '非合同类小额采购：办公用品、维修材料、临时设备',
     urgentDefault: '普通',
     fields: [
-      { key: 'itemName', label: '采购物品', type: 'text', required: true, maxlength: 40 },
-      { key: 'spec', label: '规格型号', type: 'text', maxlength: 40 },
-      { key: 'qty', label: '数量', type: 'number', required: true, min: 1, max: 9999, default: 1 },
-      { key: 'amount', label: '预算金额', type: 'money', required: true, role: 'amount', min: 1, max: 500000 },
+      /* 采购一次常买多样东西（2026-11-13）：原来只能填一个物品 + 一个预算金额，
+         审批人看不到"买了什么、单价多少"，也无法和历史价格对比。
+         字段结构与费用报销一致，只是单价叫「预估单价」（采购时还没发票）。 */
+      { key: 'items', label: '采购明细', type: 'items', required: true,
+        columns: [
+          { key: 'name', label: '物品名称', type: 'text', required: true, width: 130 },
+          { key: 'spec', label: '型号规格', type: 'text', width: 120 },
+          { key: 'unit', label: '单位', type: 'text', width: 60 },
+          { key: 'needQty', label: '需求数量', type: 'number', width: 84 },
+          { key: 'stockQty', label: '库存数量', type: 'number', width: 84 },
+          { key: 'buyQty', label: '本次采购', type: 'number', required: true, width: 88 },
+          { key: 'price', label: '预估单价', type: 'money', required: true, width: 96 },
+          { key: 'total', label: '预估总价', type: 'computed', width: 100 },
+          { key: 'note', label: '说明', type: 'text', width: 120 }
+        ],
+        hint: '预估总价 = 预估单价 × 本次采购数量；本次采购不得超过「需求数量 − 库存数量」，超了请在说明里写明原因'
+      },
+      /* 预算金额取明细合计，只读：明细 3 行合计 800、预算填 1000，审批人没法判断该信哪个 */
+      { key: 'amount', label: '预算金额', type: 'money', required: true, role: 'amount', min: 1, max: 500000,
+        derived: 'items' },
       { key: 'needDate', label: '需求日期', type: 'date' },
       { key: 'communityId', label: '所属项目', type: 'select', required: true, opts: 'community' },
       { key: 'supplier', label: '推荐供应商', type: 'text', maxlength: 40 },
       { key: 'reason', label: '采购事由', type: 'textarea', required: true, maxlength: 200 }
     ],
-    summaryKeys: ['itemName', 'qty', 'amount']
+    summaryKeys: ['amount', 'needDate']
   }
 ]
 

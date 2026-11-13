@@ -908,7 +908,7 @@ test('合同收入分类：只有多种经营产生年化收入，支出合同�
 
 test('建合同：非经营合同填公共收益、公共收益超合同金额都要拦', async () => {
   const base = {
-    name: '契约测试 · 广告位租赁', type: '租赁', subtype: '广告位租赁',
+    name: '契约测试 · 广告合作', type: '多种经营', subtype: '广告合作',
     partyB: '契约测试广告传媒', amount: 120000,
     startDate: '2026-01-01', endDate: '2027-12-31', payCycle: '季付'
   }
@@ -2950,7 +2950,7 @@ test('合同变更：进审批不改合同，重复提交 409/40906，终态 422
 test('新建合同：单号服务端生成，前端传了也忽略；日期倒挂 422', async () => {
   const r = await call('POST', '/contracts', {
     body: {
-      name: '联调测试合同', type: '采购', partyB: '某某供应商', amount: 88000,
+      name: '联调测试合同', type: '采购协议', subtype: '物资采购', partyB: '某某供应商', amount: 88000,
       startDate: '2026-11-01', endDate: '2027-10-31',
       contractNo: 'HT-自己编的-0001'
     }
@@ -2962,7 +2962,7 @@ test('新建合同：单号服务端生成，前端传了也忽略；日期倒�
   eq(r.data.status, '待审批', '新建合同应为待审批，不直接生效')
 
   const bad = await call('POST', '/contracts', {
-    body: { name: '日期倒挂', type: '采购', partyB: 'X', amount: 1, startDate: '2027-01-01', endDate: '2026-01-01' }
+    body: { name: '日期倒挂', type: '采购协议', subtype: '物资采购', partyB: 'X', amount: 1, startDate: '2027-01-01', endDate: '2026-01-01' }
   })
   eq(bad.status, 422, '结束日期早于开始日期应 422')
   const miss = await call('POST', '/contracts', { body: { name: '缺字段' } })
@@ -3543,8 +3543,10 @@ test('OA 会签：一次同意只签一人，全部签完才推进下一级', as
   const created = await call('POST', '/oa/requests', {
     body: {
       bizType: '采购申请',
+      /* 2026-11-13 起采购申请改成明细行：金额由服务端按 单价 × 本次采购 派生，
+         客户端传的 amount 会被重算（见 mock-server 的 derived: 'items'） */
       formData: {
-        itemName: 'LED 感应灯具', qty: 120, amount: 18600,
+        items: [{ name: 'LED 感应灯具', spec: 'E27 12W', unit: '套', needQty: 150, stockQty: 30, buyQty: 120, price: 155 }],
         communityId: 'P01', supplier: '成都恒光照明', reason: '车库灯具老化，夜间照度不足'
       }
     }
@@ -3590,7 +3592,7 @@ test('OA 会签：一人驳回即整单驳回，其余人标「已跳过」', as
     body: {
       bizType: '采购申请',
       formData: {
-        itemName: '对讲机', qty: 6, amount: 4800,
+        items: [{ name: '对讲机', unit: '台', needQty: 8, stockQty: 2, buyQty: 6, price: 800 }],
         communityId: 'P01', reason: '安保巡逻通讯设备老化'
       }
     }
@@ -4015,6 +4017,85 @@ test('资产：设备图片作为附件存在资产上（上限 / 类型 / 留�
   eq('files' in pub.data.asset, false, '公开视图里没有 files')
   eq('photos' in pub.data.asset, false, '公开视图里也没有 photos')
 })
+
+/* ============================ 本房水电（2026-11-13 · 批 3 端上侧） ============================ */
+
+/**
+ * ⚠️ 这条用例**必须排在会收款的用例前面**（收银台组合支付 / 欠费核销都会真把钱缴掉）。
+ * 端上断言的是"项目模式 + 有未缴账单 → 可缴"，而账单是共享内存里的可变数据：
+ * 放在收银台用例后面，"水可缴"会因为那两张单已经被缴掉而变红 ——
+ * 那不是回归，是这条用例看错了执行顺序（第一版就踩了这个坑）。
+ */
+test('水电：能不能缴由项目模式决定，不由有没有账单', async () => {
+  /* P01 翡翠城 电 meter / 水 meter —— 两块表都能在端上缴。
+     用龚悦那套（H010110301）而不是张建国的 0501：套件里前面的支付用例会把 0501 的
+     水电单缴掉，拿它断言 canPay=true 会变成"看执行顺序"的假绿 */
+  const z = await mpReady('19317455607', '龚悦', '9076')
+  const a = await withMp(z.tok, () => call('GET', '/mp/utility', { query: { houseId: 'H010110301' } }))
+  eq(a.status, 200, 'P01 读水电')
+  assertSchema(a, 'MpUtilityEnvelope', 'GET /mp/utility')
+  eq(a.data.communityId, 'P01', '项目')
+  eq(a.data.accounts.length, 2, '水 + 电两块表')
+
+  const water = a.data.accounts.find(x => x.itemId === 'FI05')
+  const elec = a.data.accounts.find(x => x.itemId === 'FI06')
+  eq(water.mode, 'meter', '水是抄表出账')
+  eq(elec.mode, 'meter', '电也是抄表出账')
+  eq(water.modeLabel, '抄表出账', '模式文案')
+  eq(water.canPay, true, '水可缴')
+  eq(elec.canPay, true, '电可缴')
+  eq(water.unit, '吨', '计价单位从「元/吨」剥出来')
+  eq(elec.unit, '度', '电按度')
+  eq(water.price > 0 && water.usage > 0, true, '有用量有单价')
+  /* **不校验 用量 × 单价 = 金额**：fixture 里的水电单并不总是吻合
+     （阶梯价、滞纳金、以及历史种子数据本身就不严），端上也因此规矩定为
+     "金额以账单为准，用量与单价只作解释"。这里只验金额有值且与合计对得上。 */
+  eq(water.amount > 0, true, '应缴有值')
+  eq(!!water.billId && !!water.period, true, '带账单号与账期（可追溯）')
+  near(a.data.dueTotal, water.amount + elec.amount, '可缴合计 = 两块表之和')
+  eq(a.data.payableCount, 2, '两块都有待缴')
+
+  /* P02 锦绣家园 电 none / 水 card —— 物业一分钱都不该收 */
+  const w = await mpReady('13700137003', '王浩然', '3572')
+  const b = await withMp(w.tok, () => call('GET', '/mp/utility', { query: { houseId: 'H020110601' } }))
+  eq(b.status, 200, 'P02 读水电')
+  const bElec = b.data.accounts.find(x => x.itemId === 'FI06')
+  const bWater = b.data.accounts.find(x => x.itemId === 'FI05')
+  eq(bElec.mode, 'none', 'P02 电由国网直收')
+  eq(bWater.mode, 'card', 'P02 水是插卡表')
+  eq(bElec.canPay, false, '国网直收不给支付入口')
+  eq(bWater.canPay, false, '插卡表不给支付入口')
+  eq(bWater.amount, undefined, '插卡表没有应缴金额（字段不出现，不是 null）')
+  eq(bWater.usage, undefined, '插卡表系统不记用量')
+  eq(b.data.dueTotal, 0, '可缴合计为 0')
+  eq(bWater.modeLabel.includes('买量'), true, `插卡表文案：${bWater.modeLabel}`)
+
+  /* P03 星光天地 电 card / 水 meter —— 电有一张逾期单，但**不能**给支付入口 */
+  const c = await mpReady('13600136004', '赵春梅', '4487')
+  const d = await withMp(c.tok, () => call('GET', '/mp/utility', { query: { houseId: 'H030110205' } }))
+  eq(d.status, 200, 'P03 读水电')
+  const dElec = d.data.accounts.find(x => x.itemId === 'FI06')
+  const dWater = d.data.accounts.find(x => x.itemId === 'FI05')
+  eq(dElec.mode, 'card', 'P03 电是插卡表')
+  eq(dElec.canPay, false, '库里有电费逾期单也不给支付入口（否则等于替插卡表代收）')
+  eq(dElec.amount, undefined, '不摆金额')
+  eq(dElec.unpaidCount, 0, '非 meter 模式不统计待缴')
+  eq(dWater.mode, 'meter', 'P03 水是抄表出账')
+  eq(dWater.canPay, false, '这户没有水费账单，没得缴')
+  eq(dWater.amount, undefined, '没有账单就没有金额')
+  eq(d.data.dueTotal, 0, '合计为 0')
+
+  /* 越权：拿别人的房 */
+  const other = await withMp(z.tok, () => call('GET', '/mp/utility', { query: { houseId: 'H020110601' } }))
+  eq(other.status, 403, '别人的房 403')
+
+  /* 预存三条已下线：不是 501/500，而是明确的 404 */
+  for (const [m, u] of [['GET', '/mp/prepay'], ['POST', '/mp/prepay/recharge'], ['POST', '/mp/prepay/deduct']]) {
+    const r = await withMp(z.tok, () => call(m, u, m === 'GET' ? {} : { body: {} }))
+    eq(r.status, 404, `${m} ${u} 应已下线`)
+  }
+})
+
 
 test('收银台收款：组合支付按方式拆流水，账单同步销账', async () => {
   token = await login('gm')
@@ -6011,130 +6092,6 @@ test('换绑：同一业主两个车位不能挂同一个牌；账单按 parkId 
   eq(other.status, 403, '别人的车位账单 403')
 })
 
-/* ============================ 预存账户与商业账户（2026-11-11） ============================ */
-
-test('预存账户：按房取，未开通不是 404', async () => {
-  const { tok } = await mpReady('13800138001', '张建国', '5880')
-  const r = await withMp(tok, () => call('GET', '/mp/prepay', { query: { houseId: 'H010110501' } }))
-  eq(r.status, 200, '预存账户')
-  assertSchema(r, 'MpPrepayEnvelope', 'GET /mp/prepay')
-
-  eq(r.data.account.balance, 917.14, '余额 = 1500 充值 - 582.86 抵扣')
-  eq(r.data.account.status, '正常', '账户正常')
-  eq(r.data.account.houseId, 'H010110501', '账户挂在房上')
-  /* 账单会被前面的支付用例改（测试共享内存），所以只断言形状与排序，不钉死张数与金额 */
-  eq(r.data.bills.count >= 1, true, '有可抵账单')
-  eq(r.data.bills.unpaid > 0, true, '待抵合计大于 0')
-  const periods = r.data.bills.rows.map(b => b.period)
-  eq(periods.join(',') === [...periods].sort().join(','), true, '按账期升序，最早的在前')
-  eq(r.data.flows.length, 3, '三条历史流水')
-  near(r.data.account.balance, r.data.flows[0].balanceAfter, '余额 = 最后一条流水的余额')
-
-  /* 没有账户是**正常状态**，不是 404：249 个有表具的房只有 126 个开户 */
-  const li = await mpReady('13900139002', '李秀兰', '4392')
-  const r2 = await withMp(li.tok, () => call('GET', '/mp/prepay'))
-  eq(r2.status, 200, '没开户也要能读')
-  eq(r2.data.account.status, '未开通', '第四态')
-  eq(r2.data.account.balance, 0, '没开户余额是 0')
-  eq(r2.data.account.accountId, '', '没有账户号')
-  eq(r2.data.flows.length, 0, '没有流水')
-
-  /* 别人的房：403，不是空账户 —— 空账户会让业主以为"我这房没欠费" */
-  const other = await withMp(tok, () => call('GET', '/mp/prepay', { query: { houseId: 'H010110101' } }))
-  eq(other.status, 403, '别人的房 403')
-})
-
-test('预存充值：首次充值即开户，营销位恒 null', async () => {
-  const w = await mpReady('13700137003', '王浩然', '3572')
-  const before = await withMp(w.tok, () => call('GET', '/mp/prepay'))
-  eq(before.data.account.status, '未开通', '王浩然还没有账户')
-
-  const r = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', {
-    body: { amount: 500, method: '微信支付', campaignCode: 'AUTUMN' }
-  }))
-  eq(r.status, 200, '充值成功')
-  assertSchema(r, 'MpPrepayRechargeEnvelope', 'POST /mp/prepay/recharge')
-  eq(r.data.account.status, '正常', '首次充值即开户')
-  eq(r.data.account.balance, 500, '余额')
-  eq(r.data.account.accountId !== '', true, '开户后有了账户号')
-  eq(r.data.flow.type, '充值', '写了一条充值流水')
-  eq(r.data.flow.balanceAfter, 500, '流水余额与账户一致')
-  eq(r.data.gift, null, '营销赠送本期恒为 null —— 不假装有活动')
-
-  const after = await withMp(w.tok, () => call('GET', '/mp/prepay'))
-  eq(after.data.flows.length, 1, '流水 1 条')
-
-  const zero = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', { body: { amount: 0 } }))
-  eq(zero.status, 422, '金额 0 → 422')
-  const huge = await withMp(w.tok, () => call('POST', '/mp/prepay/recharge', { body: { amount: 50001 } }))
-  eq(huge.status, 422, '超过单笔上限 → 422')
-})
-
-test('预存抵扣：按账期冲抵，余额用完为止，可指定账单', async () => {
-  const { tok } = await mpReady('13800138001', '张建国', '5880')
-  const q = { houseId: 'H010110501' }
-
-  /* 期望值全部按"读到的"算，不硬编码 —— 测试共享内存，
-     前面的支付用例可能已经把某几张账单缴掉了。这条守的是**规则**，不是数字。 */
-  const before = await withMp(tok, () => call('GET', '/mp/prepay', { query: q }))
-  const bal = before.data.account.balance
-  const list = before.data.bills.rows
-  eq(list.length > 0, true, '有可抵账单')
-  eq(bal > 0, true, '有可用余额')
-
-  const all = await withMp(tok, () => call('POST', '/mp/prepay/deduct', { body: q }))
-  eq(all.status, 200, '一键抵扣')
-  assertSchema(all, 'MpPrepayDeductEnvelope', 'POST /mp/prepay/deduct')
-
-  /* 按账期升序抵，抵到余额用完为止 */
-  let left = bal
-  let expect = 0
-  let cover = 0
-  for (const b of list) {
-    if (left <= 0.009) break
-    const use = Math.min(left, b.unpaid)
-    expect += use
-    left -= use
-    cover += 1
-  }
-  near(all.data.deducted, expect, '抵掉 min(余额, 待抵合计)')
-  eq(all.data.rows.length, cover, '覆盖的账单张数')
-  near(all.data.account.balance, bal - expect, '余额 = 原余额 - 抵扣额')
-  eq(all.data.rows[0].billId, list[0].billId, '从最早的账期开始抵')
-  near(all.data.flow.bills.reduce((s, b) => s + b.amount, 0), expect, '流水明细合计 = 抵扣额')
-  eq(all.data.rows.every(r => ['已缴', '部分缴'].includes(r.afterStatus)), true, '抵完只能是已缴或部分缴')
-
-  /* 余额为 0 时再抵 → 422（而不是静默成功一条 0 元记录） */
-  if (all.data.account.balance <= 0.009) {
-    const again = await withMp(tok, () => call('POST', '/mp/prepay/deduct', { body: q }))
-    eq(again.status, 422, '余额为 0 再抵 → 422')
-  }
-
-  /* 再充 500，指定一张剩下的账单：够就抵、不够就 422，不做半途而废 */
-  const ch = await withMp(tok, () => call('POST', '/mp/prepay/recharge', { body: { houseId: q.houseId, amount: 500 } }))
-  eq(ch.data.account.status, '正常', '充值后账户正常')
-  const after = await withMp(tok, () => call('GET', '/mp/prepay', { query: q }))
-  if (after.data.bills.rows.length) {
-    const target = after.data.bills.rows[0]
-    const r3 = await withMp(tok, () => call('POST', '/mp/prepay/deduct', {
-      body: { houseId: q.houseId, billIds: [target.billId] }
-    }))
-    if (target.unpaid <= 500) {
-      eq(r3.status, 200, '指定账单：余额够')
-      near(r3.data.deducted, target.unpaid, '只抵这一张的欠额')
-      eq(r3.data.rows[0].afterStatus, '已缴', '结清')
-    } else {
-      eq(r3.status, 422, '指定账单：余额不够就是 422')
-      eq(r3.code, 42213, '42213 余额不足')
-    }
-  }
-
-  /* 未开户的业主抵扣 → 422（提示先充值开户） */
-  const li = await mpReady('13900139002', '李秀兰', '4392')
-  const noAcc = await withMp(li.tok, () => call('POST', '/mp/prepay/deduct', { body: {} }))
-  eq(noAcc.status, 422, '没账户不能抵扣')
-})
-
 test('商业账户：只读镜像，只有积分与券，没有余额', async () => {
   const { tok } = await mpReady('13800138001', '张建国', '5880')
   const r = await withMp(tok, () => call('GET', '/mp/commerce/account'))
@@ -7916,7 +7873,8 @@ test('员工端数据范围：一线按姓名取任务、楼管按房屋，越�
   token = await login('mo-rui')
   const wo = await call('GET', '/work-orders', { query: { size: 100 } })
   eq(wo.status, 200, '楼管能取工单')
-  eq(wo.data.total, 4, '楼管只看到自己 154 套房名下的 4 条工单')
+  /* 2026-11-13：补了 7 张可抢单（WO000151~157），其中 3 张落在莫瑞的 154 套里 → 4 变 7 */
+  eq(wo.data.total, 7, '楼管只看到自己 154 套房名下的 7 条工单')
   /* 工单行不带 stewardEmpId，能验的是"范围外的单没混进来"：
      P01 全项目工单 109 条，收敛到 4 条说明按房屋算过，不是按项目。 */
   assert(wo.data.total < 109, '楼管的范围要比项目经理窄得多')

@@ -300,6 +300,42 @@ const submitMsg = await allTxt()
 ok(submitMsg.includes('可采购量') || submitMsg.includes('备注'),
   '超出「需求 − 库存」被拦下并要求写备注', submitMsg.slice(-90))
 
+/* 采购申请同一套明细：一次买多样东西，预算金额取合计 */
+await page.evaluate(() => {
+  const t = [...document.querySelectorAll('.oa-type')].find(x => x.innerText.includes('采购申请'))
+  t?.click()
+})
+await sleep(900)
+const buyHead = await page.evaluate(() => {
+  const t = document.querySelector('.oaitems')
+  return t ? [...t.querySelectorAll('th')].map(x => x.innerText.replace(/\s+/g, '')).join('|') : ''
+})
+ok(buyHead.includes('物品名称') && buyHead.includes('预估单价') && buyHead.includes('预估总价'),
+  '采购申请也有明细表（预估单价 / 预估总价）', buyHead)
+const buyAmtDisabled = await page.evaluate(() => {
+  const marks = [...document.querySelectorAll('.el-form-item')].find(x => x.innerText.includes('预算金额'))
+  return marks?.querySelector('input')?.disabled
+})
+ok(buyAmtDisabled === true, '采购预算金额只读（取明细合计）')
+
+await page.evaluate(() => {
+  const tr = document.querySelector('.oaitems tbody tr')
+  const ins = [...tr.querySelectorAll('input')]
+  const set = (el, v) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    setter.call(el, v)
+    el.dispatchEvent(new Event('input', { bubbles: true }))
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+  }
+  set(ins[0], 'LED 灯管')
+  set(ins[2], '支')
+  set(ins[5], '10')
+  set(ins[6], '18')
+})
+await sleep(800)
+const buySum = await txt('.oaitems__sum')
+ok(buySum.replace(/[^\d.]/g, '') === '180.00', '采购预估总价 = 18 × 10 = 180.00', buySum)
+
 /* ============================================================ */
 console.log('\n【六】收费科目：不再自带第三套分类，押金是负债')
 

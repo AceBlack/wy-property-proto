@@ -2,7 +2,7 @@
   <FormShell
     ref="shell" :form="form" :rules="rules" :loading="loading" :saving="saving" :dirty="dirty"
     :title="editing ? '编辑合同' : '新建合同'"
-    :subtitle="editing ? '变更 / 续签均需走审批，保存后发起流程' : '五类合同统一建档：劳动、采购、租赁、服务、经营'"
+    :subtitle="editing ? '变更 / 续签均需走审批，保存后发起流程' : '六类合同统一建档：劳动、物业服务、运维、多种经营、租赁、采购'"
     :submit-text="editing ? '保存并发起审批' : '创建合同'"
     show-draft @submit="onSubmit" @cancel="onCancel" @draft="onDraft"
   >
@@ -24,6 +24,9 @@
             <el-select v-model="form.type" style="width:100%" @change="form.subtype = ''">
               <el-option v-for="t in contractTypeOpts()" :key="t" :label="t" :value="t" />
             </el-select>
+            <div class="field-hint">
+              {{ form.type ? `方向：${contractDirectionOfType(form.type)}（由一级主项决定，不可手改）` : '六个一级主项，方向随类型自动判定' }}
+            </div>
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -192,7 +195,7 @@ import FormShell from '@/components/FormShell.vue'
 import { useForm } from '@/composables/useForm'
 import {
   CONTRACT_CHANGE_TYPES, CONTRACT_INCOME_CATEGORIES, communityOpts, contractIncomeCheck, contractMonthsOf,
-  contractPayCycleOpts, contractSubtypeOpts, contractTypeOpts, createContract, defaultIncomeCategory,
+  contractDirectionOfType, contractPayCycleOpts, contractSubtypeOpts, contractTypeOpts, createContract, defaultIncomeCategory,
   empOptions, getContractDetail, nextContractNo, orgOptions, submitContractChange
 } from '@/api'
 import { amount, dateAfter, name, number, phone, reqSel } from '@/utils/rules'
@@ -202,7 +205,7 @@ import { money } from '@/utils/format'
 const INCOME_HINT = {
   主营业务: '物业费口径，不计入多种经营',
   多种经营: '广告位 / 商铺 / 公共车位等经营性收入',
-  不计入: '采购 / 外包 / 劳动等支出合同'
+  不计入: '劳动合同 / 运维服务 / 采购协议等支出合同；物业服务协议里钱已按账单收过的也选这个'
 }
 
 const route = useRoute()

@@ -61,7 +61,8 @@ export {
   /* 批 4（2026-11-13）：收支方向 / 类型两级 / 公共收益台账 —— 全部是纯派生，不走接口。
      后端上线后这些仍然由前端算：它们只依赖合同的 type 与 incomeCategory，
      多一次请求反而会让列表和筛选对不上。 */
-  CONTRACT_DIRECTIONS, contractDirectionOf, contractCountsInRevenue,
+  CONTRACT_DIRECTIONS, CONTRACT_TYPE_TREE, CONTRACT_TYPES, contractSubtypesOf, contractDirectionOfType,
+  contractDirectionOf, contractCountsInRevenue,
   contractCategoryOf, contractCategoryName, contractTypeTree,
   publicRevenueRows, publicRevenueSummary, publicRevenueYears
 } from '@/utils/api'

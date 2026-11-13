@@ -8897,9 +8897,10 @@ const MP_TTL = 2 * 3600
 const members = readJson('fixtures/members.json')
 /* 人脸申请单（批次 83）：唯一真相；members.faceStatus 是它的投影 */
 const faces = readJson('fixtures/access-faces.json')
-/* 预存账户 / 流水 / 商业平台镜像（2026-11-11） */
-const prepayAccounts = readJson('fixtures/prepay-accounts.json')
-const prepayFlows = readJson('fixtures/prepay-flows.json')
+/* 水电：表具 + 项目模式（2026-11-13）· 商业平台镜像（2026-11-11）
+   预存账户的 fixtures 还留着（后台"预存清退"要看历史），端上已经没有接口读它 */
+const meters = readJson('fixtures/meters.json')
+const communityUtility = readJson('fixtures/community-utility.json')
 const commerceAccounts = readJson('fixtures/commerce-account.json')
 
 const MP_ROLE = { OWNER: '业主', MEMBER: '家属', TENANT: '租客' }
@@ -9443,237 +9444,97 @@ on('POST', '/mp/houses/{houseId}/tenants', (ctx) => {
   return { ...row, phone: maskPhone(row.phone), idCard4: row.idCard4 }
 })
 
-/* ============================ 预存账户（2026-11-11） ============================ */
+/* ============================ 本房水电（2026-11-13） ============================ */
 
 /**
- * 预存账户是**按房屋**的一个账户，余额只能抵本房账单。
- * 多房业主有两个账户 —— 汇总就等于把 A 房的钱算到 B 房头上，抵扣时必错。
+ * 能不能在端上缴费，由**项目模式**决定，不由"有没有账单"决定：
  *
- * 「未开通」是正常状态（fixtures 里 249 个有表具的房只有 126 个开户），
- * 所以 GET 返回空壳而不是 404，首次充值即开户。
+ *   meter 抄表出账 → 可缴（用量 × 单价 = 应缴）
+ *   card  插卡买量 → 到物业服务中心买，系统不记余额
+ *   none  业主自缴 → 国网 / 水司直接收，物业一分钱都不碰
+ *
+ * P03 就有一张电费逾期单，而 P03 的电是 card —— 那张单**不能**给支付入口，
+ * 否则等于物业替插卡表代收。所以 `canPay` 只看模式，不看账单在不在。
+ *
+ * 预存账户体系 2026-11-13 下线：钱和账期一一对应，不存在"余额"这个中间物。
  */
-const MP_PREPAY_MAX = 50000
-let prepayAccSeq = Math.max(0, ...prepayAccounts.map(a => Number(String(a.accountId).replace(/\D/g, '')) || 0))
-let prepayLogSeq = Math.max(0, ...prepayFlows.map(f => Number(String(f.logId).replace(/\D/g, '')) || 0))
+const MP_UTIL = [
+  { meterType: '水表', itemId: 'FI05', itemName: '水费', key: 'water' },
+  { meterType: '电表', itemId: 'FI06', itemName: '电费', key: 'elec' }
+]
+const MP_MODE_LABEL = {
+  meter: '抄表出账',
+  card: '插卡表 · 到物业服务中心买量',
+  none: '由自来水公司 / 国家电网直接收取'
+}
+const mpUtilModeOf = (communityId, key) => {
+  const u = communityUtility.find(x => x.communityId === communityId) || {}
+  return u[key] || 'none'
+}
+/* 账单里的 `unit` 是「元/吨」，端上要的是计价单位「吨」 */
+const mpUnitOf = u => String(u || '').replace(/^元\//, '')
 
-function mpPrepayHouse(me, houseId) {
-  const hid = String(houseId || '')
-  if (hid) {
-    if (!mpBound(me).has(hid)) throw forbidden('这套房不在您已绑定的房产里')
-    return hid
-  }
+function mpUtilityHouse(me, houseId) {
+  if (houseId) return mpMyHouse(me, houseId) // 不是我的房 → 403
   const ids = [...mpBound(me)]
   if (!ids.length) throw forbidden('还没有绑定房产，先完成业主认证')
-  return ids[0]
+  return HOUSE.get(ids[0])
 }
 
-const mpPrepayAccOf = houseId =>
-  prepayAccounts.find(a => a.houseId === houseId && a.status !== '已销户') || null
-
-function mpPrepayAccountRow(houseId) {
-  const acc = mpPrepayAccOf(houseId)
-  const h = HOUSE.get(houseId) || {}
-  if (!acc) {
-    return {
-      accountId: '',
-      houseId,
-      houseName: h.fullName || '',
-      balance: 0,
-      totalRecharge: 0,
-      totalDeduct: 0,
-      status: '未开通',
-      autoDeduct: false,
-      lastRechargeDate: '',
-      lastDeductDate: ''
-    }
-  }
-  return {
-    accountId: acc.accountId,
-    houseId: acc.houseId,
-    houseName: acc.houseName || h.fullName || '',
-    balance: r2(acc.balance),
-    totalRecharge: r2(acc.totalRecharge),
-    totalDeduct: r2(acc.totalDeduct),
-    status: acc.status,
-    autoDeduct: !!acc.autoDeduct,
-    lastRechargeDate: acc.lastRechargeDate || '',
-    lastDeductDate: acc.lastDeductDate || ''
-  }
-}
-
-/** 该房待抵账单：按**账期升序** —— 先还早的，业主看到的"欠三个月"是三条账期 */
-const mpPrepayDebtOf = houseId => bills
-  .filter(b => b.houseId === houseId && mpIsDebt(b))
-  .sort((a, b) => String(a.period).localeCompare(String(b.period)))
-
-const mpPrepayFlowRow = f => ({
-  logId: f.logId,
-  type: f.type,
-  amount: r2(f.amount),
-  balanceAfter: r2(f.balance),
-  method: f.method || '',
-  operator: f.operator || '',
-  at: f.time || '',
-  remark: f.remark || '',
-  ...(f.bills ? { bills: f.bills } : {})
-})
-
-function mpPrepayPushFlow(acc, row) {
-  prepayLogSeq += 1
-  const flow = { logId: 'PL' + String(prepayLogSeq).padStart(6, '0'), accountId: acc.accountId, ...row }
-  prepayFlows.unshift(flow)
-  return flow
-}
-
-on('GET', '/mp/prepay', (ctx) => {
+on('GET', '/mp/utility', (ctx) => {
   const me = mpOf(ctx)
-  const houseId = mpPrepayHouse(me, ctx.query?.houseId)
-  const acc = mpPrepayAccOf(houseId)
-  const rows = mpPrepayDebtOf(houseId).map(b => ({
-    billId: b.billId,
-    period: b.period,
-    itemName: b.itemName,
-    unpaid: r2(b.unpaid),
-    status: b.status
-  }))
-  const flows = acc
-    ? prepayFlows
-      .filter(f => f.accountId === acc.accountId)
-      .sort((a, b) => String(b.time).localeCompare(String(a.time)))
-      .slice(0, 20)
-      .map(mpPrepayFlowRow)
-    : []
-  return {
-    account: mpPrepayAccountRow(houseId),
-    bills: { count: rows.length, unpaid: r2(rows.reduce((s, b) => s + b.unpaid, 0)), rows },
-    flows
-  }
-})
+  const h = mpUtilityHouse(me, ctx.query?.houseId)
 
-on('POST', '/mp/prepay/recharge', (ctx) => {
-  const me = mpOf(ctx)
-  const houseId = mpPrepayHouse(me, ctx.body?.houseId)
-  const amt = r2(ctx.body?.amount)
-  if (!(amt > 0)) throw invalid('充值金额须大于 0')
-  if (amt > MP_PREPAY_MAX) throw invalid(`单笔充值不得超过 ¥${MP_PREPAY_MAX}`)
+  const rows = MP_UTIL.map(t => {
+    const mode = mpUtilModeOf(h.communityId, t.key)
+    const meter = meters.find(m => m.houseId === h.houseId && m.type === t.meterType) || null
+    const debt = bills
+      .filter(b => b.houseId === h.houseId && b.itemId === t.itemId && mpIsDebt(b))
+      .sort((a, b) => String(a.period).localeCompare(String(b.period)))
+    /* 只有抄表出账才把账单摆出来；其它两种模式下这些账单不是物业能收的钱 */
+    const first = mode === 'meter' ? debt[0] || null : null
+    const open = mode === 'meter' ? debt : []
 
-  const h = HOUSE.get(houseId) || {}
-  let acc = prepayAccounts.find(a => a.houseId === houseId)
-  if (!acc) {
-    /* 首次充值即开户：做成"先去后台开户再回来充"会把业主挡在门外 */
-    prepayAccSeq += 1
-    acc = {
-      accountId: 'PA' + String(prepayAccSeq).padStart(5, '0'),
-      ownerId: me.ownerId,
-      ownerName: me.name,
-      phone: me.phone,
-      communityId: h.communityId || '',
-      houseId,
-      houseName: h.fullName || '',
-      balance: 0,
-      totalRecharge: 0,
-      totalDeduct: 0,
-      lastRechargeDate: '',
-      lastDeductDate: '',
-      status: '正常',
-      autoDeduct: false
+    const row = {
+      meterType: t.meterType,
+      meterNo: meter ? meter.meterNo : '',
+      itemId: t.itemId,
+      itemName: (meter && meter.itemName) || t.itemName,
+      mode,
+      modeLabel: MP_MODE_LABEL[mode],
+      unit: first ? mpUnitOf(first.unit) : (meter ? meter.unit : ''),
+      unpaidCount: open.length,
+      unpaidTotal: r2(open.reduce((s, b) => s + (b.unpaid || 0), 0)),
+      canPay: mode === 'meter' && !!first
     }
-    prepayAccounts.push(acc)
-  }
-  if (acc.status !== '正常') {
-    throw new ApiError(409, 40936, `预存账户状态「${acc.status}」，请联系物业处理后再充值`)
-  }
-
-  const method = String(ctx.body?.method || '微信支付')
-  acc.balance = r2((acc.balance || 0) + amt)
-  acc.totalRecharge = r2((acc.totalRecharge || 0) + amt)
-  acc.lastRechargeDate = DATA_DATE
-
-  const flow = mpPrepayPushFlow(acc, {
-    type: '充值',
-    amount: amt,
-    balance: acc.balance,
-    method,
-    operator: me.name,
-    time: `${DATA_DATE} ${mpHourMinute()}`,
-    remark: `${method}充值 ¥${amt}`
+    /**
+     * 账单相关的字段**只在有账单时出现**，不是给个 null。
+     * null 与"没有这个字段"在端上是两件事：null 说得清"这里空着"，
+     * 而没装远传表、或插卡表根本不记账时，正确的表达是"系统里没有这个数"。
+     * 契约里也没给这些字段标 nullable —— 校验器不认，会直接判 schema 失败。
+     */
+    if (first) {
+      row.price = r2(first.price)
+      row.usage = r2(first.quantity)
+      row.amount = r2(first.unpaid)
+      row.period = first.period
+      row.billId = first.billId
+      row.billStatus = first.status
+      if (first.lastReading != null) row.prevReading = Number(first.lastReading)
+      if (first.meterReading != null) row.currReading = Number(first.meterReading)
+    }
+    return row
   })
 
-  /* 营销位：本期恒 null。写一个假的"赠送 20 元"只会在对接运营系统时多一轮排查 */
-  return { account: mpPrepayAccountRow(houseId), flow: mpPrepayFlowRow(flow), gift: null }
-})
-
-on('POST', '/mp/prepay/deduct', (ctx) => {
-  const me = mpOf(ctx)
-  const houseId = mpPrepayHouse(me, ctx.body?.houseId)
-  const acc = mpPrepayAccOf(houseId)
-  if (!acc) throw invalid('还没有预存账户，先充值开通')
-  if (acc.status !== '正常') {
-    throw new ApiError(409, 40936, `预存账户状态「${acc.status}」，不能抵扣`)
+  const payable = rows.filter(r => r.canPay)
+  return {
+    houseId: h.houseId,
+    houseName: h.fullName || '',
+    communityId: h.communityId,
+    dueTotal: r2(payable.reduce((s, r) => s + (r.amount || 0), 0)),
+    payableCount: payable.length,
+    accounts: rows
   }
-
-  const ids = Array.isArray(ctx.body?.billIds) && ctx.body.billIds.length
-    ? ctx.body.billIds.map(String)
-    : null
-  let targets = mpPrepayDebtOf(houseId)
-  if (ids) {
-    targets = targets.filter(b => ids.includes(b.billId))
-    if (targets.length !== ids.length) throw notFound('有账单不存在或不属于该房屋')
-  }
-  if (!targets.length) throw invalid('该房屋没有待抵扣的账单')
-  if (r2(acc.balance) <= 0) throw new ApiError(422, 42213, '预存余额为 0，先充值')
-
-  const need = r2(targets.reduce((s, b) => s + (Number(b.unpaid) || 0), 0))
-  /* 指定了账单就必须够：只抵一部分会让"我勾了三张"变成"抵了两张半" */
-  if (ids && r2(acc.balance) < need - 0.009) {
-    throw new ApiError(422, 42213, `预存余额不足：需要 ¥${need}，可用 ¥${r2(acc.balance)}`)
-  }
-
-  let rest = r2(acc.balance)
-  const rows = []
-  const detail = []
-  for (const b of targets) {
-    if (rest <= 0.009) break
-    const use = r2(Math.min(rest, Number(b.unpaid) || 0))
-    if (use <= 0) continue
-    b.paidAmount = r2((b.paidAmount || 0) + use)
-    b.unpaid = r2((b.unpaid || 0) - use)
-    b.payMethod = '预存抵扣'
-    b.status = b.unpaid <= 0.009 ? '已缴' : '部分缴'
-    if (b.status === '已缴') {
-      b.payTime = `${DATA_DATE} ${mpHourMinute()}`
-      b.overdueDays = 0
-    }
-    rest = r2(rest - use)
-    rows.push({
-      billId: b.billId,
-      period: b.period,
-      itemName: b.itemName,
-      amount: use,
-      afterStatus: b.status,
-      afterUnpaid: r2(b.unpaid)
-    })
-    detail.push({ billId: b.billId, period: b.period, itemName: b.itemName, amount: use })
-  }
-  const deducted = r2(rows.reduce((s, r) => s + r.amount, 0))
-  if (!deducted) throw invalid('没有可抵扣的金额')
-
-  acc.balance = r2(acc.balance - deducted)
-  acc.totalDeduct = r2((acc.totalDeduct || 0) + deducted)
-  acc.lastDeductDate = DATA_DATE
-
-  const flow = mpPrepayPushFlow(acc, {
-    type: '抵扣',
-    amount: deducted,
-    balance: acc.balance,
-    method: '余额抵扣',
-    operator: me.name,
-    time: `${DATA_DATE} ${mpHourMinute()}`,
-    remark: `抵扣 ${rows.map(r => r.period).join(' / ')} 账单`,
-    bills: detail
-  })
-
-  return { account: mpPrepayAccountRow(houseId), deducted, rows, flow: mpPrepayFlowRow(flow) }
 })
 
 /* ============================ 商业平台账户镜像（2026-11-11） ============================ */
@@ -13100,7 +12961,8 @@ on('GET', '/reports/income-expense', (ctx) => {
   const span = monthsBetween(from, to)
   for (const c of contracts) {
     if (cid && c.communityId !== cid) continue
-    if (!['外包服务', '采购', '劳动'].includes(c.type)) continue
+    /* 合同分类改为 6 个一级主项（2026-11-13）：支出侧是 劳动合同 / 运维服务 / 采购协议 */
+    if (!['劳动合同', '运维服务', '采购协议'].includes(c.type)) continue
     const total = monthsBetween(c.startDate, c.endDate)
     if (!total) continue
     /* 区间与合同期的重叠月数 */
@@ -13111,7 +12973,7 @@ on('GET', '/reports/income-expense', (ctx) => {
     if (lo > hi) continue
     const months = monthsBetween(lo, hi)
     const amount = r2((Number(c.amount) || 0) / total * months)
-    const key = c.type === '劳动' ? 'EXP_LABOR_OUTSOURCE' : 'EXP_CONTRACT'
+    const key = c.type === '劳动合同' ? 'EXP_LABOR_OUTSOURCE' : 'EXP_CONTRACT'
     const cur = em.get(key) || {
       code: key, name: key === 'EXP_LABOR_OUTSOURCE' ? '外包人力' : '合同支出',
       parentCode: key === 'EXP_LABOR_OUTSOURCE' ? 'EXP_LABOR' : 'EXP_CONTRACT',

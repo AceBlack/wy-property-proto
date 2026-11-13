@@ -168,7 +168,52 @@ await page.evaluate(() => {
 await sleep(1600)
 ok(await page.evaluate(() => location.hash.includes('public-revenue')), '点「看台账」跳到公共收益台账')
 
-console.log('\n【六】控制台')
+console.log('\n【六】合同分类：6 个一级主项 + 20 个子类')
+
+await open('/c/contracts')
+const typeOpts = await page.evaluate(async () => {
+  document.querySelectorAll('.filter-bar .el-select__wrapper')[1]
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await new Promise(r => setTimeout(r, 400))
+  return [...document.querySelectorAll('.el-select-dropdown__item')]
+    .filter(x => x.getBoundingClientRect().height > 0)
+    .map(x => x.innerText.trim())
+})
+ok(typeOpts.length === 6, '一级主项正好 6 个', typeOpts.join(' / '))
+ok(['劳动合同', '物业服务协议', '运维服务', '多种经营', '租赁协议', '采购协议']
+  .every(t => typeOpts.includes(t)), '六个名称与约定一致', typeOpts.join(' / '))
+/* 读完选项先把浮层关掉：再点同一个 select 是"收起"，pickSelect 会找不到可选项 */
+await page.keyboard.press('Escape')
+await sleep(300)
+
+/* 选「运维服务」→ 子类下拉跟着只剩 5 项（联动，不是全量子类堆在一起） */
+await pickSelect('.filter-bar', 1, '运维服务')
+
+/* 读下拉选项：Element Plus 的浮层有过渡，刚点开时可能还是空的 —— 重试两次 */
+async function readDropdown(idx) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.evaluate(i => {
+      document.querySelectorAll('.filter-bar .el-select__wrapper')[i]
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    }, idx)
+    await sleep(600)
+    const opts = await page.evaluate(() =>
+      [...document.querySelectorAll('.el-select-dropdown__item')]
+        .filter(x => x.getBoundingClientRect().height > 0)
+        .map(x => x.innerText.trim()))
+    if (opts.length) return opts
+    await page.keyboard.press('Escape')
+    await sleep(250)
+  }
+  return []
+}
+const subOpts = await readDropdown(2)
+
+ok(subOpts.length === 5, '运维服务下有 5 个子类', subOpts.join(' / '))
+ok(['电梯维保', '消防系统运维', '监控维保', '设施设备检修', '供水供电设施维保']
+  .every(t => subOpts.includes(t)), '子类名称与约定一致', subOpts.join(' / '))
+
+console.log('\n【七】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()

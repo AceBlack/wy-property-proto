@@ -5961,7 +5961,10 @@ paths:
         - name: type
           in: query
           description: 合同类型
-          schema: { type: string, example: 劳动 }
+          schema:
+              type: string
+              enum: [劳动合同, 物业服务协议, 运维服务, 多种经营, 租赁协议, 采购协议]
+              example: 运维服务
         - name: subtype
           in: query
           schema: { type: string, example: 劳务协议 }
@@ -5999,8 +6002,11 @@ paths:
               required: [name, type, partyB, amount, startDate, endDate]
               properties:
                 name: { type: string }
-                type: { type: string, example: 劳动 }
-                subtype: { type: string }
+                type:
+                  type: string
+                  enum: [劳动合同, 物业服务协议, 运维服务, 多种经营, 租赁协议, 采购协议]
+                  example: 运维服务
+                subtype: { type: string, example: 电梯维保 }
                 communityId: { type: string }
                 partyB: { type: string, description: 相对方 }
                 contact: { type: string }
@@ -8298,103 +8304,41 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /mp/prepay:
+  /mp/utility:
     get:
       tags: [mp]
-      operationId: mpPrepayAccount
-      summary: 我的预存账户（余额 + 待抵账单 + 流水）
+      operationId: mpUtility
+      summary: 本房水电（按项目模式返回：抄表出账 / 插卡买量 / 业主自缴）
       description: |
-        预存账户是**按房屋**的一个账户（`prepayAccounts` 的主键语义是 houseId），
-        余额是业主提前交给物业的钱，用于抵扣**该房**的账单（物业费 / 水费 / 电费 / 车位费）。
+        **能不能在端上缴费，由「项目模式」决定，不由「有没有账单」决定。**
 
-        **多房业主不给汇总**：两套房就是两个账户、两个余额。
-        汇总等于把 A 房的钱算到 B 房头上，抵扣时一定出错。
-        所以 `houseId` 可以指定，不传就取当前房屋 —— 但**绝不做 sum**。
+        | mode | 含义 | `canPay` | 端上怎么说 |
+        |---|---|---|---|
+        | `meter` | 抄表出账：物业抄表 → 出账单 → 业主缴 | `true` | 本期用量 / 单价 / 应缴 / 账期 / 账单号 + 去缴费 |
+        | `card` | 插卡买量：到物业服务中心买量后插表，系统不记余额 | `false` | 「插卡表 · 到物业服务中心买量」 |
+        | `none` | 业主自缴：国网 / 水司直接收 | `false` | 「由国家电网 / 自来水公司直接收取」 |
 
-        **与商业平台账户是两笔钱**：这里是物业的预付账款（能抵账单），
-        `/mp/commerce/account` 是商业平台的积分与券（只读镜像、不能抵物业费）。
-        两边各有各的入口，不要合成一个"余额"。
+        `card` / `none` 即使库里有历史账单也**不给支付入口** —— 那笔钱不是物业能收的。
+        P03（星光天地）就有一张电费逾期单，而它的电是 `card`，正好是这个情形：
+        数据里的矛盾由后台清理，端上不能替插卡表代收。
+
+        这里**没有**「预存 / 余额 / 充值」：钱和账期一一对应，交多少、交哪一期，
+        在 `bills` 里就是一条记录。预存账户体系已于 2026-11-13 下线（`/mp/prepay*` 一并删除）。
+
+        只返回水、电两块表：燃气在数据里没有表具，端上如实显示"未开通"，不编一个燃气表出来。
       parameters:
         - name: houseId
           in: query
           description: 不传取当前激活房屋
-          schema: { type: string, example: H010110501 }
+          schema: { type: string }
       responses:
         '200':
-          description: 成功
+          description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MpPrepayEnvelope' }
+              schema: { $ref: '#/components/schemas/MpUtilityEnvelope' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人已绑定的房 }
-
-  /mp/prepay/recharge:
-    post:
-      tags: [mp]
-      operationId: mpPrepayRecharge
-      summary: 预存充值（模拟支付）
-      description: |
-        业主自助往本房预存账户里存钱。**单笔上限 50000**（与后台一致），
-        充值即写一条 `充值` 流水，`balanceAfter` 与账户余额必须对得上。
-
-        **营销位先留好、规则不做**：请求可带 `campaignCode`（活动码），
-        响应有 `gift` 字段。本期服务端**恒返回 `null`** ——
-        写一个假的"赠送 20 元"只会在对接运营系统时多一轮排查；
-        但字段先占住，将来后台配好活动、`gift` 一填，客户端不用改。
-
-        冻结 / 已销户的账户不能充值（409 / 40936）。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/MpPrepayRechargeRequest' }
-      responses:
-        '200':
-          description: 充值成功
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MpPrepayRechargeEnvelope' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人已绑定的房 }
-        '409': { $ref: '#/components/responses/Conflict', description: 账户冻结 / 已销户（40936） }
-        '422': { $ref: '#/components/responses/ValidationError', description: 金额非法 / 超过单笔上限 }
-
-  /mp/prepay/deduct:
-    post:
-      tags: [mp]
-      operationId: mpPrepayDeduct
-      summary: 用预存余额抵扣账单
-      description: |
-        按**账期升序**冲抵该房的未缴账单（先还早的，再还晚的）——
-        业主看到的"欠了三个月"是三条账期，不是三笔等价的钱。
-
-        两种用法：
-
-        | 传参 | 行为 |
-        |---|---|
-        | 不传 `billIds` | 用余额**尽量抵**，抵到余额用完为止（允许部分抵扣，最后一张可能只抵一部分） |
-        | 传 `billIds` | 只抵这几张；余额不足以覆盖则 422/42213，**不做半途而废** |
-
-        抵扣与"销账"在同一事务里：写抵扣流水 → 改账单 `unpaid` / `status` / `payMethod=预存抵扣`。
-        拆开就会出现"扣了余额但账单还欠着"。
-
-        账户状态必须「正常」（冻结 / 已销户 → 409/40936）。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/MpPrepayDeductRequest' }
-      responses:
-        '200':
-          description: 抵扣完成
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MpPrepayDeductEnvelope' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人已绑定的房 }
-        '404': { $ref: '#/components/responses/NotFound', description: 账单不存在或不属于该房 }
-        '409': { $ref: '#/components/responses/Conflict', description: 账户状态不允许（40936） }
-        '422': { $ref: '#/components/responses/ValidationError', description: 余额不足（42213）/ 没有可抵账单 }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是本人已绑定的房 / 还没有绑定房产 }
 
   /mp/commerce/account:
     get:
@@ -12561,7 +12505,7 @@ components:
         | 40933 | 24 小时内人脸提交次数超限 | 明天再试 |
         | 40934 | 家庭成员资料未核验，不能代录人脸 | 先等成员登记核验通过 |
         | 40935 | 当前状态不能撤回人脸 | 看状态（已冻结就是已经撤过了） |
-        | 40936 | 预存账户状态不允许该操作（冻结 / 已销户） | 联系物业解冻 |
+        | 40936 | 该单不参与抢单（抢单池只收商业服务单） | 走派单而不是抢单 |
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -14908,8 +14852,15 @@ components:
         contractId: { type: string, example: CT0001 }
         contractNo: { type: string, description: 服务端生成，前端传了也忽略, example: HT-2026-0001 }
         name: { type: string }
-        type: { type: string, example: 劳动 }
-        subtype: { type: string }
+        type:
+          type: string
+          description: 一级主项（6 类，决定收支方向）
+          enum: [劳动合同, 物业服务协议, 运维服务, 多种经营, 租赁协议, 采购协议]
+          example: 运维服务
+        subtype:
+          type: string
+          description: 子类（20 个，由一级主项决定可选范围）
+          example: 电梯维保
         communityId: { type: string, description: 空 = 集团层面（不挂项目） }
         communityName: { type: string, description: 服务端带出，别让前端拿 id 猜 }
         orgId: { type: string }
@@ -16965,172 +16916,66 @@ components:
         message: { type: string }
         data: { $ref: '#/components/schemas/MpFaceSubject' }
 
-    MpPrepayAccount:
+    MpUtilityAccount:
       type: object
       description: |
-        按**房屋**的预存账户。余额是业主预付给物业的钱（物业的预收账款），
-        只能抵**本房**账单。多房业主有多个账户，不做汇总。
-      required: [accountId, houseId, houseName, balance, status]
+        一块表。`mode` 是**项目配置**，不是这张账单的属性 ——
+        同一个业主换到别的项目，同一块表可能从"可缴"变成"到物业买量"。
+      required: [meterType, itemId, itemName, mode, modeLabel, canPay]
       properties:
-        accountId: { type: string, example: PA90001 }
-        houseId: { type: string, example: H010110501 }
-        houseName: { type: string, example: 翡翠城 1栋1单元0501 }
-        balance: { type: number, description: 可用余额 }
-        totalRecharge: { type: number, description: 累计充值 }
-        totalDeduct: { type: number, description: 累计抵扣 }
-        status:
+        meterType: { type: string, enum: [水表, 电表] }
+        meterNo:
           type: string
-          enum: [未开通, 正常, 冻结, 已销户]
+          description: 户号。项目是 `card` / `none` 且没登记远传表时为空串
+        itemId: { type: string, example: FI05 }
+        itemName: { type: string, example: 水费 }
+        mode: { type: string, enum: [meter, card, none] }
+        modeLabel: { type: string, example: 抄表出账 }
+        unit:
+          type: string
+          example: 吨
+          description: 计价单位（由账单「元/吨」剥出）；没有账单时取表具单位
+        price: { type: number, description: 单价。**只有 `meter` 且有待缴账单时才出现** }
+        usage: { type: number, description: 本期用量。同上，没有账单就没有这个字段 }
+        amount:
+          type: number
           description: |
-            「未开通」是客户端能看到的第四态：业主还没开预存账户。
-            此时 `accountId` 为空串、余额 0，页面引导去充值 —— 首次充值即开户。
-            做成 404 会逼客户端为一个完全正常的场景写特例。
-        autoDeduct: { type: boolean, description: 自动抵扣开关（账单生成时自动冲抵，后台可关） }
-        lastRechargeDate: { type: string, example: '2026-09-28' }
-        lastDeductDate: { type: string, example: '2026-09-29' }
+            本期应缴 = 最早那笔未缴账单的 `unpaid`。
+            `card` / `none` 模式下**不出现这个字段**（不是 null —— 系统里根本没有这个数）。
+        period: { type: string, example: '2026-10', description: 账期；没有账单时不出现 }
+        billId: { type: string, example: BL004101, description: 没有账单时不出现 }
+        billStatus: { type: string, enum: [未缴, 部分缴, 逾期], description: 没有账单时不出现 }
+        prevReading: { type: number, description: 上期读数（业主质疑用量时用）；账单没带读数时不出现 }
+        currReading: { type: number, description: 本期读数；账单没带读数时不出现 }
+        unpaidCount:
+          type: integer
+          description: |
+            该表还有几笔未缴。**只统计 `meter` 模式** ——
+            `card` / `none` 下的历史账单不是物业能收的钱，端上不摆出来。
+        unpaidTotal: { type: number }
+        canPay:
+          type: boolean
+          description: |
+            `mode === 'meter' && 有未缴账单`。两个条件缺一不可 ——
+            只看账单会让插卡表的单出现支付按钮，只看模式会给"已结清"也出按钮。
 
-    MpPrepayFlow:
-      type: object
-      description: 预存流水。**余额的唯一解释** —— 最后一行的 `balanceAfter` 就是账户余额
-      required: [logId, type, amount, balanceAfter, at]
-      properties:
-        logId: { type: string, example: PL900003 }
-        type: { type: string, enum: [充值, 抵扣, 退款, 调整] }
-        amount: { type: number, description: 本次金额（抵扣记正数，方向看 type） }
-        balanceAfter: { type: number }
-        method: { type: string, example: 微信支付 }
-        operator: { type: string, example: 张建国, description: 谁操作的；业主自助时是本人 }
-        at: { type: string, example: '2026-09-29 09:05' }
-        remark: { type: string }
-        bills:
-          type: array
-          description: 抵扣类流水带上冲抵明细，出纠纷时能指到具体账期
-          items:
-            type: object
-            properties:
-              billId: { type: string }
-              period: { type: string, example: '2026-08' }
-              itemName: { type: string, example: 物业服务费 }
-              amount: { type: number }
-
-    MpPrepayBill:
-      type: object
-      description: 待抵账单（只列该房未缴的，按账期升序）
-      required: [billId, period, itemName, unpaid, status]
-      properties:
-        billId: { type: string, example: BL003759 }
-        period: { type: string, example: '2026-09' }
-        itemName: { type: string, example: 物业服务费 }
-        unpaid: { type: number, description: 还欠多少（部分缴过的只差差额） }
-        status: { type: string, enum: [未缴, 部分缴, 逾期] }
-
-    MpPrepayEnvelope:
+    MpUtilityEnvelope:
       type: object
       properties:
         code: { type: integer, example: 0 }
         message: { type: string }
         data:
           type: object
-          required: [account, bills, flows]
+          required: [houseId, communityId, dueTotal, accounts]
           properties:
-            account: { $ref: '#/components/schemas/MpPrepayAccount' }
-            bills:
-              type: object
-              required: [count, unpaid, rows]
-              properties:
-                count: { type: integer, description: 几张待抵账单 }
-                unpaid: { type: number, description: 待抵合计 }
-                rows:
-                  type: array
-                  items: { $ref: '#/components/schemas/MpPrepayBill' }
-            flows:
+            houseId: { type: string, example: H010110501 }
+            houseName: { type: string, example: 翡翠城 1栋1单元0501 }
+            communityId: { type: string, example: P01 }
+            dueTotal: { type: number, description: 可缴合计（只算 canPay 的表） }
+            payableCount: { type: integer, description: 几块表有待缴 }
+            accounts:
               type: array
-              items: { $ref: '#/components/schemas/MpPrepayFlow' }
-
-    MpPrepayRechargeRequest:
-      type: object
-      required: [amount]
-      properties:
-        houseId: { type: string, description: 不传取当前激活房屋 }
-        amount: { type: number, minimum: 0.01, maximum: 50000, example: 500 }
-        method:
-          type: string
-          enum: [微信支付, 银行转账, 现金]
-          default: 微信支付
-          description: 原型只有微信支付走模拟；其余方式由前台确认到账后录
-        campaignCode:
-          type: string
-          description: |
-            营销活动码（预留）。本期服务端忽略它 ——
-            优惠规则还没定义，先接受、不落库、不返赠品，避免出现"码填了但没效果"的假象。
-
-    MpPrepayGift:
-      type: object
-      description: |
-        充值赠送（营销位）。**本期服务端恒不返回**（字段为 null）。
-        先占住形状，等运营系统定义好规则再填 —— 客户端不用改。
-      required: [type, desc]
-      properties:
-        type: { type: string, enum: [积分, 优惠券, 礼包] }
-        points: { type: integer }
-        couponTitle: { type: string }
-        desc: { type: string, example: 充 500 送 20 元邻里中心券 }
-
-    MpPrepayRechargeEnvelope:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string }
-        data:
-          type: object
-          required: [account, flow]
-          properties:
-            account: { $ref: '#/components/schemas/MpPrepayAccount' }
-            flow: { $ref: '#/components/schemas/MpPrepayFlow' }
-            gift:
-              type: object
-              nullable: true
-              description: |
-                营销赠送。**本期恒为 null**（活动规则未定义，不返回假赠品）；
-                将来有值时形状为 `MpPrepayGift`。客户端按"有就展示、null 就整块不显示"处理。
-
-    MpPrepayDeductRequest:
-      type: object
-      properties:
-        houseId: { type: string, description: 不传取当前激活房屋 }
-        billIds:
-          type: array
-          description: |
-            不传 = 用余额尽量抵（按账期升序，允许最后一张只抵一部分）；
-            传了 = 只抵这几张，余额必须够，否则 422/42213。
-          items: { type: string }
-
-    MpPrepayDeductRow:
-      type: object
-      required: [billId, period, itemName, amount, afterStatus]
-      properties:
-        billId: { type: string }
-        period: { type: string }
-        itemName: { type: string }
-        amount: { type: number, description: 这张实际抵了多少 }
-        afterStatus: { type: string, enum: [已缴, 部分缴, 未缴] }
-        afterUnpaid: { type: number, description: 抵完之后还欠多少 }
-
-    MpPrepayDeductEnvelope:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string }
-        data:
-          type: object
-          required: [account, deducted, rows, flow]
-          properties:
-            account: { $ref: '#/components/schemas/MpPrepayAccount' }
-            deducted: { type: number, description: 本次共抵多少 }
-            rows:
-              type: array
-              items: { $ref: '#/components/schemas/MpPrepayDeductRow' }
-            flow: { $ref: '#/components/schemas/MpPrepayFlow' }
+              items: { $ref: '#/components/schemas/MpUtilityAccount' }
 
     MpCommerceCoupon:
       type: object
