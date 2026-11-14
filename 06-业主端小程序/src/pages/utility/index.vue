@@ -56,12 +56,10 @@
           </view>
           <text v-if="a.readingText" class="ut__rd">读数 {{ a.readingText }}</text>
           <text class="ut__rd">账单号 {{ a.billId }}{{ a.unpaidCount > 1 ? ` · 还有 ${a.unpaidCount - 1} 期未缴` : '' }}</text>
-          <!--
-            单价是**基准价**，应缴可能含污水处理、阶梯电价等附加 ——
-            两份数并排放着却乘不出应缴，业主一定会问。所以这里写明口径，
-            金额以账单为准（后台改价、减免、滞纳金都体现在账单里）。
-          -->
-          <text class="ut__rd">单价为基准价，应缴含附加费或阶梯价，以账单金额为准</text>
+          <!-- 用量 × 单价 与应缴**本应相等**（单价存的是该单实际执行的阶梯价）。
+               不相等只有两种来由：挂了滞纳金，或已经减免 / 缴过一部分。
+               这时才解释一句，其余情况不要挂着一行免责声明 —— 那是在替数据背锅。 -->
+          <text v-if="gapNote(a)" class="ut__rd">{{ gapNote(a) }}</text>
           <view class="ut__acts">
             <view :id="`ut-pay-${a.itemId}`" class="btn btn--primary btn--sm" @tap="goPay(a)"><text>去缴费</text></view>
             <view class="btn btn--line btn--sm" @tap="go('/pages/bills/index', { tab: 'record' })"><text>缴费记录</text></view>
@@ -148,6 +146,22 @@ const modeNote = a => {
   if (a.mode === 'none') return `${a.modeLabel}，物业不代收，无需在小程序缴费`
   /* meter 且没有未缴账单 —— 不是"不在这儿交"，而是"现在没得交" */
   return '本期没有待缴账单；物业抄表出账后，这里会显示用量与应缴'
+}
+
+/**
+ * 待缴与「用量 × 单价」为何不等 —— 只在真不等时才说一句。
+ *
+ * 数据侧已保证 `账单金额 = 用量 × 单价`（1327/1327），所以剩下的差额只有三种来由：
+ * 滞纳金（加钱）、减免（减钱）、已缴一部分（待缴变小）。以前这里挂的是一句
+ * 「单价为基准价，应缴含附加费或阶梯价，以账单金额为准」—— 那是替数据问题背锅，
+ * 数据修好后它就是彻头彻尾的误导。
+ */
+const gapNote = a => {
+  if (a.billAmount == null) return ''
+  const gap = Math.round((Number(a.amount || 0) - Number(a.billAmount || 0)) * 100) / 100
+  if (Math.abs(gap) <= 0.02) return ''
+  if (gap > 0) return a.lateFee > 0 ? `含滞纳金 ${money(a.lateFee)}，应缴以账单为准` : `另有 ${money(gap)}，应缴以账单为准`
+  return `已减免 ${money(-gap)}，应缴以账单为准`
 }
 
 onShow(async () => {

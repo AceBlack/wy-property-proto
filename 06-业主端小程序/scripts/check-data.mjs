@@ -453,11 +453,20 @@ add('水电', 'P03 电有历史账单', uP03.elec.debt > 0, true)
 add('水电', 'P03 电仍不可缴（模式优先于账单）', uP03.elec.canPay, false)
 add('水电', 'P03 水是抄表出账（meter）', uP03.water.mode, 'meter')
 
-/* 金额以账单为准：水电单的 用量 × 单价 不一定等于金额（滞纳金 / 阶梯价），
-   所以端上不自己乘。这里只把"确实存在不吻合"记下来，不作断言失败 */
+/* 水电账单三件套必须自洽（2026-11-14 起是硬断言，不再是"记一下"）：
+   ① 用量 × 单价 = 金额 —— 单价存的是该单**实际执行的阶梯价快照**，不是收费项基准价
+   ② 本期读数 − 上期读数 = 用量 —— 读数是用来佐证用量的，不能自己先打起来
+   以前这两条大面积不成立（1327 张里 903 张单价错、1324 张读数差对不上），
+   于是端上只能加一堆兜底文案。兜底删了，守卫就得留在这里。 */
 const uBillRows = uBills.filter(b => ['FI05', 'FI06'].includes(b.itemId))
-const uMismatch = uBillRows.filter(b => Math.abs((b.quantity || 0) * (b.price || 0) - (b.amount || 0)) > 0.5)
-console.log(`  · 水电账单 ${uBillRows.length} 张，用量×单价 与金额不吻合 ${uMismatch.length} 张（端上按账单金额显示，不自己乘）`)
+const uBadPrice = uBillRows.filter(b => Math.abs((b.quantity || 0) * (b.price || 0) - (b.amount || 0)) > 0.02)
+const uBadRead = uBillRows.filter(b => {
+  const cur = Number(b.meterReading), pre = Number(b.lastReading)
+  if (!Number.isFinite(cur) || !Number.isFinite(pre)) return true
+  return Math.abs((cur - pre) - (b.quantity || 0)) > 0.05 || pre < 0 || cur <= pre
+})
+add('水电', `水电账单用量×单价=金额（${uBillRows.length} 张）`, uBadPrice.length, 0)
+add('水电', `水电账单读数差=用量（${uBillRows.length} 张）`, uBadRead.length, 0)
 
 /* ============================ 打印 ============================ */
 console.log('数据源：' + MOCK)

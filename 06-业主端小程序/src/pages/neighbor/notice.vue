@@ -75,7 +75,7 @@ import Bar from '@/components/Bar.vue'
 import Tag from '@/components/Tag.vue'
 import Empty from '@/components/Empty.vue'
 import { markNoticeRead, noticeOf, signNotice } from '@/api/neighbor'
-import { toastOk } from '@/utils/ui'
+import { toastErr, toastOk } from '@/utils/ui'
 
 const id = ref('')
 const ver = ref(0)

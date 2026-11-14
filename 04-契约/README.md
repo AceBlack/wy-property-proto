@@ -1254,3 +1254,24 @@ fixtures 用 `scripts/gen-utility-fixtures.mjs`（幂等，带闭合自检）：
 
 用例：`押金台账：352 条真实台账投影`。断言的是「总条数 352 + 四页拼起来不重不漏 + 五类都在 +
 逐条与合计恒等式 + 筛选真的收窄」，其中 352 是**哨兵**：fixture 被谁悄悄缩回裁剪版，这条先红。
+
+### 11.8 账单 `price` 的语义：快照价，不是基准价（2026-11-14）
+
+`Bill.price` 以前在样例数据里存的是**收费项的基准价**（水 4.20 / 电 0.62），
+而 `amount` 用的是**阶梯价**（水 4.20/5.60/7.35）—— 于是 1327 张水电单里 903 张
+`quantity × price ≠ amount`。端上只能挂一句「以账单金额为准」来自保。
+
+现在按《开发计划》§二 第 4 条「计量项单价取收费项，**单据存快照**」统一：
+
+- `price` = **本单实际执行的单价**（阶梯落在哪一档就是哪一档），`quantity × price = amount` 恒成立；
+- 基准价与档位仍留在收费项 `feeItems`（`priceMode: "reference"` + `remark` 里的阶梯表）；
+- 想知道"这一单为什么按 5.60 收"，看 `quantity` 落在哪一档，而不是看 `price` 有没有变。
+
+**改数据不用重跑三张表。** `gen-finance-fixtures.mjs` 加了 `--only=bills.json`：
+只重投影账单时，`owners` / `payments` 一行都不碰（这几张表可能正被别的改动带着走）。
+
+```
+node scripts/gen-finance-fixtures.mjs --only=bills.json
+```
+
+上游改动在 `03-原型/scripts/fix-meter-bills.mjs`（单价反推 + 读数链重排），本目录只做投影。
