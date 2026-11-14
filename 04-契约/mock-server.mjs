@@ -12991,12 +12991,12 @@ on('GET', '/reports/three-rate', (ctx) => {
   }
 })
 
-on('GET', '/reports/income-expense', (ctx) => {
-  assertInScope(ctx.user, ctx.query)
-  const { from, to } = ctx.query
-  const cid = ctx.query.communityId || ''
-  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
-
+/**
+ * 收支分项计算（2026-11-14 抽出来）：
+ * 原来是 `/reports/income-expense` 的内联逻辑，预算对比也要用同一套实际数 ——
+ * 复制一份就是"两张报表同一个科目两个数"的老毛病，所以抽成函数。
+ */
+function incomeExpenseOf(from, to, cid) {
   const houseComm = new Map(houses.map(h => [h.houseId, h.communityId]))
   const pays = payments.filter(p => {
     const m = String(p.payTime || '').slice(0, 7)
@@ -13055,11 +13055,111 @@ on('GET', '/reports/income-expense', (ctx) => {
     byMonth.push({ period: p, income: inc, expense: 0, balance: inc })
   }
 
+
   return {
-    from, to, periods: monthsBetween(from, to),
+    from, to, periods: monthsBetween(from, to), incomeRows, expenseRows,
     incomeTotal, expenseTotal, balance: r2(incomeTotal - expenseTotal),
     margin: incomeTotal > 0 ? Math.round((incomeTotal - expenseTotal) / incomeTotal * 10000) / 100 : 0,
-    incomeRows, expenseRows, byMonth
+    byMonth
+  }
+}
+
+const BUDGETS = readJson('fixtures/budgets.json')
+
+on('GET', '/reports/budget-vs-actual', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+  /* 倒挂要拦：返一张全 0 的表会被当成"这个区间没预算" */
+  if (from > to) throw bad('开始账期不能晚于结束账期')
+
+  /* 实际数复用收支分项：同一个函数，不复制计算逻辑 */
+  const pl = incomeExpenseOf(from, to, cid)
+  const months = monthsBetween(from, to)
+  const periods = []
+  for (let i = 0; i < months; i++) {
+    const [y, m] = from.split('-').map(Number)
+    const d = new Date(y, m - 1 + i, 1)
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  const budgetOf = code => periods.reduce((sum, p) => {
+    const y = Number(String(p).slice(0, 4))
+    const hit = BUDGETS.find(b => b.categoryCode === code && Number(b.year) === y && (b.communityId || '') === cid)
+    return sum + (hit ? Number(hit.monthBudget) || 0 : 0)
+  }, 0)
+
+  const build = (rows, direction) => {
+    const seen = new Set()
+    const out = []
+    for (const r of rows) {
+      seen.add(r.code)
+      const budget = budgetOf(r.code)
+      const has = budget > 0
+      const rate = has ? Math.round(r.amount / budget * 1000) / 10 : null
+      out.push({
+        code: r.code, name: r.name, parentName: r.parentName || '', direction,
+        budget: has ? budget : null, actual: r.amount,
+        diff: has ? r2(r.amount - budget) : null, rate,
+        status: !has ? '未编预算'
+          : direction === 'income'
+            ? (rate >= 100 ? '达成' : rate >= 90 ? '接近' : '欠收')
+            : (rate > 100 ? '超支' : rate >= 95 ? '接近' : '正常')
+      })
+    }
+    /* 编了预算但没发生的也要出现 —— 漏一行比空着更容易被忽略 */
+    for (const b of BUDGETS) {
+      if (seen.has(b.categoryCode)) continue
+      if ((b.communityId || '') !== cid) continue
+      if (!periods.some(p => Number(String(p).slice(0, 4)) === Number(b.year))) continue
+      const budget = budgetOf(b.categoryCode)
+      if (!budget) continue
+      /* fixture 只有 categoryCode，方向靠 code 前缀判断：INC_ 是收入，其余是支出 */
+      const dir = String(b.categoryCode).startsWith('INC_') ? 'income' : 'expense'
+      if (dir !== direction) continue
+      out.push({
+        code: b.categoryCode, name: b.categoryName || b.categoryCode, parentName: '', direction,
+        budget, actual: 0, diff: r2(0 - budget), rate: 0,
+        status: direction === 'income' ? '欠收' : '正常'
+      })
+    }
+    out.sort((a, b) => (b.budget || 0) - (a.budget || 0))
+    const budgetTotal = r2(out.reduce((s2, r) => s2 + (r.budget || 0), 0))
+    const actualTotal = r2(out.reduce((s2, r) => s2 + r.actual, 0))
+    return {
+      rows: out, budgetTotal, actualTotal,
+      rate: budgetTotal > 0 ? Math.round(actualTotal / budgetTotal * 1000) / 10 : null,
+      diff: budgetTotal > 0 ? r2(actualTotal - budgetTotal) : null,
+      overCount: out.filter(r => r.status === '超支').length,
+      shortCount: out.filter(r => r.status === '欠收').length,
+      unbudgetedCount: out.filter(r => r.status === '未编预算').length,
+      unbudgetedAmount: r2(out.filter(r => r.status === '未编预算').reduce((s2, r) => s2 + r.actual, 0))
+    }
+  }
+
+  return {
+    from, to, months, communityId: cid,
+    scope: cid ? 'project' : 'group',
+    scopeNote: cid
+      ? '预算按集团编制，项目维度只比实际；要看执行率请切回「全部项目」'
+      : `集团预算，${months} 个月（月度预算 × ${months}）`,
+    income: build(pl.incomeRows, 'income'),
+    expense: build(pl.expenseRows, 'expense')
+  }
+})
+
+on('GET', '/reports/income-expense', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+  const r = incomeExpenseOf(from, to, cid)
+  return {
+    from: r.from, to: r.to, periods: r.periods,
+    incomeTotal: r.incomeTotal, expenseTotal: r.expenseTotal,
+    balance: r.balance, margin: r.margin,
+    incomeRows: r.incomeRows, expenseRows: r.expenseRows, byMonth: r.byMonth
   }
 })
 

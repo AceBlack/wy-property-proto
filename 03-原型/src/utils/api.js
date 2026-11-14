@@ -15,6 +15,8 @@ import {
   expenses, manualEntries
 } from '@/mock'
 import repairPrices from '@/mock/repairPrices.json'
+/* 年度预算（2026-11-14）：人审定的数，不是实际数的函数；脚本 scripts/gen-budgets.mjs 生成 */
+import budgets from '@/mock/budgets.json'
 import { TODAY, daysBetween, maskId, maskPhone } from '@/utils/format'
 import { currentRoleId, currentRoleName } from '@/utils/auth'
 import { permCodesOfRole, setRolePerms } from '@/utils/rbac'
@@ -21483,6 +21485,94 @@ export function depositReport({ from = '2026-01-01', to = TODAY, communityId = '
       diff: round2(allReceived - allRefunded - allDeducted - allBalance),
       ok: Math.abs(allReceived - allRefunded - allDeducted - allBalance) <= 0.01
     }
+  }
+}
+
+/**
+ * 预算对比（2026-11-14）。
+ *
+ * 三条口径必须先说清楚，否则这张表会被读错：
+ *   ① **实际数不另算**：直接复用 `incomeExpenseReport` 的结果 —— 同一个 code、同一套金额来源。
+ *      报表页六张表里最怕出现"两个页面同一个科目两个数"，所以宁可多调一次函数；
+ *   ② **收入看完成率、支出看执行率**：`actual / budget` 的算法一样，语义相反 ——
+ *      收入低于 100% 是没收到（欠收），支出高于 100% 是花超了（超支）。文案不能混；
+ *   ③ **预算按月编、区间按天取**：区间 3 个月就乘 3，跨年时逐月取对应年度的预算行。
+ *      项目筛选下没有项目级预算（集团编制），此时预算列留空并说明原因，不按面积摊。
+ */
+export function budgetVsActual({ from = '2026-01', to = periodOf(), communityId = '' } = {}) {
+  const periods = monthRange(from, to)
+  if (!periods.length) throw new Error('开始账期不能晚于结束账期')
+  const months = periods.length
+
+  /* 区间预算 = 逐月取该月所属年度的预算行再求和（跨年不会串年） */
+  const budgetOf = code => periods.reduce((sum, p) => {
+    const y = Number(String(p).slice(0, 4))
+    const hit = budgets.find(b => b.categoryCode === code && b.year === y && (b.communityId || '') === communityId)
+    return sum + (hit ? Number(hit.monthBudget) || 0 : 0)
+  }, 0)
+
+  const pl = incomeExpenseReport({ from, to, communityId })
+
+  const build = (list, direction) => {
+    const seen = new Set()
+    const rows = []
+    for (const r of list) {
+      seen.add(r.code)
+      const budget = budgetOf(r.code)
+      const actual = r.amount
+      const hasBudget = budget > 0
+      const rate = hasBudget ? Math.round(actual / budget * 1000) / 10 : null
+      rows.push({
+        code: r.code, name: r.name, parentName: r.parentName, direction,
+        budget: hasBudget ? budget : null, actual,
+        diff: hasBudget ? Math.round((actual - budget) * 100) / 100 : null,
+        rate,
+        status: !hasBudget ? '未编预算'
+          : direction === 'income'
+            ? (rate >= 100 ? '达成' : rate >= 90 ? '接近' : '欠收')
+            : (rate > 100 ? '超支' : rate >= 95 ? '接近' : '正常')
+      })
+    }
+    /* 编了预算但一分钱没发生的也要出现：空着一整条比"漏一行"更容易被忽略 */
+    for (const b of budgets) {
+      if (seen.has(b.categoryCode)) continue
+      /* 只补本方向的：否则收入表里会冒出"工资""社保"这种支出科目（第一版就踩了） */
+      if (b.direction !== direction) continue
+      if ((b.communityId || '') !== communityId) continue
+      if (!periods.some(p => Number(String(p).slice(0, 4)) === b.year)) continue
+      const budget = budgetOf(b.categoryCode)
+      if (!budget) continue
+      rows.push({
+        code: b.categoryCode, name: b.categoryName, parentName: '', direction: b.direction,
+        budget, actual: 0, diff: Math.round((0 - budget) * 100) / 100, rate: 0,
+        status: b.direction === 'income' ? '欠收' : '正常'
+      })
+    }
+    rows.sort((a, b) => (b.budget || 0) - (a.budget || 0))
+    const budgetTotal = round2(rows.reduce((s, r) => s + (r.budget || 0), 0))
+    const actualTotal = round2(rows.reduce((s, r) => s + r.actual, 0))
+    const rateTotal = budgetTotal > 0 ? Math.round(actualTotal / budgetTotal * 1000) / 10 : null
+    return {
+      rows, budgetTotal, actualTotal, rate: rateTotal,
+      diff: budgetTotal > 0 ? round2(actualTotal - budgetTotal) : null,
+      overCount: rows.filter(r => r.status === '超支').length,
+      shortCount: rows.filter(r => r.status === '欠收').length,
+      unbudgetedCount: rows.filter(r => r.status === '未编预算').length,
+      unbudgetedAmount: round2(rows.filter(r => r.status === '未编预算').reduce((s, r) => s + r.actual, 0))
+    }
+  }
+
+  const income = build(pl.incomeRows, 'income')
+  const expense = build(pl.expenseRows, 'expense')
+
+  return {
+    from, to, months, communityId,
+    /* 项目维度没有预算时，页面要能解释"为什么这一列是空的"，而不是让人以为没编 */
+    scope: communityId ? 'project' : 'group',
+    scopeNote: communityId
+      ? '预算按集团编制，项目维度只比实际；要看执行率请切回「全部项目」'
+      : `集团预算，${months} 个月（月度预算 × ${months}）`,
+    income, expense
   }
 }
 

@@ -482,6 +482,145 @@
           </el-table>
         </div>
       </el-tab-pane>
+
+      <!-- ============ 预算对比 ============ -->
+      <el-tab-pane label="预算对比" name="budget">
+        <div class="panel" style="margin-top:12px;">
+          <div class="aging-bar__hd" style="margin-bottom:0;">
+            <span>{{ bud.scopeNote }}</span>
+            <span class="desc">
+              收入看<b>完成率</b>（低 = 没收到），支出看<b>执行率</b>（高 = 花超了）——
+              同一个除法，两个方向，别混着念
+            </span>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:12px;grid-template-columns:repeat(3,minmax(0,1fr));">
+          <div class="panel rsum" data-card="b-in-b">
+            <div class="rsum__l">收入预算</div>
+            <div class="rsum__v">¥ {{ wan(bud.income.budgetTotal) }}</div>
+            <div class="rsum__s">{{ bud.months }} 个月</div>
+          </div>
+          <div class="panel rsum" data-card="b-in-a">
+            <div class="rsum__l">收入实际</div>
+            <div class="rsum__v">¥ {{ wan(bud.income.actualTotal) }}</div>
+            <div class="rsum__s">与「收支分项」同源，不另算</div>
+          </div>
+          <div class="panel rsum" data-card="b-in-r">
+            <div class="rsum__l">收入完成率</div>
+            <div class="rsum__v" :class="bud.income.rate < 90 ? 'money--out' : ''">
+              {{ bud.income.rate == null ? '—' : bud.income.rate }}<span v-if="bud.income.rate != null" class="unit">%</span>
+            </div>
+            <div class="rsum__s">欠收 {{ bud.income.shortCount }} 项</div>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:12px;grid-template-columns:repeat(3,minmax(0,1fr));">
+          <div class="panel rsum" data-card="b-ex-b">
+            <div class="rsum__l">支出预算</div>
+            <div class="rsum__v">¥ {{ wan(bud.expense.budgetTotal) }}</div>
+            <div class="rsum__s">{{ bud.months }} 个月</div>
+          </div>
+          <div class="panel rsum" data-card="b-ex-a">
+            <div class="rsum__l">支出实际</div>
+            <div class="rsum__v">¥ {{ wan(bud.expense.actualTotal) }}</div>
+            <div class="rsum__s">报销 + 工资 + 合同摊 + 补录</div>
+          </div>
+          <div class="panel rsum" data-card="b-ex-r">
+            <div class="rsum__l">支出执行率</div>
+            <div class="rsum__v" :class="bud.expense.rate > 100 ? 'money--out' : ''">
+              {{ bud.expense.rate == null ? '—' : bud.expense.rate }}<span v-if="bud.expense.rate != null" class="unit">%</span>
+            </div>
+            <div class="rsum__s">超支 {{ bud.expense.overCount }} 项</div>
+          </div>
+        </div>
+
+        <div v-if="unbudgeted" class="check is-bad">
+          <b>有支出没编预算</b>
+          <span>
+            {{ bud.expense.unbudgetedCount }} 项 / ¥{{ money(bud.expense.unbudgetedAmount) }} ——
+            这类钱在预算表上不存在，到了月底没人能解释它从哪来
+          </span>
+        </div>
+
+        <div class="grid" style="margin-top:16px;grid-template-columns:1fr 1fr;">
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;">
+              <h4>收入 · 完成率</h4>
+              <span class="desc">低于 90% 标红：这个月的钱没进来</span>
+            </div>
+            <el-table :data="bud.income.rows" size="small" max-height="420">
+              <el-table-column label="科目" min-width="130">
+                <template #default="{ row }">
+                  <div class="nowrap">{{ row.name }}</div>
+                  <div class="ps-sub">{{ row.parentName || '—' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="预算" width="110" align="right">
+                <template #default="{ row }"><span class="num">{{ row.budget == null ? '未编' : '¥' + money(row.budget) }}</span></template>
+              </el-table-column>
+              <el-table-column label="实际" width="110" align="right">
+                <template #default="{ row }"><span class="num">¥{{ money(row.actual) }}</span></template>
+              </el-table-column>
+              <el-table-column label="差额" width="106" align="right">
+                <template #default="{ row }">
+                  <span class="num" :class="{ 'money--out': row.diff != null && row.diff < 0 }">
+                    {{ row.diff == null ? '—' : (row.diff >= 0 ? '+' : '') + money(row.diff) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="完成率" width="96" align="right">
+                <template #default="{ row }">
+                  <span :class="{ 'money--out': row.rate != null && row.rate < 90 }">{{ row.rate == null ? '—' : row.rate + '%' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="92">
+                <template #default="{ row }">
+                  <span class="tagx" :class="statusClass(row.status)">{{ row.status }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;">
+              <h4>支出 · 执行率</h4>
+              <span class="desc">超过 100% 标红：这个月花超了</span>
+            </div>
+            <el-table :data="bud.expense.rows" size="small" max-height="420">
+              <el-table-column label="科目" min-width="130">
+                <template #default="{ row }">
+                  <div class="nowrap">{{ row.name }}</div>
+                  <div class="ps-sub">{{ row.parentName || '—' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="预算" width="110" align="right">
+                <template #default="{ row }"><span class="num">{{ row.budget == null ? '未编' : '¥' + money(row.budget) }}</span></template>
+              </el-table-column>
+              <el-table-column label="实际" width="110" align="right">
+                <template #default="{ row }"><span class="num money--out">¥{{ money(row.actual) }}</span></template>
+              </el-table-column>
+              <el-table-column label="差额" width="106" align="right">
+                <template #default="{ row }">
+                  <span class="num" :class="{ 'money--out': row.diff != null && row.diff > 0 }">
+                    {{ row.diff == null ? '—' : (row.diff >= 0 ? '+' : '') + money(row.diff) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="执行率" width="96" align="right">
+                <template #default="{ row }">
+                  <span :class="{ 'money--out': row.rate != null && row.rate > 100 }">{{ row.rate == null ? '—' : row.rate + '%' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="96">
+                <template #default="{ row }">
+                  <span class="tagx" :class="statusClass(row.status)">{{ row.status }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
 
     <div class="legal">
@@ -504,7 +643,7 @@
 import { computed, ref } from 'vue'
 import {
   agingReport, communityOpts, depositReport, feeItemRows, incomeExpenseReport,
-  threeRateReport, waiveAnalysis
+  budgetVsActual, threeRateReport, waiveAnalysis
 } from '@/api'
 import { exportList } from '@/utils/export'
 import { money, wan } from '@/utils/format'
@@ -576,6 +715,20 @@ const depo = computed(() => {
   }
 })
 
+/* 预算对比：实际数复用收支分项，预算来自 mock/budgets.json（人审定的数） */
+const bud = computed(() => {
+  try {
+    return budgetVsActual({ from: from.value, to: to.value, communityId: communityId.value })
+  } catch (e) {
+    const empty = { rows: [], budgetTotal: 0, actualTotal: 0, rate: null, diff: null, overCount: 0, shortCount: 0, unbudgetedCount: 0, unbudgetedAmount: 0 }
+    return { from: '', to: '', months: 0, scope: 'group', scopeNote: e?.message || '', income: empty, expense: empty, error: e?.message }
+  }
+})
+const unbudgeted = computed(() => bud.value.expense.unbudgetedCount > 0)
+const statusClass = st => ({
+  达成: 'is-ok', 正常: 'is-ok', 接近: 'is-warn', 欠收: 'is-bad', 超支: 'is-bad', 未编预算: 'is-mute'
+}[st] || 'is-mute')
+
 const houseShare = computed(() => {
   const base = rate.value.houses || 0
   return base > 0 ? Math.round(waive.value.houses / base * 1000) / 10 : 0
@@ -633,6 +786,23 @@ function onExport() {
         { prop: 'deducted', label: '扣转收入' }, { prop: 'balance', label: '在账余额' }
       ],
       rows: depo.value.byType,
+      filters: { from: from.value, to: to.value, communityId: communityId.value }
+    })
+    return
+  }
+  if (tab.value === 'budget') {
+    exportList({
+      name: `预算对比 ${from.value}_${to.value}`, source: '/b/revenue-report',
+      columns: [
+        { prop: 'direction', label: '方向' }, { prop: 'parentName', label: '一级分类' },
+        { prop: 'name', label: '科目' }, { prop: 'budget', label: '预算' },
+        { prop: 'actual', label: '实际' }, { prop: 'diff', label: '差额' },
+        { prop: 'rate', label: '完成率/执行率%' }, { prop: 'status', label: '状态' }
+      ],
+      rows: [
+        ...bud.value.income.rows.map(r => ({ ...r, direction: '收入' })),
+        ...bud.value.expense.rows.map(r => ({ ...r, direction: '支出' }))
+      ],
       filters: { from: from.value, to: to.value, communityId: communityId.value }
     })
     return
@@ -704,6 +874,15 @@ function onExport() {
 .aging-seg[data-bucket="91-180天"] .aging-seg__v, .aging-seg[data-bucket="180天以上"] .aging-seg__v {
   color: #a33;
 }
+
+.tagx {
+  display: inline-block; padding: 0 7px; border-radius: 8px; font-size: 12px; line-height: 20px;
+  border: 1px solid transparent;
+}
+.tagx.is-ok { background: #f0f9eb; border-color: #c8e6b8; color: #3f7f2a; }
+.tagx.is-warn { background: #fdf6ec; border-color: #f5dab1; color: #a6700f; }
+.tagx.is-bad { background: #fff5f5; border-color: #f5c2c2; color: #a33; }
+.tagx.is-mute { background: #f4f4f5; border-color: #e4e4e7; color: #8a8a8f; }
 
 .legal {
   margin-top: 14px; padding: 12px 16px; border-radius: 10px;

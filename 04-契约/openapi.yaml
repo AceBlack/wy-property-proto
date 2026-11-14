@@ -11811,6 +11811,46 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/budget-vs-actual:
+    get:
+      tags: [reports]
+      operationId: getBudgetVsActual
+      summary: 预算对比（完成率 / 执行率）
+      description: |
+        实际数**不另算**：内部复用 `/reports/income-expense` 的口径，同一个分类编码、同一套金额来源。
+        报表页最怕"两个页面同一个科目两个数"，所以宁可多算一次也不复制逻辑。
+
+        同一个除法，两个方向：
+        - **收入** `actual / budget` 低 = 没收到（欠收）；
+        - **支出** `actual / budget` 高 = 花超了（超支）。
+        `status` 已经把两种语义分开，前端不要自己再按方向翻译一遍。
+
+        预算按月编制，区间几个月就乘几个月；跨年区间逐月取对应年度的预算行。
+        项目维度目前没有预算（集团编制），此时 `budget` 为 `null`、`rate` 为 `null`，
+        `scope=project` + `scopeNote` 说明原因 —— **不按面积分摊**：摊出来的执行率是假的。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetVsActualEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /manual-entries:
     get:
       tags: [expenses]
@@ -19646,6 +19686,71 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/DepositLedger' }
+
+    Budget:
+      type: object
+      description: |
+        月度预算（编制用的配置）。按「年度 × 项目 × 二级分类」编，项目为空表示集团口径。
+        **只编到二级分类**：编到一级会和二级明细重复计算。
+      properties:
+        budgetId: { type: string }
+        year: { type: integer }
+        communityId: { type: string, description: 空 = 集团预算 }
+        categoryCode: { type: string }
+        categoryName: { type: string, description: 从分类字典带出，方便报表直接显示 }
+        monthBudget: { type: number, description: 月度金额；区间预算 = 它 × 月数 }
+        note: { type: string, description: 编制依据，月底要能解释为什么是这个数 }
+
+    BudgetRow:
+      type: object
+      properties:
+        code: { type: string, description: 分类字典二级编码 }
+        name: { type: string }
+        parentName: { type: string }
+        direction: { type: string, enum: [income, expense] }
+        budget: { type: number, nullable: true, description: 区间预算；项目维度未编制时为 null }
+        actual: { type: number }
+        diff: { type: number, nullable: true, description: actual − budget }
+        rate: { type: number, nullable: true, description: 完成率/执行率，百分数 }
+        status:
+          type: string
+          enum: [达成, 接近, 欠收, 正常, 超支, 未编预算]
+          description: 收入侧用 达成/接近/欠收；支出侧用 正常/接近/超支；无预算为 未编预算
+
+    BudgetSide:
+      type: object
+      properties:
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetRow' }
+        budgetTotal: { type: number }
+        actualTotal: { type: number }
+        rate: { type: number, nullable: true }
+        diff: { type: number, nullable: true }
+        overCount: { type: integer, description: 支出超支项数 }
+        shortCount: { type: integer, description: 收入欠收项数 }
+        unbudgetedCount: { type: integer, description: 有实际但没编预算的项数 }
+        unbudgetedAmount: { type: number }
+
+    BudgetVsActual:
+      type: object
+      required: [from, to, months, scope, income, expense]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        months: { type: integer, description: 区间月数（预算 = 月度预算 × 月数） }
+        communityId: { type: string }
+        scope: { type: string, enum: [group, project], description: group = 有集团预算；project = 只比实际 }
+        scopeNote: { type: string, description: 给页面直接展示的口径说明 }
+        income: { $ref: '#/components/schemas/BudgetSide' }
+        expense: { $ref: '#/components/schemas/BudgetSide' }
+
+    BudgetVsActualEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/BudgetVsActual' }
 
     ManualEntry:
       type: object

@@ -294,7 +294,74 @@ for (const t of ['装修押金', '履约保证金', '租约押金', '门禁卡�
   ok(depoTxt.includes(t), `类型里有「${t}」`)
 }
 
-console.log('\n【九】控制台')
+console.log('\n【九】预算对比：完成率与执行率是两个方向')
+
+await open()
+await page.evaluate(() => {
+  [...document.querySelectorAll('.el-tabs__item')].find(x => x.innerText.includes('预算'))?.click()
+})
+await sleep(2600)
+
+const bk = await kpis()
+for (const t of ['收入预算', '收入实际', '收入完成率', '支出预算', '支出实际', '支出执行率']) {
+  ok(bk.some(x => x.includes(t)), `有「${t}」`)
+}
+const bNote = await paneText()
+ok(/集团预算/.test(bNote) && /个月/.test(bNote), '写明预算口径与月数（月度预算 × 月数）', bNote.slice(0, 60))
+ok(/完成率/.test(bNote) && /执行率/.test(bNote), '写明收入看完成率、支出看执行率（两个方向）')
+
+/* 两张表都要有行，且不能混方向：收入表里出现"工资"就是方向串了 */
+const budTabs = await page.evaluate(() => {
+  const pane = [...document.querySelectorAll('.el-tab-pane')].find(x => x.offsetParent !== null)
+  const tables = pane.querySelectorAll('.el-table')
+  const read = tb => [...tb.querySelectorAll('.el-table__body-wrapper tr')].map(tr => {
+    const tds = [...tr.querySelectorAll('td')].map(td => td.innerText.trim())
+    return { name: (tds[0] || '').split('\n')[0], budget: tds[1], rate: tds[4], status: tds[5] }
+  })
+  return { income: read(tables[0]), expense: read(tables[1]) }
+})
+ok(budTabs.income.length > 0, '收入预算表有行', `${budTabs.income.length} 行`)
+ok(budTabs.expense.length > 0, '支出预算表有行', `${budTabs.expense.length} 行`)
+ok(!budTabs.income.some(r => /工资|社保|保洁|电梯维保/.test(r.name)), '收入表里没有支出科目（方向没串）')
+ok(budTabs.expense.some(r => /工资/.test(r.name)), '支出表里有工资')
+
+const INC_ST = ['达成', '接近', '欠收', '未编预算']
+const EXP_ST = ['正常', '接近', '超支', '未编预算']
+ok(budTabs.income.every(r => INC_ST.includes(r.status)), '收入侧状态只有 达成/接近/欠收',
+  budTabs.income.map(r => r.status).join('/'))
+ok(budTabs.expense.every(r => EXP_ST.includes(r.status)), '支出侧状态只有 正常/接近/超支',
+  budTabs.expense.map(r => r.status).join('/'))
+
+/* 完成率与明细必须自洽：合计率 ≈ 实际合计 ÷ 预算合计 */
+const inBudget = bk.find(x => x.includes('收入预算')) || ''
+const inActual = bk.find(x => x.includes('收入实际')) || ''
+/* 括号位置很关键：写成 Number(x.match(re) || [])[1] 会先对数组取 Number（NaN），再取下标 → 恒为 0 */
+const inRate = Number(((bk.find(x => x.includes('收入完成率')) || '').match(/([\d.]+)\s*%/) || [])[1] || 0)
+if (inRate > 0) {
+  const b = anyNum(inBudget); const a = anyNum(inActual)
+  ok(Math.abs(a / b * 100 - inRate) < 1, '完成率 = 收入实际 ÷ 收入预算', `${inRate}% vs ${(a / b * 100).toFixed(1)}%`)
+} else { ok(false, '完成率没读出来') }
+
+/* 切到单项目：预算按集团编制，这里只能比实际 —— 预算列必须显「未编」并说明，不能摊一个假数 */
+await page.evaluate(() => {
+  document.querySelectorAll('.filter-bar .el-select__wrapper')[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+})
+await sleep(600)
+await page.evaluate(() => {
+  [...document.querySelectorAll('.el-select-dropdown__item')]
+    .filter(x => x.getBoundingClientRect().height > 0).find(x => x.innerText.includes('翡翠城'))?.click()
+})
+await sleep(2400)
+const projNote = await paneText()
+ok(/集团编制/.test(projNote), '项目维度写明「预算按集团编制」', projNote.slice(0, 60))
+const projBud = await page.evaluate(() => {
+  const pane = [...document.querySelectorAll('.el-tab-pane')].find(x => x.offsetParent !== null)
+  const tb = pane.querySelectorAll('.el-table')[1]
+  return [...tb.querySelectorAll('.el-table__body-wrapper tr')].map(tr => tr.querySelectorAll('td')[1].innerText.trim())
+})
+ok(projBud.length > 0 && projBud.every(x => x === '未编'), '项目维度预算列全是「未编」（不按面积摊）', projBud.slice(0, 3).join('/'))
+
+console.log('\n【十】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()

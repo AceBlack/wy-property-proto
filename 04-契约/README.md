@@ -1217,6 +1217,14 @@ fixtures 用 `scripts/gen-utility-fixtures.mjs`（幂等，带闭合自检）：
 **收款方式拆成两个枚举**：`PayMethod`（写，5 个值）与 `PayMethodLegacy`（读，多一个 `预存抵扣`）。
 预存账户体系下线后，历史流水里还有这个值，不能因为下线就查不出来；新收款传它一律 422/42212。
 
+**（2026-11-14 续）预算对比与押金台账**：
+
+- `GET /reports/budget-vs-actual` —— 实际数**内部复用** `/reports/income-expense`（抽成 `incomeExpenseOf()`），
+  预算来自 `fixtures/budgets.json`（24 条，集团口径，按「年度 × 二级分类」编月额，脚本 `gen-budgets.mjs`）。
+  收入叫完成率、支出叫执行率：同一个除法，语义相反。项目维度不摊预算，返回 `budget=null` + `scopeNote` 说明。
+- 押金 `DEPOSITS` 不再现场造 12 条，改为读 `fixtures/deposits.json`（352 条，投影 03 的装饰押金台账，
+  脚本 `gen-deposit-fixtures.mjs`）。押金在账报表因此从 ¥2.3 万变成 **收 ¥1,619,548 / 在账 ¥665,637**。
+
 生成器：`scripts/gen-system-params-fixture.mjs`、`scripts/gen-tenant-face-fixtures.mjs`
 （租客的人脸单单独一个文件 —— 并进 `access-faces.json` 会连带重写 `members.json` 的人脸投影）。
 

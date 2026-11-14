@@ -8377,6 +8377,61 @@ test('押金在账：收 = 退 + 扣 + 在账（全量恒等式），期间数�
   eq(bad.data.identity.ok, true, '倒挂时全量恒等式照样成立')
 })
 
+test('预算对比：实际数与收支分项同源，预算按月度编、按区间取', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/budget-vs-actual', { query: { from: '2026-08', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'BudgetVsActualEnvelope', 'GET /reports/budget-vs-actual')
+
+  const d = r.data
+  eq(d.months, 3, '8~10 三期')
+  eq(d.scope, 'group', '集团口径（预算按集团编制）')
+
+  /* ① 实际数必须与收支分项一模一样 —— 这张表最容易犯的错是"另一套算法" */
+  const pl = await call('GET', '/reports/income-expense', { query: { from: '2026-08', to: '2026-10' } })
+  const incActual = r2(d.income.rows.reduce((s2, x) => s2 + x.actual, 0))
+  const expActual = r2(d.expense.rows.reduce((s2, x) => s2 + x.actual, 0))
+  assert(Math.abs(incActual - pl.data.incomeTotal) < 0.02,
+    `收入实际 ${incActual} 应等于收支分项 ${pl.data.incomeTotal}`)
+  assert(Math.abs(expActual - pl.data.expenseTotal) < 0.02,
+    `支出实际 ${expActual} 应等于收支分项 ${pl.data.expenseTotal}`)
+
+  /* ② 预算 = 月度预算 × 月数：3 个月的预算合计应当是 1 个月的 3 倍 */
+  const one = await call('GET', '/reports/budget-vs-actual', { query: { from: '2026-10', to: '2026-10' } })
+  eq(one.data.months, 1, '单月')
+  const ratio = d.expense.budgetTotal / one.data.expense.budgetTotal
+  assert(Math.abs(ratio - 3) < 0.001, `3 个月预算应是 1 个月的 3 倍（实际 ${ratio.toFixed(3)}）`)
+
+  /* ③ 状态语义：收入侧只出现 达成/接近/欠收/未编预算，支出侧只出现 正常/接近/超支/未编预算 */
+  const INC = new Set(['达成', '接近', '欠收', '未编预算'])
+  const EXP = new Set(['正常', '接近', '超支', '未编预算'])
+  for (const x of d.income.rows) assert(INC.has(x.status), `收入行状态越界：${x.name} ${x.status}`)
+  for (const x of d.expense.rows) assert(EXP.has(x.status), `支出行状态越界：${x.name} ${x.status}`)
+
+  /* ④ 超支/欠收计数与明细对得上（页面上的两个数字就是从这里来的） */
+  eq(d.expense.overCount, d.expense.rows.filter(x => x.status === '超支').length, '超支项数')
+  eq(d.income.shortCount, d.income.rows.filter(x => x.status === '欠收').length, '欠收项数')
+
+  /* ⑤ 有实际没预算也要能看见：这类钱在预算表上不存在 */
+  const unb = d.expense.rows.filter(x => x.status === '未编预算')
+  eq(d.expense.unbudgetedCount, unb.length, '未编预算项数')
+  assert(Math.abs(r2(unb.reduce((s2, x) => s2 + x.actual, 0)) - d.expense.unbudgetedAmount) < 0.02,
+    '未编预算金额合计')
+
+  /* ⑥ 项目维度：没有项目级预算，预算列必须留空并给出口径说明，而不是按面积摊一个假数 */
+  const proj = await call('GET', '/reports/budget-vs-actual', { query: { from: '2026-08', to: '2026-10', communityId: 'P01' } })
+  eq(proj.status, 200, '按项目')
+  eq(proj.data.scope, 'project', '项目口径')
+  assert(proj.data.scopeNote.includes('集团'), `要说明预算按集团编制：${proj.data.scopeNote}`)
+  eq(proj.data.expense.rows.every(x => x.budget === null && x.rate === null), true,
+    '项目维度预算列为空（不摊）')
+  eq(proj.data.expense.budgetTotal, 0, '项目维度预算合计为 0')
+
+  /* 账期倒挂要拦 */
+  const bad = await call('GET', '/reports/budget-vs-actual', { query: { from: '2026-10', to: '2026-08' } })
+  eq(bad.status, 400, '起止倒挂 400')
+})
+
 /* ============================ 跑 ============================ */
 const server = await startServer(0)
 const port = server.address().port

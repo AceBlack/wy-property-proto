@@ -1,0 +1,218 @@
+[
+  {
+    "budgetId": "BG0001",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_MAIN_PROPERTY",
+    "categoryName": "物业费",
+    "monthBudget": 334000,
+    "note": "物业费：按 756 户年化应收 × 1.02"
+  },
+  {
+    "budgetId": "BG0002",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_OTHER_UTILITY",
+    "categoryName": "水电费",
+    "monthBudget": 54000,
+    "note": "水电费：转供水电，按上期实收下浮 5%"
+  },
+  {
+    "budgetId": "BG0003",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_MAIN_PARK",
+    "categoryName": "车位管理费",
+    "monthBudget": 42000,
+    "note": "车位管理费：含地下车库照明公摊"
+  },
+  {
+    "budgetId": "BG0004",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_MULTI_VENUE",
+    "categoryName": "场地租赁",
+    "monthBudget": 41000,
+    "note": "场地租赁：中庭与电梯广告位打包"
+  },
+  {
+    "budgetId": "BG0005",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_MULTI_AD",
+    "categoryName": "广告位",
+    "monthBudget": 6000,
+    "note": "广告位：门禁机与道闸"
+  },
+  {
+    "budgetId": "BG0006",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_OTHER_SERVICE",
+    "categoryName": "临时服务费",
+    "monthBudget": 2000,
+    "note": "临时服务费：开锁、通下水等零星"
+  },
+  {
+    "budgetId": "BG0007",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "INC_NONOP_COMP",
+    "categoryName": "赔偿收入",
+    "monthBudget": 1000,
+    "note": "赔偿收入：公共设施损坏赔偿"
+  },
+  {
+    "budgetId": "BG0008",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_LABOR_SALARY",
+    "categoryName": "工资",
+    "monthBudget": 1111000,
+    "note": "工资：120 人两期工资表月均 × 1.03"
+  },
+  {
+    "budgetId": "BG0009",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_LABOR_INSURANCE",
+    "categoryName": "社保公积金",
+    "monthBudget": 177000,
+    "note": "社保公积金：单位承担部分"
+  },
+  {
+    "budgetId": "BG0010",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_LABOR_WELFARE",
+    "categoryName": "福利费",
+    "monthBudget": 24000,
+    "note": "福利费：节日福利与体检"
+  },
+  {
+    "budgetId": "BG0011",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_LABOR_OUTSOURCE",
+    "categoryName": "外包人力",
+    "monthBudget": 42000,
+    "note": "外包人力：劳务派遣（不含整包服务）"
+  },
+  {
+    "budgetId": "BG0012",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_PROJECT",
+    "categoryName": "工程分包",
+    "monthBudget": 62000,
+    "note": "工程分包：设施设备检修，按合同期摊"
+  },
+  {
+    "budgetId": "BG0013",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_SECURITY",
+    "categoryName": "秩序维护",
+    "monthBudget": 50000,
+    "note": "秩序维护：安保外包"
+  },
+  {
+    "budgetId": "BG0014",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_ELEV",
+    "categoryName": "电梯维保",
+    "monthBudget": 45000,
+    "note": "电梯维保：14 台"
+  },
+  {
+    "budgetId": "BG0015",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_SERVICE",
+    "categoryName": "保洁外包",
+    "monthBudget": 42000,
+    "note": "保洁外包：三项目公共区域"
+  },
+  {
+    "budgetId": "BG0016",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_GREEN",
+    "categoryName": "绿化养护",
+    "monthBudget": 35000,
+    "note": "绿化养护：含季节性补植"
+  },
+  {
+    "budgetId": "BG0017",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_CON_FIRE",
+    "categoryName": "消防维保",
+    "monthBudget": 6000,
+    "note": "消防维保：系统年检"
+  },
+  {
+    "budgetId": "BG0018",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_REPAIR",
+    "categoryName": "维修材料",
+    "monthBudget": 36000,
+    "note": "维修材料：偏紧，考验领用管控"
+  },
+  {
+    "budgetId": "BG0019",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_OFFICE",
+    "categoryName": "办公费用",
+    "monthBudget": 26000,
+    "note": "办公费用"
+  },
+  {
+    "budgetId": "BG0020",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_TAX",
+    "categoryName": "税金及附加",
+    "monthBudget": 9000,
+    "note": "税金及附加：按实缴"
+  },
+  {
+    "budgetId": "BG0021",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_TRAVEL",
+    "categoryName": "差旅费",
+    "monthBudget": 7000,
+    "note": "差旅费"
+  },
+  {
+    "budgetId": "BG0022",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_ENTERTAIN",
+    "categoryName": "业务招待",
+    "monthBudget": 2000,
+    "note": "业务招待：从紧"
+  },
+  {
+    "budgetId": "BG0023",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_OTHER",
+    "categoryName": "其他运营费用",
+    "monthBudget": 2000,
+    "note": "其他运营费用"
+  },
+  {
+    "budgetId": "BG0024",
+    "year": 2026,
+    "communityId": "",
+    "categoryCode": "EXP_OP_FEE",
+    "categoryName": "通道手续费",
+    "monthBudget": 1000,
+    "note": "通道手续费：微信/支付宝"
+  }
+]
