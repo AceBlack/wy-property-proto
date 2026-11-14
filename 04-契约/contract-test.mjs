@@ -6667,6 +6667,11 @@ test('账单：已绑房 + 名下不挂房的车位费（只按房过滤会漏�
   eq(park.length, 6, '董宇名下 6 张车位费（车位不挂房）')
   eq(all.data.rows.length, 11, '5 张房账 + 6 张车位费')
 
+  /* 作废单不下发（2026-11-14）：项目切插卡 / 国网直收后，遗留的 565 张水电应收在后台作废了。
+     作废 = 这笔钱不用交，但摆进业主列表只会让业主问"这单是什么、要不要交"。
+     后台列表要留着能追溯，业主端不该看到 —— 两个口径，别混。 */
+  assert(all.data.rows.every(b => b.status !== '已作废'), '业主账单里不能出现「已作废」')
+
   /* 关键：只按 houseId 过滤，这个业主一张欠费都查不到，实际欠 200 元 */
   const byHouseOnly = all.data.rows.filter(b => b.houseId && b.unpaid > 0)
   eq(byHouseOnly.length, 0, '房账全已缴')

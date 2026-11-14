@@ -9298,6 +9298,11 @@ const mpIsDebt = b => MP_DEBT_STATUS.includes(b.status) && (Number(b.unpaid) || 
 function mpBillList(sess, q = {}) {
   const ids = mpBound(sess)
   return bills
+    /* 作废单不进业主账单（2026-11-14）：项目从抄表切插卡 / 国网直收后，遗留的水电应收
+       在后台作废了。作废 = 这笔钱不用交，但把 565 张「已作废」摆进业主列表，
+       业主只会问"这单是什么、要不要交"。状态是内部口径，不下发给业主。
+       05 / PC 后台的账单列表不过滤 —— 那边要能看到、能追溯。 */
+    .filter(b => b.status !== '已作废')
     .filter(b => (b.houseId ? ids.has(b.houseId) : b.ownerId === sess.ownerId))
     .filter(b => !q.houseId || b.houseId === String(q.houseId))
     /* houseId 与 parkId 互斥：车位账单不挂房，两个一起传按房源账单处理 */

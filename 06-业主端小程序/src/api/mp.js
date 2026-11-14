@@ -351,6 +351,11 @@ export function myBills({ houseId = '', onlyDebt = false } = {}) {
   const set = myHouseIdSet()
   const ownerSet = new Set(myOwnerIds())
   return bills
+    /* 作废单不给业主看（2026-11-14）：项目从抄表切插卡 / 国网直收之后，遗留的水电应收
+       在后台已经作废了。作废的意思是"这笔钱不用交"，但把 565 张「已作废」摆进账单列表，
+       业主只会打电话问"这单是什么、要不要交"。状态是内部口径，不该当成账单内容下发。
+       接口模式同样过滤（`04/mock-server.mjs` 的 mpBillList），两边一致。 */
+    .filter(b => b.status !== '已作废')
     .filter(b => (b.houseId ? set.has(b.houseId) : ownerSet.has(b.ownerId)))
     .filter(b => !houseId || b.houseId === houseId)
     .filter(b => !onlyDebt || isDebt(b))
