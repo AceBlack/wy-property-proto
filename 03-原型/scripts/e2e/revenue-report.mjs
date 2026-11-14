@@ -109,6 +109,33 @@ const collectCard = k.find(t => t.includes('收缴率')) || ''
 const cr = Number((collectCard.match(/([\d.]+)%/) || [])[1] || 0)
 ok(cr > 0 && cr <= 100, '收缴率在 0~100 之间（超过 100 说明应收算少了）', `${cr}%`)
 
+ok(k.some(t => t.includes('减免率')), '有「减免率」（与欠费率分开：减免不是收不到）')
+
+console.log('\n【一·续】现金按归属账期三分 + 按房屋用途')
+
+const splitSegs = await page.evaluate(() => [...document.querySelectorAll('.split-seg')].map(x => ({
+  key: x.getAttribute('data-seg'),
+  text: x.innerText.replace(/\s+/g, ' ').trim()
+})))
+ok(splitSegs.length === 3, '现金按归属账期分三段', `${splitSegs.length} 段`)
+ok(splitSegs.map(x => x.key).join(',') === 'clearing,current,prepaid', '顺序 清欠 → 当期 → 预收', splitSegs.map(x => x.key).join(','))
+ok(splitSegs.every(x => /¥/.test(x.text)), '每段都有金额')
+ok(splitSegs.some(x => anyNum(x.text) > 0), '至少一段有金额', splitSegs.map(x => anyNum(x.text)).join(' / '))
+
+const splitFt = await page.evaluate(() => document.querySelector('.split-bar__ft')?.innerText.replace(/\s+/g, ' '))
+ok(/对得上/.test(splitFt || ''), '三段之和 = 现金收入（自检通过）', (splitFt || '').slice(0, 70))
+ok(/仅本收费项/.test(await paneText()), '写明「仅本收费项」（三率是按 itemId 算的）')
+
+const usageRows = await page.evaluate(() => {
+  const panel = [...document.querySelectorAll('.panel')].find(p => /按房屋用途/.test(p.innerText.slice(0, 40)))
+  if (!panel) return []
+  return [...panel.querySelectorAll('.el-table__body-wrapper tr')].map(tr => tr.innerText.replace(/\s+/g, ' ').trim())
+})
+ok(usageRows.length >= 2, '按房屋用途至少两档', `${usageRows.length} 行`)
+ok(usageRows.some(t => /住宅/.test(t)), '有「住宅」一档（客户要看住宅收费率）')
+ok(usageRows.some(t => /商业|商铺/.test(t)), '有商业档（客户要看商铺收费率）')
+ok(usageRows.every(t => /%/.test(t)), '每档都带收缴率')
+
 console.log('\n【二】按账期明细')
 
 const periodRows = await page.evaluate(() =>
@@ -361,7 +388,81 @@ const projBud = await page.evaluate(() => {
 })
 ok(projBud.length > 0 && projBud.every(x => x === '未编'), '项目维度预算列全是「未编」（不按面积摊）', projBud.slice(0, 3).join('/'))
 
-console.log('\n【十】控制台')
+console.log('\n【十】经营日报：一天一列，三段 + 收款点 + 日结差额')
+
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' })
+await page.evaluate(() => localStorage.setItem('wy_proto_role', 'R-GM'))
+await page.goto(`${BASE}/?t=${Date.now()}#/b/daily-report`, { waitUntil: 'networkidle2' })
+await sleep(3200)
+
+const drK = await kpis()
+for (const t of ['收入', '往来款', '退款', '合计', '当日减免', '差额']) {
+  ok(drK.some(x => x.includes(t)), `有「${t}」卡`)
+}
+ok(drK.some(x => /不是钱/.test(x)), '减免卡写明「不是钱 · 不参与差额」')
+
+const drChk = await txt('.check')
+ok(/日结差额全月为 0/.test(drChk), '日结差额全月为 0', drChk.slice(0, 100))
+
+const drTable = await page.evaluate(() => {
+  const t = document.querySelector('.el-table')
+  if (!t) return { heads: [], rows: [] }
+  const heads = [...t.querySelectorAll('.el-table__header th')].map(th => th.innerText.trim()).filter(Boolean)
+  const rows = [...t.querySelectorAll('.el-table__body-wrapper tr')].map(tr => {
+    const tds = [...tr.querySelectorAll('td')].map(td => td.innerText.trim())
+    return { cls: tr.className, name: tds[0], total: tds[tds.length - 1] }
+  })
+  return { heads, rows }
+})
+ok(drTable.heads.length >= 30, '按天出列（科目 + 31 天 + 合计）', `${drTable.heads.length} 列`)
+ok(drTable.heads[1] === '1', '第一个日列是 1 日（没有「上月补记」列）', drTable.heads.slice(1, 4).join(','))
+ok(drTable.heads[drTable.heads.length - 2] === '31', '最后是 31 日', drTable.heads[drTable.heads.length - 2])
+
+const drGroups = drTable.rows.filter(r => /dr-group/.test(r.cls)).map(r => r.name)
+ok(drGroups.some(n => /收入/.test(n)), '有「收入」段')
+ok(drGroups.some(n => /往来款/.test(n)), '有「往来款」段（押金收取 · 负债不是收入）')
+ok(drGroups.some(n => /退款/.test(n)), '有「退款」段（押金退还 · 冲负债）')
+ok(drGroups.some(n => /收款点/.test(n)), '有「收款点」段')
+
+const drPoints = drTable.rows.filter(r => /dr-point(?!-)/.test(r.cls)).map(r => r.name.replace(/^\s+/, ''))
+for (const p of ['现金', '车辆现金', 'POS刷卡', '车辆POS', '转账', '车辆云平台', '线上支付']) {
+  ok(drPoints.includes(p), `收款点里有「${p}」`)
+}
+
+const drDiffRow = drTable.rows.find(r => /dr-diff/.test(r.cls))
+ok(!!drDiffRow, '有「差额」行')
+const drDiffVal = drDiffRow ? Number(String(drDiffRow.total).replace(/[¥,]/g, '')) : NaN
+ok(Math.abs(drDiffVal) < 0.01, '差额合计为 0（按科目和按收款点两条路对得上）', drDiffRow?.total)
+
+const drSubs = drTable.rows.filter(r => /dr-subtotal/.test(r.cls))
+  .map(r => ({ name: r.name, v: Number(String(r.total).replace(/[¥,]/g, '')) }))
+ok(drSubs.length >= 3, '三段都有小计', `${drSubs.length} 个`)
+const drInc = drSubs.find(x => /^收入小计/.test(x.name))
+const drLia = drSubs.find(x => /往来款/.test(x.name))
+const drRef = drSubs.find(x => /退款/.test(x.name))
+const drGrand = drTable.rows.find(r => /dr-grand/.test(r.cls))
+if (drInc && drLia && drRef && drGrand) {
+  const g = Number(String(drGrand.total).replace(/[¥,]/g, ''))
+  const want = Math.round((drInc.v + drLia.v - drRef.v) * 100) / 100
+  ok(Math.abs(g - want) < 0.02, '合计 = 收入 + 往来 − 退款（自己加一遍）', `${g} vs ${want}`)
+} else { ok(false, '三段小计没读全') }
+
+/* 切到单项目：结构不变、差额照样为 0 */
+await page.evaluate(() => {
+  document.querySelectorAll('.filter-bar .el-select__wrapper')[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+})
+await sleep(600)
+await page.evaluate(() => {
+  [...document.querySelectorAll('.el-select-dropdown__item')]
+    .filter(x => x.getBoundingClientRect().height > 0).find(x => x.innerText.includes('翡翠城'))?.click()
+})
+await sleep(2400)
+const drChk2 = await txt('.check')
+ok(/日结差额全月为 0/.test(drChk2), '按项目筛选后差额仍为 0', drChk2.slice(0, 90))
+const drK2 = await kpis()
+ok(drK2.some(x => x.includes('收入')), '按项目仍有收入卡')
+
+console.log('\n【十一】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()

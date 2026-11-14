@@ -8650,6 +8650,105 @@ test('预算对比：实际数与收支分项同源，预算按月度编、按�
   eq(bad.status, 400, '起止倒挂 400')
 })
 
+/* ==================== 客户三张表批（2026-11-14）====================
+ * 这一组验的不是"数字像不像真账"，是**口径成不成立**：
+ * 三段合计能不能对上、差额是不是每天为 0、收缴率的分母到底扣没扣减免。
+ */
+
+test('经营日报：三段合计自洽，日结差额恒为 0，收款点覆盖全部真金', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/daily-revenue', { query: { month: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'DailyRevenueEnvelope', 'GET /reports/daily-revenue')
+
+  const d = r.data
+  eq(d.month, '2026-10', '回显月份')
+  eq(d.days.length, 31, '10 月 31 天（自然月，不带上月补记列）')
+  eq(d.days[0], '2026-10-01', '第一天是 1 日')
+  eq(d.days[30], '2026-10-31', '最后一天是 31 日')
+
+  /* 三段结构 + 每段小计 = 各科目之和 */
+  eq(d.groups.length, 3, '固定三段')
+  eq(d.groups.map(g => g.key).join(','), 'income,liaison,refund', '顺序 收入 → 往来 → 退款')
+  for (const g of d.groups) {
+    const s2 = r2(g.rows.reduce((acc, row) => acc + row.total, 0))
+    assert(Math.abs(s2 - g.total) < 0.02, `${g.name} 小计 ${g.total} ≠ 各科目之和 ${s2}`)
+    eq(g.subtotal.length, d.days.length, `${g.name} 的 subtotal 要与 days 等长`)
+  }
+
+  /* 合计 = 收入 + 往来 − 退款，逐日成立 */
+  const [inc, lia, ref] = d.groups
+  for (let i = 0; i < d.days.length; i++) {
+    const want = r2(inc.subtotal[i] + lia.subtotal[i] - ref.subtotal[i])
+    assert(Math.abs(want - d.grand.amounts[i]) < 0.02,
+      `${d.days[i]} 合计不对：应 ${want}，实 ${d.grand.amounts[i]}`)
+  }
+  near(d.grand.total, r2(inc.total + lia.total - ref.total), '全月合计 = 收入 + 往来 − 退款')
+
+  /* 押金不是收入：往来段与退款段的分组标记不能串到 income */
+  assert(lia.rows.every(x => x.group === 'liaison'), '往来段分组标错')
+  assert(ref.rows.every(x => x.group === 'refund'), '退款段分组标错')
+
+  /* 收款点：七个固定位置，小计必须等于收入合计（押金不进收款点） */
+  eq(d.payPoints.length, 7, '七个收款点')
+  eq(d.payPoints.map(p => p.name).join(','), '现金,车辆现金,POS刷卡,车辆POS,转账,车辆云平台,线上支付', '顺序固定')
+  const cashTotal = r2(d.payPoints.reduce((s2, p) => s2 + p.total, 0))
+  near(cashTotal, inc.total, '收款点合计 = 收入合计（押金不进收款点）')
+  near(d.summary.cash, cashTotal, 'summary.cash 与收款点合计一致')
+
+  /* 差额：只校验收入，每天都为 0 */
+  eq(d.diff.ok, true, `有 ${d.diff.badDays.length} 天差额不为 0`)
+  eq(d.diff.badDays.length, 0, '坏天数')
+  for (let i = 0; i < d.days.length; i++) {
+    const want = r2(inc.subtotal[i] - d.payPoints.reduce((s2, p) => s2 + p.amounts[i], 0))
+    assert(Math.abs(want - d.diff.amounts[i]) < 0.02, `${d.days[i]}：差额 ≠ 收入 − 收款点`)
+  }
+  /* 减免单列、不参与差额 —— 把它加回去差额就不该变 */
+  assert(typeof d.discount.total === 'number', '减免要单列')
+
+  /* 项目筛选要收窄（车位费的 houseId 为空，按房筛会整块漏掉） */
+  const one = await call('GET', '/reports/daily-revenue', { query: { month: '2026-10', communityId: 'P01' } })
+  eq(one.status, 200, '按项目')
+  assert(one.data.summary.income > 0 && one.data.summary.income < d.summary.income,
+    `P01 收入应小于全部（${one.data.summary.income} vs ${d.summary.income}）`)
+  eq(one.data.diff.ok, true, '按项目时差额照样为 0')
+
+  /* 参数校验 */
+  const bad1 = await call('GET', '/reports/daily-revenue', { query: {} })
+  eq(bad1.status, 400, 'month 必填')
+})
+
+test('三率：减免率与欠费率分开，按用途分列，现金三分与现金收入相等', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/three-rate', { query: { from: '2026-08', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+
+  const d = r.data
+  /* 收缴率分母扣减免、减免率分母是应收 —— 两个率不能互相推，这是拆开的原因 */
+  const base = r2(d.receivable - d.waived)
+  near(d.collectionRate, Math.round(d.received / base * 10000) / 100, '收缴率 = 已收 ÷ (应收 − 减免)')
+  near(d.waiveRate, Math.round(d.waived / d.receivable * 10000) / 100, '减免率 = 减免 ÷ 应收')
+
+  /* 按用途：至少两档（客户要的「住宅 / 商铺」就在里面），各档合计 = 总计 */
+  assert(Array.isArray(d.byUsage) && d.byUsage.length >= 2, `按用途至少两档（实际 ${d.byUsage?.length}）`)
+  assert(d.byUsage.some(u => u.usage === '住宅'), '有住宅一档')
+  near(r2(d.byUsage.reduce((s2, u) => s2 + u.receivable, 0)), d.receivable, '各用途应收之和 = 总应收')
+  near(r2(d.byUsage.reduce((s2, u) => s2 + u.received, 0)), d.received, '各用途已收之和 = 总已收')
+  for (const u of d.byUsage) {
+    const ub = r2(u.receivable - u.waived)
+    near(u.collectionRate, ub > 0 ? Math.round(u.received / ub * 10000) / 100 : 0, `${u.usage} 的收缴率口径要一致`)
+  }
+
+  /* 现金三分：三段 + 无账期 = 现金收入 */
+  const c = d.cashByAttribution
+  eq(c.ok, true, '三分自检')
+  near(r2(c.current + c.clearing + c.prepaid + c.noPeriod), c.total, '三段 + 无账期 = 现金收入')
+  near(c.total, d.cashIncome, 'cashByAttribution.total 要等于 cashIncome')
+  for (const k of ['current', 'clearing', 'prepaid', 'noPeriod']) {
+    assert(c[k] >= 0, `${k} 不该为负（实际 ${c[k]}）`)
+  }
+})
+
 /* ============================ 跑 ============================ */
 const server = await startServer(0)
 const port = server.address().port

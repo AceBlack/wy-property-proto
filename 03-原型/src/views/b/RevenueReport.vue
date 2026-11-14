@@ -64,10 +64,10 @@
             <div class="rsum__v">{{ rate.collectionRate }}<span class="unit">%</span></div>
             <div class="rsum__s">已收 ÷ (应收 − 减免)</div>
           </div>
-          <div class="panel rsum" data-card="r-arrears">
-            <div class="rsum__l">欠费率</div>
-            <div class="rsum__v" :class="rate.arrearsRate > 10 ? 'money--out' : ''">{{ rate.arrearsRate }}<span class="unit">%</span></div>
-            <div class="rsum__s">1 − 收缴率</div>
+          <div class="panel rsum" data-card="r-wrate">
+            <div class="rsum__l">减免率</div>
+            <div class="rsum__v">{{ rate.waiveRate }}<span class="unit">%</span></div>
+            <div class="rsum__s">减免 ÷ 应收 · 欠费率 {{ rate.arrearsRate }}%</div>
           </div>
         </div>
 
@@ -82,21 +82,53 @@
           </span>
         </div>
 
-        <div class="grid" style="margin-top:16px;grid-template-columns:repeat(4,minmax(0,1fr));">
+        <!-- 本期现金按归属账期三分：客户线下把「清欠」「预收」拆成两个科目，
+             系统里不用拆科目 —— 一张账单本来就有账期，收款日一比对，归属自明 -->
+        <div class="panel split-bar" style="margin-top:16px;">
+          <div class="split-bar__hd">
+            <span>本期现金 <b>¥{{ money(rate.cashIncome) }}</b>（<b>仅本收费项</b> · 按收款日 · 已排除预存抵扣）按<b>归属账期</b>拆三段</span>
+            <span class="desc">清欠 = 收回以前账期的钱；预收 = 提前收了以后账期的钱。三段之和应当等于现金收入 —— <b>它和上面的「已收」不是同一个数</b>：已收按归属账期算（含往期收的），这里按收款日算</span>
+          </div>
+          <div class="split-bar__bars">
+            <div class="split-seg" data-seg="clearing">
+              <div class="split-seg__t">清欠（{{ from }} 之前）</div>
+              <div class="split-seg__v">¥{{ wan(rate.cashByAttribution.clearing) }}</div>
+              <div class="split-seg__p">{{ shareOf(rate.cashByAttribution.clearing) }}% · 不算本期收缴率</div>
+            </div>
+            <div class="split-seg" data-seg="current">
+              <div class="split-seg__t">当期（{{ from }} ~ {{ to }}）</div>
+              <div class="split-seg__v">¥{{ wan(rate.cashByAttribution.current) }}</div>
+              <div class="split-seg__p">{{ shareOf(rate.cashByAttribution.current) }}% · 正常收缴</div>
+            </div>
+            <div class="split-seg" data-seg="prepaid">
+              <div class="split-seg__t">预收（{{ to }} 之后）</div>
+              <div class="split-seg__v">¥{{ wan(rate.cashByAttribution.prepaid) }}</div>
+              <div class="split-seg__p">{{ shareOf(rate.cashByAttribution.prepaid) }}% · 提前交的钱</div>
+            </div>
+          </div>
+          <div class="split-bar__ft">
+            {{ money(rate.cashByAttribution.current) }} + {{ money(rate.cashByAttribution.clearing) }}
+            + {{ money(rate.cashByAttribution.prepaid) }}
+            <template v-if="rate.cashByAttribution.noPeriod > 0">
+              + {{ money(rate.cashByAttribution.noPeriod) }}（无账期 · 临时收费）
+            </template>
+            = <b>¥{{ money(rate.cashIncome) }}</b>
+            <span class="tagx" :class="rate.cashByAttribution.ok ? 'is-ok' : 'is-bad'">
+              {{ rate.cashByAttribution.ok ? '✓ 三段对得上' : '✗ 对不上，矩阵有孤儿流水' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:16px;grid-template-columns:repeat(3,minmax(0,1fr));">
           <div class="panel rsum is-soft">
             <div class="rsum__l">预缴率（{{ to }} 之后 12 期）</div>
             <div class="rsum__v">{{ rate.prepayRate }}<span class="unit">%</span></div>
             <div class="rsum__s">已预收 ¥{{ money(rate.prepayReceived) }} / 应收 ¥{{ money(rate.prepayReceivable) }}</div>
           </div>
           <div class="panel rsum is-soft">
-            <div class="rsum__l">清欠额（{{ from }} 之前）</div>
+            <div class="rsum__l">清欠额（历史累计回收）</div>
             <div class="rsum__v">¥ {{ wan(rate.clearingAmount) }}</div>
-            <div class="rsum__s">本期收回的历史欠费，不算本期收缴率</div>
-          </div>
-          <div class="panel rsum is-soft">
-            <div class="rsum__l">现金收入（按收款日）</div>
-            <div class="rsum__v">¥ {{ wan(rate.cashIncome) }}</div>
-            <div class="rsum__s">与归属口径并行，可互相勾稽</div>
+            <div class="rsum__s">{{ from }} 之前账期<b>累计</b>收了多少 · 与上面「本期清欠」不是同一口径</div>
           </div>
           <div class="panel rsum is-soft">
             <div class="rsum__l">超额收款户</div>
@@ -133,6 +165,49 @@
                   <span>{{ rowRate(row) }}%</span>
                 </div>
               </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="sec__hd" style="margin:0 0 10px;">
+            <h4>按房屋用途</h4>
+            <span class="desc">
+              客户线下是「住宅收费率 / 商铺收费率」两列分开看的 —— 两种房单价差三倍，
+              合成一个数会把商铺的欠费稀释掉。数据本来就是三档，不并成两档
+            </span>
+          </div>
+          <el-table :data="rate.byUsage" size="small">
+            <el-table-column label="用途" width="110">
+              <template #default="{ row }">
+                <b>{{ row.usage }}</b>
+                <span class="ps-sub"> · {{ row.houses }} 户</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="应收" width="130" align="right">
+              <template #default="{ row }"><span class="num">¥{{ money(row.receivable) }}</span></template>
+            </el-table-column>
+            <el-table-column label="已收" width="130" align="right">
+              <template #default="{ row }"><span class="num">¥{{ money(row.received) }}</span></template>
+            </el-table-column>
+            <el-table-column label="减免" width="110" align="right">
+              <template #default="{ row }"><span class="num">{{ row.waived ? '¥' + money(row.waived) : '—' }}</span></template>
+            </el-table-column>
+            <el-table-column label="未收" width="130" align="right">
+              <template #default="{ row }">
+                <span class="num" :class="row.unpaid > 0 ? 'money--out' : ''">¥{{ money(row.unpaid) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="收缴率" min-width="150">
+              <template #default="{ row }">
+                <div class="rbar">
+                  <i :style="{ width: Math.min(100, row.collectionRate) + '%' }" :class="{ 'is-low': row.collectionRate < 70 }" />
+                  <span>{{ row.collectionRate }}%</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="减免率" width="96" align="right">
+              <template #default="{ row }">{{ row.waiveRate }}%</template>
             </el-table-column>
           </el-table>
         </div>
@@ -740,6 +815,12 @@ const houseShare = computed(() => {
 /* 91 天以上都标红：过了 90 天还没收回来，基本就是坏账 */
 const isBadAging = b => b === '91-180天' || b === '180天以上'
 
+/* 某段占本期现金的比例（清欠 / 当期 / 预收三段用） */
+const shareOf = v => {
+  const t = rate.value?.cashByAttribution?.total || 0
+  return t > 0 ? Math.round(v / t * 1000) / 10 : 0
+}
+
 const rowRate = r => {
   const base = r.receivable - r.waived
   return base > 0 ? Math.round(r.received / base * 1000) / 10 : 0
@@ -858,6 +939,28 @@ function onExport() {
 }
 .rbar i.is-low { background: var(--biz-danger); }
 .rbar span { flex: 0 0 44px; text-align: right; font-family: var(--biz-font-num); font-size: 12px; color: var(--biz-text-3); }
+
+/* 三分的头**不能复用 .aging-bar__hd**：验收脚本按那个类名取账龄页的统计日，
+   两个都在 DOM 里（v-show），谁先出现谁被取到 —— 复用会把账龄那一段的断言带偏。 */
+.split-bar__hd {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--biz-text-2); margin-bottom: 12px;
+}
+.split-bar__hd .desc { font-size: 12px; color: var(--biz-text-3); }
+.split-bar__bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.split-seg {
+  padding: 12px 14px; border-radius: 10px; background: #f7f9fc;
+  border: 1px solid var(--biz-border-light);
+}
+.split-seg[data-seg="clearing"] { background: #fffbf5; border-color: #f4dfc2; }
+.split-seg[data-seg="prepaid"] { background: #f5fbf7; border-color: #cfe8d8; }
+.split-seg__t { font-size: 12px; color: var(--biz-text-3); }
+.split-seg__v { font-family: var(--biz-font-num); font-size: 18px; font-weight: 600; margin: 3px 0; }
+.split-seg__p { font-size: 11.5px; color: var(--biz-text-3); }
+.split-bar__ft {
+  margin-top: 10px; font-size: 12px; color: var(--biz-text-2);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
 
 .aging-bar__hd {
   display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;

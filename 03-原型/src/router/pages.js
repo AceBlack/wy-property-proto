@@ -101,6 +101,10 @@ export const PAGES = [
     component: () => import('@/views/b/FeeCategory.vue') },
   /* 批 5（2026-11-13）：支出归集 = 报销 + 工资 + 合同摊 + 手工补录，四类来源确认时点不同 */
   /* 批 6（2026-11-13）：三率 / 收支分项 / 结余 —— 报表自带恒等式自检 */
+  /* 客户三张表批（2026-11-14）：日报在前 —— 日报是"每天 ",报表是"每月 "，入口按使用频次排 */
+  { path: '/b/daily-report', name: 'DailyReport', title: '经营日报', group: 'b', status: 'done', icon: 'Calendar',
+    desc: '科目 × 日 · 收入 / 往来 / 退款三段 · 收款点与日结差额',
+    component: () => import('@/views/b/DailyReport.vue') },
   { path: '/b/revenue-report', name: 'RevenueReport', title: '经营报表', group: 'b', status: 'done', icon: 'TrendCharts',
     desc: '三率（收缴/欠费/预缴）· 清欠 · 收支分项 · 结余',
     component: () => import('@/views/b/RevenueReport.vue') },

@@ -11971,6 +11971,43 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/daily-revenue:
+    get:
+      tags: [reports]
+      operationId: getDailyRevenue
+      summary: 经营日报（科目 × 日 + 收款点 + 日结差额）
+      description: |
+        客户线下用一张「项目 × 收费项目 × 日」的表做收银日报。这里保留它的**口径**，不照抄版式：
+
+        - 三段结构：**收入 / 往来款（押金收取）/ 退款（押金退还）**，
+          `合计 = 收入 + 往来 − 退款` —— 押金收进来是负债、退出去是冲负债，都不是收入；
+        - 日期列按**自然月**切，没有「补记上月尾数」那一列：系统按 `payTime` 归月，
+          不存在"上月最后一天没来得及记"；
+        - 科目行用费用分类字典的二级分类，不用各项目自定义的科目；
+        - **差额只校验账单收入**：`diff = 收入 − 收款点`。押金不进收款点 ——
+          押金台账没有收款方式字段，硬归现金会在退款日把现金冲成负数。
+
+        差额每天应当为 0。不为 0 只有两种原因：现金长短款，或某笔收款漏录收款点。
+      parameters:
+        - name: month
+          in: query
+          required: true
+          description: 月份（YYYY-MM）。日期列 = 该自然月的天数
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DailyRevenueEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /reports/aging-live:
     get:
       tags: [reports]
@@ -19793,13 +19830,46 @@ components:
         unpaid:
           type: number
           description: 应收 − 已收 − 减免。**不减到 0**：负数表示超额收款
-        collectionRate: { type: number, description: 已收 ÷ (应收 − 减免)，百分数 }
+        collectionRate: { type: number, description: 已收 ÷ (应收 − 减免)，百分数。**分母已扣减免** }
         arrearsRate: { type: number, description: 1 − 收缴率 }
+        waiveRate:
+          type: number
+          description: |
+            减免 ÷ 应收，百分数。**与欠费率分开**：减免不是"收不到"，是"主动不要了"。
+            混在欠费率里，做减免的月份看起来像催缴不力 —— 两件事要分开记账。
         prepayRate: { type: number, description: '归属期 > to 的已收 ÷ 应收' }
         prepayReceived: { type: number }
         prepayReceivable: { type: number }
         clearingAmount: { type: number, description: '归属期 < from 的已收（清欠），与预缴分开' }
-        cashIncome: { type: number, description: '按收款日落在区间的现金收入' }
+        cashIncome: { type: number, description: '按收款日落在区间的现金收入（**仅本收费项**，已排除预存抵扣）' }
+        cashByAttribution:
+          type: object
+          description: |
+            本期现金按**归属账期**三分，供"清欠 / 预收"口径使用，替代线下手工拆科目。
+            三者 + noPeriod 之和必须等于 cashIncome（ok=false 说明矩阵有孤儿流水）。
+          properties:
+            current: { type: number, description: '归属账期在区间内' }
+            clearing: { type: number, description: '归属账期 < from —— 本期收回的历史欠费' }
+            prepaid: { type: number, description: '归属账期 > to —— 提前收了以后账期的钱' }
+            noPeriod: { type: number, description: '账单查不到账期（临时收费等），归当期' }
+            total: { type: number }
+            ok: { type: boolean }
+        byUsage:
+          type: array
+          description: |
+            按房屋用途（住宅 / 商业 / 公寓）分列的三率。客户线下是「住宅收费率 / 商铺收费率」两列分开看 ——
+            两种房单价差三倍，合成一个数会把商铺的欠费稀释掉。
+          items:
+            type: object
+            properties:
+              usage: { type: string }
+              houses: { type: integer }
+              receivable: { type: number }
+              received: { type: number }
+              waived: { type: number }
+              unpaid: { type: number }
+              collectionRate: { type: number, description: 已收 ÷ (应收 − 减免) }
+              waiveRate: { type: number }
         overpaid: { type: integer, description: 未收为负的户数 }
         identity:
           type: object
@@ -19877,6 +19947,112 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/IncomeExpense' }
+
+    DailyRevenueRow:
+      type: object
+      description: 一行科目。amounts 与 days 等长、下标对齐（日 → 金额）
+      properties:
+        code: { type: string, description: 费用分类二级编码；往来/退款段为押金类型名 }
+        name: { type: string }
+        group: { type: string, enum: [income, liaison, refund] }
+        amounts:
+          type: array
+          items: { type: number }
+        total: { type: number }
+
+    DailyRevenueGroup:
+      type: object
+      properties:
+        key: { type: string, enum: [income, liaison, refund] }
+        name: { type: string }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/DailyRevenueRow' }
+        subtotal:
+          type: array
+          items: { type: number }
+        total: { type: number }
+
+    PayPointDaily:
+      type: object
+      description: |
+        收款点（谁在收 / 跟谁交班），**不是支付渠道**。渠道是钱怎么走的（现金 / POS / 微信），
+        收款点是前台、停车场、还是第三方停车平台 —— 停车场独立交班、独立对账，所以要单列。
+      properties:
+        name:
+          type: string
+          enum: [现金, 车辆现金, POS刷卡, 车辆POS, 转账, 车辆云平台, 线上支付]
+        amounts:
+          type: array
+          items: { type: number }
+        total: { type: number }
+
+    DailyRevenue:
+      type: object
+      required: [month, days, groups, grand, payPoints, diff]
+      properties:
+        month: { type: string }
+        days:
+          type: array
+          description: 该自然月的日期，YYYY-MM-DD
+          items: { type: string, format: date }
+        groups:
+          type: array
+          description: 固定三段，顺序 收入 → 往来款 → 退款
+          items: { $ref: '#/components/schemas/DailyRevenueGroup' }
+        grand:
+          type: object
+          description: 合计 = 收入 + 往来 − 退款
+          properties:
+            amounts:
+              type: array
+              items: { type: number }
+            total: { type: number }
+        payPoints:
+          type: array
+          items: { $ref: '#/components/schemas/PayPointDaily' }
+        discount:
+          type: object
+          description: 当日减免。**不是钱，不参与差额** —— 线下把它当收款方式是为了让手工表平账
+          properties:
+            amounts:
+              type: array
+              items: { type: number }
+            total: { type: number }
+        diff:
+          type: object
+          description: 日结差额 = 收入 − 收款点。每天应为 0
+          properties:
+            amounts:
+              type: array
+              items: { type: number }
+            total: { type: number }
+            ok: { type: boolean }
+            badDays:
+              type: array
+              items:
+                type: object
+                properties:
+                  day: { type: string, format: date }
+                  diff: { type: number }
+        summary:
+          type: object
+          properties:
+            income: { type: number }
+            liaison: { type: number }
+            refund: { type: number }
+            grand: { type: number }
+            discount: { type: number }
+            cash: { type: number, description: 收款点合计（不含押金） }
+            days: { type: integer, description: 当月天数 }
+            activeDays: { type: integer, description: 有收款的天数 }
+
+    DailyRevenueEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DailyRevenue' }
 
     WaiveAnalysis:
       type: object

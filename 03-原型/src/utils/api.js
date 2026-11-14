@@ -20992,6 +20992,10 @@ export function threeRateReport({
   let waived = 0
   const byPeriod = periods.map(p => ({ period: p, receivable: 0, received: 0, waived: 0, unpaid: 0 }))
   const byHouse = new Map()
+  /* 按房屋用途分组（住宅 / 商业 / 公寓）：
+     客户线下是「住宅收费率」「商铺收费率」两列分开看的 —— 两种房的单价差三倍，
+     合成一个收缴率会把商铺的欠费稀释掉。数据本来就有 usage 三档，就不并成两档。 */
+  const usageAgg = new Map()
 
   hs.forEach(h => {
     const monthly = _monthlyOf(h, item, priceMap)
@@ -21012,6 +21016,14 @@ export function threeRateReport({
     received += hr
     waived += hw
     byHouse.set(h.houseId, { receivable: _e2(hp), received: _e2(hr), waived: _e2(hw), unpaid: _e2(hp - hr - hw) })
+
+    const u = h.usage || '未分类'
+    const ua = usageAgg.get(u) || { usage: u, houses: 0, receivable: 0, received: 0, waived: 0 }
+    ua.houses += 1
+    ua.receivable += hp
+    ua.received += hr
+    ua.waived += hw
+    usageAgg.set(u, ua)
   })
 
   receivable = _e2(receivable)
@@ -21024,6 +21036,27 @@ export function threeRateReport({
   const base = _e2(receivable - waived)
   const collectionRate = base > 0 ? Math.round(received / base * 10000) / 100 : 0
   const arrearsRate = Math.round((100 - collectionRate) * 100) / 100
+  /* 减免率单独出：减免不是"收不到"，是"主动不要了"。
+     混在欠费率里，做减免的月份看起来像催缴不力 —— 两件事要分开记账。 */
+  const waiveRate = receivable > 0 ? Math.round(waived / receivable * 10000) / 100 : 0
+  const byUsage = [...usageAgg.values()]
+    .map(u => {
+      const r = _e2(u.receivable)
+      const p = _e2(u.received)
+      const w = _e2(u.waived)
+      const b = _e2(r - w)
+      return {
+        usage: u.usage,
+        houses: u.houses,
+        receivable: r,
+        received: p,
+        waived: w,
+        unpaid: _e2(r - p - w),
+        collectionRate: b > 0 ? Math.round(p / b * 10000) / 100 : 0,
+        waiveRate: r > 0 ? Math.round(w / r * 10000) / 100 : 0
+      }
+    })
+    .sort((a, b) => b.receivable - a.receivable)
 
   /* 预缴：归属期 > T2 的已收 ÷ 应收（往后看 prepayMonths 期） */
   const futurePeriods = monthRange(addMonths(to, 1), addMonths(to, prepayMonths))
@@ -21055,13 +21088,54 @@ export function threeRateReport({
   }
   clearingAmount = _e2(clearingAmount)
 
-  /* 现金收入：按 paidAt 落在区间（排除预存抵扣 —— 那是负债抵扣，钱早就收过了） */
-  const cashIncome = _e2(payments
-    .filter(p => {
-      const m = String(p.payTime || '').slice(0, 7)
-      return m >= from && m <= to && p.channel !== '预存抵扣'
-    })
-    .reduce((s, p) => s + (Number(p.amount) || 0), 0))
+  /* ==================================================================
+   * 现金收入按「归属账期」三分：清欠 / 当期 / 预收
+   * ------------------------------------------------------------
+   * 客户线下日报把「物业费清欠」「物业费预收」拆成两个科目，本质就是在手工补这个差值。
+   * 系统里不用拆科目 —— 一张账单本身就有账期，收款时点一比对，归属自明：
+   *   账期 < 统计起点  → 清欠（本期收回的历史欠费）
+   *   账期在区间内      → 当期
+   *   账期 > 统计终点  → 预收
+   *
+   * 注意和上面的 `clearingAmount` 区分，两者都是"清欠"但口径不同：
+   *   · `clearingAmount`：起点之前那些账期**累计**收了多少（看历史账的回收总进度）；
+   *   · `cashByClearing`：**本期现金**里有多少是替历史账收的（看本期收的钱成色）。
+   * 页面上「本期收回的历史欠费」要用后者，前者写成"历史欠费累计回收"。
+   *
+   * 预存抵扣排除：那是负债抵扣，钱在充值时就已经收过了，再算一次会重复。
+   * 无 billId 的流水（临时收费等）没有账期，归当期 —— 收到即为当期，别硬塞进清欠。
+   * ================================================================== */
+  const houseSet = new Set(hs.map(h => h.houseId))
+  /* 账单的账期与项目：项目过滤必须走这里，不能走 houseId ——
+     车位费的 houseId 是空的（车位不挂房），按 houseId 筛会把整块车位收入漏掉。 */
+  const billMeta = new Map(bills.map(b => [b.billId, { period: String(b.period || ''), comm: b.communityId, itemId: b.itemId }]))
+  let cashCurrent = 0
+  let cashClearing = 0
+  let cashPrepaid = 0
+  let cashNoPeriod = 0
+  for (const p of payments) {
+    const m = String(p.payTime || '').slice(0, 7)
+    if (m < from || m > to) continue
+    if (p.channel === '预存抵扣') continue
+    const meta = billMeta.get(p.billId)
+    if (communityId && (meta ? meta.comm : '') !== communityId) continue
+    /* 只算当前这个收费项的流水：三率是按 itemId 算的，现金却扫全表的话，
+       "已收 97 万 / 现金 123 万"会差出一个车位费，看的人以为是错的 */
+    if (!meta || meta.itemId !== itemId) continue
+    const amount = Number(p.amount) || 0
+    const period = meta.period
+    if (!period) cashNoPeriod += amount
+    else if (period < from) cashClearing += amount
+    else if (period > to) cashPrepaid += amount
+    else cashCurrent += amount
+  }
+  cashCurrent = _e2(cashCurrent)
+  cashClearing = _e2(cashClearing)
+  cashPrepaid = _e2(cashPrepaid)
+  cashNoPeriod = _e2(cashNoPeriod)
+  /* 现金收入：按收款日落在区间。**必须按 houseSet 收窄** ——
+     早先这里直接扫全表，选了项目之后"现金收入"仍是三个项目的和，跟上面的已收对不上。 */
+  const cashIncome = _e2(cashCurrent + cashClearing + cashPrepaid + cashNoPeriod)
 
   const unreceived = [...byHouse.entries()]
     .map(([houseId, v]) => ({ houseId, houseName: houseName(houseId), ...v }))
@@ -21073,9 +21147,20 @@ export function threeRateReport({
     periods: periods.length,
     houses: hs.length,
     receivable, received, waived, unpaid,
-    collectionRate, arrearsRate, prepayRate,
+    collectionRate, arrearsRate, waiveRate,
+    prepayRate,
     prepayReceived, prepayReceivable,
     clearingAmount, cashIncome,
+    /* 本期现金按归属账期三分 + 自检（四项之和必须等于 cashIncome） */
+    cashByAttribution: {
+      current: cashCurrent,
+      clearing: cashClearing,
+      prepaid: cashPrepaid,
+      noPeriod: cashNoPeriod,
+      total: cashIncome,
+      ok: Math.abs(cashCurrent + cashClearing + cashPrepaid + cashNoPeriod - cashIncome) < 0.01
+    },
+    byUsage,
     byPeriod,
     /* 自检线：对不上就是矩阵有孤儿流水，或者某期应收算错了 */
     identity: {
@@ -21084,6 +21169,204 @@ export function threeRateReport({
     },
     topDebtors: unreceived.slice(0, 8),
     overpaid: unreceived.filter(x => x.unpaid < 0).length
+  }
+}
+
+/* ==================================================================
+ * 经营日报（2026-11-14 · 客户三张表批）
+ * ------------------------------------------------------------
+ * 客户线下用一张「项目 × 收费项目 × 日」的表做收银日报，32 个日列横铺。
+ * 这里保留它的**口径**，不照抄版式：
+ *   · 三段结构不变：收入 / 往来款（押金收取）/ 退款（押金退还），
+ *     合计 = 收入 + 往来 − 退款 —— 押金收进来是负债，退出去是冲负债，都不是收入；
+ *   · 日期列按**自然月**切，不带「补记上月尾数」那一列：
+ *     系统按 payTime 归月，不存在"上月最后一天没来得及记"这回事；
+ *   · 科目行用我们的费用分类字典，不用客户自定义的那套（客户的"秩序专项"等见文档附录对照）；
+ *   · **差额只校验真金**，减免单列不参与。客户把「特殊优惠」当收款方式是为了让手工表平账，
+ *     我们不需要 —— 减免不是钱，混进收款方式会让"当天收了多少钱"变成一个假数。
+ * ================================================================== */
+
+/** 某月有几天（自然月），返回 YYYY-MM-DD 数组 */
+function _daysOfMonth(month) {
+  const [y, m] = String(month).split('-').map(Number)
+  const n = new Date(y, m, 0).getDate()
+  return Array.from({ length: n }, (_, i) => `${y}-${String(m).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`)
+}
+
+/** 停车类业务 —— 决定收款点算「车辆现金」还是「现金」 */
+const PARK_CATS = new Set(['INC_MAIN_PARK', 'INC_OTHER_PARKING'])
+
+/**
+ * 收款点字典。
+ *
+ * 和「支付渠道」不是一回事：渠道是钱怎么走的（现金 / POS / 微信），
+ * 收款点是**谁在收、跟谁交班**（前台 / 停车场 / 第三方平台）。
+ * 客户把「车辆现金」「车辆POS」单列，是因为停车场独立交班、独立对账；
+ * 「车辆云平台」是第三方停车平台代收（月结回款），钱不经过我们的收银台。
+ *
+ * 我们现在的流水**没有** `payPoint` 字段（第二批补），所以按「渠道 + 业务」推导，
+ * 规则的局限写在 `_payPointOf` 里。正式实现应由收款那一刻写入，不靠报表猜。
+ */
+export const PAY_POINTS = ['现金', '车辆现金', 'POS刷卡', '车辆POS', '转账', '车辆云平台', '线上支付']
+
+function _payPointOf(channel, isPark) {
+  const ch = String(channel || '')
+  if (ch === '银行代扣') return '转账'
+  if (ch === '微信支付' || ch === '支付宝') return '线上支付'
+  if (isPark) return ch === 'POS刷卡' ? '车辆POS' : '车辆现金'
+  return ch === 'POS刷卡' ? 'POS刷卡' : '现金'
+}
+
+/**
+ * 经营日报：一天一列，科目一行的收银台账 + 日结差额。
+ *
+ * @param {{month?:string, communityId?:string}} p
+ */
+export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}) {
+  const days = _daysOfMonth(month)
+  const n = days.length
+  const monthKey = String(month).slice(0, 7)
+  const idxOf = date => {
+    const d = String(date || '').slice(0, 10)
+    if (!d.startsWith(monthKey)) return -1
+    const day = Number(d.slice(8, 10))
+    return day >= 1 && day <= n ? day - 1 : -1
+  }
+  const zeros = () => new Array(n).fill(0)
+  const addTo = (arr, i, v) => { arr[i] = _e2(arr[i] + (Number(v) || 0)) }
+
+  const hs = houses.filter(h => !communityId || h.communityId === communityId)
+  const houseSet = new Set(hs.map(h => h.houseId))
+  const billMap = new Map(bills.map(b => [b.billId, b]))
+  const commOfHouse = new Map(houses.map(h => [h.houseId, h.communityId]))
+  const catCodeOfItem = new Map(feeItemCategoryMap.map(m => [m.itemId, m.categoryCode]))
+  const catNameOf = new Map(feeCategories.map(c => [c.code, c.name]))
+  const catSortOf = new Map(feeCategories.map(c => [c.code, c.sort || 0]))
+
+  /* ---------- 收入段：账单实收，按费用分类二级 ---------- */
+  const incomeRows = new Map()
+  const incomeSub = zeros()
+  const pointAgg = new Map(PAY_POINTS.map(k => [k, zeros()]))
+
+  for (const p of payments) {
+    /* 预存抵扣是负债抵扣，钱在充值时已收过；再算一次收入会重复 */
+    if (p.channel === '预存抵扣') continue
+    const b = billMap.get(p.billId)
+    /* 项目过滤走**账单的 communityId**，不走 houseId：
+       车位费不挂房（houseId 为空），按 houseId 筛会把整块车位收入漏掉 —— 一天少收几万。 */
+    if (communityId) {
+      const comm = b ? b.communityId : commOfHouse.get(p.houseId)
+      if (comm !== communityId) continue
+    }
+    const i = idxOf(p.payTime)
+    if (i < 0) continue
+    const code = catCodeOfItem.get(b ? b.itemId : '') || 'INC_OTHER_SERVICE'
+    const amount = Number(p.amount) || 0
+
+    const row = incomeRows.get(code) || {
+      code, name: catNameOf.get(code) || code, group: 'income',
+      sort: catSortOf.get(code) || 0, amounts: zeros()
+    }
+    addTo(row.amounts, i, amount)
+    incomeRows.set(code, row)
+    addTo(incomeSub, i, amount)
+
+    addTo(pointAgg.get(_payPointOf(p.channel, PARK_CATS.has(code))), i, amount)
+  }
+
+  /* ---------- 往来款 / 退款：押金台账 ----------
+     押金的收与退不在 payments 里（那是账单流水），所以单独取 decorationDeposits：
+       paidDate   → 往来款（收进来，负债增加）
+       refundDate → 退款（退出去，负债减少）
+     扣款（deductAmount）不在这里 —— 那是转收入，走的是减免/收入侧，别混进来。
+
+     **押金不进收款点**：台账没有收款方式字段，硬归到「现金」会让某天退几笔押金后
+     现金变成负数（一天退 19 万履约保证金，现金 -19 万，这个数没法看）。
+     所以日结差额只校验**账单收入**；押金走独立台账、单独对账，等第二批补上
+     收款/退款方式字段再纳入日结。这一点写在页面上，不给假平衡。 */
+  const liaisonRows = new Map()
+  const refundRows = new Map()
+  const liaisonSub = zeros()
+  const refundSub = zeros()
+
+  for (const d of decorationDeposits) {
+    if (communityId && d.communityId !== communityId) continue
+    const type = d.type || '未分类'
+
+    const iPaid = idxOf(d.paidDate)
+    if (iPaid >= 0) {
+      const amount = Number(d.amount) || 0
+      const row = liaisonRows.get(type) || { code: type, name: type, group: 'liaison', sort: 0, amounts: zeros() }
+      addTo(row.amounts, iPaid, amount)
+      liaisonRows.set(type, row)
+      addTo(liaisonSub, iPaid, amount)
+    }
+
+    const iRef = idxOf(d.refundDate)
+    const refund = Number(d.refundAmount) || 0
+    if (iRef >= 0 && refund > 0) {
+      const row = refundRows.get(type) || { code: type, name: type, group: 'refund', sort: 0, amounts: zeros() }
+      addTo(row.amounts, iRef, refund)
+      refundRows.set(type, row)
+      addTo(refundSub, iRef, refund)
+    }
+  }
+
+  /* ---------- 抵减：当日减免（不进差额，单列给人看） ---------- */
+  const discountByDay = zeros()
+  for (const b of bills) {
+    if (!(Number(b.discount) > 0)) continue
+    if (communityId && b.communityId !== communityId) continue
+    const i = idxOf(b.payTime)
+    if (i < 0) continue
+    addTo(discountByDay, i, b.discount)
+  }
+
+  /* ---------- 合计 / 差额 ---------- */
+  const cashByDay = zeros()
+  PAY_POINTS.forEach(k => pointAgg.get(k).forEach((v, i) => { cashByDay[i] = _e2(cashByDay[i] + v) }))
+
+  const grandByDay = days.map((_, i) => _e2(incomeSub[i] + liaisonSub[i] - refundSub[i]))
+  /* 差额只校验**账单收入**与收款点：押金不在收款流水里（台账缺收款方式），
+     拿它一起校验必然不平，而且会把现金冲成负数 —— 那不是"发现问题"，是造了一个假问题。 */
+  const diffByDay = days.map((_, i) => _e2(incomeSub[i] - cashByDay[i]))
+
+  const sumOf = arr => _e2(arr.reduce((s2, v) => s2 + (Number(v) || 0), 0))
+  const rowsOf = map => [...map.values()]
+    .sort((a, b) => (a.sort - b.sort) || String(a.code).localeCompare(String(b.code)))
+    /* 每行自带 total：契约里 DailyRevenueRow.total 是必需字段，页面也直接读它 */
+    .map(r => ({ ...r, total: sumOf(r.amounts) }))
+
+  return {
+    month: monthKey,
+    communityId,
+    days,
+    groups: [
+      { key: 'income', name: '收入', rows: rowsOf(incomeRows), subtotal: incomeSub, total: sumOf(incomeSub) },
+      { key: 'liaison', name: '往来款（押金收取）', rows: rowsOf(liaisonRows), subtotal: liaisonSub, total: sumOf(liaisonSub) },
+      { key: 'refund', name: '退款（押金退还）', rows: rowsOf(refundRows), subtotal: refundSub, total: sumOf(refundSub) }
+    ],
+    grand: { amounts: grandByDay, total: sumOf(grandByDay) },
+    payPoints: PAY_POINTS.map(name => ({ name, amounts: pointAgg.get(name), total: sumOf(pointAgg.get(name)) })),
+    discount: { amounts: discountByDay, total: sumOf(discountByDay) },
+    diff: {
+      amounts: diffByDay,
+      total: sumOf(diffByDay),
+      /* 每天都要为 0。不为 0 只有两种原因：现金长短款，或者某笔收款没录方式 */
+      ok: diffByDay.every(v => Math.abs(v) < 0.01),
+      badDays: diffByDay.map((v, i) => ({ day: days[i], diff: v })).filter(x => Math.abs(x.diff) >= 0.01)
+    },
+    summary: {
+      income: sumOf(incomeSub),
+      liaison: sumOf(liaisonSub),
+      refund: sumOf(refundSub),
+      grand: sumOf(grandByDay),
+      discount: sumOf(discountByDay),
+      cash: sumOf(cashByDay),
+      days: n,
+      /* 有收款的天数：客户看的是"这个月上了几天班、哪天没开张" */
+      activeDays: days.filter((_, i) => Math.abs(grandByDay[i]) > 0.01).length
+    }
   }
 }
 

@@ -60,3 +60,6 @@ export { threeRateReport, incomeExpenseReport } from '@/utils/api'
  * 欠费账龄在这里是实时口径，报表中心那张读快照 —— 两处口径说明写在 api.js 里。
  */
 export { waiveAnalysis, agingReport, depositReport, budgetVsActual } from '@/utils/api'
+
+/* 客户三张表批（2026-11-14）：经营日报 —— 科目 × 日 + 收款点 + 日结差额 */
+export { dailyRevenueReport, PAY_POINTS } from '@/utils/api'

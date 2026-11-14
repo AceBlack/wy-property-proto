@@ -13295,6 +13295,56 @@ on('GET', '/reports/three-rate', (ctx) => {
     pm.set(b.period, r)
   }
 
+  /* 减免率：分母是应收（不扣减免）—— 与欠费率分开，减免不是"收不到" */
+  const waiveRate = receivable > 0 ? Math.round(waived / receivable * 10000) / 100 : 0
+
+  /* 按房屋用途分列：客户线下是「住宅收费率 / 商铺收费率」两列分开看的 */
+  const um = new Map()
+  for (const b of list) {
+    const u = (HOUSE.get(b.houseId) || {}).usage || '未分类'
+    const r = um.get(u) || { usage: u, houseSet: new Set(), receivable: 0, received: 0, waived: 0 }
+    r.houseSet.add(b.houseId)
+    r.receivable = r2(r.receivable + (Number(b.amount) || 0))
+    r.received = r2(r.received + (Number(b.paidAmount) || 0))
+    r.waived = r2(r.waived + (Number(b.discount) || 0))
+    um.set(u, r)
+  }
+  const byUsage = [...um.values()].map(r => {
+    const b2 = r2(r.receivable - r.waived)
+    return {
+      usage: r.usage,
+      houses: r.houseSet.size,
+      receivable: r.receivable,
+      received: r.received,
+      waived: r.waived,
+      unpaid: r2(r.receivable - r.received - r.waived),
+      collectionRate: b2 > 0 ? Math.round(r.received / b2 * 10000) / 100 : 0,
+      waiveRate: r.receivable > 0 ? Math.round(r.waived / r.receivable * 10000) / 100 : 0
+    }
+  }).sort((a, b2) => b2.receivable - a.receivable)
+
+  /* 本期现金按归属账期三分。**只算本收费项** —— 三率是按 itemId 算的，
+     现金扫全表会让"已收"和"现金收入"差出一个车位费 */
+  let cashCurrent = 0
+  let cashClearing = 0
+  let cashPrepaid = 0
+  let cashNoPeriod = 0
+  for (const p of payments) {
+    const mm = String(p.payTime || '').slice(0, 7)
+    if (mm < from || mm > to) continue
+    if (p.channel === '预存抵扣') continue
+    const b = BILL.get(p.billId)
+    if (!b || b.itemId !== itemId) continue
+    if (cid && b.communityId !== cid) continue
+    const amt = Number(p.amount) || 0
+    const per = String(b.period || '')
+    if (!per) cashNoPeriod += amt
+    else if (per < from) cashClearing += amt
+    else if (per > to) cashPrepaid += amt
+    else cashCurrent += amt
+  }
+  const cashTotal = r2(cashCurrent + cashClearing + cashPrepaid + cashNoPeriod)
+
   const houses_ = [...new Set(list.map(b => b.houseId))]
   const top = houses_.map(hid => {
     const rows = list.filter(b => b.houseId === hid)
@@ -13315,11 +13365,15 @@ on('GET', '/reports/three-rate', (ctx) => {
     /* 账单口径下拿不到"归属期 > to"的信息；正式实现从应收矩阵出这两个数 */
     prepayRate: 0, prepayReceived: 0, prepayReceivable: 0,
     clearingAmount: 0,
+    waiveRate,
+    byUsage,
     /* 预存抵扣是「账户余额搬家」，不是新进来的钱；这个值只会出现在历史流水里 */
-    cashIncome: r2(payments.filter(p => {
-      const m = String(p.payTime || '').slice(0, 7)
-      return m >= from && m <= to && p.channel !== '预存抵扣'
-    }).reduce((s, p) => s + (Number(p.amount) || 0), 0)),
+    cashIncome: cashTotal,
+    cashByAttribution: {
+      current: r2(cashCurrent), clearing: r2(cashClearing), prepaid: r2(cashPrepaid),
+      noPeriod: r2(cashNoPeriod), total: cashTotal,
+      ok: Math.abs(r2(cashCurrent + cashClearing + cashPrepaid + cashNoPeriod) - cashTotal) < 0.01
+    },
     overpaid: top.filter(x => x.unpaid < 0).length,
     identity: { ok: true, diff: 0 },
     byPeriod: [...pm.values()].sort((a, b) => String(a.period).localeCompare(String(b.period))),
@@ -13623,6 +13677,141 @@ on('GET', '/reports/aging-live', (ctx) => {
       .map(x => ({ communityId: x.communityId, name: x.name, houses: x.houseSet.size, amount: x.amount }))
       .sort((a, b) => b.amount - a.amount),
     oldest: detail.filter(d => d.overdueDays > 0).sort((a, b) => b.overdueDays - a.overdueDays).slice(0, 8)
+  }
+})
+
+/* ---------- 经营日报（2026-11-14 · 客户三张表批） ----------
+ * 结构说明见 openapi 的 /reports/daily-revenue。
+ * 这一份是**假服务**，所以按 03 的同一套实现走一遍，不另起算法 ——
+ * 契约测试要验的是"结构对不对、恒等式成不成立"，不是"数字像不像真账"。
+ */
+const DAILY_ITEM_CAT = {
+  FI01: { code: 'INC_MAIN_PROPERTY', name: '物业费' },
+  FI02: { code: 'INC_MAIN_ELEV', name: '电梯运行费' },
+  FI03: { code: 'INC_MAIN_ENERGY', name: '公共能耗费' },
+  FI04: { code: 'INC_OTHER_SERVICE', name: '临时服务费' },
+  FI05: { code: 'INC_OTHER_UTILITY', name: '水电费' },
+  FI06: { code: 'INC_OTHER_UTILITY', name: '水电费' },
+  FI07: { code: 'INC_MAIN_PARK', name: '车位管理费' },
+  FI08: { code: 'LIA_DEPOSIT', name: '押金' },
+  FI09: { code: 'INC_OTHER_PARKING', name: '临时停车费' },
+  FI10: { code: 'INC_OTHER_CARD', name: '工本费' }
+}
+const DAILY_PAY_POINTS = ['现金', '车辆现金', 'POS刷卡', '车辆POS', '转账', '车辆云平台', '线上支付']
+const DAILY_PARK = new Set(['INC_MAIN_PARK', 'INC_OTHER_PARKING'])
+
+function dailyPayPointOf(channel, isPark) {
+  const ch = String(channel || '')
+  if (ch === '银行代扣') return '转账'
+  if (ch === '微信支付' || ch === '支付宝') return '线上支付'
+  if (isPark) return ch === 'POS刷卡' ? '车辆POS' : '车辆现金'
+  return ch === 'POS刷卡' ? 'POS刷卡' : '现金'
+}
+
+on('GET', '/reports/daily-revenue', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const month = String(ctx.query.month || '')
+  const cid = ctx.query.communityId || ''
+  if (!/^\d{4}-\d{2}$/.test(month)) throw bad('month 必填（YYYY-MM）')
+
+  const [y, m] = month.split('-').map(Number)
+  const n = new Date(y, m, 0).getDate()
+  const days = Array.from({ length: n }, (_, i) => `${y}-${String(m).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`)
+  const idxOf = d => {
+    const str = String(d || '').slice(0, 10)
+    if (!str.startsWith(month)) return -1
+    const day = Number(str.slice(8, 10))
+    return day >= 1 && day <= n ? day - 1 : -1
+  }
+  const zeros = () => new Array(n).fill(0)
+  const addTo = (arr, i, v) => { arr[i] = r2(arr[i] + (Number(v) || 0)) }
+  const sumOf = arr => r2(arr.reduce((s2, v) => s2 + (Number(v) || 0), 0))
+
+  /* 收入段：按账单所属项目筛（车位费 houseId 为空，不能按房筛） */
+  const incomeRows = new Map()
+  const incomeSub = zeros()
+  const pointAgg = new Map(DAILY_PAY_POINTS.map(k => [k, zeros()]))
+
+  for (const p of payments) {
+    if (p.channel === '预存抵扣') continue
+    const b = BILL.get(p.billId)
+    if (!b) continue
+    if (cid && b.communityId !== cid) continue
+    const i = idxOf(p.payTime)
+    if (i < 0) continue
+    const cat = DAILY_ITEM_CAT[b.itemId] || { code: 'INC_OTHER_SERVICE', name: '临时服务费' }
+    const amount = Number(p.amount) || 0
+    const row = incomeRows.get(cat.code) || { code: cat.code, name: cat.name, group: 'income', amounts: zeros() }
+    addTo(row.amounts, i, amount)
+    incomeRows.set(cat.code, row)
+    addTo(incomeSub, i, amount)
+    addTo(pointAgg.get(dailyPayPointOf(p.channel, DAILY_PARK.has(cat.code))), i, amount)
+  }
+
+  /* 往来款 / 退款：押金台账。**不进收款点** —— 台账没有收款方式字段 */
+  const liaisonRows = new Map()
+  const refundRows = new Map()
+  const liaisonSub = zeros()
+  const refundSub = zeros()
+  for (const d of DEPOSITS) {
+    if (cid && d.communityId !== cid) continue
+    const type = d.type || '未分类'
+    const iPaid = idxOf(d.paidDate)
+    if (iPaid >= 0) {
+      const amount = Number(d.amount) || 0
+      const row = liaisonRows.get(type) || { code: type, name: type, group: 'liaison', amounts: zeros() }
+      addTo(row.amounts, iPaid, amount)
+      liaisonRows.set(type, row)
+      addTo(liaisonSub, iPaid, amount)
+    }
+    const iRef = idxOf(d.refundDate)
+    const refund = Number(d.refundAmount) || 0
+    if (iRef >= 0 && refund > 0) {
+      const row = refundRows.get(type) || { code: type, name: type, group: 'refund', amounts: zeros() }
+      addTo(row.amounts, iRef, refund)
+      refundRows.set(type, row)
+      addTo(refundSub, iRef, refund)
+    }
+  }
+
+  /* 抵减：当日减免（不参与差额） */
+  const discount = zeros()
+  for (const b of bills) {
+    if (!(Number(b.discount) > 0)) continue
+    if (cid && b.communityId !== cid) continue
+    const i = idxOf(b.payTime)
+    if (i < 0) continue
+    addTo(discount, i, b.discount)
+  }
+
+  const cashByDay = zeros()
+  DAILY_PAY_POINTS.forEach(k => pointAgg.get(k).forEach((v, i) => { cashByDay[i] = r2(cashByDay[i] + v) }))
+  const grand = days.map((_, i) => r2(incomeSub[i] + liaisonSub[i] - refundSub[i]))
+  const diff = days.map((_, i) => r2(incomeSub[i] - cashByDay[i]))
+
+  /* 每行自带 total：契约里 DailyRevenueRow.total 是必需字段 */
+  const rowsOf = map => [...map.values()].map(r => ({ ...r, total: sumOf(r.amounts) }))
+  return {
+    month, communityId: cid, days,
+    groups: [
+      { key: 'income', name: '收入', rows: rowsOf(incomeRows), subtotal: incomeSub, total: sumOf(incomeSub) },
+      { key: 'liaison', name: '往来款（押金收取）', rows: rowsOf(liaisonRows), subtotal: liaisonSub, total: sumOf(liaisonSub) },
+      { key: 'refund', name: '退款（押金退还）', rows: rowsOf(refundRows), subtotal: refundSub, total: sumOf(refundSub) }
+    ],
+    grand: { amounts: grand, total: sumOf(grand) },
+    payPoints: DAILY_PAY_POINTS.map(name => ({ name, amounts: pointAgg.get(name), total: sumOf(pointAgg.get(name)) })),
+    discount: { amounts: discount, total: sumOf(discount) },
+    diff: {
+      amounts: diff,
+      total: sumOf(diff),
+      ok: diff.every(v => Math.abs(v) < 0.01),
+      badDays: diff.map((v, i) => ({ day: days[i], diff: v })).filter(x => Math.abs(x.diff) >= 0.01)
+    },
+    summary: {
+      income: sumOf(incomeSub), liaison: sumOf(liaisonSub), refund: sumOf(refundSub),
+      grand: sumOf(grand), discount: sumOf(discount), cash: sumOf(cashByDay),
+      days: n, activeDays: days.filter((_, i) => Math.abs(grand[i]) > 0.01).length
+    }
   }
 })
 
