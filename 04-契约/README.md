@@ -1293,3 +1293,19 @@ node scripts/gen-finance-fixtures.mjs --only=bills.json
 `scripts/gen-waive-seeds.mjs` 投影（90 笔），规则照抄 03 的 `_seedWaives()`。
 **重跑 `gen-finance-fixtures.mjs --only=bills.json` 会把这些字段冲掉**，因为它按现有 key
 白名单投影，而这三个字段本来不在白名单里 —— 顺序是：先重投影账单，再跑减免种子。
+
+### 11.10 车位续费：出账与顺延分两步（2026-11-14）
+
+`POST /mp/parkings/{parkId}/renewals` 只做**出账**（生成 `months` 张待缴账单）；
+到期日 `expireDate` 由 `POST /mp/payments/{payId}/simulate` 在支付成功时推进。
+
+分开的理由：出账就把日期改掉 = 没收钱先续费。两条路径的口径：
+
+```
+出账：起账期 = expireDate 所在月的下一期（expireDate 是"已缴至的账期末"）
+支付：expireDate = max(expireDate, 该账期末)   ← 取 max，不回退，也不"加 30 天"
+重复：该期已有未作废账单 → 409 / 40936（整批拒绝，不逐期跳过）
+```
+
+与 PC 的 `renewParking` 不是同一件事：那边钱已在柜台收了，只延长有效期、不出账单。
+**柜台是"先收钱再记账"，业主是"先记账再收钱"** —— 抄错了账上就会多一笔或漏一笔。

@@ -144,6 +144,7 @@ import {
 } from '@/api/park'
 import { go, confirm, toastErr, toastOk } from '@/utils/ui'
 import { gateOwner } from '@/utils/guard'
+import { IS_API } from '@/api/client'
 
 const parkId = ref('')
 const renewSheet = ref(false)
@@ -214,16 +215,25 @@ function toChange() {
 
 async function onRenew(months) {
   renewSheet.value = false
+  const amt = renewAmount(park.value, months)
   const ok = await confirm({
-    title: '确认预缴',
-    content: `预缴 ${months} 个月车位管理费 ¥${renewAmount(park.value, months)}，到期日顺延至 ${renewPreview(park.value, months)}`,
-    okText: '确认支付'
+    title: IS_API ? '确认续费' : '确认预缴',
+    /* 接口模式只说"生成账单"：出账不等于续上，到期日要等支付后才顺延 */
+    content: IS_API
+      ? `生成 ${months} 个月车位管理费账单 ¥${amt}，在「家庭账单」缴费后到期日自动顺延`
+      : `预缴 ${months} 个月车位管理费 ¥${amt}，到期日顺延至 ${renewPreview(park.value, months)}`,
+    okText: IS_API ? '生成账单' : '确认支付'
   })
   if (!ok) return
   try {
-    const rec = renew(parkId.value, months)
+    const rec = await renew(parkId.value, months)
     ver.value++
-    toastOk(`已预缴 ${rec.months} 个月，到期 ${rec.to}`)
+    if (rec.api) {
+      toastOk(`已生成 ${rec.months} 个月账单 ¥${rec.amount}，缴费后到期日顺延`)
+      go('/pages/bills/index', { tab: 'due' })
+    } else {
+      toastOk(`已预缴 ${rec.months} 个月，到期 ${rec.to}`)
+    }
   } catch (e) {
     toastErr(e?.message || '预缴失败')
   }

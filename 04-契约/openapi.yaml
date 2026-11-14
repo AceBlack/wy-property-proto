@@ -8542,6 +8542,46 @@ paths:
         '409': { $ref: '#/components/responses/Conflict', description: 额度用尽（40929）/ 管理费已到期（40930）/ 车牌已在该业主其他车位（40931） }
         '422': { $ref: '#/components/responses/ValidationError', description: 车牌格式非法 }
 
+  /mp/parkings/{parkId}/renewals:
+    post:
+      tags: [mp]
+      operationId: mpParkingRenew
+      summary: 车位续费出账（按车位生成待缴账单）
+      description: |
+        续费的本质是「**按车位出账 → 支付 → 账期顺延**」，不是"点一下把到期日改掉"。
+
+        PC 收银台的续费是另一种形态：钱已经在柜台收了，所以只延长有效期、不出账单。
+        业主自助没有那个柜台，**必须先有一张待缴账单**，钱才有地方收、账才有据可查。
+
+        起账期取 `expireDate` 所在月的**下一期** —— `expireDate` 的语义是
+        「管理费已缴至的账期末」，2027-03-31 到期就从 2027-04 开始出，
+        两个字段始终在同一个坐标系里。
+
+        支付成功后由 `/mp/payments/{payId}/simulate` 把 `expireDate` 推到该账期末
+        （取 max，不回退）。**只出账不支付，到期日不动** —— 出账就把日期改了，
+        等于没收钱先续了费。
+
+        重复出账**整批拒绝**（409 / 40936）：逐期跳过的做法会让"续 3 个月"变成"续了 2 个月"，
+        页面上看不出少了哪一期。
+      parameters:
+        - $ref: '#/components/parameters/parkId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MpParkingRenewRequest' }
+      responses:
+        '200':
+          description: 已出账（账单为待缴，尚未收款）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MpParkingRenewEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 不是产权业主 / 车位不在本人名下 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict', description: 该账期已出过账（40936） }
+        '422': { $ref: '#/components/responses/ValidationError', description: 续费月数不是 1~12 的整数 }
+
   /mp/parkings/{parkId}/logs:
     get:
       tags: [mp]
@@ -17022,6 +17062,38 @@ components:
         code: { type: integer, example: 0 }
         message: { type: string }
         data: { $ref: '#/components/schemas/MpParkingDetail' }
+
+    MpParkingRenewRequest:
+      type: object
+      description: 续费月数。省略按 1 个月
+      properties:
+        months:
+          type: integer
+          minimum: 1
+          maximum: 12
+          default: 1
+          description: 连续出账的月数。**不跳期**：中间有一期已出账就整批 409
+
+    MpParkingRenewEnvelope:
+      type: object
+      description: |
+        出账结果。`expireDate` 是**出账前**的到期日 —— 支付后才会推进，
+        客户端不要拿它当"续费后到期日"显示。
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [months, fromPeriod, toPeriod, amount, expireDate, bills]
+          properties:
+            months: { type: integer, example: 1 }
+            fromPeriod: { type: string, example: '2027-04' }
+            toPeriod: { type: string, example: '2027-04' }
+            amount: { type: number, example: 120 }
+            expireDate: { type: string, example: '2027-03-04', description: 出账前的到期日（支付后才推进） }
+            bills:
+              type: array
+              items: { $ref: '#/components/schemas/Bill' }
 
     MpPlateChangeRequest:
       type: object

@@ -159,6 +159,13 @@ export const fetchParkingDetail = parkId => get(`/mp/parkings/${parkId}`)
 export const fetchParkingLogs = parkId => get(`/mp/parkings/${parkId}/logs`).then(r => r.rows || [])
 export const fetchParkBills = parkId => get('/mp/bills', { parkId }).then(r => r.rows || [])
 export const postPlateChange = (parkId, data) => post(`/mp/parkings/${parkId}/plate`, data)
+/**
+ * 车位续费**出账**（不是"续费完成"）。
+ *
+ * 续费 = 按车位出账 → 支付 → 账期顺延。这一步只到"账单已生成"，
+ * `expireDate` 要等支付成功才推进 —— 端上不能拿它当"已续费"。
+ */
+export const postParkRenew = (parkId, months) => post(`/mp/parkings/${parkId}/renewals`, { months })
 
 /* ---------------- 商业账户（2026-11-11） / 本房水电（2026-11-13） ----------------
  * 都不缓存：状态随时会变（物业核验、抄表出账、客服在前台收费），

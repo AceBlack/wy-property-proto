@@ -19,7 +19,7 @@ import { bills, parkings, vehicles } from '@pc/mock'
 import { activeBinding, app, identity, isRealname, persist } from '@/store/app'
 import { DEMO, stamp } from '@/config/demo'
 import { IS_API } from './client'
-import { fetchParkings, fetchParkingDetail, fetchParkingLogs, fetchParkBills, postPlateChange } from './remote'
+import { fetchParkings, fetchParkingDetail, fetchParkingLogs, fetchParkBills, postPlateChange, postParkRenew } from './remote'
 import {
   daysBetween, expiryOf as expiryRule, nextExpire, nextMonthFirst,
   normalizePlate, usedThisMonth, validPlate
@@ -308,22 +308,32 @@ export function paysOf(parkId) {
  * 这里记成"预缴"——预缴的是未来账期，本来就不在当期欠费里，所以待缴合计不受影响，
  * 不构成第二份金额真相。并入账单在批次 82 一起做。
  */
-export function renew(parkId, months) {
+export async function renew(parkId, months) {
   const p = parkingOf(parkId)
   if (!p) throw new Error('这个车位不在您名下')
   if (identity.value !== '业主') throw new Error('只有产权业主可以预缴车位管理费')
+  const n = Number(months) || 0
   /**
-   * 接口模式下**不假装能续费**。
+   * 接口模式：**按车位出账**，不是本地写一条流水。
    *
-   * 续费的本质是「生成一张车位管理费账单 → 支付 → 账期顺延」，
-   * 而批次 82 只落了车位四件套（列表 / 详情 / 换绑 / 记录），没有"按车位出账"的接口。
-   * 在这里写一条本地流水会让服务端的到期日不动 —— 页面显示已续到 12 月、
-   * 后台显示 10 月到期，两边各说各话，比直接提示"去缴费"糟得多。
+   * 2026-11-14 起契约有 `POST /mp/parkings/{parkId}/renewals`（批 88），它生成待缴账单，
+   * 支付成功后才由服务端把到期日推到账期末。所以这里返回的是「账单」而不是「已续费」——
+   * 端上照实说"已生成账单，缴费后顺延"，不能说"已预缴"，否则业主以为续完了、
+   * 过两天闸机不认。本地模式仍走自己的流水（演示环境没有服务端）。
    */
   if (IS_API) {
-    throw new Error('车位管理费请在「家庭账单」里缴纳，缴完后账期自动顺延')
+    const r = await postParkRenew(parkId, n)
+    return {
+      api: true,
+      months: Number(r.months) || n,
+      amount: r2(r.amount),
+      from: r.fromPeriod,
+      to: r.toPeriod,
+      /* 出账前的到期日，给页面说明用：支付后才会变 */
+      expireDate: r.expireDate,
+      billIds: (r.bills || []).map(b => b.billId)
+    }
   }
-  const n = Number(months) || 0
   if (!RENEW_MONTHS.includes(n)) throw new Error('预缴月数只能选 3 / 6 / 12')
 
   const rec = {

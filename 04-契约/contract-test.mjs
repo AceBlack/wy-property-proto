@@ -6683,6 +6683,71 @@ test('账单：已绑房 + 名下不挂房的车位费（只按房过滤会漏�
   eq(debt.data.summary.debtCount, 2, '欠费 2 张')
 })
 
+test('车位续费：按车位出账 → 支付 → 到期日顺延', async () => {
+  const { tok } = await mpReady('13969901694', '董宇', '2580')
+  const list = await withMp(tok, () => call('GET', '/mp/parkings'))
+  const pk = list.data.rows[0]
+  const before = String(pk.expireDate)
+
+  const r = await withMp(tok, () => call('POST', `/mp/parkings/${pk.parkId}/renewals`, { body: { months: 1 } }))
+  eq(r.status, 200, '出账')
+  assertSchema(r, 'MpParkingRenewEnvelope', 'POST /mp/parkings/{parkId}/renewals')
+  eq(r.data.bills.length, 1, '续 1 个月出 1 张')
+  const bill = r.data.bills[0]
+  eq(bill.status, '未缴', '出账即待缴')
+  eq(bill.itemId, 'FI07', '车位管理服务费')
+  eq(bill.amount, pk.feeStandard, '金额 = 车位收费标准')
+  eq(bill.houseId, '', '车位账单不挂房（编一个房号，后台按房拆分入账就错位了）')
+
+  /* 起账期必须是到期月的下一期：两个字段同坐标系，"付完这期、到期日跟着走"才成立 */
+  const [ey, em] = String(before).slice(0, 7).split('-').map(Number)
+  const expectFrom = (() => {
+    const d = new Date(Date.UTC(ey, em, 1))
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+  })()
+  eq(r.data.fromPeriod, expectFrom, `起账期 = 到期月的下一期（到期 ${before}）`)
+  eq(r.data.expireDate, before, '出账不改到期日 —— 没收钱先续费就是白送')
+
+  const mid = await withMp(tok, () => call('GET', `/mp/parkings/${pk.parkId}`))
+  eq(mid.data.parking.expireDate, before, '只出账不支付，到期日原地不动')
+
+  /* 重复出账整批拒绝：逐期跳过会让"续 1 个月"变成"什么都没做"，页面上看不出来 */
+  const dup = await withMp(tok, () => call('POST', `/mp/parkings/${pk.parkId}/renewals`, { body: { months: 1 } }))
+  eq(dup.status, 409, '同期重复出账 409')
+  eq(dup.code, 40936, '业务码 40936')
+
+  const pay = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'bill', billIds: [bill.billId] } }))
+  eq(pay.status, 200, '付款单')
+  const sim = await withMp(tok, () => call('POST', `/mp/payments/${pay.data.payId}/simulate`))
+  eq(sim.status, 200, '模拟支付')
+
+  const after = await withMp(tok, () => call('GET', `/mp/parkings/${pk.parkId}`))
+  assert(String(after.data.parking.expireDate) > before,
+    `支付后到期日应推进（${before} → ${after.data.parking.expireDate}）`)
+  /* 到期日落到该账期末，不是"加 30 天"：账期是按月的，2 月与 3 月长度不同 */
+  const [py, pm] = String(bill.period).split('-').map(Number)
+  const endOfPeriod = (() => {
+    const d = new Date(Date.UTC(py, pm, 0))
+    return `${bill.period}-${String(d.getUTCDate()).padStart(2, '0')}`
+  })()
+  eq(after.data.parking.expireDate, endOfPeriod, '到期日推到该账期末')
+})
+
+test('车位续费：月数越界 422，别人的车位 403', async () => {
+  const { tok } = await mpReady('13969901694', '董宇', '2580')
+  const list = await withMp(tok, () => call('GET', '/mp/parkings'))
+  const pk = list.data.rows[1]
+
+  for (const m of [0, 13, 1.5, 'abc']) {
+    const r = await withMp(tok, () => call('POST', `/mp/parkings/${pk.parkId}/renewals`, { body: { months: m } }))
+    eq(r.status, 422, `月数 ${JSON.stringify(m)} 应 422`)
+  }
+
+  /* 别人的车位：403 而不是"查不到"。这里选 403 —— 车位是公开可见的资产（楼栋图上就有），
+     装作不存在反而让人以为系统坏了 */
+  const other = await withMp(tok, () => call('POST', '/mp/parkings/PK00037/renewals', { body: { months: 1 } }))
+  eq(other.status, 403, '别人的车位不能续')
+})
 test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async () => {
   const { tok, houses } = await mpReady('18488436180', '梁子轩', '2456')
   eq(houses.length, 2, '梁子轩名下两套房')

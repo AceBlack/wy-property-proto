@@ -9794,6 +9794,104 @@ on('POST', '/mp/parkings/{parkId}/plate', (ctx) => {
   }
 })
 
+/* ============================ 车位续费：按车位出账（批次 88） ============================ */
+
+/**
+ * 续费的本质是「**按车位出账 → 支付 → 账期顺延**」，不是"点一下把日期改掉"。
+ *
+ * PC 收银台的 `renewParking` 是另一种形态：钱已经在柜台收了，所以只延长有效期、不出账单。
+ * 业主自助没有那个"柜台"，必须先有一张待缴账单，钱才有地方收、账才有据可查。
+ *
+ * 起账期取「到期月的下一期」：`expireDate` 的语义是**管理费已缴至的账期末**，
+ * 2027-03-31 到期就从 2027-04 开始出。这样出账与 expireDate 是同一个坐标系，
+ * 不会出现"账单从 2026-11 起、到期日却写着 2027-03"这种对不上的情况。
+ */
+const PARK_ITEM = { itemId: 'FI07', itemName: '车位管理服务费', unit: '元/位·月' }
+/* 编号接在**最大 id** 后面：fixture 的 BL 号不连续，接 length 会撞上已有编号 */
+let BILL_SEQ = bills.reduce((m, b) => Math.max(m, Number(String(b.billId).replace(/\D/g, '')) || 0), 0)
+const nextBillId = () => 'BL' + String(++BILL_SEQ).padStart(6, '0')
+
+const periodOfDate = d => String(d || '').slice(0, 7)
+const addMonths = (ym, n) => {
+  const [y, m] = String(ym).split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1 + n, 1))
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}`
+}
+/** 账期末：2026-02 → 2026-02-28（按真实月末，不写死 30） */
+const periodEnd = ym => {
+  const [y, m] = String(ym).split('-').map(Number)
+  const d = new Date(Date.UTC(y, m, 0))
+  return `${ym}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+on('POST', '/mp/parkings/{parkId}/renewals', (ctx) => {
+  const me = mpOf(ctx)
+  const p = mpMyParking(me, ctx.params.parkId)
+
+  /* 只对产权业主开放：家属能看见车位、能缴已有账单，但"续一年"是处分行为，
+     和换绑车牌同一条线。 */
+  if (me.identity !== MP_ROLE.OWNER) {
+    throw forbidden('续费只对产权业主开放；家属或租客请联系业主或管家')
+  }
+
+  const months = ctx.body?.months == null ? 1 : Number(ctx.body.months)
+  if (!Number.isInteger(months) || months < 1 || months > 12) {
+    throw invalid('续费月数只能是 1~12 的整数')
+  }
+
+  const from = addMonths(periodOfDate(p.expireDate), 1)
+  const periods = Array.from({ length: months }, (_, i) => addMonths(from, i))
+
+  /* 幂等/防重复：这几期里只要有一期已经出过账（未作废），就整批拒绝。
+     逐期跳过的做法会让"续 3 个月"变成"续了 2 个月"，页面上看不出少了哪期。 */
+  const exists = bills.find(b => b.parkId === p.parkId && periods.includes(b.period) && b.status !== '已作废')
+  if (exists) {
+    throw new ApiError(409, 40936, `${exists.period} 的车位管理费已经出过账了，请到家庭账单里缴纳`)
+  }
+
+  const fee = r2(p.feeStandard)
+  const created = periods.map(period => {
+    const b = {
+      billId: nextBillId(),
+      communityId: p.communityId,
+      houseId: '',
+      ownerId: me.ownerId,
+      period,
+      status: '未缴',
+      itemId: PARK_ITEM.itemId,
+      itemName: PARK_ITEM.itemName,
+      unit: PARK_ITEM.unit,
+      amount: fee,
+      quantity: 1,
+      price: fee,
+      discount: 0,
+      lateFee: 0,
+      payable: fee,
+      paidAmount: 0,
+      unpaid: fee,
+      overdueDays: 0,
+      /* 车位账单没有房屋宽限期那套，统一次月 15 日到期，与种子里既有车位单一致 */
+      dueDate: `${addMonths(period, 1)}-15`,
+      createTime: MP_NOW.slice(0, 10),
+      payTime: '',
+      payMethod: '',
+      invoiceNo: '',
+      parkId: p.parkId
+    }
+    bills.push(b)
+    return b
+  })
+
+  return {
+    months,
+    fromPeriod: from,
+    toPeriod: periods[periods.length - 1],
+    amount: r2(fee * months),
+    expireDate: p.expireDate,
+    bills: created.map(billRow)
+  }
+})
+
 on('GET', '/mp/parkings/{parkId}/logs', (ctx) => {
   const me = mpOf(ctx)
   const p = mpMyParking(me, ctx.params.parkId)
@@ -10510,6 +10608,14 @@ on('POST', '/mp/payments/{payId}/simulate', (ctx) => {
       x.status = x.unpaid > 0.001 ? '部分缴' : '已缴'
       x.payTime = MP_NOW
       x.overdueDays = x.unpaid > 0.001 ? x.overdueDays : 0
+      /* 车位账单付清 → 到期日推到该账期末（取 max，不回退）。
+         续费的本质是账期顺延：只把账单标成已缴、不动 expireDate 的话，
+         业主付完钱回到车位页，看到的还是"已到期，请续费"。 */
+      if (x.parkId && x.status === '已缴') {
+        const pk = PARK.get(x.parkId)
+        const end = periodEnd(x.period)
+        if (pk && (!pk.expireDate || String(pk.expireDate) < end)) pk.expireDate = end
+      }
       bumpVer('bill', x.billId)
     }
     return {
