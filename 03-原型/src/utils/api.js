@@ -3957,7 +3957,10 @@ export function contractMonthsOf(c = {}) {
 export const CONTRACT_DIRECTIONS = ['收入', '支出']
 
 /**
- * 合同分类字典（2026-11-13 定稿）：6 个一级主项 + 20 个子类。
+ * 合同分类字典（2026-11-14 定稿）：6 个一级主项 + 21 个子类。
+ *
+ * 11-14 只加了一个子类：采购协议 / 服务采购（保洁·绿化·秩序·垃圾清运共 19 份
+ * 外包合同从「劳动合同/劳务协议」迁过来，见 scripts/migrate-service-procurement.mjs）。
  *
  * 之前是「数据里出现过什么就是什么」（5 个一级、22 个各页各叫的子类），
  * 结果是新建合同时选项取决于已有数据、报表口径也跟着数据漂。
@@ -3975,7 +3978,7 @@ export const CONTRACT_TYPE_TREE = [
   { type: '运维服务', direction: '支出', subs: ['电梯维保', '消防系统运维', '监控维保', '设施设备检修', '供水供电设施维保'] },
   { type: '多种经营', direction: '收入', subs: ['广告合作', '场地联营', '便民服务合作', '转供电', '转供水', '转供气'] },
   { type: '租赁协议', direction: '收入', subs: ['房屋租赁', '车位租赁', '场地租赁', '设备租赁'] },
-  { type: '采购协议', direction: '支出', subs: ['物资采购', '耗材采购', '设备采购'] }
+  { type: '采购协议', direction: '支出', subs: ['物资采购', '耗材采购', '设备采购', '服务采购'] }
 ]
 
 export const CONTRACT_TYPES = CONTRACT_TYPE_TREE.map(t => t.type)
@@ -3994,10 +3997,15 @@ export const contractCountsInRevenue = c =>
 /**
  * 类型 → 分类字典二级（合同的钱最终要落到收支分项里，不能各页各起名字）。
  *
- * 劳务协议同时承载两类内容：**员工劳务**（保安/保洁自有团队签的劳务）与
- * **服务外包**（保洁/绿化/秩序/垃圾清运整包给第三方）。
- * 前者进人力成本，后者进合同支出 —— 只看子类分不出来，所以按合同名兜一层，
- * 免得把整包服务全算成人工成本（报表上"人力成本"会突然翻倍）。
+ * 服务外包（保洁/绿化/秩序/垃圾清运）走过来两步：
+ *   ① 2026-11-13 之前没有对应类型，暂挂「劳动合同/劳务协议」；
+ *   ② 2026-11-14 在「采购协议」下加了「服务采购」，19 份合同已迁过去
+ *      （`scripts/migrate-service-procurement.mjs`，幂等）。
+ * 迁移后仍按**合同名**细分成 保洁外包 / 绿化养护 / 秩序维护 —— 一个「服务采购」
+ * 撑不起三类成本，报表上看不出钱花在哪。
+ *
+ * 为什么挂在「采购协议」而不是新开第七个一级：客户明确只要六类；服务外包在
+ * 资金性质上确实是「按合同采购一项服务」，方向同为支出，进收支分项不受影响。
  */
 const CONTRACT_CATEGORY_OF = {
   '劳动合同/员工劳动合同': 'EXP_LABOR_SALARY',
@@ -4021,16 +4029,35 @@ const CONTRACT_CATEGORY_OF = {
   '租赁协议/设备租赁': 'INC_MULTI_SELF',
   '采购协议/物资采购': 'EXP_OP_REPAIR',
   '采购协议/耗材采购': 'EXP_OP_OFFICE',
-  '采购协议/设备采购': 'EXP_CON_PROJECT'
+  '采购协议/设备采购': 'EXP_CON_PROJECT',
+  '采购协议/服务采购': 'EXP_CON_SERVICE'
 }
 
-/** 劳务协议按合同名细分：整包服务进合同支出，自有劳务进外包人力 */
+/** 服务外包按合同名细分到三个二级科目（顺序即优先级） */
+const OUTSOURCE_CATEGORY_OF = [
+  { re: /绿化|养护/, code: 'EXP_CON_GREEN' },
+  { re: /秩序|安保|保安|门岗/, code: 'EXP_CON_SECURITY' },
+  { re: /保洁|垃圾清运|清掏|消杀|环境/, code: 'EXP_CON_SERVICE' }
+]
+
+/** 整包服务的关键词：存量里还挂在「劳务协议」上的老合同靠它兜底 */
 const SERVICE_OUTSOURCE_HINT = /保洁|绿化|秩序|安保|保安|垃圾清运|清掏|消杀/
+
+const outsourceCategoryOf = name => {
+  const s = String(name || '')
+  const hit = OUTSOURCE_CATEGORY_OF.find(x => x.re.test(s))
+  return hit ? hit.code : ''
+}
 
 export const contractCategoryOf = c => {
   const key = `${c?.type}/${c?.subtype}`
+  // 服务外包：按名字细分；名字认不出就落到「保洁外包」（字典里最贴近的一项）
+  if (key === '采购协议/服务采购') {
+    return outsourceCategoryOf(c?.name) || 'EXP_CON_SERVICE'
+  }
+  // 存量兜底：还没迁过来的「劳务协议」如果名字是整包服务，别算进人力成本
   if (key === '劳动合同/劳务协议' && SERVICE_OUTSOURCE_HINT.test(String(c?.name || ''))) {
-    return 'EXP_CON_SERVICE'
+    return outsourceCategoryOf(c?.name) || 'EXP_CON_SERVICE'
   }
   return CONTRACT_CATEGORY_OF[key]
     || (contractDirectionOf(c) === '支出' ? 'EXP_OP_OTHER' : 'INC_MULTI_VENUE')
@@ -9582,9 +9609,11 @@ export function payBills({ billIds = [], splits = [], discount = 0, waiveReasonI
   const chk = paySplitCheck(splits, received)
   if (!chk.ok) throw _payErr(chk.msg, 42212)
   /* 预存账户体系已停用（批 3）。前端下拉里已经没有这一项，
-     但旧页面/旧链接仍可能传进来：留着不拦，就会又扣一次预存余额 */
+     但旧页面/旧链接仍可能传进来：留着不拦，就会又扣一次预存余额。
+     业务码用 42212（参数不合法）而不是 40929 —— 40929 在别处是「额度用完 /
+     部门模板重复」，同一个码背两种意思，排查时只会被带偏；契约侧也是 42212。 */
   if (chk.rows.some(s => s.method === '预存抵扣')) {
-    throw _payErr('预存账户已停用，不能再抵扣；请改用现金 / 微信 / POS 等方式，存量余额走「预存清退」退还', 40929)
+    throw _payErr('预存账户已停用，不能再抵扣；请改用现金 / 微信 / POS 等方式，存量余额走「预存清退」退还', 42212)
   }
 
   /* 每条账单的实收：按应缴比例分减免，最后一条兜底 */
@@ -20147,6 +20176,74 @@ export function createPrepayCollect({
 export const prepayCollectRows = () => PREPAY_COLLECTS.map(c => ({ ...c }))
 
 /**
+ * 减免演示种子（2026-11-14 · 报表批）
+ * ------------------------------------------------------------
+ * 数据集里**一张带减免的账单都没有**，减免分析会全是 0 —— 分不清"没人减免"和"功能没做"。
+ * 这里给 2026-08~10 的已缴账单补一批减免，同时**等额扣掉 paidAmount**：
+ * 账单必须继续满足 `payable = paidAmount + discount`，否则减免就成了凭空多出来的一笔钱。
+ *
+ * 三条规则：
+ *   ① 选哪些：已缴 + 月度收费项 + 账期在 08~10，按 billId 排序后**固定取模**（不随机）；
+ *   ② 免多少：按原因定比例（差错纠正 5% / 协商 15% / 困难户 30% 封顶 200 / 其他 8%），
+ *      算出来不足 20 元的不记 —— 为了 3 块钱走一遍减免审批不合常理；
+ *   ③ 记原因：`discountReasonId` + `discountReason` 落到账单上，矩阵种子会带进流水，
+ *      报表才分得出「政策性」和「差错纠正」。
+ *
+ * 固定规则 = 每次刷新同一张账单的减免额一样，验收脚本才敢断言。
+ * **正式上线后这段不存在**：减免全部来自收银台那一刻选的原因。
+ */
+const WAIVE_SEED_REASONS = [
+  { reasonId: 'WR03', pct: 0.05, cap: 0 },      /* 差错纠正：小额、笔数最多 */
+  { reasonId: 'WR04', pct: 0.15, cap: 500 },    /* 协商减免：投诉补偿 */
+  { reasonId: 'WR02', pct: 0.30, cap: 200 },    /* 困难户：比例高但封顶 */
+  { reasonId: 'WR05', pct: 0.08, cap: 0 }       /* 其他 */
+]
+
+function _seedWaives() {
+  const SEED_PERIODS = new Set(['2026-08', '2026-09', '2026-10'])
+  const monthlyItems = new Set(feeItems
+    .filter(i => ['按面积', '按车位', '按户'].includes(i.calcType) && i.cycle === '月')
+    .map(i => i.itemId))
+  const paid = bills
+    .filter(b => b.houseId && b.status === '已缴' && SEED_PERIODS.has(b.period)
+      && monthlyItems.has(b.itemId) && (Number(b.paidAmount) || 0) > 0 && !(Number(b.discount) > 0))
+    .sort((a, b) => String(a.billId).localeCompare(String(b.billId)))
+
+  let i = 0
+  for (const b of paid) {
+    /* 每 17 张挑一张：太少看不出分布，太多会把收缴率拉低到不像真的 */
+    if (i++ % 17 !== 5) continue
+    const cfg = WAIVE_SEED_REASONS[i % WAIVE_SEED_REASONS.length]
+    const base = Number(b.payable) || Number(b.amount) || 0
+    let amount = round2(base * cfg.pct)
+    if (cfg.cap) amount = Math.min(amount, cfg.cap)
+    if (amount < 20) continue
+    const paidNow = round2((Number(b.paidAmount) || 0) - amount)
+    if (paidNow < 0) continue
+    const reason = waiveReasons.find(r => r.reasonId === cfg.reasonId) || {}
+    b.discount = amount
+    b.discountReasonId = cfg.reasonId
+    b.discountReason = reason.name || ''
+    b.paidAmount = paidNow
+    b._waiveSeed = true
+  }
+
+  /* 再补两笔**超过免审额度**的：困难户减免的审批线是 1000 元，
+     报表上的「超额度」列如果永远是空的，这个功能就等于没做。
+     挑已缴金额够大的账单（否则减免 1200 会超过实收），固定取前两笔。 */
+  const big = paid.filter(b => !b._waiveSeed && (Number(b.paidAmount) || 0) >= 1500)
+  for (const b of big.slice(0, 2)) {
+    const reason = waiveReasons.find(r => r.reasonId === 'WR02') || {}
+    b.discount = 1200
+    b.discountReasonId = 'WR02'
+    b.discountReason = reason.name || ''
+    b.paidAmount = round2((Number(b.paidAmount) || 0) - 1200)
+    b._waiveSeed = true
+    b._waiveOverLimit = true
+  }
+}
+
+/**
  * 把历史账单的实收/减免灌进矩阵 —— 否则刚上线时矩阵"已收"全为 0，
  * 收缴率一片 0%，谁看都以为系统坏了。
  * 只灌有月度应收的收费项；水电走充值，不进矩阵。
@@ -20172,11 +20269,16 @@ function _seedMatrixFromBills() {
       MATRIX_TX.push({
         txId: 'MT' + String(_MTX_SEQ).padStart(6, '0'),
         houseId: b.houseId, itemId: b.itemId, period: b.period, amount: round2(disc),
-        source: 'waive', waiveReasonId: '', billId: b.billId, at: b.payTime || '', legacy: true
+        source: 'waive', waiveReasonId: b.discountReasonId || '', billId: b.billId,
+        /* 账单上记了原因就带过来，减免分析才分得出「政策性」和「差错纠正」；
+           早年没有原因的（legacy）留空，报表里单列一行「未填原因」 */
+        reasonId: b.discountReasonId || '', reasonName: b.discountReason || '',
+        at: b.payTime || '', legacy: true
       })
     }
   }
 }
+_seedWaives()      /* 先补减免，矩阵种子才会把它带成 waive 流水 */
 _seedMatrixFromBills()
 
 /**
@@ -21157,6 +21259,230 @@ export function incomeExpenseReport({ from = '2026-01', to = periodOf(), communi
     margin: incomeTotal > 0 ? Math.round((incomeTotal - expenseTotal) / incomeTotal * 10000) / 100 : 0,
     byMonth,
     cashCount: payRows.length
+  }
+}
+
+/* ==================================================================
+ * 报表批（2026-11-14）：减免分析 / 欠费账龄 / 押金在账
+ * ------------------------------------------------------------
+ * 三张表各回答一个经营者真正会问的问题：
+ *   ① 减免分析：这一年让出去的钱，是政策性让的，还是差错改出来的？
+ *   ② 欠费账龄：欠的钱有多老？—— 90 天以上收不回来，基本就是坏账；
+ *   ③ 押金在账：手上有多少**别人的钱**？它是负债，不能拿来当收入花。
+ * ================================================================== */
+
+/**
+ * 减免分析（按原因汇总）。
+ *
+ * 口径要点：
+ *   · 金额取**矩阵里的 waive 流水**，不取账单的 discount 字段 —— 一张账单可能分两次减免，
+ *     账单只有一个累计值，按它汇总会把两次算成一次；
+ *   · 早年没有登记原因的老账（`legacy`），单列成「未填原因（历史数据）」，
+ *     不并进「其他」—— 并进去就把"没登记"洗成了"登记了其他"；
+ *   · `overLimit` = 单笔超过该原因的免审额度，报表要能一眼看出谁在超权减免。
+ */
+export function waiveAnalysis({ from = '2026-01', to = periodOf(), communityId = '' } = {}) {
+  const periods = new Set(monthRange(from, to))
+  if (!periods.size) throw new Error('开始账期不能晚于结束账期')
+
+  const commOf = new Map(houses.map(h => [h.houseId, h.communityId]))
+  const houseOf = new Map(houses.map(h => [h.houseId, h]))
+  const itemOf = new Map(feeItems.map(i => [i.itemId, i]))
+
+  const tx = MATRIX_TX.filter(t => t.source === 'waive' && periods.has(t.period)
+    && (!communityId || commOf.get(t.houseId) === communityId))
+
+  const total = round2(tx.reduce((s, t) => s + (Number(t.amount) || 0), 0))
+  const byReason = new Map()
+  const periodMap = new Map()
+  for (const t of tx) {
+    const id = t.reasonId || t.waiveReasonId || ''
+    const rec = id ? waiveReasons.find(r => r.reasonId === id) : null
+    const key = id || '__none__'
+    const cur = byReason.get(key) || {
+      reasonId: id,
+      name: rec ? rec.name : '未填原因（历史数据）',
+      type: rec ? rec.type : '历史',
+      countInAssess: rec ? !!rec.countInAssess : false,
+      approveAbove: rec ? Number(rec.approveAbove) || 0 : 0,
+      amount: 0, count: 0, overLimit: 0, houseSet: new Set()
+    }
+    cur.amount = round2(cur.amount + (Number(t.amount) || 0))
+    cur.count += 1
+    cur.houseSet.add(t.houseId)
+    if (cur.approveAbove > 0 && t.amount > cur.approveAbove) cur.overLimit += 1
+    byReason.set(key, cur)
+
+    const p = periodMap.get(t.period) || { period: t.period, amount: 0, count: 0 }
+    p.amount = round2(p.amount + (Number(t.amount) || 0))
+    p.count += 1
+    periodMap.set(t.period, p)
+  }
+
+  const reasons = [...byReason.values()]
+    .map(r => ({
+      ...r,
+      houses: r.houseSet.size,
+      share: total > 0 ? Math.round(r.amount / total * 1000) / 10 : 0,
+      houseSet: undefined
+    }))
+    .sort((a, b) => b.amount - a.amount)
+
+  /* 明细：只给前 12 笔 —— 报表是用来发现问题的，逐笔查在账单页 */
+  const detail = [...tx].sort((a, b) => b.amount - a.amount).slice(0, 12).map(t => {
+    const h = houseOf.get(t.houseId) || {}
+    return {
+      houseId: t.houseId,
+      houseName: h.shortName || h.fullName || t.houseId,
+      period: t.period,
+      itemName: (itemOf.get(t.itemId) || {}).name || '',
+      amount: round2(t.amount),
+      reasonId: t.reasonId || t.waiveReasonId || '',
+      reasonName: (waiveReasons.find(r => r.reasonId === (t.reasonId || t.waiveReasonId)) || {}).name || '未填原因',
+      at: t.at || ''
+    }
+  })
+
+  return {
+    from, to, communityId,
+    total,
+    count: tx.length,
+    houses: new Set(tx.map(t => t.houseId)).size,
+    avg: tx.length ? round2(total / tx.length) : 0,
+    overLimitCount: reasons.reduce((s, r) => s + r.overLimit, 0),
+    reasons,
+    byPeriod: [...periodMap.values()].sort((a, b) => String(a.period).localeCompare(String(b.period))),
+    detail
+  }
+}
+
+/**
+ * 欠费账龄（实时口径）。
+ *
+ * 与「报表中心 · 欠费账龄」的区别要说清楚，否则两个页面两个数：
+ *   · 这里**实时算**，`asOf` 默认取数据集当下；看板要的是"此刻"；
+ *   · 报表中心那张读**跑批快照**，同一个 `statDate` 反复看数字不变，能对账。
+ * 两者的分档边界完全一致（未到期 / 1-30 / 31-60 / 61-90 / 91-180 / 180 天以上）。
+ */
+export function agingReport({ communityId = '', asOf = TODAY } = {}) {
+  const DEBT = new Set(['未缴', '部分缴', '逾期'])
+  const asOfDate = new Date(`${String(asOf).slice(0, 10)}T00:00:00`)
+  /* 分档必须与 `AGING_BUCKETS` / 契约的 AgingBucket 枚举**完全一致**（5 档）：
+     报表中心、员工端账龄筛选、这张看板用的是同一个分类，多切一档就出现"三处三个口径"。 */
+  const BUCKETS = ['未到期', '0-30天', '31-90天', '91-180天', '180天以上']
+  const bucketOf = days => {
+    if (days <= 0) return '未到期'
+    if (days <= 30) return '0-30天'
+    if (days <= 90) return '31-90天'
+    if (days <= 180) return '91-180天'
+    return '180天以上'
+  }
+
+  const rows = bills.filter(b => DEBT.has(b.status) && (Number(b.unpaid) || 0) > 0
+    && (!communityId || b.communityId === communityId))
+
+  const agg = new Map(BUCKETS.map(k => [k, { bucket: k, amount: 0, count: 0, houseSet: new Set() }]))
+  const commAgg = new Map()
+  const detail = []
+  for (const b of rows) {
+    const due = new Date(`${String(b.dueDate).slice(0, 10)}T00:00:00`)
+    const days = Math.max(-9999, Math.floor((asOfDate - due) / 86400000))
+    const k = bucketOf(days)
+    const cur = agg.get(k)
+    cur.amount = round2(cur.amount + (Number(b.unpaid) || 0))
+    cur.count += 1
+    cur.houseSet.add(b.houseId)
+
+    const ca = commAgg.get(b.communityId) || { communityId: b.communityId, name: (communities.find(c => c.id === b.communityId) || {}).name || b.communityId, amount: 0, houseSet: new Set() }
+    ca.amount = round2(ca.amount + (Number(b.unpaid) || 0))
+    ca.houseSet.add(b.houseId)
+    commAgg.set(b.communityId, ca)
+
+    detail.push({ billId: b.billId, houseId: b.houseId, period: b.period, dueDate: b.dueDate, overdueDays: days, unpaid: round2(b.unpaid), aging: k })
+  }
+
+  const total = round2([...agg.values()].reduce((s, r) => s + r.amount, 0))
+  return {
+    asOf: String(asOf).slice(0, 10),
+    total,
+    count: rows.length,
+    houses: new Set(rows.map(b => b.houseId)).size,
+    rows: BUCKETS.map(k => {
+      const r = agg.get(k)
+      return {
+        bucket: k,
+        amount: r.amount,
+        count: r.count,
+        houses: r.houseSet.size,
+        share: total > 0 ? Math.round(r.amount / total * 1000) / 10 : 0
+      }
+    }),
+    byCommunity: [...commAgg.values()]
+      .map(r => ({ ...r, houses: r.houseSet.size, houseSet: undefined }))
+      .sort((a, b) => b.amount - a.amount),
+    /* 欠得最久的 8 笔：催缴从这张表往下打 */
+    oldest: detail.filter(d => d.overdueDays > 0)
+      .sort((a, b) => b.overdueDays - a.overdueDays).slice(0, 8)
+  }
+}
+
+/**
+ * 押金在账（报表视角）。
+ *
+ * 押金是**负债**（LIA_DEPOSIT）：收进来不是收入，退出去不是支出，只有扣款转收入。
+ * 所以这张表分两段，且不能混：
+ *   · **期间发生额**：区间内收了多少、退了多少、扣转收入多少；
+ *   · **时点在账**：截至 `to` 手上有多少别人的钱。
+ * 恒等式 `收 = 退 + 扣 + 在账` 在**全量**上必须成立（区间截断会让它不成立，那是正常的），
+ * 所以自检线用全量算，并明确写出来。
+ */
+export function depositReport({ from = '2026-01-01', to = TODAY, communityId = '' } = {}) {
+  const inRange = d => d && d >= from && d <= to
+  const rows = decorationDeposits.filter(d => !communityId || d.communityId === communityId)
+  const typeAgg = new Map()
+  const bump = (type, field, amount) => {
+    const cur = typeAgg.get(type) || { type, count: 0, received: 0, refunded: 0, deducted: 0, balance: 0 }
+    cur[field] = round2(cur[field] + amount)
+    typeAgg.set(type, cur)
+  }
+
+  let received = 0, refunded = 0, deducted = 0, balance = 0
+  for (const d of rows) {
+    const amount = Number(d.amount) || 0
+    const refund = Number(d.refundAmount) || 0
+    const deduct = Number(d.deductAmount) || 0
+    const cur = typeAgg.get(d.type || '未分类') || { type: d.type || '未分类', count: 0, received: 0, refunded: 0, deducted: 0, balance: 0 }
+    cur.count += 1
+    typeAgg.set(d.type || '未分类', cur)
+
+    if (inRange(String(d.paidDate || '').slice(0, 10))) { received = round2(received + amount); bump(d.type, 'received', amount) }
+    if (inRange(String(d.refundDate || '').slice(0, 10))) { refunded = round2(refunded + refund); bump(d.type, 'refunded', refund) }
+    if (deduct > 0 && inRange(String(d.checkDate || '').slice(0, 10))) { deducted = round2(deducted + deduct); bump(d.type, 'deducted', deduct) }
+    /* 时点在账：`to` 之前收的，才可能还在账上 */
+    if (String(d.paidDate || '').slice(0, 10) <= to) {
+      const bal = Number(d.balance) || 0
+      balance = round2(balance + bal)
+      bump(d.type, 'balance', bal)
+    }
+  }
+
+  const allReceived = round2(rows.reduce((s, d) => s + (Number(d.amount) || 0), 0))
+  const allRefunded = round2(rows.reduce((s, d) => s + (Number(d.refundAmount) || 0), 0))
+  const allDeducted = round2(rows.reduce((s, d) => s + (Number(d.deductAmount) || 0), 0))
+  const allBalance = round2(rows.reduce((s, d) => s + (Number(d.balance) || 0), 0))
+
+  return {
+    from, to, communityId,
+    received, refunded, deducted, balance,
+    byType: [...typeAgg.values()].sort((a, b) => b.balance - a.balance),
+    identity: {
+      received: allReceived,
+      refunded: allRefunded,
+      deducted: allDeducted,
+      balance: allBalance,
+      diff: round2(allReceived - allRefunded - allDeducted - allBalance),
+      ok: Math.abs(allReceived - allRefunded - allDeducted - allBalance) <= 0.01
+    }
   }
 }
 

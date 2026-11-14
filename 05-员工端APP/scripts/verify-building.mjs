@@ -2,8 +2,11 @@
  * 楼栋域 HTTP 切换验证（`npm run verify:building`）
  *
  * 验的是「一户一行 + 跳过近 7 天已催」这两个口径真的走通了：
- *   楼栋首页 8 栋 / 28 欠费户 → 催收工作集 14 户（跳过最近催过的）
+ *   楼栋首页 8 栋 / 352 房 / 224 欠费户（¥78,331.96）→ 催收工作集 195 户（跳过最近催过的）
  *   → 批量登记 → 工作集变少
+ *
+ * 这几个数是**契约 fixture 的实况**（2026-11-14 财务三表对齐 PC 后重算的：
+ * 账单 260 → 4884，欠费从 ¥12,093 涨到 ¥78,331.96）。改 fixture 就得回来改这里。
  *
  * ⚠️ 跑之前重启假服务：批量催收会往内存里写记录。
  *
@@ -45,9 +48,9 @@ let t = await bodyText()
 if (calls.some(c => c.includes('/mobile/debts'))) ok('楼栋页走 /mobile/debts')
 else bad('楼栋页没走接口', calls.slice(-3).join(' / '))
 
-/* 汇总：8 栋 / 352 房 / ¥12093.79（契约数据） */
+/* 汇总：8 栋 / 352 房 / ¥78,331.96（契约数据，2026-11-14 对齐 PC 后的值） */
 if (/8\s*栋/.test(t)) ok('汇总栋数 8') ; else bad('栋数不对', t.slice(0, 80))
-if (/12,?093/.test(t)) ok('欠费合计 ¥12,093') ; else bad('欠费合计不对', t.slice(0, 100))
+if (/78,?331/.test(t)) ok('欠费合计 ¥78,331.96') ; else bad('欠费合计不对', t.slice(0, 100))
 
 /* 欠费户卡片 */
 const cards = await page.evaluate(() => document.querySelectorAll('[class*="hh"], [class*="card"]').length)

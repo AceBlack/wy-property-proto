@@ -168,7 +168,7 @@ await page.evaluate(() => {
 await sleep(1600)
 ok(await page.evaluate(() => location.hash.includes('public-revenue')), '点「看台账」跳到公共收益台账')
 
-console.log('\n【六】合同分类：6 个一级主项 + 20 个子类')
+console.log('\n【六】合同分类：6 个一级主项 + 21 个子类')
 
 await open('/c/contracts')
 const typeOpts = await page.evaluate(async () => {

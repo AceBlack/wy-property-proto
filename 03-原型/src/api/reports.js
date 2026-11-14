@@ -54,3 +54,9 @@ export {
  * 恒等式自检随结果一起返回，页面不需要再算一遍。
  */
 export { threeRateReport, incomeExpenseReport } from '@/utils/api'
+
+/* ---------- 报表批（2026-11-14）：减免分析 / 欠费账龄 / 押金在账 ----------
+ * 三张都是**实时算**，与上面两张报表同一条链路（不进跑批）。
+ * 欠费账龄在这里是实时口径，报表中心那张读快照 —— 两处口径说明写在 api.js 里。
+ */
+export { waiveAnalysis, agingReport, depositReport } from '@/utils/api'

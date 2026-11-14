@@ -3,15 +3,17 @@
   "source": "02-原型设计/mock/（seed_dataset.py，SEED 20261021）",
   "dataDate": "2026-10-21",
   "counts": {
-    "owners": 60,
-    "houses": 160,
-    "bills": 252,
-    "payments": 160,
+    "owners": 682,
+    "houses": 756,
+    "bills": 4884,
+    "payments": 3986,
     "workOrders": 120,
     "tenants": 80,
     "inspectTasks": 120,
     "rectifyOrders": 76,
     "qualityChecks": 90
   },
-  "note": "样例数据的真值与原型一致；列表接口由服务端脱敏后再下发，不要在前端脱敏"
+  "note": "样例数据的真值与原型一致；列表接口由服务端脱敏后再下发，不要在前端脱敏",
+  "financeAlignedAt": "2026-11-14",
+  "financeNote": "财务三表（owners / bills / payments）已按 PC 全量对齐；其余表仍是 10-30 裁剪版"
 }

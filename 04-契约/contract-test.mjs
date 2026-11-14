@@ -550,9 +550,22 @@ test('枚举取值与 enums.json 一致', async () => {
   const badPri = wos.data.rows.filter(w => !enums.woPriority.values.includes(w.priority))
   assert(badPri.length === 0, `优先级越界：${badPri.slice(0, 3).map(w => w.priority)}`)
 
+  /* 收款方式：`values` 是可写入的集合，`legacyValues` 是只存在于历史流水的老值
+     （预存抵扣 2026-11 下线）。读接口的返回值两者都合法，写接口只认前者。 */
+  const legacy = enums.payMethod.legacyValues || []
+  const canRead = new Set([...enums.payMethod.values, ...legacy])
   const pays = await call('GET', '/payments', { query: { size: 100 } })
-  const badPay = pays.data.rows.filter(p => !enums.payMethod.values.includes(p.method))
+  const badPay = pays.data.rows.filter(p => !canRead.has(p.method))
   assert(badPay.length === 0, `收款方式越界：${badPay.slice(0, 3).map(p => p.method)}`)
+  /* 但历史值不能再被写进去：拿一张真欠费单试，走的是「方式不合法」而不是「没勾账单」 */
+  const owed = (await call('GET', '/bills', { query: { status: '未缴', size: 1 } })).data.rows[0]
+  assert(owed, '应有一张未缴账单可用于试写')
+  const writePrepay = await call('POST', '/payments/batch', {
+    body: { billIds: [owed.billId], splits: [{ method: '预存抵扣', amount: owed.unpaid }] }
+  })
+  eq(writePrepay.status, 422, '预存抵扣不能新写入')
+  eq(writePrepay.code, 42212, '按参数不合法拒')
+  assert(String(writePrepay.message).includes('不支持'), `说明原因：${writePrepay.message}`)
 })
 
 test('分页：第 2 页与第 1 页不重叠', async () => {
@@ -4335,16 +4348,19 @@ test('临时收费：收款写一条流水（渠道=临时收费、无账单）'
   eq(voidIt.status, 409, '已收款的单据不能作废')
 })
 
-test('临时收费：预存抵扣用不了（不挂房屋），作废必须写原因', async () => {
+test('临时收费：预存抵扣已下线（写接口不认），作废必须写原因', async () => {
   token = await login('gm')
   const pend = (await call('GET', '/temp-charges', { query: { status: '待收款' } })).data.rows
   const one = pend[0]
 
+  /* 2026-11 预存账户体系下线后，这个值只存在于历史流水（PayMethodLegacy），
+     写接口按「不支持的收款方式」拒 —— 不再是当年那条 40928 的业务拒绝 */
   const prepay = await call('POST', `/temp-charges/${one.chargeId}/pay`, {
     body: { splits: [{ method: '预存抵扣', amount: one.amount }] }
   })
-  eq(prepay.status, 409, `预存抵扣被拒（实际 ${prepay.status}）`)
-  assert(String(prepay.message).includes('不挂房屋'), `说明原因：${prepay.message}`)
+  eq(prepay.status, 422, `预存抵扣被拒（实际 ${prepay.status}）`)
+  eq(prepay.code, 42212, '收款方式不合法业务码')
+  assert(String(prepay.message).includes('不支持'), `说明原因：${prepay.message}`)
 
   const noReason = await call('POST', `/temp-charges/${one.chargeId}/void`, { body: {} })
   eq(noReason.status, 422, '不写原因不能作废')
@@ -6530,18 +6546,21 @@ test('账单：已绑房 + 名下不挂房的车位费（只按房过滤会漏�
   eq(all.status, 200, '我的账单')
   assertSchema(all, 'MpBillListEnvelope', 'GET /mp/bills')
 
+  /* 财务三表对齐 PC 之后（2026-11-14）：历史推到 2026-03，车位费也跟着多出来几期。
+     数字变了，但这组断言要钉的东西没变：**车位费不挂房屋，不能按 houseId 过滤**。 */
   const park = all.data.rows.filter(b => !b.houseId)
-  eq(park.length, 3, '董宇名下 3 张车位费（车位不挂房）')
-  eq(all.data.rows.length, 8, '5 张房账 + 3 张车位费')
+  eq(park.length, 6, '董宇名下 6 张车位费（车位不挂房）')
+  eq(all.data.rows.length, 11, '5 张房账 + 6 张车位费')
 
-  /* 关键：只按 houseId 过滤，这个业主一张欠费都查不到，实际欠 120 元 */
+  /* 关键：只按 houseId 过滤，这个业主一张欠费都查不到，实际欠 200 元 */
   const byHouseOnly = all.data.rows.filter(b => b.houseId && b.unpaid > 0)
   eq(byHouseOnly.length, 0, '房账全已缴')
   const debt = await withMp(tok, () => call('GET', '/mp/bills', { query: { onlyDebt: true } }))
-  eq(debt.data.rows.length, 1, '只有那张车位费没缴')
-  eq(debt.data.rows[0].billId, 'BL003544', '未缴的是 2026-10 车位管理服务费')
-  near(debt.data.summary.unpaid, 120, '欠费就是这 120 —— 漏掉车位费就会显示"已缴清"')
-  eq(debt.data.summary.debtCount, 1, '欠费 1 张')
+  eq(debt.data.rows.length, 2, '两张车位费没缴')
+  assert(debt.data.rows.every(b => !b.houseId), '欠的都落在车位上（房账已缴清）')
+  assert(debt.data.rows.map(b => b.billId).includes('BL003544'), '含 2026-10 车位管理服务费')
+  near(debt.data.summary.unpaid, 200, '欠费就是这 200 —— 漏掉车位费就会显示"已缴清"')
+  eq(debt.data.summary.debtCount, 2, '欠费 2 张')
 })
 
 test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async () => {
@@ -6549,9 +6568,10 @@ test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async ()
   eq(houses.length, 2, '梁子轩名下两套房')
 
   const all = await withMp(tok, () => call('GET', '/mp/bills'))
-  eq(all.data.rows.length, 10, '两套房的账单都要在')
+  eq(all.data.rows.length, 13, '两套房的账单都要在')
 
-  /* 多房合并：合计 = 各房小计之和。业主端只负责分组展示，合计由服务端算好 */
+  /* 多房合并：合计 = 各房小计之和 + 名下不挂房的车位费。
+     少加车位那一项，summary 就会小于明细加总 —— 这正是"只按房过滤会漏钱"的另一面。 */
   const byHouse = new Map()
   for (const b of all.data.rows) {
     if (!b.houseId) continue
@@ -6559,10 +6579,13 @@ test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async ()
   }
   eq(byHouse.size, 2, '两个房都有账单')
   const sumHouse = [...byHouse.values()].reduce((s, x) => s + x, 0)
-  near(all.data.summary.unpaid, sumHouse, '合计欠费应等于各房之和')
-  near(all.data.summary.unpaid, 419.22, '101.36（2栋0702）+ 317.86（2栋0801）')
-  eq(all.data.summary.debtCount, 2, '两房各一张欠费')
-  eq(all.data.summary.count, 10, '张数')
+  const sumPark = all.data.rows.filter(b => !b.houseId).reduce((s, b) => s + (b.unpaid || 0), 0)
+  near(all.data.summary.unpaid, sumHouse + sumPark, '合计欠费 = 各房之和 + 车位费')
+  near(sumHouse, 419.22, '101.36（2栋0702）+ 317.86（2栋0801）')
+  near(sumPark, 120, '一张 2026-10 车位费没缴')
+  near(all.data.summary.unpaid, 539.22, '419.22 + 120')
+  eq(all.data.summary.debtCount, 3, '两房各一张 + 车位一张')
+  eq(all.data.summary.count, 13, '张数')
   near(all.data.summary.payable, all.data.rows.reduce((s, b) => s + b.payable, 0), '应收合计 = 明细加总')
 
   /* 账期升序：账单页按它分组，倒序会让"最近一期"排最后 */
@@ -6573,7 +6596,7 @@ test('账单：多房合并 = 各房之和，筛选与 summary 自洽', async ()
   eq(oct.data.periods.length, 1, '只剩一个账期')
 
   const unpaidOnly = await withMp(tok, () => call('GET', '/mp/bills', { query: { status: '未缴' } }))
-  eq(unpaidOnly.data.rows.length, 2, '两张未缴')
+  eq(unpaidOnly.data.rows.length, 3, '两张房账 + 一张车位费未缴')
   assert(unpaidOnly.data.rows.every(b => b.status === '未缴'), '按状态筛选')
 
   /* 按房筛：只能筛自己的房 */
@@ -6900,24 +6923,26 @@ test('账单缴费：多房合并一张单，冲账后欠费归零，已缴清�
 
   const before = await withMp(tok, () => call('GET', '/mp/bills'))
   const ids = before.data.rows.filter(x => x.unpaid > 0).map(x => x.billId)
-  eq(ids.length, 2, '两套房各一张欠费')
+  eq(ids.length, 3, '两张房账 + 一张车位费')
   const total = before.data.summary.unpaid
 
   const pay = await withMp(tok, () => call('POST', '/mp/payments', { body: { type: 'bill', billIds: ids } }))
   eq(pay.status, 200, '合并缴费单')
   eq(pay.data.type, 'bill', '类型')
   eq(pay.data.amount, total, '金额 = 所选账单未收之和')
-  eq(pay.data.lines.length, 2, 'lines 逐条列')
-  /* 合并的是"付款动作"，不是账单本身：lines 必须逐条带 houseId，后台才能按房拆分入账 */
+  eq(pay.data.lines.length, 3, 'lines 逐条列')
+  /* 合并的是"付款动作"，不是账单本身：lines 必须逐条带 houseId，后台才能按房拆分入账；
+     车位费那一行 houseId 为空 —— 它是"名下不挂房"的钱，不能编一个房号出来 */
   for (const line of pay.data.lines) {
-    assert('houseId' in line, 'lines 要带 houseId')
+    assert('houseId' in line, 'lines 要带 houseId（车位费是空串）')
     assert(line.amount > 0, '每条的金额')
   }
-  eq(new Set(pay.data.lines.map(l => l.houseId)).size, 2, '两套房各一条')
+  eq(new Set(pay.data.lines.map(l => l.houseId || '')).size, 3, '两套房 + 车位各一条')
+  eq(pay.data.lines.filter(l => !l.houseId).length, 1, '车位费单独一行，不带房号')
 
   const sim = await withMp(tok, () => call('POST', `/mp/payments/${pay.data.payId}/simulate`))
   eq(sim.status, 200, '模拟支付')
-  eq(sim.data.bills.length, 2, '返回冲账后的账单')
+  eq(sim.data.bills.length, 3, '返回冲账后的账单')
   for (const x of sim.data.bills) {
     eq(x.status, '已缴', `${x.billId} 应为已缴`)
     eq(x.unpaid, 0, `${x.billId} 未收归零`)
@@ -8125,6 +8150,140 @@ test('人脸核验：通过后主体的 faceRegistered 被回写（租客同理�
   const after = await call('GET', `/tenants/${t.tenantId}`)
   eq(before.data.tenant.faceRegistered, false, '通过前是未录人脸')
   eq(after.data.tenant.faceRegistered, true, '通过后租户的人脸标记跟着变 —— 不是页面自己算的')
+})
+
+/* ==================== 报表批（2026-11-14）====================
+ * 三率 / 收支分项这两张此前只有接口没有用例（批 6 漏了），这一组一起补上。
+ * 报表类用例的顺序：**先验恒等式，再验口径** —— 恒等式不成立时，百分比再好看也没意义。
+ */
+
+const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+
+test('三率：恒等式成立，口径自洽（没跑批也能算）', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/three-rate', { query: { from: '2026-08', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'ThreeRateEnvelope', 'GET /reports/three-rate')
+
+  const d = r.data
+  eq(d.from, '2026-08', '回显起始账期')
+  eq(d.periods, 3, '8~10 三期')
+  assert(d.receivable > 0, `应收应大于 0（实际 ${d.receivable}）`)
+
+  /* 自检线：已收 + 减免 + 未收 = 应收 */
+  const sum = d.received + d.waived + d.unpaid
+  assert(Math.abs(sum - d.receivable) < 0.02,
+    `恒等式不成立：${d.received} + ${d.waived} + ${d.unpaid} = ${r2(sum)} ≠ ${d.receivable}`)
+
+  /* 按账期小计加起来必须等于合计，否则页面上的"哪期掉了"就是错的 */
+  const byRcv = r2(d.byPeriod.reduce((s, x) => s + x.receivable, 0))
+  const byPaid = r2(d.byPeriod.reduce((s, x) => s + x.received, 0))
+  assert(Math.abs(byRcv - d.receivable) < 0.02, `按账期应收合计 ${byRcv} ≠ ${d.receivable}`)
+  assert(Math.abs(byPaid - d.received) < 0.02, `按账期已收合计 ${byPaid} ≠ ${d.received}`)
+  eq(d.byPeriod.length, 3, '按账期 3 行')
+
+  /* 项目收窄：P01 的应收必须小于全部项目 */
+  const one = await call('GET', '/reports/three-rate', { query: { from: '2026-08', to: '2026-10', communityId: 'P01' } })
+  eq(one.status, 200, '按项目')
+  assert(one.data.receivable > 0 && one.data.receivable < d.receivable,
+    `P01 应收应收窄（${one.data.receivable} vs ${d.receivable}）`)
+
+  /* 账期倒挂要拦，不能返一张空表让人以为"这个项目没数据" */
+  const bad = await call('GET', '/reports/three-rate', { query: { from: '2026-10', to: '2026-08' } })
+  eq(bad.status, 400, '起止倒挂 400')
+})
+
+test('收支分项：结余 = 收入 − 支出，按月行数 = 期数', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/income-expense', { query: { from: '2026-08', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'IncomeExpenseEnvelope', 'GET /reports/income-expense')
+
+  const d = r.data
+  const inc = r2(d.incomeRows.reduce((s, x) => s + x.amount, 0))
+  const exp = r2(d.expenseRows.reduce((s, x) => s + x.amount, 0))
+  assert(Math.abs(inc - d.incomeTotal) < 0.02, `收入合计 ${d.incomeTotal} 应等于明细加总 ${inc}`)
+  assert(Math.abs(exp - d.expenseTotal) < 0.02, `支出合计 ${d.expenseTotal} 应等于明细加总 ${exp}`)
+  assert(Math.abs(r2(d.incomeTotal - d.expenseTotal) - d.balance) < 0.02, '结余 = 收入 − 支出')
+  eq(d.byMonth.length, 3, '按月 3 行')
+  assert(Math.abs(r2(d.byMonth.reduce((s, x) => s + x.income, 0)) - d.incomeTotal) < 0.02,
+    '按月收入合计应等于总收入')
+})
+
+test('减免分析：按原因汇总不超过总额，历史无原因单列', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/waive-analysis', { query: { from: '2026-01', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'WaiveAnalysisEnvelope', 'GET /reports/waive-analysis')
+
+  const d = r.data
+  const sum = r2(d.reasons.reduce((s, x) => s + x.amount, 0))
+  assert(Math.abs(sum - d.total) < 0.02, `按原因合计 ${sum} 应等于总额 ${d.total}`)
+  assert(d.count >= 0, '笔数不为负')
+  /* 契约数据集没有减免（既没走收银台也没灌种子），所以这里允许是 0；
+     但结构必须在，且占比要么是 0 要么加总 100 —— 不能出现"有金额没占比" */
+  if (d.total > 0) {
+    const share = Math.round(d.reasons.reduce((s, x) => s + x.share, 0) * 10) / 10
+    assert(Math.abs(share - 100) <= 0.5, `占比合计应约等于 100（实际 ${share}）`)
+  }
+  for (const x of d.reasons) {
+    assert(!(x.reasonId === '' && x.name !== '未填原因（历史数据）'),
+      '没有原因的老账必须单列成「未填原因（历史数据）」，不能并进其他')
+  }
+  eq(d.detail.length <= 12, true, '明细最多 12 笔')
+})
+
+test('实时账龄：六档合计 = 总额，档位有序且逾期天数单调', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/aging-live', { query: { communityId: 'P01' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'AgingLiveEnvelope', 'GET /reports/aging-live')
+
+  const d = r.data
+  eq(d.rows.length, 5, '固定五档（与 AgingBucket 枚举一致）')
+  eq(d.rows.map(x => x.bucket).join(','), '未到期,0-30天,31-90天,91-180天,180天以上', '档位顺序固定')
+  const sum = r2(d.rows.reduce((s, x) => s + x.amount, 0))
+  assert(Math.abs(sum - d.total) < 0.02, `五档合计 ${sum} 应等于总额 ${d.total}`)
+  const cnt = d.rows.reduce((s, x) => s + x.count, 0)
+  eq(cnt, d.count, '账单数应等于各档之和')
+
+  /* P01 的欠费与 /bills 口径一致：同一批账单，不可能两个数 */
+  const bills = await call('GET', '/bills', { query: { communityId: 'P01', status: '未缴', size: 1 } })
+  assert(bills.status === 200, '账单列表可用')
+  assert(d.total > 0, `P01 应有欠费（实际 ${d.total}）`)
+
+  /* 催缴按"欠得最久"排，不是按金额排 */
+  for (let i = 1; i < d.oldest.length; i++) {
+    assert(d.oldest[i - 1].overdueDays >= d.oldest[i].overdueDays, '最久 8 笔应按逾期天数倒序')
+  }
+  assert(d.oldest.length <= 8, '最多 8 笔')
+  assert(d.oldest.every(x => x.overdueDays > 0), '未到期的不进"欠得最久"')
+})
+
+test('押金在账：收 = 退 + 扣 + 在账（全量恒等式），期间数不参与自检', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/deposit-ledger', { query: { from: '2026-01-01', to: '2026-12-31' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'DepositLedgerEnvelope', 'GET /reports/deposit-ledger')
+
+  const d = r.data
+  eq(d.identity.ok, true, `恒等式不成立，差 ${d.identity.diff}`)
+  const calc = r2(d.identity.received - d.identity.refunded - d.identity.deducted)
+  assert(Math.abs(calc - d.identity.balance) < 0.02,
+    `收 ${d.identity.received} − 退 ${d.identity.refunded} − 扣 ${d.identity.deducted} ≠ 在账 ${d.identity.balance}`)
+
+  /* 按类型加起来必须等于总计，否则"哪类押金压了多少钱"就是错的 */
+  const byIn = r2(d.byType.reduce((s, x) => s + x.received, 0))
+  assert(Math.abs(byIn - d.received) < 0.02, `按类型收取 ${byIn} ≠ 期间收取 ${d.received}`)
+  const byBal = r2(d.byType.reduce((s, x) => s + x.balance, 0))
+  assert(Math.abs(byBal - d.balance) < 0.02, `按类型在账 ${byBal} ≠ 期末在账 ${d.balance}`)
+
+  /* 押金不是收入：接口不该出现 income 字样，也不该被收支报表算进去 */
+  assert(!('incomeTotal' in d), '押金接口不返回收入合计（那是负债）')
+
+  const bad = await call('GET', '/reports/deposit-ledger', { query: { from: '2026-12-31', to: '2026-01-01' } })
+  eq(bad.status, 200, '区间倒挂不报错（只是期间数全 0），恒等式仍成立')
+  eq(bad.data.identity.ok, true, '倒挂时全量恒等式照样成立')
 })
 
 /* ============================ 跑 ============================ */

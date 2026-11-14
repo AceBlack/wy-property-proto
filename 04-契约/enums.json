@@ -31,31 +31,35 @@
     },
     "payMethod": {
       "values": [
-        "微信支付",
         "现金",
-        "银行代扣",
-        "预存抵扣",
+        "微信支付",
         "支付宝",
-        "POS刷卡"
+        "POS刷卡",
+        "银行代扣"
       ],
       "usedBy": [
         "Payment.method"
       ],
-      "note": "收款方式；现金需日结实点"
+      "note": "收款方式；现金需日结实点；2026-11 预存账户体系下线，`预存抵扣` 只存在于历史流水（读接口用 PayMethodLegacy），写接口不再接受",
+      "legacyValues": [
+        "预存抵扣"
+      ]
     },
     "payChannel": {
       "values": [
-        "微信支付",
         "现金",
-        "银行代扣",
-        "预存抵扣",
+        "微信支付",
         "支付宝",
-        "POS刷卡"
+        "POS刷卡",
+        "银行代扣"
       ],
       "usedBy": [
         "Payment.channel"
       ],
-      "note": "收款渠道；与 method 不强绑定（POS 可刷微信）"
+      "note": "收款渠道；与 method 不强绑定（POS 可刷微信）；2026-11 预存账户体系下线，`预存抵扣` 只存在于历史流水（读接口用 PayMethodLegacy），写接口不再接受",
+      "legacyValues": [
+        "预存抵扣"
+      ]
     },
     "invoiceStatus": {
       "values": [

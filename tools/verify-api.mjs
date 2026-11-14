@@ -75,7 +75,9 @@ for (const proj of projects) {
       /* 只看真接口：以 / 开头，且不是静态资源 */
       if (!method || !raw.startsWith('/')) continue
       if (/\.(png|jpg|svg|css|js)$/.test(raw)) continue
-      const client = toPattern(raw)
+      /* 查询串不参与比对：`?size=100` 会挂在最后一段上，让分段与内容都对不上，
+         于是一条真存在的接口被报成"缺失"（2026-11-14 实际踩到：活动报名） */
+      const client = toPattern(raw.split('?')[0])
       const ok = routes.some(r => r.method === method && matchPattern(client, routePattern(r.path)))
       totalCalls += 1
       if (ok) okCalls += 1

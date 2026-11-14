@@ -6860,9 +6860,11 @@ on('PATCH', '/orgs/{orgId}', (ctx) => {
  *   ③ 一次收款只能针对同一位业主；
  *   ④ **按账单拆流水**：payment 是「一条流水对一张账单」，开票、催缴、账单详情都按这个口径查，
  *      所以按各账单应收比例把 splits 拆开，加起来等于整笔；
- *   ⑤ 契约数据集没有预存账户（fixtures 里没 prepayAccounts），含预存抵扣一律 409/40928。
+ *   ⑤ 收款方式**只认下面这五个**：物业预存账户体系 2026-11 已整体下线
+ *      （业主端取消充值、PC 收银台去掉「预存抵扣」），历史流水里还留着这个值，
+ *      但那属于 `PayMethodLegacy`，只能读不能写。传了按 422/42212 拒。
  */
-const PAY_METHODS = ['现金', '微信支付', '支付宝', 'POS刷卡', '银行代扣', '预存抵扣']
+const PAY_METHODS = ['现金', '微信支付', '支付宝', 'POS刷卡', '银行代扣']
 const PAY_SPLIT_MAX = 3
 let MOCK_PAY_SEQ = payments.reduce((m, p) => Math.max(m, +String(p.payId).replace(/\D/g, '') || 0), 0)
 let MOCK_BATCH_SEQ = 0
@@ -6933,10 +6935,6 @@ on('POST', '/payments/batch', (ctx) => {
 
   const chk = splitCheck(b.splits, received)
   if (!chk.ok) throw new ApiError(422, 42212, chk.msg)
-  if (chk.rows.some(x => x.method === '预存抵扣')) {
-    /* 契约数据集没有 preplyAccounts；真实实现要按房屋查账户、校验余额、扣减并记预存流水 */
-    throw new ApiError(409, 40928, '契约数据集不含预存账户，无法演示预存抵扣')
-  }
 
   const weights = list.map(x => x.unpaid || 0)
   const discParts = []
@@ -7196,10 +7194,6 @@ on('POST', '/temp-charges/{chargeId}/pay', (ctx) => {
   const body = ctx.body || {}
   const chk = splitCheck(body.splits, c.amount)
   if (!chk.ok) throw new ApiError(422, 42212, chk.msg)
-  if (chk.rows.some(x => x.method === '预存抵扣')) {
-    /* 预存账户挂在房屋上，而临时收费的对象可以是外来摊贩（没有房屋） */
-    throw new ApiError(409, 40928, '临时收费不挂房屋，用不了预存抵扣')
-  }
 
   TC_PAY_SEQ += 1
   const pay = {
@@ -12931,6 +12925,7 @@ on('GET', '/reports/three-rate', (ctx) => {
     /* 账单口径下拿不到"归属期 > to"的信息；正式实现从应收矩阵出这两个数 */
     prepayRate: 0, prepayReceived: 0, prepayReceivable: 0,
     clearingAmount: 0,
+    /* 预存抵扣是「账户余额搬家」，不是新进来的钱；这个值只会出现在历史流水里 */
     cashIncome: r2(payments.filter(p => {
       const m = String(p.payTime || '').slice(0, 7)
       return m >= from && m <= to && p.channel !== '预存抵扣'
@@ -13011,6 +13006,174 @@ on('GET', '/reports/income-expense', (ctx) => {
     incomeTotal, expenseTotal, balance: r2(incomeTotal - expenseTotal),
     margin: incomeTotal > 0 ? Math.round((incomeTotal - expenseTotal) / incomeTotal * 10000) / 100 : 0,
     incomeRows, expenseRows, byMonth
+  }
+})
+
+/* ---------- 报表批（2026-11-14）：减免分析 / 实时账龄 / 押金在账 ----------
+ * 三张表与 PC 的经营报表同口径。契约数据集的差别写在每个 handler 里，
+ * 别让联调以为是假服务算错了。
+ */
+
+on('GET', '/reports/waive-analysis', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+
+  /* 契约数据集里没有任何一张带减免的账单（种子只造"已缴"），所以这里一般是空表。
+     正式实现读**减免流水**（一张账单可以分两次减），不是账单上的 discount 累计值。 */
+  const rows = bills.filter(b => (Number(b.discount) || 0) > 0
+    && String(b.period) >= from && String(b.period) <= to
+    && (!cid || b.communityId === cid))
+
+  const total = r2(rows.reduce((s, b) => s + (Number(b.discount) || 0), 0))
+  const byKey = new Map()
+  const periodMap = new Map()
+  for (const b of rows) {
+    const id = b.discountReasonId || ''
+    const key = id || '__none__'
+    const cur = byKey.get(key) || {
+      reasonId: id,
+      name: b.discountReason || '未填原因（历史数据）',
+      type: id ? '个案' : '历史',
+      countInAssess: false,
+      approveAbove: 0,
+      count: 0, amount: 0, overLimit: 0, houseSet: new Set()
+    }
+    cur.count += 1
+    cur.amount = r2(cur.amount + (Number(b.discount) || 0))
+    cur.houseSet.add(b.houseId)
+    byKey.set(key, cur)
+
+    const p = periodMap.get(b.period) || { period: b.period, count: 0, amount: 0 }
+    p.count += 1
+    p.amount = r2(p.amount + (Number(b.discount) || 0))
+    periodMap.set(b.period, p)
+  }
+
+  const reasons = [...byKey.values()]
+    .map(x => ({ ...x, houses: x.houseSet.size, share: total > 0 ? Math.round(x.amount / total * 1000) / 10 : 0 }))
+    .map(({ houseSet, ...rest }) => rest)
+    .sort((a, b) => b.amount - a.amount)
+
+  return {
+    from, to,
+    total,
+    count: rows.length,
+    houses: new Set(rows.map(b => b.houseId)).size,
+    avg: rows.length ? r2(total / rows.length) : 0,
+    overLimitCount: reasons.reduce((s, r) => s + r.overLimit, 0),
+    reasons,
+    byPeriod: [...periodMap.values()].sort((a, b) => String(a.period).localeCompare(String(b.period))),
+    detail: [...rows].sort((a, b) => (Number(b.discount) || 0) - (Number(a.discount) || 0)).slice(0, 12)
+      .map(b => ({
+        houseId: b.houseId, houseName: b.houseName || b.houseId, period: b.period,
+        itemName: b.itemName || '', amount: r2(b.discount),
+        reasonId: b.discountReasonId || '', reasonName: b.discountReason || '未填原因', at: b.payTime || ''
+      }))
+  }
+})
+
+on('GET', '/reports/aging-live', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const q = ctx.query
+  const cid = q.communityId || ''
+  const asOf = String(q.asOf || DATA_DATE).slice(0, 10)
+  const DEBT = new Set(['未缴', '部分缴', '逾期'])
+  /* 与 AgingBucket 枚举一致（5 档）：报表中心 / 员工端账龄筛选 / 这张看板同一套分类 */
+  const BUCKETS = ['未到期', '0-30天', '31-90天', '91-180天', '180天以上']
+  const bucketOf = d => (d <= 0 ? '未到期' : d <= 30 ? '0-30天'
+    : d <= 90 ? '31-90天' : d <= 180 ? '91-180天' : '180天以上')
+
+  const rows = bills.filter(b => DEBT.has(b.status) && (Number(b.unpaid) || 0) > 0
+    && (!cid || b.communityId === cid))
+
+  const agg = new Map(BUCKETS.map(k => [k, { bucket: k, count: 0, amount: 0, houseSet: new Set() }]))
+  const commAgg = new Map()
+  const detail = []
+  for (const b of rows) {
+    const days = Math.floor((new Date(`${asOf}T00:00:00`) - new Date(`${String(b.dueDate).slice(0, 10)}T00:00:00`)) / 86400000)
+    const k = bucketOf(days)
+    const cur = agg.get(k)
+    cur.count += 1
+    cur.amount = r2(cur.amount + (Number(b.unpaid) || 0))
+    cur.houseSet.add(b.houseId)
+
+    const ca = commAgg.get(b.communityId) || { communityId: b.communityId, name: (communities.find(c => c.id === b.communityId) || {}).name || b.communityId, amount: 0, houseSet: new Set() }
+    ca.amount = r2(ca.amount + (Number(b.unpaid) || 0))
+    ca.houseSet.add(b.houseId)
+    commAgg.set(b.communityId, ca)
+
+    detail.push({ billId: b.billId, period: b.period, dueDate: b.dueDate, aging: k, overdueDays: days, unpaid: r2(b.unpaid) })
+  }
+
+  const total = r2([...agg.values()].reduce((s, r) => s + r.amount, 0))
+  return {
+    asOf,
+    total,
+    count: rows.length,
+    houses: new Set(rows.map(b => b.houseId)).size,
+    rows: BUCKETS.map(k => {
+      const r = agg.get(k)
+      return {
+        bucket: k, count: r.count, houses: r.houseSet.size, amount: r.amount,
+        share: total > 0 ? Math.round(r.amount / total * 1000) / 10 : 0
+      }
+    }),
+    byCommunity: [...commAgg.values()]
+      .map(x => ({ communityId: x.communityId, name: x.name, houses: x.houseSet.size, amount: x.amount }))
+      .sort((a, b) => b.amount - a.amount),
+    oldest: detail.filter(d => d.overdueDays > 0).sort((a, b) => b.overdueDays - a.overdueDays).slice(0, 8)
+  }
+})
+
+on('GET', '/reports/deposit-ledger', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const cid = ctx.query.communityId || ''
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM-DD）')
+
+  const rows = DEPOSITS.filter(d => !cid || d.communityId === cid)
+  const inRange = d => d && d >= from && d <= to
+  const typeAgg = new Map()
+  const bump = (type, field, amount) => {
+    const cur = typeAgg.get(type) || { type, count: 0, received: 0, refunded: 0, deducted: 0, balance: 0 }
+    cur[field] = r2(cur[field] + amount)
+    typeAgg.set(type, cur)
+  }
+
+  let received = 0, refunded = 0, deducted = 0, balance = 0
+  for (const d of rows) {
+    const amount = Number(d.amount) || 0
+    const refund = Number(d.refundAmount) || 0
+    const deduct = Number(d.deductAmount) || 0
+    const cur = typeAgg.get(d.type) || { type: d.type, count: 0, received: 0, refunded: 0, deducted: 0, balance: 0 }
+    cur.count += 1
+    typeAgg.set(d.type, cur)
+
+    /* 三个日期各归各的期：收款看 paidDate、退款看 refundDate、扣款看 checkDate */
+    if (inRange(String(d.paidDate || '').slice(0, 10))) { received = r2(received + amount); bump(d.type, 'received', amount) }
+    if (inRange(String(d.refundDate || '').slice(0, 10))) { refunded = r2(refunded + refund); bump(d.type, 'refunded', refund) }
+    if (deduct > 0 && inRange(String(d.checkDate || '').slice(0, 10))) { deducted = r2(deducted + deduct); bump(d.type, 'deducted', deduct) }
+    if (String(d.paidDate || '').slice(0, 10) <= to) {
+      balance = r2(balance + (Number(d.balance) || 0))
+      bump(d.type, 'balance', Number(d.balance) || 0)
+    }
+  }
+
+  const allReceived = r2(rows.reduce((s, d) => s + (Number(d.amount) || 0), 0))
+  const allRefunded = r2(rows.reduce((s, d) => s + (Number(d.refundAmount) || 0), 0))
+  const allDeducted = r2(rows.reduce((s, d) => s + (Number(d.deductAmount) || 0), 0))
+  const allBalance = r2(rows.reduce((s, d) => s + (Number(d.balance) || 0), 0))
+  const diff = r2(allReceived - allRefunded - allDeducted - allBalance)
+
+  return {
+    from, to, received, refunded, deducted, balance,
+    byType: [...typeAgg.values()].sort((a, b) => b.balance - a.balance),
+    identity: {
+      received: allReceived, refunded: allRefunded, deducted: allDeducted, balance: allBalance,
+      diff, ok: Math.abs(diff) <= 0.01
+    }
   }
 })
 

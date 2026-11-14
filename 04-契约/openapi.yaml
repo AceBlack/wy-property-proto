@@ -806,7 +806,7 @@ paths:
         - $ref: '#/components/parameters/kw'
         - name: method
           in: query
-          schema: { $ref: '#/components/schemas/PayMethod' }
+          schema: { $ref: '#/components/schemas/PayMethodLegacy' }
         - name: channel
           in: query
           schema: { type: string }
@@ -862,16 +862,19 @@ paths:
       operationId: payBills
       summary: 收银台收款（含组合支付）
       description: |
-        **一个事务四件事**：写流水（每条账单一条，带 `splits`）→ 账单销账 →
-        预存账户扣减 → 记预存流水。后端别拆开做 —— 拆开就会出现「扣了余额但没销账」
-        或「销了账但日结查不到这笔钱」。
+        **一个事务两件事**：写流水（每条账单一条，带 `splits`）→ 账单销账。
+        后端别拆开做 —— 拆开就会出现「销了账但日结查不到这笔钱」。
+
+        > 2026-11 起**物业预存账户整体下线**（业主端取消充值、PC 收银台去掉「预存抵扣」），
+        > 这一笔事务里不再有「扣预存余额 / 记预存流水」。历史流水照常可查，
+        > 读接口用 `PayMethodLegacy`，写接口只认 `PayMethod`。
 
         规则：
         - 一次收款只能针对**同一位业主**，不同业主请分开收；
         - 最多 **3 种**收款方式，同一种方式只能一行；
         - 各方式金额合计必须等于 `应缴 − 减免`，差一分都返回 422/42212；
         - 账单已不是欠费状态返回 409/40926；
-        - 预存抵扣按**账单所属房屋**扣账户余额，余额不足 422/42213；
+        - 收款方式只接受 现金 / 微信支付 / 支付宝 / POS刷卡 / 银行代扣（`预存抵扣` 已下线，传了 422/42212）；
         - 减免按各账单应缴比例分摊，记在账单的 `discount` 上（不并进 `paidAmount`，
           否则「减免了多少」事后查不出来）。
       requestBody:
@@ -902,7 +905,7 @@ paths:
                         items:
                           type: object
                           properties:
-                            method: { $ref: '#/components/schemas/PayMethod' }
+                            method: { $ref: '#/components/schemas/PayMethodLegacy' }
                             amount: { type: number }
                       payments:
                         type: array
@@ -5583,7 +5586,7 @@ paths:
         - $ref: '#/components/parameters/unitId'
         - name: method
           in: query
-          schema: { $ref: '#/components/schemas/PayMethod' }
+          schema: { $ref: '#/components/schemas/PayMethodLegacy' }
         - name: channel
           in: query
           schema: { type: string }
@@ -10761,8 +10764,9 @@ paths:
         收款写一条 `payments`：`billId` 为空、`tempChargeId` 指回单据、`channel='临时收费'`。
         日结按方式汇总时能看到这笔钱，开票池也能拿它开票。
 
-        **预存抵扣用不了**（409/40928）：预存账户挂在房屋上，而临时收费的对象可以是
-        外来摊贩 —— 没有房屋。不给选比"选了之后金额填不进去"好。
+        **预存抵扣已下线**：预存账户挂在房屋上，而临时收费的对象可以是外来摊贩 ——
+        根本没有房屋可扣；何况预存体系本身在 2026-11 已整体停用。收款方式里不再出现它，
+        硬传按 422/42212 拒。
       parameters:
         - name: chargeId
           in: path
@@ -11703,6 +11707,110 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/waive-analysis:
+    get:
+      tags: [reports]
+      operationId: getWaiveAnalysis
+      summary: 减免分析（按原因汇总）
+      description: |
+        回答一个经营问题：**让出去的钱，是政策性让的，还是差错改出来的？**
+
+        口径：
+        - 金额取自**减免流水**，不是账单的 `discount` 累计值 —— 一张账单可能分两次减免，
+          按账单汇总会把两笔算成一笔；
+        - 早年没有登记原因的老账单列「未填原因（历史数据）」，**不并进「其他」**：
+          并进去就把"没登记"洗成了"登记了其他"；
+        - `overLimit` = 单笔超过该原因免审额度的笔数，用来发现超权减免。
+
+        > 契约数据集没有灌减免原因（账单 `discount` 全为 0），返回空表是正常现象；
+        > 正式环境由收银台写入。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaiveAnalysisEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/aging-live:
+    get:
+      tags: [reports]
+      operationId: getAgingLive
+      summary: 欠费账龄（实时口径）
+      description: |
+        与 `/reports/arrears`（读跑批快照）**分档边界一致、取数方式不同**：
+        这个实时算，`asOf` 缺省取服务端当日；报表中心那张同一个 `statDate` 反复看数字不变，能对账。
+        两个页面的数在"当天刚发生收款/核销"时会差一点，这是设计如此，不是错。
+
+        分档：未到期 / 1-30天 / 31-60天 / 61-90天 / 91-180天 / 180天以上。
+      parameters:
+        - $ref: '#/components/parameters/communityId'
+        - name: asOf
+          in: query
+          description: 统计日（缺省当日）。账龄 = asOf − dueDate
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgingLiveEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/deposit-ledger:
+    get:
+      tags: [reports]
+      operationId: getDepositLedgerReport
+      summary: 押金在账（期间发生额 + 时点余额）
+      description: |
+        押金是**负债**（LIA_DEPOSIT）：收进来不是收入、退出去不是支出，只有扣款转收入。
+        所以这张表分两段：
+        - **期间发生额**：区间内收 / 退 / 扣转收入（各按自己的日期归期：paidDate / refundDate / checkDate）；
+        - **时点在账**：截至 `to` 账上还有多少钱是别人的。
+
+        恒等式 `收 = 退 + 扣 + 在账` 在**全量**上必须成立；区间截断后四个数不必相等，
+        所以 `identity` 用全量算，不要拿区间数去对。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/communityId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepositLedgerEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /manual-entries:
     get:
       tags: [expenses]
@@ -12613,7 +12721,7 @@ components:
           items:
             type: object
             properties:
-              method: { $ref: '#/components/schemas/PayMethod' }
+              method: { $ref: '#/components/schemas/PayMethodLegacy' }
               amount: { type: number }
         payTime: { type: string }
         payId: { type: string, description: 收款后写的流水号 }
@@ -12963,6 +13071,16 @@ components:
 
     PayMethod:
       type: string
+      description: |
+        收款方式（**可写入的集合**）。2026-11 起 `预存抵扣` 已下线：业主端预存账户
+        体系整体取消、PC 收银台也去掉了这一项，收款接口不再接受，传了按 422/42212 拒。
+      enum: [现金, 微信支付, 支付宝, POS刷卡, 银行代扣]
+    PayMethodLegacy:
+      type: string
+      description: |
+        历史流水的收款方式，比可写入的多一个 `预存抵扣`。
+        **只用于读**：2026-11 之前产生的流水里有这个值，不能因为下线就查不出来。
+        新收款不要用它做校验，用 `PayMethod`。
       enum: [现金, 微信支付, 支付宝, POS刷卡, 银行代扣, 预存抵扣]
     InvoiceStatus:
       type: string
@@ -13317,7 +13435,7 @@ components:
           items:
             type: object
             properties:
-              method: { $ref: '#/components/schemas/PayMethod' }
+              method: { $ref: '#/components/schemas/PayMethodLegacy' }
               amount: { type: number }
         splitCount: { type: integer, description: 派生：有几种方式 }
         batchNo: { type: string, description: 收款批次号，一次收款的多条流水共用 }
@@ -13345,7 +13463,7 @@ components:
         communityName: { type: string }
         communityId: { type: string }
         amount: { type: number }
-        method: { $ref: '#/components/schemas/PayMethod' }
+        method: { $ref: '#/components/schemas/PayMethodLegacy' }
         channel: { type: string }
         transNo: { type: string }
         operator: { type: string }
@@ -14859,7 +14977,7 @@ components:
           example: 运维服务
         subtype:
           type: string
-          description: 子类（20 个，由一级主项决定可选范围）
+          description: 子类（21 个，由一级主项决定可选范围；服务外包走「采购协议 / 服务采购」）
           example: 电梯维保
         communityId: { type: string, description: 空 = 集团层面（不挂项目） }
         communityName: { type: string, description: 服务端带出，别让前端拿 id 猜 }
@@ -19382,6 +19500,152 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/IncomeExpense' }
+
+    WaiveAnalysis:
+      type: object
+      description: 减免分析。金额来自减免流水，不取账单 discount 累计值。
+      required: [from, to, total, count, reasons]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        total: { type: number }
+        count: { type: integer, description: 减免笔数（一张账单分两次减算两笔） }
+        houses: { type: integer }
+        avg: { type: number, description: 单笔均值 }
+        overLimitCount: { type: integer, description: 超过该原因免审额度的笔数 }
+        reasons:
+          type: array
+          items:
+            type: object
+            properties:
+              reasonId: { type: string, description: 空 = 历史数据未登记原因 }
+              name: { type: string }
+              type: { type: string, description: 政策性 / 个案 / 差错 / 历史 }
+              countInAssess: { type: boolean, description: 是否计入考核 }
+              approveAbove: { type: number, description: 免审额度；0 表示没有额度线 }
+              count: { type: integer }
+              houses: { type: integer }
+              amount: { type: number }
+              share: { type: number, description: 占比，百分数 }
+              overLimit: { type: integer }
+        byPeriod:
+          type: array
+          items:
+            type: object
+            properties:
+              period: { type: string }
+              count: { type: integer }
+              amount: { type: number }
+        detail:
+          type: array
+          description: 金额最大的前 12 笔
+          items:
+            type: object
+            properties:
+              houseId: { type: string }
+              houseName: { type: string }
+              period: { type: string }
+              itemName: { type: string }
+              amount: { type: number }
+              reasonId: { type: string }
+              reasonName: { type: string }
+              at: { type: string }
+
+    WaiveAnalysisEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/WaiveAnalysis' }
+
+    AgingLive:
+      type: object
+      description: 实时账龄。分档与 /reports/arrears 一致，但这里不读快照。
+      required: [asOf, total, count, rows]
+      properties:
+        asOf: { type: string, format: date }
+        total: { type: number }
+        count: { type: integer, description: 欠费账单数 }
+        houses: { type: integer }
+        rows:
+          type: array
+          description: 固定 5 档（与 AgingBucket 枚举一致），顺序 未到期 → 0-30天 → 31-90天 → 91-180天 → 180天以上
+          items:
+            type: object
+            properties:
+              bucket: { type: string }
+              count: { type: integer }
+              houses: { type: integer }
+              amount: { type: number }
+              share: { type: number }
+        byCommunity:
+          type: array
+          items:
+            type: object
+            properties:
+              communityId: { type: string }
+              name: { type: string }
+              houses: { type: integer }
+              amount: { type: number }
+        oldest:
+          type: array
+          description: 欠得最久的 8 笔（催缴从这张表往下打）
+          items:
+            type: object
+            properties:
+              billId: { type: string }
+              period: { type: string }
+              dueDate: { type: string, format: date }
+              aging: { $ref: '#/components/schemas/AgingBucket' }
+              overdueDays: { type: integer }
+              unpaid: { type: number }
+
+    AgingLiveEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/AgingLive' }
+
+    DepositLedger:
+      type: object
+      description: 押金在账。收 = 退 + 扣 + 在账（identity 用全量算）。
+      required: [from, to, received, refunded, deducted, balance, identity]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        received: { type: number, description: 期间收取（paidDate 在区间内） }
+        refunded: { type: number, description: 期间退还（refundDate 在区间内） }
+        deducted: { type: number, description: 期间扣转收入（checkDate 在区间内） }
+        balance: { type: number, description: 截至 to 的在账余额 }
+        byType:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              count: { type: integer }
+              received: { type: number }
+              refunded: { type: number }
+              deducted: { type: number }
+              balance: { type: number }
+        identity:
+          type: object
+          description: 全量恒等式：收 = 退 + 扣 + 在账
+          properties:
+            received: { type: number }
+            refunded: { type: number }
+            deducted: { type: number }
+            balance: { type: number }
+            diff: { type: number }
+            ok: { type: boolean }
+
+    DepositLedgerEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DepositLedger' }
 
     ManualEntry:
       type: object

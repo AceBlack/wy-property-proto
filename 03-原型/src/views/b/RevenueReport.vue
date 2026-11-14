@@ -260,6 +260,228 @@
           </el-table>
         </div>
       </el-tab-pane>
+
+      <!-- ============ 减免分析 ============ -->
+      <el-tab-pane label="减免分析" name="waive">
+        <div class="grid" style="margin-top:12px;grid-template-columns:repeat(5,minmax(0,1fr));">
+          <div class="panel rsum" data-card="w-total">
+            <div class="rsum__l">减免总额</div>
+            <div class="rsum__v">¥ {{ wan(waive.total) }}</div>
+            <div class="rsum__s">{{ waive.reasons.length }} 个原因</div>
+          </div>
+          <div class="panel rsum" data-card="w-count">
+            <div class="rsum__l">笔数</div>
+            <div class="rsum__v">{{ waive.count }}<span class="unit">笔</span></div>
+            <div class="rsum__s">一张账单分两次减 = 两笔</div>
+          </div>
+          <div class="panel rsum" data-card="w-houses">
+            <div class="rsum__l">涉及户数</div>
+            <div class="rsum__v">{{ waive.houses }}<span class="unit">户</span></div>
+            <div class="rsum__s">占应收户数的 {{ houseShare }}%</div>
+          </div>
+          <div class="panel rsum" data-card="w-avg">
+            <div class="rsum__l">单笔均值</div>
+            <div class="rsum__v">¥ {{ money(waive.avg) }}</div>
+            <div class="rsum__s">看是否有"一笔抹掉"的异常</div>
+          </div>
+          <div class="panel rsum" data-card="w-over">
+            <div class="rsum__l">超免审额度</div>
+            <div class="rsum__v" :class="waive.overLimitCount > 0 ? 'money--out' : ''">{{ waive.overLimitCount }}<span class="unit">笔</span></div>
+            <div class="rsum__s">超过该原因的审批线，必须有依据</div>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:16px;grid-template-columns:1.4fr 1fr;">
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;">
+              <h4>按原因</h4>
+              <span class="desc">政策性让的，还是差错改出来的 —— 两者的钱一样多，性质不一样</span>
+            </div>
+            <el-table :data="waive.reasons" size="small" max-height="360">
+              <el-table-column label="原因" min-width="150">
+                <template #default="{ row }">
+                  <div class="nowrap">{{ row.name }}</div>
+                  <div class="ps-sub">{{ row.type }}<template v-if="row.countInAssess"> · 计入考核</template></div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="count" label="笔数" width="70" align="right" />
+              <el-table-column label="金额" width="130" align="right">
+                <template #default="{ row }"><span class="num money--out">¥{{ money(row.amount) }}</span></template>
+              </el-table-column>
+              <el-table-column label="占比" width="90" align="right">
+                <template #default="{ row }">
+                  <div class="rbar">
+                    <i :style="{ width: Math.max(2, row.share) + '%' }" />
+                    <span>{{ row.share }}%</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="超额度" width="80" align="right">
+                <template #default="{ row }">
+                  <span :class="{ 'money--out': row.overLimit > 0 }">{{ row.overLimit || '—' }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;"><h4>按账期</h4><span class="desc">哪一期放宽了口子</span></div>
+            <el-table :data="waive.byPeriod" size="small" max-height="360">
+              <el-table-column prop="period" label="账期" width="96" />
+              <el-table-column prop="count" label="笔数" width="70" align="right" />
+              <el-table-column label="金额" min-width="110" align="right">
+                <template #default="{ row }"><span class="num money--out">¥{{ money(row.amount) }}</span></template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="sec__hd" style="margin:0 0 10px;">
+            <h4>金额最大的 {{ waive.detail.length }} 笔</h4>
+            <span class="desc">逐笔查在账单页；这里只看"哪几笔最贵"</span>
+          </div>
+          <el-table :data="waive.detail" size="small" max-height="320">
+            <el-table-column prop="houseName" label="房屋" min-width="170" />
+            <el-table-column prop="period" label="账期" width="90" />
+            <el-table-column prop="itemName" label="科目" width="130" />
+            <el-table-column prop="reasonName" label="原因" width="120" />
+            <el-table-column label="金额" width="110" align="right">
+              <template #default="{ row }"><span class="num money--out">¥{{ money(row.amount) }}</span></template>
+            </el-table-column>
+            <el-table-column prop="at" label="时间" width="130" />
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <!-- ============ 欠费与账龄 ============ -->
+      <el-tab-pane label="欠费与账龄" name="aging">
+        <div class="panel aging-bar" style="margin-top:12px;">
+          <div class="aging-bar__hd">
+            <span>截至 <b>{{ aging.asOf }}</b> · 共 <b>{{ aging.count }}</b> 张 / <b>{{ aging.houses }}</b> 户 / <b>¥{{ money(aging.total) }}</b></span>
+            <span class="desc">与「报表中心 · 欠费账龄」同分档，但这里是<b>实时</b>算；那边读跑批快照，同一 statDate 反复看不会变</span>
+          </div>
+          <div class="aging-bar__bars">
+            <div v-for="r in aging.rows" :key="r.bucket" class="aging-seg" :data-bucket="r.bucket">
+              <div class="aging-seg__t">{{ r.bucket }}</div>
+              <div class="aging-seg__v">¥{{ wan(r.amount) }}</div>
+              <div class="aging-seg__p">{{ r.share }}% · {{ r.houses }} 户</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:16px;grid-template-columns:1.3fr 1fr;">
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;">
+              <h4>分档明细</h4>
+              <span class="desc">90 天以上收不回来，基本就是坏账</span>
+            </div>
+            <el-table :data="aging.rows" size="small" max-height="320">
+              <el-table-column prop="bucket" label="账龄" width="110" />
+              <el-table-column prop="count" label="账单数" width="86" align="right" />
+              <el-table-column prop="houses" label="户数" width="76" align="right" />
+              <el-table-column label="金额" width="130" align="right">
+                <template #default="{ row }"><span class="num" :class="{ 'money--out': isBadAging(row.bucket) }">¥{{ money(row.amount) }}</span></template>
+              </el-table-column>
+              <el-table-column label="占比" min-width="130">
+                <template #default="{ row }">
+                  <div class="rbar">
+                    <i :style="{ width: Math.max(2, row.share) + '%' }" :class="{ 'is-low': isBadAging(row.bucket) }" />
+                    <span>{{ row.share }}%</span>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div class="panel">
+            <div class="sec__hd" style="margin:0 0 10px;"><h4>按项目</h4><span class="desc">三个项目谁欠得最多</span></div>
+            <el-table :data="aging.byCommunity" size="small" max-height="320">
+              <el-table-column prop="name" label="项目" min-width="110" />
+              <el-table-column prop="houses" label="户数" width="76" align="right" />
+              <el-table-column label="欠费" min-width="120" align="right">
+                <template #default="{ row }"><span class="num money--out">¥{{ money(row.amount) }}</span></template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="sec__hd" style="margin:0 0 10px;">
+            <h4>欠得最久的 8 笔</h4>
+            <span class="desc">催缴从这里往下打，不是从金额最大的往下打</span>
+          </div>
+          <el-table :data="aging.oldest" size="small" max-height="300">
+            <el-table-column prop="billId" label="账单号" width="120" />
+            <el-table-column prop="period" label="账期" width="90" />
+            <el-table-column prop="dueDate" label="到期日" width="110" />
+            <el-table-column prop="aging" label="账龄" width="100" />
+            <el-table-column prop="overdueDays" label="逾期天数" width="96" align="right" />
+            <el-table-column label="欠费" min-width="110" align="right">
+              <template #default="{ row }"><span class="num money--out">¥{{ money(row.unpaid) }}</span></template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <!-- ============ 押金在账 ============ -->
+      <el-tab-pane label="押金在账" name="deposit">
+        <div class="grid" style="margin-top:12px;grid-template-columns:repeat(4,minmax(0,1fr));">
+          <div class="panel rsum" data-card="d-in">
+            <div class="rsum__l">期间收取</div>
+            <div class="rsum__v">¥ {{ wan(depo.received) }}</div>
+            <div class="rsum__s">收进来是负债，不是收入</div>
+          </div>
+          <div class="panel rsum" data-card="d-out">
+            <div class="rsum__l">期间退还</div>
+            <div class="rsum__v">¥ {{ wan(depo.refunded) }}</div>
+            <div class="rsum__s">按退款日归期</div>
+          </div>
+          <div class="panel rsum" data-card="d-cut">
+            <div class="rsum__l">扣转收入</div>
+            <div class="rsum__v">¥ {{ wan(depo.deducted) }}</div>
+            <div class="rsum__s">只有这一段是公司的钱</div>
+          </div>
+          <div class="panel rsum" data-card="d-bal">
+            <div class="rsum__l">期末在账</div>
+            <div class="rsum__v">¥ {{ wan(depo.balance) }}</div>
+            <div class="rsum__s">截至 {{ depo.to }}，别人的钱</div>
+          </div>
+        </div>
+
+        <div class="check" :class="depo.identity.ok ? 'is-ok' : 'is-bad'">
+          <b>{{ depo.identity.ok ? '✓ 台账恒等式成立（全量）' : '✗ 有押金去向不明，台账不能用' }}</b>
+          <span>
+            收 ¥{{ money(depo.identity.received) }} = 退 ¥{{ money(depo.identity.refunded) }}
+            + 扣 ¥{{ money(depo.identity.deducted) }} + 在账 ¥{{ money(depo.identity.balance) }}
+            <template v-if="!depo.identity.ok">（差 ¥{{ money(depo.identity.diff) }}）</template>
+            <template v-else>；区间截断后上面四个数不必相等，所以自检用全量算</template>
+          </span>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="sec__hd" style="margin:0 0 10px;">
+            <h4>按押金类型</h4>
+            <span class="desc">五类押金各自沉淀多少，清退时要按类型对账</span>
+          </div>
+          <el-table :data="depo.byType" size="small" max-height="380">
+            <el-table-column prop="type" label="类型" min-width="130" />
+            <el-table-column prop="count" label="笔数" width="76" align="right" />
+            <el-table-column label="期间收取" width="120" align="right">
+              <template #default="{ row }"><span class="num">¥{{ money(row.received) }}</span></template>
+            </el-table-column>
+            <el-table-column label="期间退还" width="120" align="right">
+              <template #default="{ row }"><span class="num">¥{{ money(row.refunded) }}</span></template>
+            </el-table-column>
+            <el-table-column label="扣转收入" width="110" align="right">
+              <template #default="{ row }"><span class="num">{{ row.deducted ? '¥' + money(row.deducted) : '—' }}</span></template>
+            </el-table-column>
+            <el-table-column label="在账余额" width="130" align="right">
+              <template #default="{ row }"><span class="num money">¥{{ money(row.balance) }}</span></template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
     </el-tabs>
 
     <div class="legal">
@@ -280,7 +502,10 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { communityOpts, feeItemRows, incomeExpenseReport, threeRateReport } from '@/api'
+import {
+  agingReport, communityOpts, depositReport, feeItemRows, incomeExpenseReport,
+  threeRateReport, waiveAnalysis
+} from '@/api'
 import { exportList } from '@/utils/export'
 import { money, wan } from '@/utils/format'
 
@@ -319,6 +544,45 @@ const pl = computed(() => {
   }
 })
 
+/* 减免分析：与三率同区间，口径见 api.js 的 waiveAnalysis */
+const waive = computed(() => {
+  try {
+    return waiveAnalysis({ from: from.value, to: to.value, communityId: communityId.value })
+  } catch (e) {
+    return { total: 0, count: 0, houses: 0, avg: 0, overLimitCount: 0, reasons: [], byPeriod: [], detail: [], error: e?.message }
+  }
+})
+
+/* 账龄：实时口径，不接账期筛选 —— 它看的是"此刻欠了多久"，与统计区间无关 */
+const aging = computed(() => {
+  try {
+    return agingReport({ communityId: communityId.value })
+  } catch (e) {
+    return { asOf: '', total: 0, count: 0, houses: 0, rows: [], byCommunity: [], oldest: [], error: e?.message }
+  }
+})
+
+/* 押金：账期区间转成日期区间（收/退/扣各按自己的日期归期） */
+const endOfMonth = p => {
+  const [y, m] = String(p).split('-').map(Number)
+  const d = new Date(y, m, 0)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const depo = computed(() => {
+  try {
+    return depositReport({ from: `${from.value}-01`, to: endOfMonth(to.value), communityId: communityId.value })
+  } catch (e) {
+    return { from: '', to: '', received: 0, refunded: 0, deducted: 0, balance: 0, byType: [], identity: { ok: true, diff: 0, received: 0, refunded: 0, deducted: 0, balance: 0 }, error: e?.message }
+  }
+})
+
+const houseShare = computed(() => {
+  const base = rate.value.houses || 0
+  return base > 0 ? Math.round(waive.value.houses / base * 1000) / 10 : 0
+})
+/* 91 天以上都标红：过了 90 天还没收回来，基本就是坏账 */
+const isBadAging = b => b === '91-180天' || b === '180天以上'
+
 const rowRate = r => {
   const base = r.receivable - r.waived
   return base > 0 ? Math.round(r.received / base * 1000) / 10 : 0
@@ -334,6 +598,45 @@ const monthPct = r => {
 }
 
 function onExport() {
+  if (tab.value === 'waive') {
+    exportList({
+      name: `减免分析 ${from.value}_${to.value}`, source: '/b/revenue-report',
+      columns: [
+        { prop: 'name', label: '减免原因' }, { prop: 'type', label: '性质' },
+        { prop: 'count', label: '笔数' }, { prop: 'amount', label: '金额' },
+        { prop: 'share', label: '占比%' }, { prop: 'overLimit', label: '超免审额度笔数' }
+      ],
+      rows: waive.value.reasons,
+      filters: { from: from.value, to: to.value, communityId: communityId.value }
+    })
+    return
+  }
+  if (tab.value === 'aging') {
+    exportList({
+      name: `欠费账龄 ${aging.value.asOf}`, source: '/b/revenue-report',
+      columns: [
+        { prop: 'bucket', label: '账龄' }, { prop: 'count', label: '账单数' },
+        { prop: 'houses', label: '户数' }, { prop: 'amount', label: '金额' },
+        { prop: 'share', label: '占比%' }
+      ],
+      rows: aging.value.rows,
+      filters: { communityId: communityId.value, asOf: aging.value.asOf }
+    })
+    return
+  }
+  if (tab.value === 'deposit') {
+    exportList({
+      name: `押金在账 ${from.value}_${to.value}`, source: '/b/revenue-report',
+      columns: [
+        { prop: 'type', label: '押金类型' }, { prop: 'count', label: '笔数' },
+        { prop: 'received', label: '期间收取' }, { prop: 'refunded', label: '期间退还' },
+        { prop: 'deducted', label: '扣转收入' }, { prop: 'balance', label: '在账余额' }
+      ],
+      rows: depo.value.byType,
+      filters: { from: from.value, to: to.value, communityId: communityId.value }
+    })
+    return
+  }
   if (tab.value === 'rate') {
     exportList({
       name: `三率报表 ${from.value}_${to.value}`, source: '/b/revenue-report',
@@ -381,6 +684,26 @@ function onExport() {
 }
 .rbar i.is-low { background: var(--biz-danger); }
 .rbar span { flex: 0 0 44px; text-align: right; font-family: var(--biz-font-num); font-size: 12px; color: var(--biz-text-3); }
+
+.aging-bar__hd {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--biz-text-2); margin-bottom: 12px;
+}
+.aging-bar__hd .desc { font-size: 12px; color: var(--biz-text-3); }
+.aging-bar__bars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.aging-seg {
+  padding: 10px 12px; border-radius: 10px; background: #f7f9fc;
+  border: 1px solid var(--biz-border-light);
+}
+.aging-seg__t { font-size: 12px; color: var(--biz-text-3); }
+.aging-seg__v { font-family: var(--biz-font-num); font-size: 16px; font-weight: 600; margin: 2px 0; }
+.aging-seg__p { font-size: 11.5px; color: var(--biz-text-3); }
+.aging-seg[data-bucket="91-180天"], .aging-seg[data-bucket="180天以上"] {
+  background: #fff5f5; border-color: #f5c2c2;
+}
+.aging-seg[data-bucket="91-180天"] .aging-seg__v, .aging-seg[data-bucket="180天以上"] .aging-seg__v {
+  color: #a33;
+}
 
 .legal {
   margin-top: 14px; padding: 12px 16px; border-radius: 10px;
