@@ -20177,73 +20177,11 @@ export function createPrepayCollect({
 
 export const prepayCollectRows = () => PREPAY_COLLECTS.map(c => ({ ...c }))
 
-/**
- * 减免演示种子（2026-11-14 · 报表批）
- * ------------------------------------------------------------
- * 数据集里**一张带减免的账单都没有**，减免分析会全是 0 —— 分不清"没人减免"和"功能没做"。
- * 这里给 2026-08~10 的已缴账单补一批减免，同时**等额扣掉 paidAmount**：
- * 账单必须继续满足 `payable = paidAmount + discount`，否则减免就成了凭空多出来的一笔钱。
- *
- * 三条规则：
- *   ① 选哪些：已缴 + 月度收费项 + 账期在 08~10，按 billId 排序后**固定取模**（不随机）；
- *   ② 免多少：按原因定比例（差错纠正 5% / 协商 15% / 困难户 30% 封顶 200 / 其他 8%），
- *      算出来不足 20 元的不记 —— 为了 3 块钱走一遍减免审批不合常理；
- *   ③ 记原因：`discountReasonId` + `discountReason` 落到账单上，矩阵种子会带进流水，
- *      报表才分得出「政策性」和「差错纠正」。
- *
- * 固定规则 = 每次刷新同一张账单的减免额一样，验收脚本才敢断言。
- * **正式上线后这段不存在**：减免全部来自收银台那一刻选的原因。
- */
-const WAIVE_SEED_REASONS = [
-  { reasonId: 'WR03', pct: 0.05, cap: 0 },      /* 差错纠正：小额、笔数最多 */
-  { reasonId: 'WR04', pct: 0.15, cap: 500 },    /* 协商减免：投诉补偿 */
-  { reasonId: 'WR02', pct: 0.30, cap: 200 },    /* 困难户：比例高但封顶 */
-  { reasonId: 'WR05', pct: 0.08, cap: 0 }       /* 其他 */
-]
-
-function _seedWaives() {
-  const SEED_PERIODS = new Set(['2026-08', '2026-09', '2026-10'])
-  const monthlyItems = new Set(feeItems
-    .filter(i => ['按面积', '按车位', '按户'].includes(i.calcType) && i.cycle === '月')
-    .map(i => i.itemId))
-  const paid = bills
-    .filter(b => b.houseId && b.status === '已缴' && SEED_PERIODS.has(b.period)
-      && monthlyItems.has(b.itemId) && (Number(b.paidAmount) || 0) > 0 && !(Number(b.discount) > 0))
-    .sort((a, b) => String(a.billId).localeCompare(String(b.billId)))
-
-  let i = 0
-  for (const b of paid) {
-    /* 每 17 张挑一张：太少看不出分布，太多会把收缴率拉低到不像真的 */
-    if (i++ % 17 !== 5) continue
-    const cfg = WAIVE_SEED_REASONS[i % WAIVE_SEED_REASONS.length]
-    const base = Number(b.payable) || Number(b.amount) || 0
-    let amount = round2(base * cfg.pct)
-    if (cfg.cap) amount = Math.min(amount, cfg.cap)
-    if (amount < 20) continue
-    const paidNow = round2((Number(b.paidAmount) || 0) - amount)
-    if (paidNow < 0) continue
-    const reason = waiveReasons.find(r => r.reasonId === cfg.reasonId) || {}
-    b.discount = amount
-    b.discountReasonId = cfg.reasonId
-    b.discountReason = reason.name || ''
-    b.paidAmount = paidNow
-    b._waiveSeed = true
-  }
-
-  /* 再补两笔**超过免审额度**的：困难户减免的审批线是 1000 元，
-     报表上的「超额度」列如果永远是空的，这个功能就等于没做。
-     挑已缴金额够大的账单（否则减免 1200 会超过实收），固定取前两笔。 */
-  const big = paid.filter(b => !b._waiveSeed && (Number(b.paidAmount) || 0) >= 1500)
-  for (const b of big.slice(0, 2)) {
-    const reason = waiveReasons.find(r => r.reasonId === 'WR02') || {}
-    b.discount = 1200
-    b.discountReasonId = 'WR02'
-    b.discountReason = reason.name || ''
-    b.paidAmount = round2((Number(b.paidAmount) || 0) - 1200)
-    b._waiveSeed = true
-    b._waiveOverLimit = true
-  }
-}
+/* 2026-11-14：减免种子从「运行时注入」改成「写进数据」。
+   原来这个位置有个 `_seedWaives()`，在内存里给账单挂 discount —— 而 04 的 fixture 是静态投影，
+   于是接口模式下减免分析是空表；补投影后两侧又各自实现一遍抽样规则，算出两个数
+   （原型 8,855.72 / 89 笔 vs 契约 8,918.38 / 90 笔）。
+   现在只留 `03-原型/scripts/gen-waive-seeds.mjs` 一处生成，规则见脚本头部。 */
 
 /**
  * 把历史账单的实收/减免灌进矩阵 —— 否则刚上线时矩阵"已收"全为 0，
@@ -20279,8 +20217,8 @@ function _seedMatrixFromBills() {
       })
     }
   }
-}
-_seedWaives()      /* 先补减免，矩阵种子才会把它带成 waive 流水 */
+}/* 减免种子已经**落进数据文件**（scripts/gen-waive-seeds.mjs → 03/02 mock 的 bills.json），
+   这里不再运行时注入：一处生成、三方（03 / 02 / 04 fixture）同源，报表才不会有"两个数" */
 _seedMatrixFromBills()
 
 /**

@@ -1290,7 +1290,8 @@ node scripts/gen-finance-fixtures.mjs --only=bills.json
 第三条最容易漏：`/mp/bills` 与 06 的 `myBills` 都排除了 `已作废`，PC（03）与 05 的列表不过滤。
 
 减免种子方面：`discount` / `discountReasonId` / `discountReason` 由
-`scripts/gen-waive-seeds.mjs` 投影（90 笔），规则照抄 03 的 `_seedWaives()`。
+由 `03-原型/scripts/gen-waive-seeds.mjs` 写进种子文件后投影过来（89 笔 / ¥8,855.73），
+规则只此一处 —— 04 原来那份 `gen-waive-seeds.mjs` 已删除，避免两边各算一遍。
 **重跑 `gen-finance-fixtures.mjs --only=bills.json` 会把这些字段冲掉**，因为它按现有 key
 白名单投影，而这三个字段本来不在白名单里 —— 顺序是：先重投影账单，再跑减免种子。
 

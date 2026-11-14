@@ -53,7 +53,7 @@ const num = s => {
 const wanNum = t => { const m = String(t).match(/¥\s*(-?[\d.]+)\s*万/); return m ? Number(m[1]) * 10000 : 0 }
 
 /* 卡片上的金额有两种写法：上千用「万」，小钱直接显示元。
-   只看一种会漏 —— 减免总额 8,856 就既没有万也没有小数 */
+   只看一种会漏 —— 减免总额 8,855.73 就既没有万也没有小数 */
 const anyNum = t => {
   const str = String(t)
   const wan = str.match(/¥\s*(-?[\d,]+(?:\.\d+)?)\s*万/)

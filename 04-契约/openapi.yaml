@@ -13656,6 +13656,10 @@ components:
         price: { type: number }
         amount: { type: number, description: 应收金额（未计减免） }
         discount: { type: number }
+        discountReasonId:
+          type: string
+          description: 减免原因码（来自 /waive-reasons 字典）。空 = 早年未登记原因的老账
+        discountReason: { type: string, description: 原因名称快照，报表按它分组 }
         lateFee: { type: number }
         payable: { type: number, description: 应收 = 已收 + 未收 }
         paidAmount: { type: number }
