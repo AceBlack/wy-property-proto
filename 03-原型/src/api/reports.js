@@ -63,3 +63,6 @@ export { waiveAnalysis, agingReport, depositReport, budgetVsActual } from '@/uti
 
 /* 客户三张表批（2026-11-14）：经营日报 —— 科目 × 日 + 收款点 + 日结差额 */
 export { dailyRevenueReport, PAY_POINTS } from '@/utils/api'
+
+/* 公司级多项目并排（2026-11-15）：客户月报表 1 的形状 */
+export { companyReport } from '@/utils/api'

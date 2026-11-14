@@ -8718,6 +8718,61 @@ test('经营日报：三段合计自洽，日结差额恒为 0，收款点覆盖
   eq(bad1.status, 400, 'month 必填')
 })
 
+test('公司月报：多项目并排，合计的率是重算的不是加总', async () => {
+  token = await login('gm')
+  const r = await call('GET', '/reports/company', { query: { from: '2026-08', to: '2026-10' } })
+  eq(r.status, 200, 'HTTP 状态')
+  assertSchema(r, 'CompanyReportEnvelope', 'GET /reports/company')
+
+  const d = r.data
+  assert(d.rows.length >= 2, `至少两个项目（实际 ${d.rows.length}）`)
+  eq(d.allocated, false, '明示未摊管理费用')
+  assert(String(d.note).includes('重算'), '口径说明要跟着响应走，别让前端自己编')
+
+  /* 金额列：合计 = 各行相加 */
+  const sum = k => r2(d.rows.reduce((a, x) => a + (Number(x[k]) || 0), 0))
+  near(d.totals.income, sum('income'), '合计收入 = 各行相加')
+  near(d.totals.expense, sum('expense'), '合计支出 = 各行相加')
+  near(d.totals.receivable, sum('receivable'), '合计应收 = 各行相加')
+
+  /* 率：必须重算，不能加总也不能取平均 */
+  const base = r2(d.totals.receivable - d.totals.waived)
+  near(d.totals.collectionRate, Math.round(d.totals.received / base * 10000) / 100, '合计收缴率 = 合计已收 ÷ 合计应实收')
+  const withRate = d.rows.filter(x => x.collectionRate != null)
+  if (withRate.length >= 2) {
+    const naive = Math.round(withRate.reduce((a, x) => a + x.collectionRate, 0) / withRate.length * 100) / 100
+    assert(Math.abs(d.totals.collectionRate - naive) > 0.01,
+      `合计收缴率不该等于各行平均（${d.totals.collectionRate} vs ${naive}）—— 分母不同，率不能加`)
+  }
+
+  /* 结余 = 收入 − 支出，逐行成立 */
+  near(d.totals.balance, r2(d.totals.income - d.totals.expense), '合计结余')
+  for (const x of d.rows) {
+    near(x.balance, r2(x.income - x.expense), `${x.name} 的结余 = 收入 − 支出`)
+  }
+
+  /* 分用途：全是商业的项目住宅率为 null —— 那是数据实况，不是缺字段 */
+  const allBiz = d.rows.find(x => x.houseRate === null && (x.bizRate || 0) > 0)
+  if (allBiz) {
+    assert(true, `${allBiz.name} 全商业，住宅率为 null（不是漏数）`)
+  }
+  /* 住宅 + 公寓合并后重算：有住宅率的项目，率必须落在 0~100 */
+  for (const x of d.rows.filter(v => v.houseRate != null)) {
+    assert(x.houseRate >= 0 && x.houseRate <= 100, `${x.name} 住宅收费率越界：${x.houseRate}`)
+  }
+
+  /* 合计的分用途率也是重算的，不是各行相加 */
+  if (d.totals.houseRate != null) {
+    const hrcv = r2(d.rows.reduce((a, x) => a + (Number(x.houseReceivable) || 0), 0))
+    const hgot = r2(d.rows.reduce((a, x) => a + (Number(x.houseReceived) || 0), 0))
+    const hwv = r2(d.rows.reduce((a, x) => a + (Number(x.houseWaived) || 0), 0))
+    near(d.totals.houseRate, Math.round(hgot / (hrcv - hwv) * 10000) / 100, '合计住宅率是重算的')
+  }
+
+  const badBird = await call('GET', '/reports/company', { query: { from: '2026-10', to: '2026-08' } })
+  eq(badBird.status, 400, '起止倒挂 400')
+})
+
 test('收款点与收款方式：流水与押金都带得出来', async () => {
   token = await login('gm')
 

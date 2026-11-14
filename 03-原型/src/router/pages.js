@@ -108,6 +108,10 @@ export const PAGES = [
   { path: '/b/revenue-report', name: 'RevenueReport', title: '经营报表', group: 'b', status: 'done', icon: 'TrendCharts',
     desc: '三率（收缴/欠费/预缴）· 清欠 · 收支分项 · 结余',
     component: () => import('@/views/b/RevenueReport.vue') },
+  /* 客户三张表批（2026-11-15）：公司级多项目并排 —— 客户月报的第一张表就是这个形状 */
+  { path: '/b/company-report', name: 'CompanyReport', title: '公司月报', group: 'b', status: 'done', icon: 'DataAnalysis',
+    desc: '多项目并排 · 收缴率 / 收支 / 结余 · 不摊总部费用',
+    component: () => import('@/views/b/CompanyReport.vue') },
   { path: '/b/expense-collect', name: 'ExpenseCollect', title: '支出归集', group: 'b', status: 'done', icon: 'PieChart',
     desc: '报销 / 工资 / 合同摊 / 补录 四源合一 · 按分类与来源拆开',
     component: () => import('@/views/b/ExpenseCollect.vue') },

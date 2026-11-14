@@ -58,5 +58,29 @@
     "enabled": true,
     "sort": 50,
     "desc": "车位 / 场地 / 商铺出租收取，通常为 1~3 个月租金；退租验收后退还，可扣欠费与损坏"
+  },
+  {
+    "typeId": "DT06",
+    "name": "电卡押金",
+    "standardAmount": 30,
+    "needDates": false,
+    "needCheck": false,
+    "allowPartial": false,
+    "byQuantity": true,
+    "enabled": true,
+    "sort": 60,
+    "desc": "按张收取，退卡时凭卡退押金、无需验收；卡丢失或损坏按工本费扣款，扣完不退"
+  },
+  {
+    "typeId": "DT07",
+    "name": "交房保证金",
+    "standardAmount": 0,
+    "needDates": false,
+    "needCheck": true,
+    "allowPartial": true,
+    "byQuantity": false,
+    "enabled": true,
+    "sort": 70,
+    "desc": "业主收房时按合同/面积收取，装修完成验房后退还；与装修押金分开：这笔担保的是「按图施工、不违建」，不是施工期间的损坏"
   }
 ]

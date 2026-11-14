@@ -13454,6 +13454,86 @@ function incomeExpenseOf(from, to, cid) {
   }
 }
 
+/* ---------- 公司经营月报（2026-11-15 · 多项目并排） ----------
+ * 客户线下月报的第一张表就是这个形状。假服务里按 03 的同一套口径算一遍：
+ *   · 收缴率按 itemId（物业费），收支是全科目 —— 两列不是一套数；
+ *   · 合计的率**重算**，不是各行相加；
+ *   · 不摊管理费用（系统没有分摊能力，不给假数）。
+ */
+on('GET', '/reports/company', (ctx) => {
+  assertInScope(ctx.user, ctx.query)
+  const { from, to } = ctx.query
+  const itemId = ctx.query.itemId || 'FI01'
+  if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
+  if (String(from) > String(to)) throw bad('开始账期不能晚于结束账期')
+
+  const usageOf = hid => (HOUSE.get(hid) || {}).usage || '未分类'
+  const pool = bills.filter(b => b.itemId === itemId && b.status !== '已作废'
+    && String(b.period) >= from && String(b.period) <= to)
+
+  const rows = communities.map(c => {
+    const cid = c.communityId
+    const pl = incomeExpenseOf(from, to, cid)
+    const list = pool.filter(b => b.communityId === cid)
+    const tot = (arr, k) => r2(arr.reduce((a, b) => a + (Number(b[k]) || 0), 0))
+
+    const rcv = tot(list, 'amount')
+    const got = tot(list, 'paidAmount')
+    const wv = tot(list, 'discount')
+    const base = r2(rcv - wv)
+
+    /* 住宅 + 公寓合并，商业单列 —— 客户只有"住宅 / 商铺"两列 */
+    const agg = usages => {
+      const hit = list.filter(b => usages.includes(usageOf(b.houseId)))
+      return { rcv: tot(hit, 'amount'), got: tot(hit, 'paidAmount'), wv: tot(hit, 'discount') }
+    }
+    const rateOf = x => (x.rcv - x.wv) > 0 ? Math.round(x.got / (x.rcv - x.wv) * 10000) / 100 : null
+    const resi = agg(['住宅', '公寓'])
+    const biz = agg(['商业'])
+
+    return {
+      communityId: cid, name: c.name, manager: c.manager || '', houses: c.houseCount || 0,
+      receivable: rcv, received: got, waived: wv,
+      collectionRate: base > 0 ? Math.round(got / base * 10000) / 100 : null,
+      houseRate: rateOf(resi), bizRate: rateOf(biz),
+      houseReceivable: resi.rcv, houseReceived: resi.got, houseWaived: resi.wv,
+      bizReceivable: biz.rcv, bizReceived: biz.got, bizWaived: biz.wv,
+      income: pl.incomeTotal, expense: pl.expenseTotal, balance: pl.balance,
+      margin: pl.incomeTotal > 0 ? Math.round(pl.balance / pl.incomeTotal * 10000) / 100 : 0,
+      hasRate: list.length > 0,
+      active: pl.incomeTotal > 0 || pl.expenseTotal > 0
+    }
+  }).sort((a, b) => b.income - a.income)
+
+  const sum = k => r2(rows.reduce((a, r) => a + (Number(r[k]) || 0), 0))
+  const rateOfSum = (rcv, got, wv) => (rcv - wv) > 0 ? Math.round(got / (rcv - wv) * 10000) / 100 : null
+  const tIncome = sum('income')
+  const tExpense = sum('expense')
+  const tBalance = r2(tIncome - tExpense)
+  const item = serviceItems.find(i => i.itemId === itemId)
+
+  return {
+    from, to,
+    months: monthsBetween(from, to),
+    itemId,
+    itemName: item ? item.name : '',
+    rows,
+    totals: {
+      name: '合计', manager: '',
+      houses: rows.reduce((a, r) => a + (Number(r.houses) || 0), 0),
+      receivable: sum('receivable'), received: sum('received'), waived: sum('waived'),
+      collectionRate: rateOfSum(sum('receivable'), sum('received'), sum('waived')),
+      houseRate: rateOfSum(sum('houseReceivable'), sum('houseReceived'), sum('houseWaived')),
+      bizRate: rateOfSum(sum('bizReceivable'), sum('bizReceived'), sum('bizWaived')),
+      income: tIncome, expense: tExpense, balance: tBalance,
+      margin: tIncome > 0 ? Math.round(tBalance / tIncome * 10000) / 100 : 0,
+      hasRate: true, active: true
+    },
+    note: '收缴率按「' + (item ? item.name : itemId) + '」算，收入/支出是全部科目；合计的率是重算的，不是各行相加',
+    allocated: false
+  }
+})
+
 const BUDGETS = readJson('fixtures/budgets.json')
 
 on('GET', '/reports/budget-vs-actual', (ctx) => {
@@ -14029,9 +14109,15 @@ const DEPOSIT_TYPES = [
   { typeId: 'DT02', name: '门禁卡押金', standardAmount: 50, needDates: false, needCheck: false, allowPartial: false, byQuantity: true, enabled: true, sort: 20, desc: '按张收取，退卡即退' },
   { typeId: 'DT03', name: '非机动车牌押金', standardAmount: 20, needDates: false, needCheck: false, allowPartial: false, byQuantity: true, enabled: true, sort: 30, desc: '按牌收取' },
   { typeId: 'DT04', name: '履约保证金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 40, desc: '供应商履约担保，合同期满退还' },
-  { typeId: 'DT05', name: '租约押金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 50, desc: '车位 / 场地 / 商铺出租收取' }
+  { typeId: 'DT05', name: '租约押金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 50, desc: '车位 / 场地 / 商铺出租收取' },
+  /* 2026-11-15 补两类：客户实际在收这两个钱，字典里没有的话，收银台开不出单、
+     台账归不了类、日报也看不到。这是业务配置，跟"版式不照抄"是两件事。 */
+  { typeId: 'DT06', name: '电卡押金', standardAmount: 30, needDates: false, needCheck: false, allowPartial: false, byQuantity: true, enabled: true, sort: 60, desc: '按张收取，退卡即退；卡丢失或损坏按工本费扣款' },
+  { typeId: 'DT07', name: '交房保证金', standardAmount: 0, needDates: false, needCheck: true, allowPartial: true, byQuantity: false, enabled: true, sort: 70, desc: '业主收房时按合同/面积收取，验房后退还；担保「按图施工、不违建」' }
 ]
-let DT_SEQ = DEPOSIT_TYPES.length
+/* 接在**最大 id** 后面，不接 length：删过一条再建，length 会小于最大编号，就撞号了
+   （押金台账那边已经踩过同一个坑，见 DP_SEQ） */
+let DT_SEQ = DEPOSIT_TYPES.reduce((m, t) => Math.max(m, Number(String(t.typeId).replace(/\D/g, '')) || 0), 0)
 
 /* 押金样例：2026-11-14 起改为投影 03 的真实台账（352 条），不再现场造。
  * 造数据那版只有 12 条：报表算出来的在账余额与真实台账无关，分页/筛选也翻不出边界。

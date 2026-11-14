@@ -21851,6 +21851,122 @@ export function budgetVsActual({ from = '2026-01', to = periodOf(), communityId 
   }
 }
 
+/**
+ * 公司经营月报：多项目并排（2026-11-15）。
+ *
+ * 客户线下月报的第一张表就是「8 个项目 × 收入/支出/管理费用/税金/利润 + 住宅收费率 + 商铺收费率」。
+ * 系统里所有报表都是单项目（communityId 筛选），缺一个**横向对比**的视角 ——
+ * 老板要看的不是"翡翠城这个月怎么样"，是"三个项目谁在拖后腿"。
+ *
+ * 三条口径必须先说清，否则这张表会被读错：
+ *   ① **两列不是一套数**：收缴率按物业费（itemId）算，收入/支出是全部科目。
+ *      客户表里也是这么放的（收费率只对物业费有意义），但并排放着容易误读，所以页面上写明。
+ *   ② **合计的率要重算，不能加总**：三个项目各 80% 不等于合计 80%（分母不同）。
+ *   ③ **不摊管理费用**：客户表里的「管理费用」是总部摊过来的，系统还没有分摊能力，
+ *      所以这里只列项目自身的收支。等分摊做完再补那一列 —— 不摊，总比摊一个假数好。
+ */
+export function companyReport({ from = '2026-01', to = periodOf(), itemId = 'FI01' } = {}) {
+  const periods = monthRange(from, to)
+  if (!periods.length) throw new Error('开始账期不能晚于结束账期')
+
+  const item = feeItems.find(i => i.itemId === itemId)
+
+  const rows = communities.map(c => {
+    const cid = c.communityId
+    const pl = incomeExpenseReport({ from, to, communityId: cid })
+    /* 三率对单个项目可能算不出来（没有房屋 / 该科目不适用），不能因为一个项目
+       把整张公司报表带崩 —— 那种情况下这一行只显示收支 */
+    let rate = null
+    try {
+      rate = threeRateReport({ from, to, communityId: cid, itemId })
+    } catch (e) {
+      rate = null
+    }
+    /* 客户是「住宅收费率 / 商铺收费率」两列分开看的，我们数据有三档（住宅 / 公寓 / 商业）。
+       公寓并进住宅：它和住宅一样是居住属性，只是单价不同 —— 但**合并要重算率，不能取平均**。
+       星光天地全是商业，所以它的"住宅"列是空的，那不是缺数据。 */
+    const byU = (rate && rate.byUsage) ? rate.byUsage : []
+    const agg = usages => {
+      const hit = byU.filter(u => usages.includes(u.usage))
+      return {
+        receivable: _e2(hit.reduce((s2, u) => s2 + u.receivable, 0)),
+        received: _e2(hit.reduce((s2, u) => s2 + u.received, 0)),
+        waived: _e2(hit.reduce((s2, u) => s2 + u.waived, 0))
+      }
+    }
+    const rateOf = x => (x.receivable - x.waived) > 0
+      ? Math.round(x.received / (x.receivable - x.waived) * 10000) / 100
+      : null
+    const resi = agg(['住宅', '公寓'])
+    const biz = agg(['商业'])
+    const margin = pl.incomeTotal > 0 ? Math.round(pl.balance / pl.incomeTotal * 10000) / 100 : 0
+
+    return {
+      communityId: cid,
+      name: c.name,
+      manager: c.manager || '',
+      houses: c.houseCount || 0,
+      /* 物业费口径 */
+      receivable: rate ? rate.receivable : 0,
+      received: rate ? rate.received : 0,
+      waived: rate ? rate.waived : 0,
+      collectionRate: rate ? rate.collectionRate : null,
+      houseRate: rateOf(resi),
+      bizRate: rateOf(biz),
+      houseReceivable: resi.receivable, houseReceived: resi.received, houseWaived: resi.waived,
+      bizReceivable: biz.receivable, bizReceived: biz.received, bizWaived: biz.waived,
+      /* 全科目前口径 */
+      income: pl.incomeTotal,
+      expense: pl.expenseTotal,
+      balance: pl.balance,
+      margin,
+      hasRate: !!rate,
+      active: pl.incomeTotal > 0 || pl.expenseTotal > 0
+    }
+  }).sort((a, b) => b.income - a.income)
+
+  const sum = k => _e2(rows.reduce((s2, r) => s2 + (Number(r[k]) || 0), 0))
+  const tReceivable = sum('receivable')
+  const tReceived = sum('received')
+  const tWaived = sum('waived')
+  const tIncome = sum('income')
+  const tExpense = sum('expense')
+  const tBalance = _e2(tIncome - tExpense)
+  /* 率的合计必须重算：三个 80% 加起来是 240%，不是 80%（分母不同）。
+     分用途同理 —— 各项目住宅的应收/已收加起来再算率。 */
+  const rateOfSum = (rcv, got, wv) => (rcv - wv) > 0 ? Math.round(got / (rcv - wv) * 10000) / 100 : null
+
+  const totals = {
+    name: '合计',
+    manager: '',
+    houses: rows.reduce((s2, r) => s2 + (Number(r.houses) || 0), 0),
+    receivable: tReceivable,
+    received: tReceived,
+    waived: tWaived,
+    collectionRate: rateOfSum(tReceivable, tReceived, tWaived),
+    houseRate: rateOfSum(sum('houseReceivable'), sum('houseReceived'), sum('houseWaived')),
+    bizRate: rateOfSum(sum('bizReceivable'), sum('bizReceived'), sum('bizWaived')),
+    income: tIncome,
+    expense: tExpense,
+    balance: tBalance,
+    margin: tIncome > 0 ? Math.round(tBalance / tIncome * 10000) / 100 : 0,
+    active: true
+  }
+
+  return {
+    from, to,
+    months: periods.length,
+    itemId,
+    itemName: item ? item.name : '',
+    rows,
+    totals,
+    /* 页面直接展示，别让看的人自己猜这两列是不是一套数 */
+    note: '收缴率按「' + (item ? item.name : itemId) + '」算，收入/支出是全部科目；合计的率是重算的，不是各行相加',
+    /* 客户表里的「管理费用」是总部摊过来的，系统还没分摊能力 */
+    allocated: false
+  }
+}
+
 /** 临时收费的原始数组（内部只读用）。写成函数是为了避免顶层 TDZ：
     TEMP_CHARGES 声明在文件中部，这里的代码在模块初始化时不会立即取它 */
 function TEMP_CHARGES_LIST() {

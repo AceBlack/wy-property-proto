@@ -12073,6 +12073,48 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/company:
+    get:
+      tags: [reports]
+      operationId: getCompanyReport
+      summary: 公司经营月报（多项目并排）
+      description: |
+        客户线下月报的第一张表就是这个形状：项目 × 收入 / 支出 / 结余 + 住宅收费率 + 商铺收费率。
+        单项目报表回答"这个项目怎么样"，这一张回答"谁在拖后腿"。
+
+        三处口径必须先说清：
+
+        - **两列不是一套数**：`collectionRate` 按 `itemId`（物业费）算，`income` / `expense` 是全部科目。
+          客户表里也是这么放的，但并排放着容易误读 —— 响应里的 `note` 直接给页面展示。
+        - **合计的率是重算的**，不是各行相加：三个项目各 80% 不等于合计 80%（分母不同）。
+        - **不摊管理费用**：客户表里的「管理费用」是总部摊过来的，系统还没有分摊能力，
+          所以只列项目自身收支，`allocated=false` 明示。
+
+        `houseRate` 是**住宅 + 公寓**合并后重算的率（客户只有"住宅 / 商铺"两列，
+        公寓并进住宅更贴近他的看法）；星光天地全是商业，它的 `houseRate` 为 null 不是缺数据。
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+        - name: itemId
+          in: query
+          description: 收缴率按哪个收费项算，缺省 FI01（物业费）
+          schema: { type: string, default: FI01 }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanyReportEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /reports/budget-vs-actual:
     get:
       tags: [reports]
@@ -20228,6 +20270,57 @@ components:
         categoryName: { type: string, description: 从分类字典带出，方便报表直接显示 }
         monthBudget: { type: number, description: 月度金额；区间预算 = 它 × 月数 }
         note: { type: string, description: 编制依据，月底要能解释为什么是这个数 }
+
+    CompanyRow:
+      type: object
+      description: 一个项目的经营结果。率可能是 null（该项目没有这类房屋）
+      properties:
+        communityId: { type: string }
+        name: { type: string }
+        manager: { type: string }
+        houses: { type: integer }
+        receivable: { type: number, description: 应收（按 itemId） }
+        received: { type: number }
+        waived: { type: number }
+        collectionRate: { type: number, nullable: true, description: 已收 ÷ (应收 − 减免) }
+        houseRate: { type: number, nullable: true, description: 住宅 + 公寓合并重算 }
+        bizRate: { type: number, nullable: true }
+        income: { type: number, description: 全部科目收入 }
+        expense: { type: number, description: 全部科目支出（不含分摊的管理费用） }
+        balance: { type: number }
+        margin: { type: number, description: 结余率，百分数 }
+        hasRate: { type: boolean, description: 该项目三率是否算得出来 }
+        active: { type: boolean, description: 区间内有收支 }
+
+    CompanyReport:
+      type: object
+      required: [from, to, rows, totals]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        months: { type: integer }
+        itemId: { type: string }
+        itemName: { type: string }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/CompanyRow' }
+        totals:
+          allOf:
+            - $ref: '#/components/schemas/CompanyRow'
+          description: |
+            合计行。**率是重算的**（分母相加再相除），不是各行相加；
+            客户看到的"合计收缴率"必须是重算值，加总会得出 >100% 的数。
+        note: { type: string, description: 直接给页面展示的口径说明 }
+        allocated:
+          type: boolean
+          description: 是否包含分摊的管理费用。false = 未摊（系统还没有分摊能力）
+
+    CompanyReportEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/CompanyReport' }
 
     BudgetRow:
       type: object

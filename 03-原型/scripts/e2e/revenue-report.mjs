@@ -462,7 +462,47 @@ ok(/日结差额全月为 0/.test(drChk2), '按项目筛选后差额仍为 0', d
 const drK2 = await kpis()
 ok(drK2.some(x => x.includes('收入')), '按项目仍有收入卡')
 
-console.log('\n【十一】控制台')
+console.log('\n【十一】公司月报：多项目并排')
+
+await page.goto(BASE + '/', { waitUntil: 'networkidle2' })
+await page.evaluate(() => localStorage.setItem('wy_proto_role', 'R-GM'))
+await page.goto(`${BASE}/?t=${Date.now()}#/b/company-report`, { waitUntil: 'networkidle2' })
+await sleep(3400)
+
+const crK = await kpis()
+for (const t of ['收入合计', '支出合计', '结余', '合计收缴率']) {
+  ok(crK.some(x => x.includes(t)), `有「${t}」卡`)
+}
+ok(crK.some(x => /不摊总部|不摊/.test(x)), '支出卡写明「不摊总部管理费用」')
+
+const crNote = await txt('.sec__hd .desc')
+ok(/重算/.test(crNote), '写明合计的率是重算的，不是各行相加', crNote.slice(0, 70))
+
+const crRows = await page.evaluate(() => {
+  const t = document.querySelector('.el-table')
+  if (!t) return []
+  return [...t.querySelectorAll('.el-table__body-wrapper tr')].map(tr => {
+    const tds = [...tr.querySelectorAll('td')].map(td => td.innerText.trim())
+    return { cls: tr.className.replace(/el-table__row/g, '').trim(), name: (tds[0] || '').split('\n')[0], cells: tds }
+  })
+})
+ok(crRows.length >= 3, '至少两个项目 + 合计行', `${crRows.length} 行`)
+const crTotal = crRows.find(r => /cr-total/.test(r.cls))
+ok(!!crTotal, '有合计行（高亮）')
+
+/* 自己加一遍：合计收入 = 各项目收入之和（从表格文本里抠） */
+const crNum = t => Number(String(t).replace(/[¥,−\s]/g, '')) || 0
+const crProjects = crRows.filter(r => !/cr-total/.test(r.cls))
+const crIncIdx = 7   // 项目 | 应收 | 已收 | 收缴率 | 住宅 | 商业 | 收入 | 支出 | 结余 | 结余率
+const crSumInc = Math.round(crProjects.reduce((s2, r) => s2 + crNum(r.cells[crIncIdx]), 0) * 100) / 100
+const crTotInc = crTotal ? crNum(crTotal.cells[crIncIdx]) : 0
+ok(Math.abs(crSumInc - crTotInc) < 1, '合计收入 = 各项目相加', `${crSumInc} vs ${crTotInc}`)
+
+ok(crProjects.some(r => /%/.test(r.cells[3] || '')), '每个项目都有收缴率')
+ok(crProjects.every(r => r.cells.length >= 10), '列数齐（含收支与结余）')
+
+await page.screenshot({ path: 'screenshots/round10/06-公司月报.png' })
+console.log('\n【十二】控制台')
 ok(errs.length === 0, '零 console 错误', errs.slice(0, 2).join(' | '))
 
 await b.close()
