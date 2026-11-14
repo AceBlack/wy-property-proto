@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>费用分摊 · 口径确认单（第 1 份）</title>
+<!-- 由 02-原型设计/口径确认单-01-费用分摊.md 生成；改内容请改 md 后重新排版 -->
+<style>
+  :root{
+    --ink:#1c2530; --ink-2:#4a5967; --ink-3:#7d8b99;
+    --line:#d8dee5; --line-2:#eaeef2;
+    --navy:#1f3a5f; --navy-soft:#f2f5f9;
+    --warn:#8c5a1f; --warn-bg:#fdf6ec;
+    --paper:#fff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#eef1f4;}
+  body{
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,sans-serif;
+    color:var(--ink); font-size:14px; line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    width:820px; margin:28px auto; background:var(--paper);
+    padding:46px 56px 54px;
+    box-shadow:0 2px 18px rgba(28,37,48,.10);
+  }
+  /* ---------- 页眉 ---------- */
+  .doc-head{border-bottom:2px solid var(--navy); padding-bottom:14px; margin-bottom:6px;}
+  .doc-kicker{
+    font-size:11px; letter-spacing:.22em; color:var(--navy);
+    font-weight:600; margin-bottom:8px;
+  }
+  h1{
+    font-family:"Songti SC","STSong",Georgia,serif;
+    font-size:27px; font-weight:700; margin:0 0 12px; letter-spacing:.02em;
+  }
+  .meta{
+    display:flex; gap:22px; flex-wrap:wrap;
+    font-size:12px; color:var(--ink-2);
+  }
+  .meta b{font-weight:600; color:var(--ink);}
+  .meta .badge{
+    background:var(--navy); color:#fff; padding:1px 9px; border-radius:2px;
+    font-size:11px; letter-spacing:.06em;
+  }
+  .note-line{
+    font-size:12px; color:var(--ink-3); margin:10px 0 0;
+  }
+  /* ---------- 章节 ---------- */
+  section{margin-top:30px;}
+  h2{
+    font-family:"Songti SC","STSong",Georgia,serif;
+    font-size:17px; font-weight:700; margin:0 0 12px;
+    padding-left:0; display:flex; align-items:baseline; gap:10px;
+  }
+  h2 .no{
+    font-family:Georgia,serif; font-size:12px; color:#fff; background:var(--navy);
+    width:20px; height:20px; line-height:20px; text-align:center;
+    border-radius:50%; flex:none; font-weight:600; letter-spacing:0;
+    transform:translateY(-1px);
+  }
+  p{margin:0 0 10px;}
+  .lead{color:var(--ink-2);}
+  strong{font-weight:600;}
+  em{font-style:normal; background:linear-gradient(transparent 62%, #ffe9a8 62%);}
+  /* ---------- 勾选块 ---------- */
+  .options{list-style:none; margin:14px 0; padding:0;}
+  .options li{
+    position:relative; padding:11px 14px 11px 40px; margin-bottom:8px;
+    border:1px solid var(--line); border-radius:3px; background:#fcfdfe;
+    font-size:13.5px; line-height:1.6;
+  }
+  .options li .box{
+    position:absolute; left:14px; top:13px;
+    width:15px; height:15px; border:1.5px solid var(--ink-3); border-radius:2px;
+    background:#fff;
+  }
+  .options li.multi{padding-left:15px; background:#fff; border-style:dashed;}
+  .options li .jump{
+    display:inline-block; margin-left:6px; color:var(--navy);
+    font-size:12px; white-space:nowrap;
+  }
+  /* ---------- 表格 ---------- */
+  table{border-collapse:collapse; width:100%; font-size:13px; margin:14px 0;}
+  th,td{border-bottom:1px solid var(--line-2); padding:9px 10px; text-align:left;}
+  thead th{
+    background:var(--navy-soft); color:var(--navy); font-weight:600;
+    border-bottom:1.5px solid #c3d0de; font-size:12.5px;
+  }
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tbody tr:last-child td{border-bottom:1px solid var(--line);}
+  .row-total td{background:#f7f9fb; font-weight:600;}
+  .col-total{background:#fafbfd;}
+  .muted-cell{color:var(--ink-3); text-align:center;}
+  .fn{font-size:11.5px; color:var(--ink-3); margin:-6px 0 12px; line-height:1.6;}
+  /* ---------- 提示块 ---------- */
+  .callout{
+    background:var(--navy-soft); border-left:3px solid var(--navy);
+    padding:13px 16px; margin:16px 0; font-size:13px; line-height:1.7;
+    color:#25384d;
+  }
+  .callout .t{font-weight:600; display:block; margin-bottom:3px;}
+  .warn{
+    background:var(--warn-bg); border-left:3px solid #d9a441;
+    padding:12px 15px; font-size:12.5px; color:#6b4a1b; margin:14px 0;
+  }
+  ol,ul.plain{margin:10px 0; padding-left:22px;}
+  ol li,ul.plain li{margin-bottom:6px;}
+  ul.plain{list-style:none; padding-left:0;}
+  ul.plain li{padding-left:16px; position:relative;}
+  ul.plain li::before{
+    content:""; position:absolute; left:2px; top:9px;
+    width:5px; height:5px; background:var(--navy); border-radius:50%;
+  }
+  .num-big{font-variant-numeric:tabular-nums; font-weight:600;}
+  /* ---------- 回执 ---------- */
+  .receipt{
+    border:1px solid var(--line); border-radius:3px; padding:18px 20px; margin-top:14px;
+    page-break-inside:avoid;
+  }
+  .receipt .blanks{
+    border:1px dashed #c9d1d9; background:#fcfdfe; min-height:88px;
+    border-radius:2px; margin:10px 0 16px; padding:10px 12px;
+    font-size:11.5px; color:#a9b4c0;
+  }
+  .sign{width:100%; font-size:12.5px;}
+  .sign th,.sign td{border:1px solid var(--line); padding:8px 10px;}
+  .sign th{background:var(--navy-soft); color:var(--navy); font-weight:600; width:24%;}
+  .sign td{height:34px;}
+  /* ---------- 附录 ---------- */
+  .appendix{margin-top:34px; border-top:1px solid var(--line-2); padding-top:22px;}
+  .appendix h2{font-size:15px;}
+  .appendix table{font-size:12.5px;}
+  .appendix td:first-child{width:34px; text-align:center; color:var(--ink-3);}
+  .appendix tr.cur td{background:#f7f9fb; font-weight:600;}
+  .appendix tr.cur td:first-child{color:var(--navy);}
+  .tag{font-size:11px; color:#8a6d3b; background:#fdf6ec; padding:1px 7px; border-radius:2px;}
+  /* ---------- 打印 ---------- */
+  .toolbar{
+    width:820px; margin:20px auto -10px; display:flex; justify-content:flex-end; gap:8px;
+  }
+  .toolbar button{
+    font:inherit; font-size:12.5px; padding:7px 15px; cursor:pointer;
+    border:1px solid var(--navy); background:var(--navy); color:#fff; border-radius:3px;
+  }
+  .toolbar button.ghost{background:#fff; color:var(--navy);}
+  @media print{
+    html,body{background:#fff;}
+    .page{width:auto; margin:0; padding:0; box-shadow:none;}
+    .toolbar{display:none;}
+    @page{size:A4; margin:16mm 15mm;}
+    section{page-break-inside:auto;}
+    table,.options,.callout,.receipt,.appendix{page-break-inside:avoid;}
+    h2{page-break-after:avoid;}
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="ghost" onclick="window.print()">打印 / 存为 PDF</button>
+</div>
+
+<div class="page">
+
+  <header class="doc-head">
+    <div class="doc-kicker">财 务 口 径 核 对 · 第 一 份</div>
+    <h1>费用分摊 · 口径确认单</h1>
+    <div class="meta">
+      <span class="badge">第 1 份 / 共 8 份</span>
+      <span>出具方　<b>系统开发方</b></span>
+      <span>复核方　<b>贵司财务</b></span>
+      <span>回传方式　<b>文档批注</b></span>
+    </div>
+    <p class="note-line">请直接在本文档上批注，或勾选第五节选项后回传。全部 8 份确认完毕后再进入开发。</p>
+  </header>
+
+  <section>
+    <h2><span class="no">0</span>这一份为什么存在</h2>
+    <p>我们正在为贵司做收费与财务报表系统。报表里的每个数字，都由系统按一套固定算法自动算出来，不再手工填格子。</p>
+    <p>这套算法，是我们根据目前拿到的三张表反推的——经营日报、财务月报、物业费均摊表。<strong>表结构看得懂，但你们为什么这么算，我们只能猜。</strong>猜错的地方，等系统上线才发现，返工的不是一个格子，是整张表。</p>
+    <p>所以逐条列出来请你们核对：<strong>对得上的，我们照做；对不上的，我们改算法，不要求贵司改习惯。</strong></p>
+    <div class="callout">
+      <span class="t">本份只问一件事</span>
+      月报里的「管理费用」那一列，数字是怎么来的。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">1</span>判别方法（看你们自己的表就能答）</h2>
+    <p class="lead">财务月报第一张表，每个小区后面有一列「管理费用」。请看三个小区这一列的数字：</p>
+    <ul class="options">
+      <li><span class="box"></span><strong>三个数字完全一样</strong>，或那一列是空的、只在合计栏写了一笔
+        <span class="jump">→ 其实没摊，看第二节</span></li>
+      <li><span class="box"></span><strong>三个数字各不相同</strong>，且大致跟各项目的大小、户数成比例
+        <span class="jump">→ 是真摊，看第三节</span></li>
+      <li><span class="box"></span><strong>我们那张表没有这一列</strong>
+        <span class="jump">→ 看第二节，并在第五节写明</span></li>
+    </ul>
+    <p><strong>为什么先问这个：</strong>如果只是把公司合计填进每一格（看起来像摊，实际没摊），我们不需要开发任何分摊功能；如果真摊，我们必须知道按什么摊——否则这一列只能空着，月报出不来。</p>
+    <p>顺带说明：据此前沟通，这张表不用于考核项目经理。这很关键，因为它意味着<em>摊法选哪个，没有人的奖金会变</em>。分摊在贵司是纯报表口径，不是管理工具。</p>
+  </section>
+
+  <section>
+    <h2><span class="no">2</span>如果是「填合计」</h2>
+    <p>我们的做法：</p>
+    <ol>
+      <li>月报单独列一节 <strong>公司级费用</strong>，逐笔列出总部这个月花的钱（房租、系统年费、审计、招聘等），给出合计；</li>
+      <li>各小区的表只列<strong>本小区自己的</strong>收支，不再出现「管理费用」列；</li>
+      <li>要看"公司到底赚没赚"，看 <strong>公司结余</strong> 这一行：<span class="num-big">各项目结余合计 − 公司级费用</span>。</li>
+    </ol>
+    <p>这样做的好处：每个项目的数都是它自己能控制的，不会被总部的一次性开支带偏（总部买台车，三个项目当月全亏，这种表没人敢用）；总部的钱一笔不少地摆在那里，随时能查。</p>
+    <div class="warn">
+      <strong>需要贵司确认一件事：</strong>总部发生的费用里，有没有哪一类其实应该算到某个小区头上（比如某笔钱是专门为某个项目花的）？如果有，请写在第五节——我们会把它从公司级挪回对应项目。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">3</span>如果是「真摊」</h2>
+    <p>那我们需要知道按什么摊。下面用演示数据把三种常见摊法各算一遍。</p>
+    <div class="warn">
+      <strong>数据说明：</strong>三个项目的面积、户数取自我们的演示环境，与贵司实际项目无关，只用于展示三种摊法的<strong>差异幅度</strong>。这个幅度才是要看的东西，不是具体金额。
+    </div>
+    <p>公司级费用当月合计 <strong class="num-big">36,000 元</strong>。三个项目：18.6 万㎡ / 352 户、12.8 万㎡ / 284 户、6.2 万㎡ / 120 户。</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>摊法</th>
+          <th class="num">项目一</th>
+          <th class="num">项目二</th>
+          <th class="num">项目三</th>
+          <th class="num col-total">合计</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>按建筑面积</td>
+          <td class="num">17,809</td><td class="num">12,255</td><td class="num">5,936</td>
+          <td class="num col-total">36,000</td>
+        </tr>
+        <tr>
+          <td>按户数</td>
+          <td class="num">16,762</td><td class="num">13,524</td><td class="num">5,714</td>
+          <td class="num col-total">36,000</td>
+        </tr>
+        <tr>
+          <td>按应收物业费 ※</td>
+          <td class="num">17,809</td><td class="num">12,255</td><td class="num">5,936</td>
+          <td class="num col-total">36,000</td>
+        </tr>
+        <tr class="row-total">
+          <td>不摊（第二节的做法）</td>
+          <td class="muted-cell">—</td><td class="muted-cell">—</td><td class="muted-cell">—</td>
+          <td class="num col-total">36,000</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="fn">※ 三个项目住宅单价相同（2.80 元/㎡·月），所以按面积和按应收算出来完全一样。若贵司各项目单价不同，这两种摊法才会分叉。</p>
+
+    <p><strong>差异有多大：</strong></p>
+    <ul class="plain">
+      <li>单个项目之间，按面积和按户数最大差 <strong class="num-big">1,268 元</strong>，占该项目管理费用的 <strong>10.4%</strong>；</li>
+      <li>占公司级费用总额的 <strong>3.5%</strong>；</li>
+      <li>公司合计永远 36,000，一分不差——<strong>摊法只改变钱在项目之间的分配，不改变总额</strong>。</li>
+    </ul>
+    <p>如果贵司各项目的户型结构差异比这更大（比如一个是别墅区、一个是小户型公寓），差异也会更大，那分摊就有实际意义。如果结构接近，摊法基本可以随便选。</p>
+
+    <p><strong>如果需要摊，请勾选三项：</strong></p>
+    <ul class="options">
+      <li class="multi"><strong>基数</strong>　☐ 建筑面积　☐ 可收费面积（扣公摊／空置）　☐ 户数　☐ 应收物业费　☐ 其他 ________</li>
+      <li class="multi"><strong>期间</strong>　☐ 摊当月实际发生　☐ 年初预算 ÷ 12（年底调差）</li>
+      <li class="multi"><strong>颗粒度</strong>　☐ 只摊到项目合计　☐ 还要摊到科目（总部人力摊成项目的人力成本）</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="no">4</span>不管哪种情况，这三件事都不变</h2>
+    <table>
+      <thead>
+        <tr><th style="width:36%">事项</th><th>是否会因分摊而改变</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>公司总支出 / 公司结余</td><td>不变。摊只是换个位置摆，总额一分不变。</td></tr>
+        <tr><td>收缴率、欠费率、预缴率</td><td>不变。这三个率只跟应收、已收、减免有关，跟费用怎么摊无关。</td></tr>
+        <tr><td>项目自身的收支明细</td><td>不变。摊进来的是一行独立的管理费用，不混入项目自己的收入和支出。</td></tr>
+      </tbody>
+    </table>
+    <p>换句话说：<strong>分摊做不做，只影响月报上多不多那一列，不影响任何一张报表的其他数字。</strong>唯一会变的，是各个项目自己的「项目结余」——因为多摊进了一行管理费用，它当然会减少。但各项目减少的总额，正好等于公司级费用总额，公司结余始终不变。</p>
+    <p>这也是我们建议先确认、后开发的原因——如果结论是"不用摊"，这部分开发可以直接省掉。</p>
+  </section>
+
+  <section>
+    <h2><span class="no">5</span>回执</h2>
+    <div class="receipt">
+      <p style="margin-bottom:10px"><strong>本份结论（请勾选其一）：</strong></p>
+      <ul class="options" style="margin-top:0">
+        <li><span class="box"></span><strong>情况 A</strong>　那一列是填的公司合计，不需要真摊</li>
+        <li><span class="box"></span><strong>情况 B</strong>　确实要摊，按第三节勾选的规则</li>
+        <li><span class="box"></span><strong>情况 C</strong>　我们那张表不是这样，见下方备注</li>
+      </ul>
+      <p style="margin:14px 0 0; font-size:12.5px; color:#4a5967">备注 / 批注：</p>
+      <div class="blanks">（请在此处或文档其他位置直接批注）</div>
+      <table class="sign">
+        <thead>
+          <tr><th></th><th>姓名</th><th>职务</th><th style="width:22%">日期</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>确认</th><td></td><td></td><td></td></tr>
+          <tr><th>复核</th><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="appendix">
+    <h2><span class="no">附</span>这份说明还有 7 份</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th style="width:24%">内容</th><th>要贵司确认的核心问题</th><th style="width:70px">状态</th></tr>
+      </thead>
+      <tbody>
+        <tr class="cur">
+          <td>1</td><td>费用分摊（本份）</td>
+          <td>那一列是真摊还是填合计</td><td><span class="tag">待确认</span></td>
+        </tr>
+        <tr><td>2</td><td>应收怎么产生</td><td>月费是不是「面积 × 单价」；水电金额和用量怎么互算</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>3</td><td>减免怎么记</td><td>收缴率的分母，是应收，还是应收 − 减免</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>4</td><td>收款怎么归月</td><td>按付款日还是按账期；补记上月尾数的算哪个月</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>5</td><td>三率算法</td><td>是否认同「不做均摊表也能把任意区间的收缴率算准」</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>6</td><td>支出与结余</td><td>支出按什么日期归月；押金算不算收入</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>7</td><td>收款点与支付渠道</td><td>七个收款点的划分；日报表"差额"那一行的含义</td><td><span class="tag">待确认</span></td></tr>
+        <tr><td>8</td><td>我们不做 / 做不到的</td><td>户级特价、前置减免、银行余额与凭证，是否真的不需要</td><td><span class="tag">待确认</span></td></tr>
+      </tbody>
+    </table>
+    <p class="fn" style="margin-top:12px">第 2~8 份等本份确认后再发——本份的结论会影响后面几份怎么写（比如「不用摊」的话，第 6 份的结余那一段可以更短）。</p>
+  </div>
+
+</div>
+</body>
+</html>
