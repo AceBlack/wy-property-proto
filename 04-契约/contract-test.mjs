@@ -3685,6 +3685,55 @@ test('OA 审批动作：不是这单的人点不了同意（原来谁拿到 id �
   eq(proxy.status, 200, '集团总经理代签放行')
 })
 
+test('房屋字段编辑：白名单拦在前，交付边界两个方向都拦', async () => {
+  token = await login('gm')
+
+  /* ① 白名单内的枚举字段：改成功 */
+  const ok1 = await call('PATCH', '/houses/H010110101', { body: { field: 'usage', value: '商业' } })
+  eq(ok1.status, 200, '改用途 HTTP 状态')
+  eq(ok1.data.usage, '商业', '返回改后的值')
+  /* 改回去，别把后面的用例带脏 */
+  await call('PATCH', '/houses/H010110101', { body: { field: 'usage', value: '住宅' } })
+
+  /* ② 白名单外：422，不是静默忽略 */
+  const deny = await call('PATCH', '/houses/H010110101', {
+    body: { field: 'ownerId', value: 'OW00001' }
+  })
+  /* 与业主那条同构：白名单外是 400（bad），枚举/业务约束才是 422（invalid） */
+  eq(deny.status, 400, '改 ownerId 要被拒')
+  assert(String(deny.message).includes('不支持内联编辑'), `文案要点明原因：${deny.message}`)
+
+  /* ③ 枚举脏值：422 */
+  const dirty = await call('PATCH', '/houses/H010110101', {
+    body: { field: 'usage', value: '写字楼' }
+  })
+  eq(dirty.status, 422, '非枚举值要被拒')
+
+  /*
+   * ④ 交付边界（正向）：未交房的房子不能标成「已入住」——
+   *    否则它当天就进计费与可出租候选，而钥匙还没交。
+   */
+  const early = await call('PATCH', '/houses/H020710101', {
+    body: { field: 'useStatus', value: '已入住' }
+  })
+  eq(early.status, 422, '未交房不能标已入住')
+  assert(String(early.message).includes('还未交房'), `文案要说清原因：${early.message}`)
+
+  /* ⑤ 交付边界（反向）：已交房不能改回「未交房」——计费停了但人还住着 */
+  const back = await call('PATCH', '/houses/H010110101', {
+    body: { field: 'useStatus', value: '未交房' }
+  })
+  eq(back.status, 422, '已交房不能改回未交房')
+
+  /* ⑥ 正常改使用状态 */
+  const ok2 = await call('PATCH', '/houses/H010110101', {
+    body: { field: 'useStatus', value: '空置房' }
+  })
+  eq(ok2.status, 200, '改使用状态 HTTP 状态')
+  eq(ok2.data.useStatus, '空置房', '返回改后的使用状态')
+  await call('PATCH', '/houses/H010110101', { body: { field: 'useStatus', value: '已入住' } })
+})
+
 /* ============================ 计划模板（T 域） ============================ */
 
 test('计划模板：六套模板，模板里没有权重（第 60 批）', async () => {
@@ -8258,6 +8307,48 @@ test('实时账龄：六档合计 = 总额，档位有序且逾期天数单调',
   }
   assert(d.oldest.length <= 8, '最多 8 笔')
   assert(d.oldest.every(x => x.overdueDays > 0), '未到期的不进"欠得最久"')
+})
+
+test('押金台账：352 条真实台账投影（不是现场造的 12 条）', async () => {
+  token = await login('gm')
+  /* size 上限是 100（契约里写死的），所以分页取全量 —— 这本身也是一次分页验证 */
+  const first = await call('GET', '/deposits', { query: { size: 100 } })
+  eq(first.status, 200, 'HTTP 状态')
+  assertSchema(first, 'DepositPageEnvelope', 'GET /deposits')
+
+  /* 这条数是"fixture 有没有被悄悄缩回裁剪版"的哨兵：改造前是 12 条现场造的假数据 */
+  eq(first.data.total, 352, '押金 352 条（与 03 的装饰押金台账同源）')
+
+  const pages = Math.ceil(first.data.total / 100)
+  const rows = [...first.data.rows]
+  for (let p = 2; p <= pages; p++) {
+    const r = await call('GET', '/deposits', { query: { size: 100, pageNo: p } })
+    eq(r.status, 200, `第 ${p} 页`)
+    rows.push(...r.data.rows)
+  }
+  eq(rows.length, 352, '四页拼起来正好 352 条')
+  eq(new Set(rows.map(x => x.depositId)).size, 352, '没有重复行（分页不重叠）')
+
+  const types = new Set(rows.map(x => x.type))
+  eq(types.size, 5, '五类押金都在', [...types].join('/'))
+
+  /* 每一条自己的恒等式：金额 = 退 + 扣 + 在账 */
+  const bad = rows.filter(x => Math.abs(x.amount - x.refundAmount - x.deductAmount - x.balance) > 0.01)
+  eq(bad.length, 0, `逐条恒等式不平 ${bad.length} 条`)
+
+  /* 全集口径：收 = 退 + 扣 + 在账（这才是报表自检线要的那个数） */
+  const sum = k => Math.round(rows.reduce((s, x) => s + (Number(x[k]) || 0), 0) * 100) / 100
+  eq(Math.round((sum('amount') - sum('refundAmount') - sum('deductAmount') - sum('balance')) * 100) / 100, 0,
+    '合计也平：收 − 退 − 扣 − 在账 = 0')
+
+  /* 筛选要真的能筛：已退还是大头，按类型也要收窄 */
+  const refunded = await call('GET', '/deposits', { query: { status: '已退还', size: 100 } })
+  eq(refunded.data.rows.every(x => x.status === '已退还'), true, '按状态筛选只回该状态')
+  assert(refunded.data.total > 0 && refunded.data.total < 352, `已退还应是子集（实际 ${refunded.data.total}）`)
+
+  const byType = await call('GET', '/deposits', { query: { type: '门禁卡押金', size: 100 } })
+  eq(byType.data.rows.every(x => x.type === '门禁卡押金'), true, '按类型筛选只回该类型')
+  eq(byType.data.total, 12, '门禁卡押金 12 条')
 })
 
 test('押金在账：收 = 退 + 扣 + 在账（全量恒等式），期间数不参与自检', async () => {

@@ -772,6 +772,60 @@ on('GET', '/houses/{houseId}', (ctx) => {
   return { ...h, stewardName: (EMP.get(h.stewardEmpId) || {}).name || '' }
 })
 
+/*
+ * 房屋字段内联编辑。
+ *
+ * 与业主那边同构（白名单 + 枚举校验 + 范围校验），但**不做乐观锁**：
+ * 房屋没有一个"版本"概念，而且改动都是低频的静态属性（用途、装修、朝向）。
+ * 强行加 ver 会让前端每改一次都要先取版本，收益抵不上复杂度。
+ */
+const HOUSE_EDITABLE = {
+  useStatus: ['已入住', '装修未入住', '正在装修', '已交房未装修', '未交房', '空置房'],
+  usage: ['住宅', '公寓', '商业'],
+  propertyStatus: ['已办证', '办理中', '未办理', '抵押中'],
+  decorationViolation: ['无', '疑似', '已认定', '已整改']
+}
+const HOUSE_FREE_FIELDS = ['decoration', 'decorationResult', 'orientation', 'certNo', 'remark']
+const HOUSE_DATE_FIELDS = ['deliverDate']
+
+on('PATCH', '/houses/{houseId}', (ctx) => {
+  const h = HOUSE.get(ctx.params.houseId)
+  if (!h) throw notFound('房屋不存在')
+  if (!inScopeHouse(ctx.user, h.houseId)) throw forbidden('该房屋不在你的数据范围内')
+
+  const { field, value } = ctx.body || {}
+  const v = String(value ?? '').trim()
+  const isEnum = Object.prototype.hasOwnProperty.call(HOUSE_EDITABLE, field)
+  if (!isEnum && !HOUSE_FREE_FIELDS.includes(field) && !HOUSE_DATE_FIELDS.includes(field)) {
+    throw bad(`字段 ${field} 不支持内联编辑`)
+  }
+  if (isEnum && !HOUSE_EDITABLE[field].includes(v)) {
+    throw invalid(`${field} 取值非法，只能是 ${HOUSE_EDITABLE[field].join(' / ')}`)
+  }
+  if (HOUSE_DATE_FIELDS.includes(field) && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    throw invalid(`${field} 格式应为 YYYY-MM-DD`)
+  }
+
+  /*
+   * 使用状态要守住交付边界，两个方向都拦：
+   *   · 未交房的房子被标成"已入住" → 它当天就进计费与可出租候选，而钥匙还没交；
+   *   · 反过来把已交房的标成"未交房" → 计费停了，但人还住着，账就漏了。
+   * 这条不是"校验"，是业务约束——PC 的 updateHouseField 也是这么拦的。
+   */
+  if (field === 'useStatus') {
+    if (h.deliverStatus === '未交房' && v !== '未交房') {
+      throw invalid(`${h.fullName} 还未交房，使用状态只能是「未交房」；请先把交付状态改为「已交付」`)
+    }
+    if (v === '未交房' && h.deliverStatus !== '未交房') {
+      throw invalid('「未交房」要连交付状态一起改：请先把交付状态改为「未交房」')
+    }
+  }
+
+  h[field] = v
+  bumpVer('house', h.houseId)
+  return { ...h, stewardName: (EMP.get(h.stewardEmpId) || {}).name || '' }
+})
+
 /* ---------------- bills ---------------- */
 const isDebt = b => (b.unpaid || 0) > 0
 
@@ -13334,32 +13388,13 @@ const DEPOSIT_TYPES = [
 ]
 let DT_SEQ = DEPOSIT_TYPES.length
 
-/* 押金样例：从房屋里取前 12 套，类型轮换，保证「收 = 退 + 扣 + 在账」 */
-const DEPOSITS = houses.slice(0, 12).map((h, i) => {
-  const def = DEPOSIT_TYPES[i % DEPOSIT_TYPES.length]
-  const amount = def.standardAmount > 0 ? def.standardAmount : 20000
-  const refund = i % 4 === 0 ? amount : 0
-  const deduct = i % 5 === 0 ? 500 : 0
-  return {
-    depositId: 'DP' + String(i + 1).padStart(5, '0'),
-    applyNo: 'YJ2026-' + String(i + 1).padStart(4, '0'),
-    type: def.name,
-    communityId: h.communityId,
-    houseId: h.houseId,
-    ownerId: h.ownerId || '',
-    amount, quantity: 1,
-    paidDate: '2026-08-' + String(10 + (i % 18)).padStart(2, '0'),
-    startDate: def.needDates ? '2026-08-15' : '',
-    planEndDate: def.needDates ? '2026-11-15' : '',
-    checkDate: refund || deduct ? '2026-10-10' : null,
-    status: refund ? '已退还' : (deduct ? '部分扣除' : (def.needDates ? '装修中' : '在押')),
-    deductAmount: deduct, deductReason: deduct ? '设施损坏赔偿' : '',
-    refundAmount: refund, refundDate: refund ? '2026-10-12' : null,
-    balance: r2(amount - refund - deduct),
-    operator: '前台', remark: ''
-  }
-})
-let DP_SEQ = DEPOSITS.length
+/* 押金样例：2026-11-14 起改为投影 03 的真实台账（352 条），不再现场造。
+ * 造数据那版只有 12 条：报表算出来的在账余额与真实台账无关，分页/筛选也翻不出边界。
+ * 生成脚本 `scripts/gen-deposit-fixtures.mjs`（幂等，字段按契约 Deposit schema 白名单投影）。 */
+const DEPOSITS = readJson('fixtures/deposits.json')
+/* 编号要接在**最大 id** 后面，不能接 length：fixture 的 DP 号不连续（1..352 打散），
+   接 length 会撞上已有编号 —— 撞了以后「按 id 查找」会随机命中两条中的一条 */
+let DP_SEQ = DEPOSITS.reduce((m, d) => Math.max(m, Number(String(d.depositId).replace(/\D/g, '')) || 0), 0)
 
 on('GET', '/deposit-types', (ctx) => {
   const q = ctx.query || {}

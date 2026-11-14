@@ -1197,7 +1197,7 @@ fixtures 用 `scripts/gen-utility-fixtures.mjs`（幂等，带闭合自检）：
 
 ### 11.5 当前规模
 
-路径 **324** · 接口 **374** · schema **414** · 测试 **291/291** · 悬空 `$ref` 0
+路径 **324** · 接口 **374** · schema **414** · 测试 **292/292** · 悬空 `$ref` 0
 客户端调用 **82 处**，缺失 **0**（`node tools/verify-api.mjs`）
 
 ### 11.6 报表批：三张实时报表 + 财务三表对齐（2026-11-14）
@@ -1219,3 +1219,30 @@ fixtures 用 `scripts/gen-utility-fixtures.mjs`（幂等，带闭合自检）：
 
 生成器：`scripts/gen-system-params-fixture.mjs`、`scripts/gen-tenant-face-fixtures.mjs`
 （租客的人脸单单独一个文件 —— 并进 `access-faces.json` 会连带重写 `members.json` 的人脸投影）。
+
+### 11.7 押金 fixture：12 条合成 → 352 条真实台账投影（2026-11-14）
+
+`/deposits` 原来在 `mock-server.mjs` 里**现场造** 12 条：取前 12 套房、类型轮换、退款按下标取模。
+接口能跑通，但三件事说不清 ——
+
+1. 报表「押金在账」算出来的余额和 03 的真实台账没关系，数字对不上；
+2. 分页（`size` 上限 100）与按类型 / 状态筛选只有 12 条可玩，翻不出边界；
+3. 恒等式 `收 = 退 + 扣 + 在账` 成立，但成立得很假（金额全是标准额）。
+
+改为投影 `03-原型/src/mock/decorationDeposits.json`（352 条），生成脚本
+`scripts/gen-deposit-fixtures.mjs`，按 `Deposit` schema 做字段白名单：
+
+- 多出来的 `houseName` / `ownerName` / `phone` / `overdueDays` 是页面展示用的，契约里没有，**不传**；
+- `quantity` 03 没有，补 1；
+- 日期 null 只允许 `checkDate` / `refundDate`（其余统一 `''` —— schema 不认 nullable）。
+
+**落盘前两道自检，不通过就非零退出**（宁可没数据，不留脏数据）：逐条恒等式、
+`houseId` / `ownerId` 对 houses / owners fixture 查孤儿。
+
+结果与 03 逐字段相同：352 条，收 ¥1,619,548 / 退 ¥877,438 / 扣 ¥76,473 / 在账 ¥665,637。
+
+`DP_SEQ` 一并改：原来接 `DEPOSITS.length` 发新编号，而 fixture 的 DP 号是打散的（1..352 不连续），
+接 length 会撞上已有编号 —— 撞了以后「按 id 查一条」随机命中两条中的一条。现在取**最大编号**。
+
+用例：`押金台账：352 条真实台账投影`。断言的是「总条数 352 + 四页拼起来不重不漏 + 五类都在 +
+逐条与合计恒等式 + 筛选真的收窄」，其中 352 是**哨兵**：fixture 被谁悄悄缩回裁剪版，这条先红。
