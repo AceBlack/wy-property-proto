@@ -23,7 +23,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00168",
@@ -49,7 +53,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00276",
@@ -75,7 +83,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00070",
@@ -101,7 +113,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00170",
@@ -127,7 +143,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00231",
@@ -153,7 +173,11 @@
     "balance": 2000,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00100",
@@ -179,7 +203,11 @@
     "balance": 2000,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00159",
@@ -205,7 +233,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00052",
@@ -231,7 +263,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00259",
@@ -257,7 +293,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00279",
@@ -283,7 +323,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00241",
@@ -309,7 +353,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00155",
@@ -335,7 +383,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00160",
@@ -361,7 +413,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00290",
@@ -387,7 +443,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00283",
@@ -413,7 +473,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00006",
@@ -439,7 +503,11 @@
     "balance": 2000,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00141",
@@ -465,7 +533,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00178",
@@ -491,7 +563,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00054",
@@ -517,7 +593,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00294",
@@ -543,7 +623,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00301",
@@ -569,7 +653,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00210",
@@ -595,7 +683,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00226",
@@ -621,7 +713,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00034",
@@ -647,7 +743,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00048",
@@ -673,7 +773,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00072",
@@ -699,7 +803,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00023",
@@ -725,7 +833,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00124",
@@ -751,7 +863,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00120",
@@ -777,7 +893,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00030",
@@ -803,7 +923,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00175",
@@ -829,7 +953,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00157",
@@ -855,7 +983,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00018",
@@ -881,7 +1013,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00286",
@@ -907,7 +1043,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00297",
@@ -933,7 +1073,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00015",
@@ -959,7 +1103,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00036",
@@ -985,7 +1133,11 @@
     "balance": 2000,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00039",
@@ -1011,7 +1163,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00038",
@@ -1037,7 +1193,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00053",
@@ -1063,7 +1223,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00103",
@@ -1089,7 +1253,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00091",
@@ -1115,7 +1283,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00189",
@@ -1141,7 +1313,11 @@
     "balance": 3000,
     "overdueDays": 5,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00085",
@@ -1167,7 +1343,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00190",
@@ -1193,7 +1373,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00105",
@@ -1219,7 +1403,11 @@
     "balance": 2000,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00147",
@@ -1245,7 +1433,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00045",
@@ -1271,7 +1463,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00251",
@@ -1297,7 +1493,11 @@
     "balance": 5000,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00146",
@@ -1323,7 +1523,11 @@
     "balance": 3000,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00081",
@@ -1349,7 +1553,11 @@
     "balance": 3000,
     "overdueDays": 17,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00119",
@@ -1375,7 +1583,11 @@
     "balance": 3000,
     "overdueDays": 19,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00076",
@@ -1401,7 +1613,11 @@
     "balance": 2000,
     "overdueDays": 37,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00106",
@@ -1427,7 +1643,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00228",
@@ -1453,7 +1673,11 @@
     "balance": 0,
     "overdueDays": 3,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00192",
@@ -1479,7 +1703,11 @@
     "balance": 0,
     "overdueDays": 1,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00029",
@@ -1505,7 +1733,11 @@
     "balance": 3000,
     "overdueDays": 47,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00130",
@@ -1531,7 +1763,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00102",
@@ -1557,7 +1793,11 @@
     "balance": 0,
     "overdueDays": 20,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00090",
@@ -1583,7 +1823,11 @@
     "balance": 2000,
     "overdueDays": 10,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00094",
@@ -1609,7 +1853,11 @@
     "balance": 3000,
     "overdueDays": 41,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00121",
@@ -1635,7 +1883,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00171",
@@ -1661,7 +1913,11 @@
     "balance": 3000,
     "overdueDays": 58,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00243",
@@ -1687,7 +1943,11 @@
     "balance": 5000,
     "overdueDays": 67,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00014",
@@ -1713,7 +1973,11 @@
     "balance": 3000,
     "overdueDays": 78,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00289",
@@ -1739,7 +2003,11 @@
     "balance": 5000,
     "overdueDays": 82,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00042",
@@ -1765,7 +2033,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00162",
@@ -1791,7 +2063,11 @@
     "balance": 2000,
     "overdueDays": 66,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00066",
@@ -1817,7 +2093,11 @@
     "balance": 3000,
     "overdueDays": 10,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00064",
@@ -1843,7 +2123,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00275",
@@ -1869,7 +2153,11 @@
     "balance": 5000,
     "overdueDays": 75,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00302",
@@ -1895,7 +2183,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00267",
@@ -1921,7 +2213,11 @@
     "balance": 5000,
     "overdueDays": 89,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00253",
@@ -1947,7 +2243,11 @@
     "balance": 0,
     "overdueDays": 11,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00281",
@@ -1973,7 +2273,11 @@
     "balance": 0,
     "overdueDays": 4,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00051",
@@ -1999,7 +2303,11 @@
     "balance": 5000,
     "overdueDays": 87,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00096",
@@ -2025,7 +2333,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00093",
@@ -2051,7 +2363,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00188",
@@ -2077,7 +2393,11 @@
     "balance": 3000,
     "overdueDays": 96,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00138",
@@ -2103,7 +2423,11 @@
     "balance": 3000,
     "overdueDays": 106,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00219",
@@ -2129,7 +2453,11 @@
     "balance": 3000,
     "overdueDays": 61,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00004",
@@ -2155,7 +2483,11 @@
     "balance": 0,
     "overdueDays": 24,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00278",
@@ -2181,7 +2513,11 @@
     "balance": 5000,
     "overdueDays": 63,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00017",
@@ -2207,7 +2543,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00040",
@@ -2233,7 +2573,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00201",
@@ -2259,7 +2603,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00005",
@@ -2285,7 +2633,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00008",
@@ -2311,7 +2663,11 @@
     "balance": 3000,
     "overdueDays": 100,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00108",
@@ -2337,7 +2693,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00061",
@@ -2363,7 +2723,11 @@
     "balance": 3000,
     "overdueDays": 90,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00069",
@@ -2389,7 +2753,11 @@
     "balance": 3000,
     "overdueDays": 151,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00246",
@@ -2415,7 +2783,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00167",
@@ -2441,7 +2813,11 @@
     "balance": 0,
     "overdueDays": 72,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00256",
@@ -2467,7 +2843,11 @@
     "balance": 5000,
     "overdueDays": 109,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00239",
@@ -2493,7 +2873,11 @@
     "balance": 0,
     "overdueDays": 4,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00129",
@@ -2519,7 +2903,11 @@
     "balance": 0,
     "overdueDays": 21,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00050",
@@ -2545,7 +2933,11 @@
     "balance": 3000,
     "overdueDays": 115,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00158",
@@ -2571,7 +2963,11 @@
     "balance": 0,
     "overdueDays": 64,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00266",
@@ -2597,7 +2993,11 @@
     "balance": 5000,
     "overdueDays": 153,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00112",
@@ -2623,7 +3023,11 @@
     "balance": 0,
     "overdueDays": 29,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00285",
@@ -2649,7 +3053,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00134",
@@ -2675,7 +3083,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00027",
@@ -2701,7 +3113,11 @@
     "balance": 5000,
     "overdueDays": 106,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00099",
@@ -2727,7 +3143,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00143",
@@ -2753,7 +3173,11 @@
     "balance": 0,
     "overdueDays": 26,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00211",
@@ -2779,7 +3203,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00087",
@@ -2805,7 +3233,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00062",
@@ -2831,7 +3263,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00223",
@@ -2857,7 +3293,11 @@
     "balance": 0,
     "overdueDays": 28,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00033",
@@ -2883,7 +3323,11 @@
     "balance": 0,
     "overdueDays": 2,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00222",
@@ -2909,7 +3353,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00063",
@@ -2935,7 +3383,11 @@
     "balance": 0,
     "overdueDays": 16,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00174",
@@ -2961,7 +3413,11 @@
     "balance": 3000,
     "overdueDays": 153,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00186",
@@ -2987,7 +3443,11 @@
     "balance": 3000,
     "overdueDays": 140,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00200",
@@ -3013,7 +3473,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00152",
@@ -3039,7 +3503,11 @@
     "balance": 3000,
     "overdueDays": 117,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00101",
@@ -3065,7 +3533,11 @@
     "balance": 0,
     "overdueDays": 28,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00037",
@@ -3091,7 +3563,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00127",
@@ -3117,7 +3593,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00229",
@@ -3143,7 +3623,11 @@
     "balance": 3000,
     "overdueDays": 177,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00077",
@@ -3169,7 +3653,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00287",
@@ -3195,7 +3683,11 @@
     "balance": 5000,
     "overdueDays": 164,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00055",
@@ -3221,7 +3713,11 @@
     "balance": 0,
     "overdueDays": 62,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00224",
@@ -3247,7 +3743,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00291",
@@ -3273,7 +3773,11 @@
     "balance": 5000,
     "overdueDays": 166,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00292",
@@ -3299,7 +3803,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00227",
@@ -3325,7 +3833,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00250",
@@ -3351,7 +3863,11 @@
     "balance": 0,
     "overdueDays": 1,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00180",
@@ -3377,7 +3893,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00203",
@@ -3403,7 +3923,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00007",
@@ -3429,7 +3953,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00123",
@@ -3455,7 +3983,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00115",
@@ -3481,7 +4013,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00088",
@@ -3507,7 +4043,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00150",
@@ -3533,7 +4073,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00232",
@@ -3559,7 +4103,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00218",
@@ -3585,7 +4133,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00293",
@@ -3611,7 +4163,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00280",
@@ -3637,7 +4193,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00217",
@@ -3663,7 +4223,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00019",
@@ -3689,7 +4253,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00095",
@@ -3715,7 +4283,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00225",
@@ -3741,7 +4313,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00273",
@@ -3767,7 +4343,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00080",
@@ -3793,7 +4373,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00209",
@@ -3819,7 +4403,11 @@
     "balance": 0,
     "overdueDays": 1,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00238",
@@ -3845,7 +4433,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00125",
@@ -3871,7 +4463,11 @@
     "balance": 0,
     "overdueDays": 14,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00148",
@@ -3897,7 +4493,11 @@
     "balance": 0,
     "overdueDays": 15,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00179",
@@ -3923,7 +4523,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00254",
@@ -3949,7 +4553,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00248",
@@ -3975,7 +4583,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00235",
@@ -4001,7 +4613,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00270",
@@ -4027,7 +4643,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00260",
@@ -4053,7 +4673,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00296",
@@ -4079,7 +4703,11 @@
     "balance": 0,
     "overdueDays": 19,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00264",
@@ -4105,7 +4733,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00026",
@@ -4131,7 +4763,11 @@
     "balance": 0,
     "overdueDays": 6,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00074",
@@ -4157,7 +4793,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00049",
@@ -4183,7 +4823,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00258",
@@ -4209,7 +4853,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00028",
@@ -4235,7 +4883,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00111",
@@ -4261,7 +4913,11 @@
     "balance": 0,
     "overdueDays": 9,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00303",
@@ -4287,7 +4943,11 @@
     "balance": 0,
     "overdueDays": 27,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00022",
@@ -4313,7 +4973,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00295",
@@ -4339,7 +5003,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00060",
@@ -4365,7 +5033,11 @@
     "balance": 0,
     "overdueDays": 25,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00198",
@@ -4391,7 +5063,11 @@
     "balance": 0,
     "overdueDays": 27,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00044",
@@ -4417,7 +5093,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00135",
@@ -4443,7 +5123,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00003",
@@ -4469,7 +5153,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00166",
@@ -4495,7 +5183,11 @@
     "balance": 0,
     "overdueDays": 9,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00032",
@@ -4521,7 +5213,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00025",
@@ -4547,7 +5243,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00199",
@@ -4573,7 +5273,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00185",
@@ -4599,7 +5303,11 @@
     "balance": 0,
     "overdueDays": 14,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00082",
@@ -4625,7 +5333,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00068",
@@ -4651,7 +5363,11 @@
     "balance": 0,
     "overdueDays": 8,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00249",
@@ -4677,7 +5393,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00184",
@@ -4703,7 +5423,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00207",
@@ -4729,7 +5453,11 @@
     "balance": 0,
     "overdueDays": 41,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00220",
@@ -4755,7 +5483,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00212",
@@ -4781,7 +5513,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00230",
@@ -4807,7 +5543,11 @@
     "balance": 0,
     "overdueDays": 30,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00083",
@@ -4833,7 +5573,11 @@
     "balance": 0,
     "overdueDays": 20,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00274",
@@ -4859,7 +5603,11 @@
     "balance": 0,
     "overdueDays": 20,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00245",
@@ -4885,7 +5633,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00133",
@@ -4911,7 +5663,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00244",
@@ -4937,7 +5693,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00122",
@@ -4963,7 +5723,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00298",
@@ -4989,7 +5753,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00204",
@@ -5015,7 +5783,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00221",
@@ -5041,7 +5813,11 @@
     "balance": 0,
     "overdueDays": 2,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00193",
@@ -5067,7 +5843,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00215",
@@ -5093,7 +5873,11 @@
     "balance": 0,
     "overdueDays": 11,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00257",
@@ -5119,7 +5903,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00117",
@@ -5145,7 +5933,11 @@
     "balance": 0,
     "overdueDays": 65,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00300",
@@ -5171,7 +5963,11 @@
     "balance": 0,
     "overdueDays": 1,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00020",
@@ -5197,7 +5993,11 @@
     "balance": 0,
     "overdueDays": 9,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00194",
@@ -5223,7 +6023,11 @@
     "balance": 0,
     "overdueDays": 29,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00151",
@@ -5249,7 +6053,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00092",
@@ -5275,7 +6083,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00195",
@@ -5301,7 +6113,11 @@
     "balance": 0,
     "overdueDays": 19,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00086",
@@ -5327,7 +6143,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00161",
@@ -5353,7 +6173,11 @@
     "balance": 0,
     "overdueDays": 3,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00056",
@@ -5379,7 +6203,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00140",
@@ -5405,7 +6233,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00118",
@@ -5431,7 +6263,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00110",
@@ -5457,7 +6293,11 @@
     "balance": 0,
     "overdueDays": 5,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00010",
@@ -5483,7 +6323,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00191",
@@ -5509,7 +6353,11 @@
     "balance": 0,
     "overdueDays": 88,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00240",
@@ -5535,7 +6383,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00047",
@@ -5561,7 +6413,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00078",
@@ -5587,7 +6443,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00216",
@@ -5613,7 +6473,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00059",
@@ -5639,7 +6503,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00197",
@@ -5665,7 +6533,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00165",
@@ -5691,7 +6563,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00132",
@@ -5717,7 +6593,11 @@
     "balance": 0,
     "overdueDays": 24,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00202",
@@ -5743,7 +6623,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00024",
@@ -5769,7 +6653,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00163",
@@ -5795,7 +6683,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00144",
@@ -5821,7 +6713,11 @@
     "balance": 0,
     "overdueDays": 55,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00136",
@@ -5847,7 +6743,11 @@
     "balance": 0,
     "overdueDays": 36,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00012",
@@ -5873,7 +6773,11 @@
     "balance": 0,
     "overdueDays": 32,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00214",
@@ -5899,7 +6803,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00206",
@@ -5925,7 +6833,11 @@
     "balance": 0,
     "overdueDays": 20,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00299",
@@ -5951,7 +6863,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00236",
@@ -5977,7 +6893,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00265",
@@ -6003,7 +6923,11 @@
     "balance": 0,
     "overdueDays": 72,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00113",
@@ -6029,7 +6953,11 @@
     "balance": 0,
     "overdueDays": 70,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00016",
@@ -6055,7 +6983,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00173",
@@ -6081,7 +7013,11 @@
     "balance": 0,
     "overdueDays": 68,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00145",
@@ -6107,7 +7043,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00261",
@@ -6133,7 +7073,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00182",
@@ -6159,7 +7103,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00009",
@@ -6185,7 +7133,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00288",
@@ -6211,7 +7163,11 @@
     "balance": 0,
     "overdueDays": 17,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00057",
@@ -6237,7 +7193,11 @@
     "balance": 0,
     "overdueDays": 9,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00154",
@@ -6263,7 +7223,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00001",
@@ -6289,7 +7253,11 @@
     "balance": 0,
     "overdueDays": 19,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00169",
@@ -6315,7 +7283,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00002",
@@ -6341,7 +7313,11 @@
     "balance": 0,
     "overdueDays": 21,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00043",
@@ -6367,7 +7343,11 @@
     "balance": 0,
     "overdueDays": 4,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00131",
@@ -6393,7 +7373,11 @@
     "balance": 0,
     "overdueDays": 11,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00041",
@@ -6419,7 +7403,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00089",
@@ -6445,7 +7433,11 @@
     "balance": 0,
     "overdueDays": 35,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00234",
@@ -6471,7 +7463,11 @@
     "balance": 0,
     "overdueDays": 73,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00126",
@@ -6497,7 +7493,11 @@
     "balance": 0,
     "overdueDays": 21,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00269",
@@ -6523,7 +7523,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00021",
@@ -6549,7 +7553,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00271",
@@ -6575,7 +7583,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00142",
@@ -6601,7 +7613,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00058",
@@ -6627,7 +7643,11 @@
     "balance": 0,
     "overdueDays": 28,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00107",
@@ -6653,7 +7673,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00067",
@@ -6679,7 +7703,11 @@
     "balance": 0,
     "overdueDays": 67,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00104",
@@ -6705,7 +7733,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00172",
@@ -6731,7 +7763,11 @@
     "balance": 0,
     "overdueDays": 28,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00114",
@@ -6757,7 +7793,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00237",
@@ -6783,7 +7823,11 @@
     "balance": 0,
     "overdueDays": 87,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00183",
@@ -6809,7 +7853,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00205",
@@ -6835,7 +7883,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00071",
@@ -6861,7 +7913,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00084",
@@ -6887,7 +7943,11 @@
     "balance": 0,
     "overdueDays": 18,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00079",
@@ -6913,7 +7973,11 @@
     "balance": 0,
     "overdueDays": 18,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00139",
@@ -6939,7 +8003,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00263",
@@ -6965,7 +8033,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00156",
@@ -6991,7 +8063,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00196",
@@ -7017,7 +8093,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00284",
@@ -7043,7 +8123,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00075",
@@ -7069,7 +8153,11 @@
     "balance": 0,
     "overdueDays": 7,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00252",
@@ -7095,7 +8183,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00098",
@@ -7121,7 +8213,11 @@
     "balance": 0,
     "overdueDays": 24,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00255",
@@ -7147,7 +8243,11 @@
     "balance": 0,
     "overdueDays": 25,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00031",
@@ -7173,7 +8273,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00187",
@@ -7199,7 +8303,11 @@
     "balance": 0,
     "overdueDays": 20,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00176",
@@ -7225,7 +8333,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00277",
@@ -7251,7 +8363,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00282",
@@ -7277,7 +8393,11 @@
     "balance": 0,
     "overdueDays": 1,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00177",
@@ -7303,7 +8423,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00213",
@@ -7329,7 +8453,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00181",
@@ -7355,7 +8483,11 @@
     "balance": 0,
     "overdueDays": 6,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00242",
@@ -7381,7 +8513,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00304",
@@ -7407,7 +8543,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00065",
@@ -7433,7 +8573,11 @@
     "balance": 0,
     "overdueDays": 78,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00268",
@@ -7459,7 +8603,11 @@
     "balance": 0,
     "overdueDays": 28,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00011",
@@ -7485,7 +8633,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00247",
@@ -7511,7 +8663,11 @@
     "balance": 0,
     "overdueDays": 50,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00262",
@@ -7537,7 +8693,11 @@
     "balance": 0,
     "overdueDays": 7,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00208",
@@ -7563,7 +8723,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00035",
@@ -7589,7 +8753,11 @@
     "balance": 0,
     "overdueDays": 22,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00116",
@@ -7615,7 +8783,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00272",
@@ -7641,7 +8813,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00046",
@@ -7667,7 +8843,11 @@
     "balance": 0,
     "overdueDays": 23,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00137",
@@ -7693,7 +8873,11 @@
     "balance": 0,
     "overdueDays": 52,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00164",
@@ -7719,7 +8903,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00097",
@@ -7745,7 +8933,11 @@
     "balance": 0,
     "overdueDays": 13,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00233",
@@ -7771,7 +8963,11 @@
     "balance": 0,
     "overdueDays": 14,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00073",
@@ -7797,7 +8993,11 @@
     "balance": 0,
     "overdueDays": 18,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00128",
@@ -7823,7 +9023,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00109",
@@ -7849,7 +9053,11 @@
     "balance": 0,
     "overdueDays": 23,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00153",
@@ -7875,7 +9083,11 @@
     "balance": 0,
     "overdueDays": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00013",
@@ -7901,7 +9113,11 @@
     "balance": 0,
     "overdueDays": 74,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00305",
@@ -7929,7 +9145,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00306",
@@ -7957,7 +9177,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00307",
@@ -7985,7 +9209,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00308",
@@ -8013,7 +9241,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00309",
@@ -8041,7 +9273,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00310",
@@ -8069,7 +9305,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00311",
@@ -8097,7 +9337,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00312",
@@ -8125,7 +9369,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00313",
@@ -8153,7 +9401,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00314",
@@ -8181,7 +9433,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00315",
@@ -8209,7 +9465,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00316",
@@ -8237,7 +9497,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00317",
@@ -8265,7 +9529,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00318",
@@ -8293,7 +9561,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00319",
@@ -8321,7 +9593,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00320",
@@ -8349,7 +9625,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00321",
@@ -8377,7 +9657,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00322",
@@ -8405,7 +9689,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00323",
@@ -8433,7 +9721,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00324",
@@ -8461,7 +9753,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00325",
@@ -8489,7 +9785,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00326",
@@ -8517,7 +9817,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00327",
@@ -8545,7 +9849,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00328",
@@ -8573,7 +9881,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00329",
@@ -8601,7 +9913,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00330",
@@ -8629,7 +9945,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00331",
@@ -8657,7 +9977,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00332",
@@ -8685,7 +10009,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00333",
@@ -8713,7 +10041,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00334",
@@ -8741,7 +10073,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00335",
@@ -8769,7 +10105,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00336",
@@ -8797,7 +10137,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00337",
@@ -8825,7 +10169,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00338",
@@ -8853,7 +10201,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00339",
@@ -8881,7 +10233,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00340",
@@ -8909,7 +10265,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "供应商履约担保，合同期满退还",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00341",
@@ -8937,7 +10297,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00342",
@@ -8965,7 +10329,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00343",
@@ -8993,7 +10361,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00344",
@@ -9021,7 +10393,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00345",
@@ -9049,7 +10425,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00346",
@@ -9077,7 +10457,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00347",
@@ -9105,7 +10489,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00348",
@@ -9133,7 +10521,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00349",
@@ -9161,7 +10553,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00350",
@@ -9189,7 +10585,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00351",
@@ -9217,7 +10617,11 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00352",
@@ -9245,6 +10649,10 @@
     "overdueDays": 0,
     "operator": "高秀兰",
     "remark": "",
-    "_isNew": false
+    "_isNew": false,
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   }
 ]

@@ -66,9 +66,9 @@
     <div class="check" :class="d.diff.ok ? 'is-ok' : 'is-bad'">
       <b>{{ d.diff.ok ? '✓ 日结差额全月为 0' : '✗ 有 ' + d.diff.badDays.length + ' 天差额不为 0' }}</b>
       <span v-if="d.diff.ok">
-        {{ d.summary.activeDays }} / {{ d.summary.days }} 天有收款 · 收入 ¥{{ money(d.summary.income) }}
+        {{ d.summary.activeDays }} / {{ d.summary.days }} 天有收款 · 合计 ¥{{ money(d.summary.grand) }}
         = 收款点合计 ¥{{ money(d.summary.cash) }}
-        —— 按科目看的钱和按收款点看的钱对得上（押金走独立台账，不在此列）
+        —— 按科目看的钱和按收款点看的钱对得上（含押金收退）
       </span>
       <span v-else>
         {{ d.diff.badDays.map(x => x.day.slice(5) + ' 日差 ' + money(x.diff)).join('；') }}
@@ -112,12 +112,12 @@
     <div class="panel foot-note">
       <b>差额为什么应当是 0</b>：按科目加一遍、按收款点加一遍，是同一批钱的两条路。
       差额不为 0 只有两种原因 —— 现金长短款，或者某笔收款没录收款点。
-      这一行**只校验账单收入**，不含押金（见下）。
+      这一行校验的是**全部现金流**：收入 + 押金收 − 押金退，与收款点合计逐日对齐。
       <br /><br />
-      <b>押金为什么不进收款点</b>：押金台账没有「收款方式」字段。硬把它归到现金，
-      一天退几笔押金之后现金就变成负数 —— 那不是发现问题，是造了一个假问题。
-      所以押金只进「往来款 / 退款」两段参与合计，不进日结差额；
-      正式实现应当在收押金那一刻写入收款方式，届时可以一起纳进来。
+      <b>押金也有收款方式</b>：收押金时记 `payMethod` + `payPoint`，退款记 `refundMethod`，
+      所以押金能进日结。收款点只看「谁在收」（前台 / 停车场），不看「押金还是物业费」——
+      这样某天退了 19 万履约保证金，那个收款点**当格就是负的**，一眼能看出钱是从哪个渠道退的。
+      （负数不是错：那天的退款大于收款。）
       <br /><br />
       <b>水电为什么在收入段</b>：本系统把转供水电计为「其他业务收入」。
       如果客户实际是代收代付，把水电改成负债类科目，日报会自动挪到往来款段 —— 不用改这张报表。
@@ -183,7 +183,7 @@ const rows = computed(() => {
   }
   out.push({ rowType: 'subtotal', name: '收款点小计', amounts: cashByDay.value, total: sumOf(cashByDay.value) })
   out.push({ rowType: 'discount', name: '当日减免（抵减 · 不算现金）', amounts: d.value.discount.amounts, total: d.value.discount.total })
-  out.push({ rowType: 'diff', name: '差额（收入 − 收款点）', amounts: d.value.diff.amounts, total: d.value.diff.total })
+  out.push({ rowType: 'diff', name: '差额（合计 − 收款点）', amounts: d.value.diff.amounts, total: d.value.diff.total })
   return out
 })
 

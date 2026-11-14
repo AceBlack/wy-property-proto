@@ -31,7 +31,10 @@ const KEYS = [
   'depositId', 'applyNo', 'type', 'communityId', 'houseId', 'ownerId',
   'amount', 'quantity', 'paidDate', 'startDate', 'planEndDate', 'checkDate',
   'status', 'deductAmount', 'deductReason', 'refundAmount', 'refundDate',
-  'balance', 'operator', 'remark'
+  'balance', 'operator', 'remark',
+  /* 2026-11-15：收款方式与收款点。没有这两组字段，押金就进不了经营日报的收款点，
+     日结差额只能把押金整段排除 —— 那是数据缺字段，不是口径选择。 */
+  'payMethod', 'payPoint', 'refundMethod', 'refundPoint'
 ]
 const OPTIONAL_NULL = new Set(['checkDate', 'refundDate'])
 const NUM = new Set(['amount', 'quantity', 'deductAmount', 'refundAmount', 'balance'])

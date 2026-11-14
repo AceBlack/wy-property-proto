@@ -8689,19 +8689,19 @@ test('经营日报：三段合计自洽，日结差额恒为 0，收款点覆盖
   assert(lia.rows.every(x => x.group === 'liaison'), '往来段分组标错')
   assert(ref.rows.every(x => x.group === 'refund'), '退款段分组标错')
 
-  /* 收款点：七个固定位置，小计必须等于收入合计（押金不进收款点） */
+  /* 收款点：七个固定位置，小计必须等于**合计**（押金收退也走收款点，见 Deposit.payMethod） */
   eq(d.payPoints.length, 7, '七个收款点')
   eq(d.payPoints.map(p => p.name).join(','), '现金,车辆现金,POS刷卡,车辆POS,转账,车辆云平台,线上支付', '顺序固定')
   const cashTotal = r2(d.payPoints.reduce((s2, p) => s2 + p.total, 0))
-  near(cashTotal, inc.total, '收款点合计 = 收入合计（押金不进收款点）')
+  near(cashTotal, d.grand.total, '收款点合计 = 合计（含押金收退）')
   near(d.summary.cash, cashTotal, 'summary.cash 与收款点合计一致')
 
-  /* 差额：只校验收入，每天都为 0 */
+  /* 差额：合计 − 收款点，每天都为 0 */
   eq(d.diff.ok, true, `有 ${d.diff.badDays.length} 天差额不为 0`)
   eq(d.diff.badDays.length, 0, '坏天数')
   for (let i = 0; i < d.days.length; i++) {
-    const want = r2(inc.subtotal[i] - d.payPoints.reduce((s2, p) => s2 + p.amounts[i], 0))
-    assert(Math.abs(want - d.diff.amounts[i]) < 0.02, `${d.days[i]}：差额 ≠ 收入 − 收款点`)
+    const want = r2(d.grand.amounts[i] - d.payPoints.reduce((s2, p) => s2 + p.amounts[i], 0))
+    assert(Math.abs(want - d.diff.amounts[i]) < 0.02, `${d.days[i]}：差额 ≠ 合计 − 收款点`)
   }
   /* 减免单列、不参与差额 —— 把它加回去差额就不该变 */
   assert(typeof d.discount.total === 'number', '减免要单列')
@@ -8716,6 +8716,28 @@ test('经营日报：三段合计自洽，日结差额恒为 0，收款点覆盖
   /* 参数校验 */
   const bad1 = await call('GET', '/reports/daily-revenue', { query: {} })
   eq(bad1.status, 400, 'month 必填')
+})
+
+test('收款点与收款方式：流水与押金都带得出来', async () => {
+  token = await login('gm')
+
+  const pays = await call('GET', '/payments', { query: { size: 100 } })
+  eq(pays.status, 200, '流水列表')
+  const noPoint = pays.data.rows.filter(p => !p.payPoint)
+  eq(noPoint.length, 0, `流水缺 payPoint ${noPoint.length} 条`)
+  const pts = new Set(pays.data.rows.map(p => p.payPoint))
+  for (const pt of pts) {
+    assert(['前台', '停车场', '线上', '车辆云平台'].includes(pt), `收款点越界：${pt}`)
+  }
+
+  /* 押金：收款方式必须是可写入的五种之一（不含预存抵扣），收款点只能是前台/停车场 */
+  const dps = await call('GET', '/deposits', { query: { size: 100 } })
+  eq(dps.status, 200, '押金列表')
+  const badMethod = dps.data.rows.filter(d => d.payMethod && !['现金', '微信支付', '支付宝', 'POS刷卡', '银行代扣'].includes(d.payMethod))
+  eq(badMethod.length, 0, `押金收款方式越界 ${badMethod.length} 条`)
+  const badPoint = dps.data.rows.filter(d => d.payPoint && !['前台', '停车场'].includes(d.payPoint))
+  eq(badPoint.length, 0, `押金收款点越界 ${badPoint.length} 条`)
+  assert(dps.data.rows.every(d => !!d.payMethod), '押金都要有收款方式（没有就进不了日结）')
 })
 
 test('三率：减免率与欠费率分开，按用途分列，现金三分与现金收入相等', async () => {

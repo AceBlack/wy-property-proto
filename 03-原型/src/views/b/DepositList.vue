@@ -216,6 +216,11 @@
         <el-form-item label="退款日期">
           <el-date-picker v-model="refundForm.refundDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
         </el-form-item>
+        <el-form-item label="退款方式">
+          <el-select v-model="refundForm.payMethod" style="width:100%">
+            <el-option v-for="m in methodOpts" :key="m" :label="m" :value="m" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="refundVisible = false">取消</el-button>
@@ -234,7 +239,7 @@ import { useDetail, useListQuery } from '@/composables/useQuery'
 import { exportList } from '@/utils/export'
 import { maskPhone, money } from '@/utils/format'
 import {
-  PAGE_SIZES, checkDeposit, communityOpts, depositStatusOpts, depositSummary, depositTypeOf,
+  PAY_METHODS, PAGE_SIZES, checkDeposit, communityOpts, depositStatusOpts, depositSummary, depositTypeOf,
   depositTypeOpts, getDepositDetail, queryDeposits, refundDeposit
 } from '@/utils/api'
 
@@ -262,7 +267,12 @@ const cur = ref(null)
 const checkVisible = ref(false)
 const refundVisible = ref(false)
 const checkForm = ref({ checkDate: '', deductAmount: 0, deductReason: '' })
-const refundForm = ref({ refundAmount: 0, refundDate: '' })
+/* 退款方式默认现金：前台退押金绝大多数是给现金。
+   记下来的意义在经营日报 —— 退款要从**原收款点**出账，不记的话那一天的差额对不平。 */
+const refundForm = ref({ refundAmount: 0, refundDate: '', payMethod: '现金' })
+/* 退款方式：与收款流水同一套枚举（预存抵扣已下线，不出现） */
+const methodOpts = PAY_METHODS
+
 const DEDUCT_REASONS = [
   '破坏承重墙未恢复原状', '占用公共通道堆放装修垃圾', '超时施工引发多次投诉',
   '损坏电梯轿厢未赔偿', '装修垃圾未清运', '超出申请范围拆改阳台'

@@ -13700,12 +13700,19 @@ const DAILY_ITEM_CAT = {
 const DAILY_PAY_POINTS = ['现金', '车辆现金', 'POS刷卡', '车辆POS', '转账', '车辆云平台', '线上支付']
 const DAILY_PARK = new Set(['INC_MAIN_PARK', 'INC_OTHER_PARKING'])
 
-function dailyPayPointOf(channel, isPark) {
+/**
+ * 「收款点 + 渠道」→ 日报上的七个展示位。
+ * 流水与押金都带 payPoint 了（fixtures 里已补），不再靠"业务是不是停车"去猜。
+ */
+function dailyPayPointName(payPoint, channel) {
+  const pt = String(payPoint || '前台')
   const ch = String(channel || '')
-  if (ch === '银行代扣') return '转账'
+  if (pt === '车辆云平台') return '车辆云平台'
   if (ch === '微信支付' || ch === '支付宝') return '线上支付'
-  if (isPark) return ch === 'POS刷卡' ? '车辆POS' : '车辆现金'
-  return ch === 'POS刷卡' ? 'POS刷卡' : '现金'
+  if (ch === '银行代扣') return '转账'
+  const park = pt === '停车场'
+  if (ch === 'POS刷卡') return park ? '车辆POS' : 'POS刷卡'
+  return park ? '车辆现金' : '现金'
 }
 
 on('GET', '/reports/daily-revenue', (ctx) => {
@@ -13745,10 +13752,11 @@ on('GET', '/reports/daily-revenue', (ctx) => {
     addTo(row.amounts, i, amount)
     incomeRows.set(cat.code, row)
     addTo(incomeSub, i, amount)
-    addTo(pointAgg.get(dailyPayPointOf(p.channel, DAILY_PARK.has(cat.code))), i, amount)
+    const pt = p.payPoint || (DAILY_PARK.has(cat.code) ? '停车场' : '前台')
+    addTo(pointAgg.get(dailyPayPointName(pt, p.channel)), i, amount)
   }
 
-  /* 往来款 / 退款：押金台账。**不进收款点** —— 台账没有收款方式字段 */
+  /* 往来款 / 退款：押金台账。2026-11-15 起带 payMethod / payPoint，所以能进收款点 */
   const liaisonRows = new Map()
   const refundRows = new Map()
   const liaisonSub = zeros()
@@ -13763,6 +13771,7 @@ on('GET', '/reports/daily-revenue', (ctx) => {
       addTo(row.amounts, iPaid, amount)
       liaisonRows.set(type, row)
       addTo(liaisonSub, iPaid, amount)
+      addTo(pointAgg.get(dailyPayPointName(d.payPoint || '前台', d.payMethod || '现金')), iPaid, amount)
     }
     const iRef = idxOf(d.refundDate)
     const refund = Number(d.refundAmount) || 0
@@ -13771,6 +13780,7 @@ on('GET', '/reports/daily-revenue', (ctx) => {
       addTo(row.amounts, iRef, refund)
       refundRows.set(type, row)
       addTo(refundSub, iRef, refund)
+      addTo(pointAgg.get(dailyPayPointName(d.refundPoint || '前台', d.refundMethod || '现金')), iRef, -refund)
     }
   }
 
@@ -13787,7 +13797,8 @@ on('GET', '/reports/daily-revenue', (ctx) => {
   const cashByDay = zeros()
   DAILY_PAY_POINTS.forEach(k => pointAgg.get(k).forEach((v, i) => { cashByDay[i] = r2(cashByDay[i] + v) }))
   const grand = days.map((_, i) => r2(incomeSub[i] + liaisonSub[i] - refundSub[i]))
-  const diff = days.map((_, i) => r2(incomeSub[i] - cashByDay[i]))
+  /* 差额 = 合计 − 收款点。押金带收款方式了，校验范围扩到全部现金流 */
+  const diff = days.map((_, i) => r2(grand[i] - cashByDay[i]))
 
   /* 每行自带 total：契约里 DailyRevenueRow.total 是必需字段 */
   const rowsOf = map => [...map.values()].map(r => ({ ...r, total: sumOf(r.amounts) }))

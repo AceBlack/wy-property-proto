@@ -64,6 +64,9 @@ const JOBS = [
     file: 'payments.json',
     from: path.join(PC, 'payments.json'),
     num: ['amount'],
+    /* payPoint 是 2026-11-15 新加的（收款点在哪个岗位收的）。fixture 里原来没有这个字段，
+       「按现有 key 投影」会把它丢掉 —— 所以显式补进来，契约 schema 同步加。 */
+    extra: ['payPoint'],
     label: '缴费流水'
   }
 ]
@@ -81,7 +84,7 @@ const report = {}
 for (const job of JOBS_TO_RUN) {
   const outPath = path.join(OUT, job.file)
   const existing = readJson(outPath)
-  const keys = keyOf(existing)
+  const keys = [...new Set([...keyOf(existing), ...(job.extra || [])])]
   const numKeys = new Set(job.num)
   const src = readJson(job.from)
 

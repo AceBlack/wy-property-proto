@@ -19,7 +19,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00168",
@@ -41,7 +45,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00276",
@@ -63,7 +71,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00070",
@@ -85,7 +97,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00170",
@@ -107,7 +123,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00231",
@@ -129,7 +149,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00100",
@@ -151,7 +175,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00159",
@@ -173,7 +201,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00052",
@@ -195,7 +227,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00259",
@@ -217,7 +253,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00279",
@@ -239,7 +279,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00241",
@@ -261,7 +305,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00155",
@@ -283,7 +331,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00160",
@@ -305,7 +357,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00290",
@@ -327,7 +383,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00283",
@@ -349,7 +409,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00006",
@@ -371,7 +435,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00141",
@@ -393,7 +461,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00178",
@@ -415,7 +487,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00054",
@@ -437,7 +513,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00294",
@@ -459,7 +539,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00301",
@@ -481,7 +565,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00210",
@@ -503,7 +591,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00226",
@@ -525,7 +617,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00034",
@@ -547,7 +643,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00048",
@@ -569,7 +669,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00072",
@@ -591,7 +695,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00023",
@@ -613,7 +721,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00124",
@@ -635,7 +747,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00120",
@@ -657,7 +773,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00030",
@@ -679,7 +799,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00175",
@@ -701,7 +825,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00157",
@@ -723,7 +851,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00018",
@@ -745,7 +877,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00286",
@@ -767,7 +903,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00297",
@@ -789,7 +929,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00015",
@@ -811,7 +955,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00036",
@@ -833,7 +981,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00039",
@@ -855,7 +1007,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00038",
@@ -877,7 +1033,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00053",
@@ -899,7 +1059,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00103",
@@ -921,7 +1085,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00091",
@@ -943,7 +1111,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00189",
@@ -965,7 +1137,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00085",
@@ -987,7 +1163,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00190",
@@ -1009,7 +1189,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00105",
@@ -1031,7 +1215,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00147",
@@ -1053,7 +1241,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00045",
@@ -1075,7 +1267,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00251",
@@ -1097,7 +1293,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00146",
@@ -1119,7 +1319,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00081",
@@ -1141,7 +1345,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00119",
@@ -1163,7 +1371,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00076",
@@ -1185,7 +1397,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00106",
@@ -1207,7 +1423,11 @@
     "refundDate": "2026-09-23",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00228",
@@ -1229,7 +1449,11 @@
     "refundDate": "2026-09-24",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00192",
@@ -1251,7 +1475,11 @@
     "refundDate": "2026-09-29",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00029",
@@ -1273,7 +1501,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00130",
@@ -1295,7 +1527,11 @@
     "refundDate": "2026-10-13",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00102",
@@ -1317,7 +1553,11 @@
     "refundDate": "2026-10-16",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00090",
@@ -1339,7 +1579,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00094",
@@ -1361,7 +1605,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00121",
@@ -1383,7 +1631,11 @@
     "refundDate": "2026-10-11",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00171",
@@ -1405,7 +1657,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00243",
@@ -1427,7 +1683,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00014",
@@ -1449,7 +1709,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00289",
@@ -1471,7 +1735,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00042",
@@ -1493,7 +1761,11 @@
     "refundDate": "2026-09-03",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00162",
@@ -1515,7 +1787,11 @@
     "refundDate": null,
     "balance": 2000,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00066",
@@ -1537,7 +1813,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00064",
@@ -1559,7 +1839,11 @@
     "refundDate": "2026-09-02",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00275",
@@ -1581,7 +1865,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00302",
@@ -1603,7 +1891,11 @@
     "refundDate": "2026-10-02",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00267",
@@ -1625,7 +1917,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00253",
@@ -1647,7 +1943,11 @@
     "refundDate": "2026-07-30",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00281",
@@ -1669,7 +1969,11 @@
     "refundDate": "2026-07-29",
     "balance": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00051",
@@ -1691,7 +1995,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00096",
@@ -1713,7 +2021,11 @@
     "refundDate": "2026-07-12",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00093",
@@ -1735,7 +2047,11 @@
     "refundDate": "2026-09-14",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00188",
@@ -1757,7 +2073,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00138",
@@ -1779,7 +2099,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00219",
@@ -1801,7 +2125,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00004",
@@ -1823,7 +2151,11 @@
     "refundDate": "2026-10-01",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00278",
@@ -1845,7 +2177,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00017",
@@ -1867,7 +2203,11 @@
     "refundDate": "2026-06-28",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00040",
@@ -1889,7 +2229,11 @@
     "refundDate": "2026-06-11",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00201",
@@ -1911,7 +2255,11 @@
     "refundDate": "2026-07-21",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00005",
@@ -1933,7 +2281,11 @@
     "refundDate": "2026-06-16",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00008",
@@ -1955,7 +2307,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00108",
@@ -1977,7 +2333,11 @@
     "refundDate": "2026-07-31",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00061",
@@ -1999,7 +2359,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00069",
@@ -2021,7 +2385,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00246",
@@ -2043,7 +2411,11 @@
     "refundDate": "2026-05-30",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00167",
@@ -2065,7 +2437,11 @@
     "refundDate": "2026-10-12",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00256",
@@ -2087,7 +2463,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00239",
@@ -2109,7 +2489,11 @@
     "refundDate": "2026-07-23",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00129",
@@ -2131,7 +2515,11 @@
     "refundDate": "2026-08-17",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00050",
@@ -2153,7 +2541,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00158",
@@ -2175,7 +2567,11 @@
     "refundDate": "2026-08-16",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00266",
@@ -2197,7 +2593,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00112",
@@ -2219,7 +2619,11 @@
     "refundDate": "2026-06-07",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00285",
@@ -2241,7 +2645,11 @@
     "refundDate": "2026-06-04",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00134",
@@ -2263,7 +2671,11 @@
     "refundDate": "2026-07-08",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00027",
@@ -2285,7 +2697,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00099",
@@ -2307,7 +2723,11 @@
     "refundDate": "2026-06-27",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00143",
@@ -2329,7 +2749,11 @@
     "refundDate": "2026-07-24",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00211",
@@ -2351,7 +2775,11 @@
     "refundDate": "2026-07-04",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00087",
@@ -2373,7 +2801,11 @@
     "refundDate": "2026-07-22",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00062",
@@ -2395,7 +2827,11 @@
     "refundDate": "2026-07-14",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00223",
@@ -2417,7 +2853,11 @@
     "refundDate": "2026-08-15",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00033",
@@ -2439,7 +2879,11 @@
     "refundDate": "2026-07-19",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00222",
@@ -2461,7 +2905,11 @@
     "refundDate": "2026-07-14",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00063",
@@ -2483,7 +2931,11 @@
     "refundDate": "2026-05-17",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00174",
@@ -2505,7 +2957,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00186",
@@ -2527,7 +2983,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00200",
@@ -2549,7 +3009,11 @@
     "refundDate": "2026-06-21",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00152",
@@ -2571,7 +3035,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00101",
@@ -2593,7 +3061,11 @@
     "refundDate": "2026-05-14",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00037",
@@ -2615,7 +3087,11 @@
     "refundDate": "2026-06-11",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00127",
@@ -2637,7 +3113,11 @@
     "refundDate": "2026-05-29",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00229",
@@ -2659,7 +3139,11 @@
     "refundDate": null,
     "balance": 3000,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00077",
@@ -2681,7 +3165,11 @@
     "refundDate": "2026-04-03",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00287",
@@ -2703,7 +3191,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00055",
@@ -2725,7 +3217,11 @@
     "refundDate": "2026-05-20",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00224",
@@ -2747,7 +3243,11 @@
     "refundDate": "2026-02-28",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00291",
@@ -2769,7 +3269,11 @@
     "refundDate": null,
     "balance": 5000,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00292",
@@ -2791,7 +3295,11 @@
     "refundDate": "2026-03-13",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00227",
@@ -2813,7 +3321,11 @@
     "refundDate": "2026-04-26",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00250",
@@ -2835,7 +3347,11 @@
     "refundDate": "2026-02-09",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00180",
@@ -2857,7 +3373,11 @@
     "refundDate": "2026-01-12",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00203",
@@ -2879,7 +3399,11 @@
     "refundDate": "2026-02-24",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00007",
@@ -2901,7 +3425,11 @@
     "refundDate": "2026-01-24",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00123",
@@ -2923,7 +3451,11 @@
     "refundDate": "2026-01-25",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00115",
@@ -2945,7 +3477,11 @@
     "refundDate": "2026-02-08",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00088",
@@ -2967,7 +3503,11 @@
     "refundDate": "2025-12-16",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00150",
@@ -2989,7 +3529,11 @@
     "refundDate": "2026-01-05",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00232",
@@ -3011,7 +3555,11 @@
     "refundDate": "2026-02-07",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00218",
@@ -3033,7 +3581,11 @@
     "refundDate": "2026-02-19",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00293",
@@ -3055,7 +3607,11 @@
     "refundDate": "2026-02-19",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00280",
@@ -3077,7 +3633,11 @@
     "refundDate": "2026-01-27",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00217",
@@ -3099,7 +3659,11 @@
     "refundDate": "2026-01-21",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00019",
@@ -3121,7 +3685,11 @@
     "refundDate": "2026-01-08",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00095",
@@ -3143,7 +3711,11 @@
     "refundDate": "2025-12-11",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00225",
@@ -3165,7 +3737,11 @@
     "refundDate": "2026-01-05",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00273",
@@ -3187,7 +3763,11 @@
     "refundDate": "2026-01-19",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00080",
@@ -3209,7 +3789,11 @@
     "refundDate": "2025-10-26",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00209",
@@ -3231,7 +3815,11 @@
     "refundDate": "2026-01-02",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00238",
@@ -3253,7 +3841,11 @@
     "refundDate": "2026-01-07",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00125",
@@ -3275,7 +3867,11 @@
     "refundDate": "2025-11-09",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00148",
@@ -3297,7 +3893,11 @@
     "refundDate": "2026-01-26",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00179",
@@ -3319,7 +3919,11 @@
     "refundDate": "2025-12-27",
     "balance": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00254",
@@ -3341,7 +3945,11 @@
     "refundDate": "2025-10-30",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00248",
@@ -3363,7 +3971,11 @@
     "refundDate": "2025-09-19",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00235",
@@ -3385,7 +3997,11 @@
     "refundDate": "2025-12-13",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00270",
@@ -3407,7 +4023,11 @@
     "refundDate": "2025-10-24",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00260",
@@ -3429,7 +4049,11 @@
     "refundDate": "2025-11-16",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00296",
@@ -3451,7 +4075,11 @@
     "refundDate": "2025-11-25",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00264",
@@ -3473,7 +4101,11 @@
     "refundDate": "2025-11-13",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00026",
@@ -3495,7 +4127,11 @@
     "refundDate": "2025-10-26",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00074",
@@ -3517,7 +4153,11 @@
     "refundDate": "2025-10-11",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00049",
@@ -3539,7 +4179,11 @@
     "refundDate": "2025-10-19",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00258",
@@ -3561,7 +4205,11 @@
     "refundDate": "2025-12-02",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00028",
@@ -3583,7 +4231,11 @@
     "refundDate": "2025-09-28",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00111",
@@ -3605,7 +4257,11 @@
     "refundDate": "2025-09-03",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00303",
@@ -3627,7 +4283,11 @@
     "refundDate": "2025-10-11",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00022",
@@ -3649,7 +4309,11 @@
     "refundDate": "2025-08-28",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00295",
@@ -3671,7 +4335,11 @@
     "refundDate": "2025-08-07",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00060",
@@ -3693,7 +4361,11 @@
     "refundDate": "2025-09-13",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00198",
@@ -3715,7 +4387,11 @@
     "refundDate": "2025-09-06",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00044",
@@ -3737,7 +4413,11 @@
     "refundDate": "2025-09-11",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00135",
@@ -3759,7 +4439,11 @@
     "refundDate": "2025-08-21",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00003",
@@ -3781,7 +4465,11 @@
     "refundDate": "2025-08-28",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00166",
@@ -3803,7 +4491,11 @@
     "refundDate": "2025-09-28",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00032",
@@ -3825,7 +4517,11 @@
     "refundDate": "2025-07-20",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00025",
@@ -3847,7 +4543,11 @@
     "refundDate": "2025-09-02",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00199",
@@ -3869,7 +4569,11 @@
     "refundDate": "2025-06-05",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00185",
@@ -3891,7 +4595,11 @@
     "refundDate": "2025-07-02",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00082",
@@ -3913,7 +4621,11 @@
     "refundDate": "2025-06-15",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00068",
@@ -3935,7 +4647,11 @@
     "refundDate": "2025-08-15",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00249",
@@ -3957,7 +4673,11 @@
     "refundDate": "2025-05-29",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00184",
@@ -3979,7 +4699,11 @@
     "refundDate": "2025-06-16",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00207",
@@ -4001,7 +4725,11 @@
     "refundDate": "2025-08-13",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00220",
@@ -4023,7 +4751,11 @@
     "refundDate": "2025-06-24",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00212",
@@ -4045,7 +4777,11 @@
     "refundDate": "2025-06-14",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00230",
@@ -4067,7 +4803,11 @@
     "refundDate": "2025-06-10",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00083",
@@ -4089,7 +4829,11 @@
     "refundDate": "2025-06-01",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00274",
@@ -4111,7 +4855,11 @@
     "refundDate": "2025-06-30",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00245",
@@ -4133,7 +4881,11 @@
     "refundDate": "2025-05-05",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00133",
@@ -4155,7 +4907,11 @@
     "refundDate": "2025-04-28",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00244",
@@ -4177,7 +4933,11 @@
     "refundDate": "2025-03-26",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00122",
@@ -4199,7 +4959,11 @@
     "refundDate": "2025-04-19",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00298",
@@ -4221,7 +4985,11 @@
     "refundDate": "2025-04-30",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00204",
@@ -4243,7 +5011,11 @@
     "refundDate": "2025-04-11",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00221",
@@ -4265,7 +5037,11 @@
     "refundDate": "2025-02-20",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00193",
@@ -4287,7 +5063,11 @@
     "refundDate": "2025-04-19",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00215",
@@ -4309,7 +5089,11 @@
     "refundDate": "2025-03-07",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00257",
@@ -4331,7 +5115,11 @@
     "refundDate": "2025-04-13",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00117",
@@ -4353,7 +5141,11 @@
     "refundDate": "2025-05-23",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00300",
@@ -4375,7 +5167,11 @@
     "refundDate": "2025-03-02",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00020",
@@ -4397,7 +5193,11 @@
     "refundDate": "2025-01-27",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00194",
@@ -4419,7 +5219,11 @@
     "refundDate": "2025-03-13",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00151",
@@ -4441,7 +5245,11 @@
     "refundDate": "2024-12-14",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00092",
@@ -4463,7 +5271,11 @@
     "refundDate": "2025-01-14",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00195",
@@ -4485,7 +5297,11 @@
     "refundDate": "2025-02-25",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00086",
@@ -4507,7 +5323,11 @@
     "refundDate": "2025-01-24",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00161",
@@ -4529,7 +5349,11 @@
     "refundDate": "2025-03-01",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00056",
@@ -4551,7 +5375,11 @@
     "refundDate": "2024-12-14",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00140",
@@ -4573,7 +5401,11 @@
     "refundDate": "2024-11-30",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00118",
@@ -4595,7 +5427,11 @@
     "refundDate": "2024-11-05",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00110",
@@ -4617,7 +5453,11 @@
     "refundDate": "2025-01-03",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00010",
@@ -4639,7 +5479,11 @@
     "refundDate": "2024-10-20",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00191",
@@ -4661,7 +5505,11 @@
     "refundDate": "2025-03-07",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00240",
@@ -4683,7 +5531,11 @@
     "refundDate": "2025-01-12",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00047",
@@ -4705,7 +5557,11 @@
     "refundDate": "2024-12-03",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00078",
@@ -4727,7 +5583,11 @@
     "refundDate": "2024-10-25",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00216",
@@ -4749,7 +5609,11 @@
     "refundDate": "2024-11-25",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00059",
@@ -4771,7 +5635,11 @@
     "refundDate": "2024-12-28",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00197",
@@ -4793,7 +5661,11 @@
     "refundDate": "2024-11-29",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00165",
@@ -4815,7 +5687,11 @@
     "refundDate": "2024-12-06",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00132",
@@ -4837,7 +5713,11 @@
     "refundDate": "2024-12-07",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00202",
@@ -4859,7 +5739,11 @@
     "refundDate": "2024-12-18",
     "balance": 0,
     "operator": "贺文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00024",
@@ -4881,7 +5765,11 @@
     "refundDate": "2024-11-05",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00163",
@@ -4903,7 +5791,11 @@
     "refundDate": "2024-10-12",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00144",
@@ -4925,7 +5817,11 @@
     "refundDate": "2024-11-13",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00136",
@@ -4947,7 +5843,11 @@
     "refundDate": "2024-11-03",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00012",
@@ -4969,7 +5869,11 @@
     "refundDate": "2024-11-16",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00214",
@@ -4991,7 +5895,11 @@
     "refundDate": "2024-08-25",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00206",
@@ -5013,7 +5921,11 @@
     "refundDate": "2024-11-24",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00299",
@@ -5035,7 +5947,11 @@
     "refundDate": "2024-11-01",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00236",
@@ -5057,7 +5973,11 @@
     "refundDate": "2024-08-15",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00265",
@@ -5079,7 +5999,11 @@
     "refundDate": "2025-01-22",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00113",
@@ -5101,7 +6025,11 @@
     "refundDate": "2024-12-21",
     "balance": 0,
     "operator": "钱子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00016",
@@ -5123,7 +6051,11 @@
     "refundDate": "2024-10-20",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00173",
@@ -5145,7 +6077,11 @@
     "refundDate": "2024-12-24",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00145",
@@ -5167,7 +6103,11 @@
     "refundDate": "2024-09-05",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00261",
@@ -5189,7 +6129,11 @@
     "refundDate": "2024-08-24",
     "balance": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00182",
@@ -5211,7 +6155,11 @@
     "refundDate": "2024-09-24",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00009",
@@ -5233,7 +6181,11 @@
     "refundDate": "2024-10-07",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00288",
@@ -5255,7 +6207,11 @@
     "refundDate": "2024-09-20",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00057",
@@ -5277,7 +6233,11 @@
     "refundDate": "2024-07-19",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00154",
@@ -5299,7 +6259,11 @@
     "refundDate": "2024-07-24",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00001",
@@ -5321,7 +6285,11 @@
     "refundDate": "2024-07-24",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00169",
@@ -5343,7 +6311,11 @@
     "refundDate": "2024-06-28",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00002",
@@ -5365,7 +6337,11 @@
     "refundDate": "2024-08-10",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00043",
@@ -5387,7 +6363,11 @@
     "refundDate": "2024-07-17",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00131",
@@ -5409,7 +6389,11 @@
     "refundDate": "2024-07-02",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00041",
@@ -5431,7 +6415,11 @@
     "refundDate": "2024-05-20",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00089",
@@ -5453,7 +6441,11 @@
     "refundDate": "2024-08-03",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00234",
@@ -5475,7 +6467,11 @@
     "refundDate": "2024-08-05",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00126",
@@ -5497,7 +6493,11 @@
     "refundDate": "2024-06-08",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00269",
@@ -5519,7 +6519,11 @@
     "refundDate": "2024-07-22",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00021",
@@ -5541,7 +6545,11 @@
     "refundDate": "2024-05-24",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00271",
@@ -5563,7 +6571,11 @@
     "refundDate": "2024-05-30",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00142",
@@ -5585,7 +6597,11 @@
     "refundDate": "2024-06-28",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00058",
@@ -5607,7 +6623,11 @@
     "refundDate": "2024-07-10",
     "balance": 0,
     "operator": "梁婷",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00107",
@@ -5629,7 +6649,11 @@
     "refundDate": "2024-06-10",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00067",
@@ -5651,7 +6675,11 @@
     "refundDate": "2024-08-23",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00104",
@@ -5673,7 +6701,11 @@
     "refundDate": "2024-07-08",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00172",
@@ -5695,7 +6727,11 @@
     "refundDate": "2024-07-10",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00114",
@@ -5717,7 +6753,11 @@
     "refundDate": "2024-05-03",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00237",
@@ -5739,7 +6779,11 @@
     "refundDate": "2024-08-04",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00183",
@@ -5761,7 +6805,11 @@
     "refundDate": "2024-06-04",
     "balance": 0,
     "operator": "杜子轩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00205",
@@ -5783,7 +6831,11 @@
     "refundDate": "2024-05-05",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00071",
@@ -5805,7 +6857,11 @@
     "refundDate": "2024-05-16",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00084",
@@ -5827,7 +6883,11 @@
     "refundDate": "2024-06-21",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00079",
@@ -5849,7 +6909,11 @@
     "refundDate": "2024-06-25",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00139",
@@ -5871,7 +6935,11 @@
     "refundDate": "2024-03-21",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00263",
@@ -5893,7 +6961,11 @@
     "refundDate": "2024-04-05",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00156",
@@ -5915,7 +6987,11 @@
     "refundDate": "2024-03-21",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00196",
@@ -5937,7 +7013,11 @@
     "refundDate": "2024-03-29",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00284",
@@ -5959,7 +7039,11 @@
     "refundDate": "2024-03-21",
     "balance": 0,
     "operator": "董娜",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00075",
@@ -5981,7 +7065,11 @@
     "refundDate": "2024-02-28",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00252",
@@ -6003,7 +7091,11 @@
     "refundDate": "2024-03-05",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00098",
@@ -6025,7 +7117,11 @@
     "refundDate": "2024-03-07",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00255",
@@ -6047,7 +7143,11 @@
     "refundDate": "2024-03-15",
     "balance": 0,
     "operator": "贺丽华",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00031",
@@ -6069,7 +7169,11 @@
     "refundDate": "2024-02-03",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00187",
@@ -6091,7 +7195,11 @@
     "refundDate": "2024-05-02",
     "balance": 0,
     "operator": "段浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00176",
@@ -6113,7 +7221,11 @@
     "refundDate": "2024-01-10",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00277",
@@ -6135,7 +7247,11 @@
     "refundDate": "2024-03-12",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00282",
@@ -6157,7 +7273,11 @@
     "refundDate": "2024-03-29",
     "balance": 0,
     "operator": "宋杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00177",
@@ -6179,7 +7299,11 @@
     "refundDate": "2024-03-28",
     "balance": 0,
     "operator": "莫瑞",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00213",
@@ -6201,7 +7325,11 @@
     "refundDate": "2024-01-21",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00181",
@@ -6223,7 +7351,11 @@
     "refundDate": "2024-01-19",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00242",
@@ -6245,7 +7377,11 @@
     "refundDate": "2024-02-02",
     "balance": 0,
     "operator": "严鑫",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00304",
@@ -6267,7 +7403,11 @@
     "refundDate": "2024-03-24",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00065",
@@ -6289,7 +7429,11 @@
     "refundDate": "2024-06-13",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00268",
@@ -6311,7 +7455,11 @@
     "refundDate": "2024-03-14",
     "balance": 0,
     "operator": "陆杰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00011",
@@ -6333,7 +7481,11 @@
     "refundDate": "2024-02-05",
     "balance": 0,
     "operator": "汪磊",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00247",
@@ -6355,7 +7507,11 @@
     "refundDate": "2024-04-19",
     "balance": 0,
     "operator": "周佳怡",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00262",
@@ -6377,7 +7533,11 @@
     "refundDate": "2024-01-10",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00208",
@@ -6399,7 +7559,11 @@
     "refundDate": "2024-02-13",
     "balance": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00035",
@@ -6421,7 +7585,11 @@
     "refundDate": "2023-12-03",
     "balance": 0,
     "operator": "万军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00116",
@@ -6443,7 +7611,11 @@
     "refundDate": "2024-01-03",
     "balance": 0,
     "operator": "覃海燕",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00272",
@@ -6465,7 +7637,11 @@
     "refundDate": "2024-01-31",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00046",
@@ -6487,7 +7663,11 @@
     "refundDate": "2023-12-12",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00137",
@@ -6509,7 +7689,11 @@
     "refundDate": "2023-12-26",
     "balance": 0,
     "operator": "杜若曦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00164",
@@ -6531,7 +7715,11 @@
     "refundDate": "2023-12-07",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00097",
@@ -6553,7 +7741,11 @@
     "refundDate": "2024-01-07",
     "balance": 0,
     "operator": "徐悦",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00233",
@@ -6575,7 +7767,11 @@
     "refundDate": "2024-01-01",
     "balance": 0,
     "operator": "汪文博",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00073",
@@ -6597,7 +7793,11 @@
     "refundDate": "2023-12-19",
     "balance": 0,
     "operator": "何浩",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00128",
@@ -6619,7 +7819,11 @@
     "refundDate": "2023-11-30",
     "balance": 0,
     "operator": "杨涛",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00109",
@@ -6641,7 +7845,11 @@
     "refundDate": "2023-12-08",
     "balance": 0,
     "operator": "龚文",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00153",
@@ -6663,7 +7871,11 @@
     "refundDate": "2023-12-09",
     "balance": 0,
     "operator": "丁军",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00013",
@@ -6685,7 +7897,11 @@
     "refundDate": "2023-11-28",
     "balance": 0,
     "operator": "武超",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00305",
@@ -6707,7 +7923,11 @@
     "refundDate": null,
     "balance": 150,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00306",
@@ -6729,7 +7949,11 @@
     "refundDate": null,
     "balance": 100,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00307",
@@ -6751,7 +7975,11 @@
     "refundDate": null,
     "balance": 100,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00308",
@@ -6773,7 +8001,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00309",
@@ -6795,7 +8027,11 @@
     "refundDate": null,
     "balance": 50,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00310",
@@ -6817,7 +8053,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00311",
@@ -6839,7 +8079,11 @@
     "refundDate": null,
     "balance": 150,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00312",
@@ -6861,7 +8105,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00313",
@@ -6883,7 +8131,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00314",
@@ -6905,7 +8157,11 @@
     "refundDate": null,
     "balance": 150,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00315",
@@ -6927,7 +8183,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00316",
@@ -6949,7 +8209,11 @@
     "refundDate": null,
     "balance": 150,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00317",
@@ -6971,7 +8235,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00318",
@@ -6993,7 +8261,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00319",
@@ -7015,7 +8287,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00320",
@@ -7037,7 +8313,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00321",
@@ -7059,7 +8339,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00322",
@@ -7081,7 +8365,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00323",
@@ -7103,7 +8391,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00324",
@@ -7125,7 +8417,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00325",
@@ -7147,7 +8443,11 @@
     "refundDate": null,
     "balance": 20,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00326",
@@ -7169,7 +8469,11 @@
     "refundDate": null,
     "balance": 20,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00327",
@@ -7191,7 +8495,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00328",
@@ -7213,7 +8521,11 @@
     "refundDate": null,
     "balance": 40,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "现金",
+    "payPoint": "前台",
+    "refundMethod": "现金",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00329",
@@ -7235,7 +8547,11 @@
     "refundDate": null,
     "balance": 21761,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00330",
@@ -7257,7 +8573,11 @@
     "refundDate": null,
     "balance": 22487,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00331",
@@ -7279,7 +8599,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00332",
@@ -7301,7 +8625,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00333",
@@ -7323,7 +8651,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00334",
@@ -7345,7 +8677,11 @@
     "refundDate": null,
     "balance": 30688,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00335",
@@ -7367,7 +8703,11 @@
     "refundDate": null,
     "balance": 71985,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00336",
@@ -7389,7 +8729,11 @@
     "refundDate": null,
     "balance": 45077,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00337",
@@ -7411,7 +8755,11 @@
     "refundDate": null,
     "balance": 22625,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00338",
@@ -7433,7 +8781,11 @@
     "refundDate": null,
     "balance": 62986,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00339",
@@ -7455,7 +8807,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00340",
@@ -7477,7 +8833,11 @@
     "refundDate": null,
     "balance": 69824,
     "operator": "高秀兰",
-    "remark": "供应商履约担保，合同期满退还"
+    "remark": "供应商履约担保，合同期满退还",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00341",
@@ -7499,7 +8859,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00342",
@@ -7521,7 +8885,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00343",
@@ -7543,7 +8911,11 @@
     "refundDate": null,
     "balance": 7375,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00344",
@@ -7565,7 +8937,11 @@
     "refundDate": null,
     "balance": 5222,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00345",
@@ -7587,7 +8963,11 @@
     "refundDate": null,
     "balance": 8293,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00346",
@@ -7609,7 +8989,11 @@
     "refundDate": null,
     "balance": 3696,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00347",
@@ -7631,7 +9015,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00348",
@@ -7653,7 +9041,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00349",
@@ -7675,7 +9067,11 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00350",
@@ -7697,7 +9093,11 @@
     "refundDate": null,
     "balance": 6219,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00351",
@@ -7719,7 +9119,11 @@
     "refundDate": null,
     "balance": 3189,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   },
   {
     "depositId": "DP00352",
@@ -7741,6 +9145,10 @@
     "refundDate": "2026-10-20",
     "balance": 0,
     "operator": "高秀兰",
-    "remark": ""
+    "remark": "",
+    "payMethod": "银行代扣",
+    "payPoint": "前台",
+    "refundMethod": "银行代扣",
+    "refundPoint": "前台"
   }
 ]

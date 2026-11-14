@@ -1704,7 +1704,12 @@ async function confirmPay() {
           type: e.meta.type,
           quantity: e.meta.quantity,
           amount: e.meta.amount,
-          remark: remark.value
+          remark: remark.value,
+          /* 押金跟着这一单的收款方式走：客户刷 POS 交押金，流水记 POS、押金台账记现金，
+             日报里这两笔就分到两个收款点，差额当场对不平。
+             收款点是「谁在收」，收银台收的永远是前台。 */
+          payMethod: splitRows.value[0]?.method || '现金',
+          payPoint: '前台'
         })
         done.push(`${r.type} ¥${money(r.amount)}（不计收入）`)
       } else {

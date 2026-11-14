@@ -11984,8 +11984,9 @@ paths:
         - 日期列按**自然月**切，没有「补记上月尾数」那一列：系统按 `payTime` 归月，
           不存在"上月最后一天没来得及记"；
         - 科目行用费用分类字典的二级分类，不用各项目自定义的科目；
-        - **差额只校验账单收入**：`diff = 收入 − 收款点`。押金不进收款点 ——
-          押金台账没有收款方式字段，硬归现金会在退款日把现金冲成负数。
+        - **差额校验全部现金流**：`diff = 合计 − 收款点`，含押金收退。
+          前提是押金带收款方式（`Deposit.payMethod` / `payPoint`）——
+          没有它的时候押金只能整段排除在日结之外。
 
         差额每天应当为 0。不为 0 只有两种原因：现金长短款，或某笔收款漏录收款点。
       parameters:
@@ -13743,6 +13744,16 @@ components:
               method: { $ref: '#/components/schemas/PayMethodLegacy' }
               amount: { type: number }
         splitCount: { type: integer, description: 派生：有几种方式 }
+        payPoint:
+          type: string
+          enum: [前台, 停车场, 线上, 车辆云平台]
+          description: |
+            **收款点**：谁在收、跟谁交班。不是支付渠道（那是 `method` / `splits`）——
+            停车场独立交班、独立对账，所以「车辆现金」「车辆POS」在经营日报里单列。
+
+            2026-11-15 前的流水没有这个字段，报表层按「经办人是否线上自助」「业务是否停车类」
+            兜底推导；之后的流水由收款那一刻写入。
+          default: 前台
         batchNo: { type: string, description: 收款批次号，一次收款的多条流水共用 }
         receiptStatus:
           type: string
@@ -20021,7 +20032,11 @@ components:
             total: { type: number }
         diff:
           type: object
-          description: 日结差额 = 收入 − 收款点。每天应为 0
+          description: |
+            日结差额 = 合计 − 收款点。每天应为 0。
+            校验的是**全部现金流**（收入 + 押金收 − 押金退），前提是押金也带收款方式
+            （`Deposit.payMethod` / `payPoint`）。某个收款点当格为负不是错：
+            那天退款大于收款。
           properties:
             amounts:
               type: array
@@ -20541,6 +20556,22 @@ components:
         balance: { type: number, description: amount − refundAmount − deductAmount }
         operator: { type: string }
         remark: { type: string }
+        payMethod:
+          $ref: '#/components/schemas/PayMethod'
+        payPoint:
+          type: string
+          enum: [前台, 停车场]
+          description: |
+            收押金时**谁在收**。与 `payMethod`（钱怎么走的）是两件事 ——
+            押金和收款流水共用同一套收款点，日报才能把"当天现金"算平。
+          default: 前台
+        refundMethod:
+          type: string
+          description: 退款方式，同 `payMethod` 取值；未退款时为空串
+        refundPoint:
+          type: string
+          enum: [前台, 停车场, '']
+          description: 从哪个收款点退的；未退款时为空串
 
     DepositInput:
       type: object
@@ -20553,6 +20584,14 @@ components:
           type: number
           description: standardAmount = 0 的类型必填；有标准额时按 标准额 × 数量
         paidDate: { type: string, format: date }
+        payMethod:
+          allOf:
+            - $ref: '#/components/schemas/PayMethod'
+          description: 收款方式。缺省现金 —— 不收「预存抵扣」
+        payPoint:
+          type: string
+          enum: [前台, 停车场]
+          default: 前台
         startDate: { type: string, description: needDates 类型必填 }
         planEndDate: { type: string, description: needDates 类型必填 }
         remark: { type: string, maxLength: 120 }

@@ -8339,6 +8339,19 @@ let DP_SEQ = decorationDeposits.length
  * 2026-11-13 改为**按类型驱动**：只有 needDates 的类型（装修）才要求开工/计划完工，
  * 门禁卡、履约保证金、租约押金填工期没有意义 —— 之前表单把这三类也卡在"请填写开工日期"上。
  */
+/**
+ * 押金收款方式的白名单。
+ *
+ * 与收款流水同一套枚举（`PAY_METHODS`），唯独不收「预存抵扣」——
+ * 押金是负债，拿负债去抵负债，账上看不出发生过什么。
+ * 认不出来的一律落「现金」：宁可归错一个渠道，也不能让这条流水没有方式
+ * （没有方式 = 日结差额永远对不平）。
+ */
+function _depositMethod(v) {
+  const list = ['现金', '微信支付', '支付宝', 'POS刷卡', '银行代扣']
+  return list.includes(v) ? v : '现金'
+}
+
 export function createDeposit(p = {}) {
   const h = _HOUSE_OF.get(p.houseId)
   if (!h) throw new Error('请选择押金所属房屋')
@@ -8376,6 +8389,12 @@ export function createDeposit(p = {}) {
     status: def.needDates ? '装修中' : '在押',
     deductAmount: 0, deductReason: '',
     refundAmount: 0, refundDate: null, balance: amount, overdueDays: 0,
+    /* 收押金那一刻就把「钱怎么来的」记下来（2026-11-15）：
+       早先只有 operator，没有方式/收款点，日报里押金那一段的钱根本进不了收款点，
+       差额对不平，只能整段排除在日结之外。 */
+    payMethod: _depositMethod(p.payMethod),
+    payPoint: p.payPoint === '停车场' ? '停车场' : '前台',
+    refundMethod: '', refundPoint: '',
     operator: p.operator || '当前登录人', remark: p.remark || '', _isNew: true
   }
   decorationDeposits.unshift(rec)
@@ -8405,7 +8424,7 @@ export function checkDeposit(depositId, { checkDate = '', deductAmount = 0, dedu
 }
 
 /** 退款：验收通过后退余额（可部分退），退完置「已退还」 */
-export function refundDeposit(depositId, { refundAmount = null, refundDate = '' } = {}) {
+export function refundDeposit(depositId, { refundAmount = null, refundDate = '', payMethod = '现金' } = {}) {
   const d = decorationDeposits.find(x => x.depositId === depositId)
   if (!d) throw new Error('押金记录不存在')
   const def = depositTypeOf(d.type)
@@ -8422,6 +8441,10 @@ export function refundDeposit(depositId, { refundAmount = null, refundDate = '' 
   d.refundAmount = Math.round((d.refundAmount + amt) * 100) / 100
   d.balance = Math.round((d.amount - d.refundAmount - d.deductAmount) * 100) / 100
   d.refundDate = refundDate || _now().slice(0, 10)
+  /* 退款方式单独记：退现金和原路退回，日报上一个是「现金」出账、一个只是冲账，
+     混成一条会让当日现金被多扣一次 */
+  d.refundMethod = _depositMethod(payMethod)
+  d.refundPoint = d.payPoint || '前台'
   if (d.balance <= 0) d.status = d.deductAmount > 0 ? '部分扣除' : '已退还'
   return d
 }
@@ -20483,7 +20506,7 @@ export const depositCollectTypeOpts = () => depositTypeOpts()
  *
  * 这里只「收」，退还走押金台账 —— 收银台上退钱等于开了一条不经审批的出金口。
  */
-export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1, amount = 0, remark = '' } = {}) {
+export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1, amount = 0, remark = '', payMethod = '现金', payPoint = '前台' } = {}) {
   assertPerm('b.cashier.edit', '缺少权限位 b.cashier.edit：无权收款')
   const h = houses.find(x => x.houseId === houseId)
   if (!h) throw new Error('房屋不存在')
@@ -20508,6 +20531,9 @@ export function collectDeposit({ houseId, type = '门禁卡押金', quantity = 1
     status: def.needDates ? '装修中' : '在押',
     deductAmount: 0, deductReason: '',
     refundAmount: 0, refundDate: null, balance: amt, overdueDays: 0,
+    payMethod: _depositMethod(payMethod),
+    payPoint: payPoint === '停车场' ? '停车场' : '前台',
+    refundMethod: '', refundPoint: '',
     operator: currentOperator().name || '前台', remark: String(remark || ''), _isNew: true
   }
   decorationDeposits.unshift(rec)
@@ -21218,6 +21244,29 @@ function _payPointOf(channel, isPark) {
 }
 
 /**
+ * 「收款点 + 渠道」→ 日报上的七个展示位之一。
+ *
+ * 2026-11-15 起流水和押金都带 `payPoint` 了，不再靠「业务是不是停车类」去猜。
+ * 但两边数据仍可能有旧值（没迁移的库），所以 `_payPointOf` 留作兜底。
+ *
+ * 三条例外先于组合规则：
+ *   · 车辆云平台是**第三方代收**，不论什么渠道都单独一档（钱不经过我们的收银台）；
+ *   · 微信 / 支付宝一律并到「线上支付」—— 客户表里没有「前台微信」这一项，
+ *     硬拆反而对不上他们的表；
+ *   · 银行代扣一律「转账」。
+ */
+function _payPointName(payPoint, channel) {
+  const pt = String(payPoint || '前台')
+  const ch = String(channel || '')
+  if (pt === '车辆云平台') return '车辆云平台'
+  if (ch === '微信支付' || ch === '支付宝') return '线上支付'
+  if (ch === '银行代扣') return '转账'
+  const park = pt === '停车场'
+  if (ch === 'POS刷卡') return park ? '车辆POS' : 'POS刷卡'
+  return park ? '车辆现金' : '现金'
+}
+
+/**
  * 经营日报：一天一列，科目一行的收银台账 + 日结差额。
  *
  * @param {{month?:string, communityId?:string}} p
@@ -21271,7 +21320,8 @@ export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}
     incomeRows.set(code, row)
     addTo(incomeSub, i, amount)
 
-    addTo(pointAgg.get(_payPointOf(p.channel, PARK_CATS.has(code))), i, amount)
+    const pt = p.payPoint || (PARK_CATS.has(code) ? '停车场' : '前台')
+    addTo(pointAgg.get(_payPointName(pt, p.channel)), i, amount)
   }
 
   /* ---------- 往来款 / 退款：押金台账 ----------
@@ -21280,10 +21330,10 @@ export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}
        refundDate → 退款（退出去，负债减少）
      扣款（deductAmount）不在这里 —— 那是转收入，走的是减免/收入侧，别混进来。
 
-     **押金不进收款点**：台账没有收款方式字段，硬归到「现金」会让某天退几笔押金后
-     现金变成负数（一天退 19 万履约保证金，现金 -19 万，这个数没法看）。
-     所以日结差额只校验**账单收入**；押金走独立台账、单独对账，等第二批补上
-     收款/退款方式字段再纳入日结。这一点写在页面上，不给假平衡。 */
+     2026-11-15 起押金带 `payMethod` / `payPoint`（迁移脚本 migrate-pay-point.mjs 补的），
+     所以押金**能进收款点**了，日结差额覆盖到全部现金流。
+     早先没有这两个字段，硬归现金会在退款日把现金冲成负数（一天退 19 万履约保证金，
+     现金 -19 万），只能把押金整段排除在日结之外 —— 那是数据缺字段，不是口径选择。 */
   const liaisonRows = new Map()
   const refundRows = new Map()
   const liaisonSub = zeros()
@@ -21300,6 +21350,7 @@ export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}
       addTo(row.amounts, iPaid, amount)
       liaisonRows.set(type, row)
       addTo(liaisonSub, iPaid, amount)
+      addTo(pointAgg.get(_payPointName(d.payPoint || '前台', d.payMethod || '现金')), iPaid, amount)
     }
 
     const iRef = idxOf(d.refundDate)
@@ -21309,6 +21360,9 @@ export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}
       addTo(row.amounts, iRef, refund)
       refundRows.set(type, row)
       addTo(refundSub, iRef, refund)
+      /* 退款从原收款点出账（负数）：不退现金的退款（原路退回）也要落在这里，
+         否则收款点小计会比合计多出一笔 */
+      addTo(pointAgg.get(_payPointName(d.refundPoint || '前台', d.refundMethod || '现金')), iRef, -refund)
     }
   }
 
@@ -21327,9 +21381,9 @@ export function dailyRevenueReport({ month = periodOf(), communityId = '' } = {}
   PAY_POINTS.forEach(k => pointAgg.get(k).forEach((v, i) => { cashByDay[i] = _e2(cashByDay[i] + v) }))
 
   const grandByDay = days.map((_, i) => _e2(incomeSub[i] + liaisonSub[i] - refundSub[i]))
-  /* 差额只校验**账单收入**与收款点：押金不在收款流水里（台账缺收款方式），
-     拿它一起校验必然不平，而且会把现金冲成负数 —— 那不是"发现问题"，是造了一个假问题。 */
-  const diffByDay = days.map((_, i) => _e2(incomeSub[i] - cashByDay[i]))
+  /* 差额 = 合计 − 收款点。押金现在带收款方式了，所以校验范围从"仅收入"扩到"全部现金流"——
+     这才是客户那张表的口径（他们的差额就是拿合计减收款方式）。 */
+  const diffByDay = days.map((_, i) => _e2(grandByDay[i] - cashByDay[i]))
 
   const sumOf = arr => _e2(arr.reduce((s2, v) => s2 + (Number(v) || 0), 0))
   const rowsOf = map => [...map.values()]
