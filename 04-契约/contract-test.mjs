@@ -437,12 +437,17 @@ test('楼管只看到责任范围内的数据', async () => {
   })
 })
 
-test('账单列表 schema + 金额自洽（payable = paid + unpaid）', async () => {
+test('账单列表 schema + 金额自洽（payable = paid + discount + unpaid）', async () => {
   const r = await call('GET', '/bills', { query: { pageNo: 1, size: 20 } })
   eq(r.status, 200, 'HTTP 状态')
   assertSchema(r, 'BillPageEnvelope', 'GET /bills')
   for (const b of r.data.rows) {
-    near(b.payable, (b.paidAmount || 0) + (b.unpaid || 0), `账单 ${b.billId} 应收 ≠ 已收 + 未收`)
+    /* 减免既不是"已收"也不是"未收"，是第三种去向：钱没进来，但这笔应收也不用再收了。
+       原来这条只校验 paid + unpaid，减免过的账单会差一个 discount —— 2026-11-14 给 fixture
+       补上减免种子（90 笔）后当场红，说明原来那版口径是漏的，不是数据错。
+       三率那边一直是 `已收 + 减免 + 未收 = 应收`，两处口径现在对齐。 */
+    near(b.payable, (b.paidAmount || 0) + (b.discount || 0) + (b.unpaid || 0),
+      `账单 ${b.billId} 应收 ≠ 已收 + 减免 + 未收`)
     assert(['house', 'park'].includes(b.subjectType), `subjectType 非法：${b.subjectType}`)
   }
 })
@@ -3732,6 +3737,67 @@ test('房屋字段编辑：白名单拦在前，交付边界两个方向都拦',
   eq(ok2.status, 200, '改使用状态 HTTP 状态')
   eq(ok2.data.useStatus, '空置房', '返回改后的使用状态')
   await call('PATCH', '/houses/H010110101', { body: { field: 'useStatus', value: '已入住' } })
+})
+
+test('移动抄表：待抄清单按责任房屋收敛，三条校验照抄 PC', async () => {
+  /* 莫瑞：楼栋管家，名下 154 套房 */
+  token = await login('mo-rui')
+  const list = await call('GET', '/mobile/meters', { query: { status: '待录入' } })
+  eq(list.status, 200, '待抄清单 HTTP 状态')
+  assert(list.data.rows.length > 0, `楼管应有待抄任务（实际 ${list.data.rows.length}）`)
+
+  const row = list.data.rows[0]
+  assert(row.buildingName && row.houseName, '清单行要带楼栋与房号')
+  eq(row.currentReading, null, '「待录入」不下发本期读数（否则看起来像已抄过）')
+  assert(row.lastReading > 0, '上期读数必须给出（现场最常错的就是把它当本期填）')
+
+  /* 范围收敛：全项目 P01 待录入 79 条，楼管只该看到自己那几栋的 */
+  const full = await call('GET', '/mobile/meters', { query: { status: '待录入', communityId: 'P01' } })
+  assert(full.data.rows.length < 79 || full.data.rows.length === list.data.rows.length,
+    `楼管可见条数应小于等于全量（${full.data.rows.length}）`)
+
+  /* ① 正常录入：用量 15 */
+  const ok1 = await call('POST', `/mobile/meters/${row.readingId}/reading`, {
+    body: { currentReading: row.lastReading + 15 }
+  })
+  eq(ok1.status, 200, '录入 HTTP 状态')
+  eq(ok1.data.usage, 15, '用量 = 本期 − 上期')
+  eq(ok1.data.status, '待复核', '录完进待复核，不是直接出账')
+  eq(ok1.data.abnormal, false, '15 度/吨不算异常')
+  eq(ok1.data.reader, '莫瑞', '抄表人记下是谁')
+
+  /* ② 已抄过不能再录 */
+  const again = await call('POST', `/mobile/meters/${row.readingId}/reading`, {
+    body: { currentReading: row.lastReading + 20 }
+  })
+  eq(again.status, 409, '重录同一记录要拒')
+  eq(again.code, 40970, '用 40970 而不是泛泛的 40928')
+
+  /* ③ 小于上期：换一条待抄的 */
+  const list2 = await call('GET', '/mobile/meters', { query: { status: '待录入' } })
+  const r2 = list2.data.rows[0]
+  const less = await call('POST', `/mobile/meters/${r2.readingId}/reading`, {
+    body: { currentReading: r2.lastReading - 1 }
+  })
+  eq(less.status, 422, '小于上期要被拒')
+  assert(String(less.message).includes('不得小于上期读数'), `文案要带上期值：${less.message}`)
+
+  /* ④ 超量程 */
+  const over = await call('POST', `/mobile/meters/${r2.readingId}/reading`, {
+    body: { currentReading: 99999999 }
+  })
+  eq(over.status, 422, '超量程要被拒')
+  assert(String(over.message).includes('量程'), `文案要提量程：${over.message}`)
+
+  /* ⑤ 异常**不拦提交**：用量超阈值得放行，只标 abnormal */
+  const limit = r2.type === '电表' ? 330 : 24
+  const abnormal = await call('POST', `/mobile/meters/${r2.readingId}/reading`, {
+    body: { currentReading: r2.lastReading + limit + 50 }
+  })
+  eq(abnormal.status, 200, '异常用量不拦提交')
+  eq(abnormal.data.abnormal, true, '标成异常')
+  eq(abnormal.data.status, '待复核', '进待复核由后台判断，不是拒收')
+  assert(abnormal.data.abnormalLimit > 0, '异常时把阈值带回来，端上不用自己存常量')
 })
 
 /* ============================ 计划模板（T 域） ============================ */
@@ -8329,18 +8395,38 @@ test('减免分析：按原因汇总不超过总额，历史无原因单列', as
   const d = r.data
   const sum = r2(d.reasons.reduce((s, x) => s + x.amount, 0))
   assert(Math.abs(sum - d.total) < 0.02, `按原因合计 ${sum} 应等于总额 ${d.total}`)
-  assert(d.count >= 0, '笔数不为负')
-  /* 契约数据集没有减免（既没走收银台也没灌种子），所以这里允许是 0；
-     但结构必须在，且占比要么是 0 要么加总 100 —— 不能出现"有金额没占比" */
-  if (d.total > 0) {
-    const share = Math.round(d.reasons.reduce((s, x) => s + x.share, 0) * 10) / 10
-    assert(Math.abs(share - 100) <= 0.5, `占比合计应约等于 100（实际 ${share}）`)
-  }
+
+  /* 2026-11-14 起 fixture 里有减免种子（`scripts/gen-waive-seeds.mjs`，规则照抄 03 的
+     `_seedWaives`），所以这张表现在**必须有数**。以前它恒为空表，断言只能写 `>= 0` ——
+     等于没验：空表既可能是"没人减免"，也可能是"种子没了"。
+     为什么用下限不用等号：契约测试共享同一份内存，前面的「批量减免」「退款」用例会
+     再减几笔，跑得越靠后笔数越多。90 笔 / ¥8,918.38 是种子给的地板。 */
+  assert(d.total >= 8918, `减免总额应不少于种子给的 8,918（实际 ${d.total}）—— 减免种子被清了？`)
+  assert(d.count >= 90, `减免笔数应不少于 90（实际 ${d.count}）`)
+  assert(d.houses >= 88, `涉及房屋应不少于 88 户（实际 ${d.houses}）`)
+
+  const share = Math.round(d.reasons.reduce((s, x) => s + x.share, 0) * 10) / 10
+  assert(Math.abs(share - 100) <= 0.5, `占比合计应约等于 100（实际 ${share}）`)
+
+  /* 按账期合计 = 总额：按账期看的是"哪一期放宽了口子"，加不起来就说明归期错了 */
+  const byP = r2(d.byPeriod.reduce((s, x) => s + x.amount, 0))
+  assert(Math.abs(byP - d.total) < 0.02, `按账期合计 ${byP} 应等于总额 ${d.total}`)
+
+  /* 超免审额度：种子里有两笔困难户 1200（审批线 1000）。这一列曾经恒为 0 ——
+     聚合里把 approveAbove 写死成 0，超没超永远算不出来。同样取下限：前面的用例
+     如果手工减免超过 1000，这笔也会记进来。 */
+  assert(d.overLimitCount >= 2, `超免审额度应不少于 2 笔（实际 ${d.overLimitCount}）`)
+  const wr02 = d.reasons.find(x => x.reasonId === 'WR02')
+  assert(wr02 && wr02.approveAbove === 1000, `困难户免审线应为 1000（实际 ${wr02 && wr02.approveAbove}）`)
+  eq(wr02.type, '个案', '原因类型从字典取')
+  const wr03 = d.reasons.find(x => x.reasonId === 'WR03')
+  assert(wr03 && wr03.countInAssess === true, '差错纠正计入考核（字典里 countInAssess=true）')
+
   for (const x of d.reasons) {
     assert(!(x.reasonId === '' && x.name !== '未填原因（历史数据）'),
       '没有原因的老账必须单列成「未填原因（历史数据）」，不能并进其他')
   }
-  eq(d.detail.length <= 12, true, '明细最多 12 笔')
+  eq(d.detail.length, 12, '明细满 12 笔（90 笔里取金额最大的）')
 })
 
 test('实时账龄：六档合计 = 总额，档位有序且逾期天数单调', async () => {

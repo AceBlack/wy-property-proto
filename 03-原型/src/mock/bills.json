@@ -44135,7 +44135,7 @@
   {
     "billId": "BL001714",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -44262,7 +44262,7 @@
   {
     "billId": "BL001719",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 194.77,
     "payTime": "2026-08-12",
     "payMethod": "支付宝",
@@ -44339,7 +44339,7 @@
   {
     "billId": "BL001722",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 100.44,
     "payTime": "2026-10-21",
     "payMethod": "银行代扣",
@@ -44441,7 +44441,7 @@
   {
     "billId": "BL001726",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 224.17,
     "payTime": "2026-10-11",
     "payMethod": "微信支付",
@@ -44493,7 +44493,7 @@
   {
     "billId": "BL001728",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 57.96,
     "payTime": "2026-08-23",
     "payMethod": "支付宝",
@@ -44570,7 +44570,7 @@
   {
     "billId": "BL001731",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 233.92,
     "payTime": "2026-10-10",
     "payMethod": "支付宝",
@@ -44622,7 +44622,7 @@
   {
     "billId": "BL001733",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 136.08,
     "payTime": "2026-08-31",
     "payMethod": "现金",
@@ -44699,7 +44699,7 @@
   {
     "billId": "BL001736",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -44751,7 +44751,7 @@
   {
     "billId": "BL001738",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 428.72,
     "payTime": "2026-08-11",
     "payMethod": "支付宝",
@@ -44803,7 +44803,7 @@
   {
     "billId": "BL001740",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -44880,7 +44880,7 @@
   {
     "billId": "BL001743",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 109.76,
     "payTime": "2026-08-20",
     "payMethod": "支付宝",
@@ -44932,7 +44932,7 @@
   {
     "billId": "BL001745",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 92.96,
     "payTime": "2026-09-06",
     "payMethod": "银行代扣",
@@ -45009,7 +45009,7 @@
   {
     "billId": "BL001748",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 31.92,
     "payTime": "2026-08-08",
     "payMethod": "银行代扣",
@@ -45111,7 +45111,7 @@
   {
     "billId": "BL001752",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 432.4,
     "payTime": "2026-08-18",
     "payMethod": "支付宝",
@@ -45188,7 +45188,7 @@
   {
     "billId": "BL001755",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 255,
     "payTime": "2026-10-27",
     "payMethod": "银行代扣",
@@ -45265,7 +45265,7 @@
   {
     "billId": "BL001758",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 110.36,
     "payTime": "2026-09-08",
     "payMethod": "微信支付",
@@ -45342,7 +45342,7 @@
   {
     "billId": "BL001761",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 448.04,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -45394,7 +45394,7 @@
   {
     "billId": "BL001763",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 52.08,
     "payTime": "2026-09-24",
     "payMethod": "支付宝",
@@ -45471,7 +45471,7 @@
   {
     "billId": "BL001766",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 231.2,
     "payTime": "2026-08-07",
     "payMethod": "现金",
@@ -45548,7 +45548,7 @@
   {
     "billId": "BL001769",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -45600,7 +45600,7 @@
   {
     "billId": "BL001771",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 36.12,
     "payTime": "2026-08-27",
     "payMethod": "支付宝",
@@ -45652,7 +45652,7 @@
   {
     "billId": "BL001773",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 117.8,
     "payTime": "2026-09-16",
     "payMethod": "微信支付",
@@ -45704,7 +45704,7 @@
   {
     "billId": "BL001775",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 468.28,
     "payTime": "2026-10-26",
     "payMethod": "现金",
@@ -45806,7 +45806,7 @@
   {
     "billId": "BL001779",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 147.56,
     "payTime": "2026-10-13",
     "payMethod": "银行代扣",
@@ -45883,7 +45883,7 @@
   {
     "billId": "BL001782",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 431.48,
     "payTime": "2026-09-25",
     "payMethod": "微信支付",
@@ -45935,7 +45935,7 @@
   {
     "billId": "BL001784",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 37.8,
     "payTime": "2026-10-26",
     "payMethod": "微信支付",
@@ -46012,7 +46012,7 @@
   {
     "billId": "BL001787",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 25.62,
     "payTime": "2026-09-14",
     "payMethod": "银行代扣",
@@ -46089,7 +46089,7 @@
   {
     "billId": "BL001790",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -46166,7 +46166,7 @@
   {
     "billId": "BL001793",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 214.88,
     "payTime": "2026-10-25",
     "payMethod": "支付宝",
@@ -46218,7 +46218,7 @@
   {
     "billId": "BL001795",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 204,
     "payTime": "2026-08-28",
     "payMethod": "支付宝",
@@ -46370,7 +46370,7 @@
   {
     "billId": "BL001801",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -46422,7 +46422,7 @@
   {
     "billId": "BL001803",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 226.44,
     "payTime": "2026-08-31",
     "payMethod": "支付宝",
@@ -46499,7 +46499,7 @@
   {
     "billId": "BL001806",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 57.12,
     "payTime": "2026-10-11",
     "payMethod": "微信支付",
@@ -46576,7 +46576,7 @@
   {
     "billId": "BL001809",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 34.02,
     "payTime": "2026-09-28",
     "payMethod": "微信支付",
@@ -46628,7 +46628,7 @@
   {
     "billId": "BL001811",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.28,
     "payTime": "2026-10-26",
     "payMethod": "银行代扣",
@@ -46680,7 +46680,7 @@
   {
     "billId": "BL001813",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 92.96,
     "payTime": "2026-08-17",
     "payMethod": "微信支付",
@@ -46732,7 +46732,7 @@
   {
     "billId": "BL001815",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 34.44,
     "payTime": "2026-09-25",
     "payMethod": "微信支付",
@@ -46859,7 +46859,7 @@
   {
     "billId": "BL001820",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -46911,7 +46911,7 @@
   {
     "billId": "BL001822",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 107.88,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -47013,7 +47013,7 @@
   {
     "billId": "BL001826",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 62.62,
     "payTime": "2026-08-09",
     "payMethod": "现金",
@@ -47090,7 +47090,7 @@
   {
     "billId": "BL001829",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 144.84,
     "payTime": "2026-10-13",
     "payMethod": "支付宝",
@@ -47142,7 +47142,7 @@
   {
     "billId": "BL001831",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 33.6,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -47194,7 +47194,7 @@
   {
     "billId": "BL001833",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 52.92,
     "payTime": "2026-09-12",
     "payMethod": "支付宝",
@@ -47246,7 +47246,7 @@
   {
     "billId": "BL001835",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -47298,7 +47298,7 @@
   {
     "billId": "BL001837",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 189.04,
     "payTime": "2026-08-10",
     "payMethod": "支付宝",
@@ -47350,7 +47350,7 @@
   {
     "billId": "BL001839",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.32,
     "payTime": "2026-09-17",
     "payMethod": "支付宝",
@@ -47527,7 +47527,7 @@
   {
     "billId": "BL001846",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 124.32,
     "payTime": "2026-09-20",
     "payMethod": "微信支付",
@@ -47579,7 +47579,7 @@
   {
     "billId": "BL001848",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 93.62,
     "payTime": "2026-10-27",
     "payMethod": "银行代扣",
@@ -47631,7 +47631,7 @@
   {
     "billId": "BL001850",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 371.68,
     "payTime": "2026-08-31",
     "payMethod": "现金",
@@ -47683,7 +47683,7 @@
   {
     "billId": "BL001852",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 370.76,
     "payTime": "2026-09-18",
     "payMethod": "微信支付",
@@ -47735,7 +47735,7 @@
   {
     "billId": "BL001854",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -47787,7 +47787,7 @@
   {
     "billId": "BL001856",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 379.96,
     "payTime": "2026-08-12",
     "payMethod": "微信支付",
@@ -47839,7 +47839,7 @@
   {
     "billId": "BL001858",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 420.44,
     "payTime": "2026-09-15",
     "payMethod": "微信支付",
@@ -47916,7 +47916,7 @@
   {
     "billId": "BL001861",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 62.58,
     "payTime": "2026-08-31",
     "payMethod": "支付宝",
@@ -47993,7 +47993,7 @@
   {
     "billId": "BL001864",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -48145,7 +48145,7 @@
   {
     "billId": "BL001870",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 384.56,
     "payTime": "2026-09-21",
     "payMethod": "支付宝",
@@ -48322,7 +48322,7 @@
   {
     "billId": "BL001877",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 88.04,
     "payTime": "2026-09-17",
     "payMethod": "微信支付",
@@ -48374,7 +48374,7 @@
   {
     "billId": "BL001879",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 35.61,
     "payTime": "",
     "payMethod": "",
@@ -48426,7 +48426,7 @@
   {
     "billId": "BL001881",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 391,
     "payTime": "2026-08-10",
     "payMethod": "微信支付",
@@ -48478,7 +48478,7 @@
   {
     "billId": "BL001883",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 130.48,
     "payTime": "2026-09-29",
     "payMethod": "支付宝",
@@ -48530,7 +48530,7 @@
   {
     "billId": "BL001885",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 127.12,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -48582,7 +48582,7 @@
   {
     "billId": "BL001887",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 194.04,
     "payTime": "2026-08-10",
     "payMethod": "微信支付",
@@ -48634,7 +48634,7 @@
   {
     "billId": "BL001889",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 208.08,
     "payTime": "2026-09-15",
     "payMethod": "支付宝",
@@ -48711,7 +48711,7 @@
   {
     "billId": "BL001892",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 184.96,
     "payTime": "2026-08-09",
     "payMethod": "微信支付",
@@ -48813,7 +48813,7 @@
   {
     "billId": "BL001896",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 100.44,
     "payTime": "2026-08-14",
     "payMethod": "微信支付",
@@ -48865,7 +48865,7 @@
   {
     "billId": "BL001898",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 193.31,
     "payTime": "2026-09-23",
     "payMethod": "银行代扣",
@@ -48942,7 +48942,7 @@
   {
     "billId": "BL001901",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 136.64,
     "payTime": "2026-08-26",
     "payMethod": "微信支付",
@@ -48994,7 +48994,7 @@
   {
     "billId": "BL001903",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 90.72,
     "payTime": "2026-09-19",
     "payMethod": "现金",
@@ -49046,7 +49046,7 @@
   {
     "billId": "BL001905",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 136.08,
     "payTime": "2026-10-28",
     "payMethod": "微信支付",
@@ -49123,7 +49123,7 @@
   {
     "billId": "BL001908",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 26.88,
     "payTime": "2026-09-25",
     "payMethod": "现金",
@@ -49175,7 +49175,7 @@
   {
     "billId": "BL001910",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 202.86,
     "payTime": "2026-10-25",
     "payMethod": "现金",
@@ -49227,7 +49227,7 @@
   {
     "billId": "BL001912",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -49379,7 +49379,7 @@
   {
     "billId": "BL001918",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 192.57,
     "payTime": "2026-10-09",
     "payMethod": "支付宝",
@@ -49431,7 +49431,7 @@
   {
     "billId": "BL001920",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 96.88,
     "payTime": "2026-08-25",
     "payMethod": "微信支付",
@@ -49483,7 +49483,7 @@
   {
     "billId": "BL001922",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 129.92,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -49585,7 +49585,7 @@
   {
     "billId": "BL001926",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 104.78,
     "payTime": "2026-09-11",
     "payMethod": "支付宝",
@@ -49637,7 +49637,7 @@
   {
     "billId": "BL001928",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 59.52,
     "payTime": "2026-10-27",
     "payMethod": "支付宝",
@@ -49689,7 +49689,7 @@
   {
     "billId": "BL001930",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.28,
     "payTime": "2026-08-20",
     "payMethod": "银行代扣",
@@ -49741,7 +49741,7 @@
   {
     "billId": "BL001932",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 109.2,
     "payTime": "2026-09-13",
     "payMethod": "支付宝",
@@ -49793,7 +49793,7 @@
   {
     "billId": "BL001934",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -49870,7 +49870,7 @@
   {
     "billId": "BL001937",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 191.76,
     "payTime": "2026-09-29",
     "payMethod": "微信支付",
@@ -49922,7 +49922,7 @@
   {
     "billId": "BL001939",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 196.98,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -49974,7 +49974,7 @@
   {
     "billId": "BL001941",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 58.38,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -50051,7 +50051,7 @@
   {
     "billId": "BL001944",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 58.8,
     "payTime": "2026-10-17",
     "payMethod": "支付宝",
@@ -50128,7 +50128,7 @@
   {
     "billId": "BL001947",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 230.52,
     "payTime": "2026-09-22",
     "payMethod": "现金",
@@ -50205,7 +50205,7 @@
   {
     "billId": "BL001950",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 233.73,
     "payTime": "2026-08-26",
     "payMethod": "支付宝",
@@ -50257,7 +50257,7 @@
   {
     "billId": "BL001952",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 213.15,
     "payTime": "2026-09-27",
     "payMethod": "支付宝",
@@ -50309,7 +50309,7 @@
   {
     "billId": "BL001954",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -50361,7 +50361,7 @@
   {
     "billId": "BL001956",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 152.32,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -50413,7 +50413,7 @@
   {
     "billId": "BL001958",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 115.32,
     "payTime": "2026-09-11",
     "payMethod": "现金",
@@ -50490,7 +50490,7 @@
   {
     "billId": "BL001961",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 107.52,
     "payTime": "2026-08-13",
     "payMethod": "微信支付",
@@ -50542,7 +50542,7 @@
   {
     "billId": "BL001963",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -50619,7 +50619,7 @@
   {
     "billId": "BL001966",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 166.6,
     "payTime": "2026-08-27",
     "payMethod": "支付宝",
@@ -50671,7 +50671,7 @@
   {
     "billId": "BL001968",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 176.12,
     "payTime": "2026-09-29",
     "payMethod": "支付宝",
@@ -50773,7 +50773,7 @@
   {
     "billId": "BL001972",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 115.92,
     "payTime": "2026-09-24",
     "payMethod": "银行代扣",
@@ -50825,7 +50825,7 @@
   {
     "billId": "BL001974",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 17.94,
     "payTime": "",
     "payMethod": "",
@@ -50877,7 +50877,7 @@
   {
     "billId": "BL001976",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 63.24,
     "payTime": "2026-08-22",
     "payMethod": "支付宝",
@@ -50979,7 +50979,7 @@
   {
     "billId": "BL001980",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.42,
     "payTime": "2026-08-12",
     "payMethod": "现金",
@@ -51031,7 +51031,7 @@
   {
     "billId": "BL001982",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 240.04,
     "payTime": "2026-09-30",
     "payMethod": "支付宝",
@@ -51083,7 +51083,7 @@
   {
     "billId": "BL001984",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 254.32,
     "payTime": "2026-10-30",
     "payMethod": "微信支付",
@@ -51135,7 +51135,7 @@
   {
     "billId": "BL001986",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 76.26,
     "payTime": "2026-08-19",
     "payMethod": "支付宝",
@@ -51212,7 +51212,7 @@
   {
     "billId": "BL001989",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 180.88,
     "payTime": "2026-10-13",
     "payMethod": "微信支付",
@@ -51264,7 +51264,7 @@
   {
     "billId": "BL001991",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 98.56,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -51316,7 +51316,7 @@
   {
     "billId": "BL001993",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 61.74,
     "payTime": "2026-09-17",
     "payMethod": "现金",
@@ -51418,7 +51418,7 @@
   {
     "billId": "BL001997",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 369.84,
     "payTime": "2026-09-12",
     "payMethod": "微信支付",
@@ -51495,7 +51495,7 @@
   {
     "billId": "BL002000",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 200.66,
     "payTime": "2026-08-29",
     "payMethod": "银行代扣",
@@ -51572,7 +51572,7 @@
   {
     "billId": "BL002003",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 192.57,
     "payTime": "2026-10-30",
     "payMethod": "微信支付",
@@ -51674,7 +51674,7 @@
   {
     "billId": "BL002007",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -51726,7 +51726,7 @@
   {
     "billId": "BL002009",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -51778,7 +51778,7 @@
   {
     "billId": "BL002011",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 245.48,
     "payTime": "2026-09-27",
     "payMethod": "微信支付",
@@ -51830,7 +51830,7 @@
   {
     "billId": "BL002013",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 245.48,
     "payTime": "2026-10-25",
     "payMethod": "支付宝",
@@ -51882,7 +51882,7 @@
   {
     "billId": "BL002015",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 162.52,
     "payTime": "2026-08-10",
     "payMethod": "微信支付",
@@ -51934,7 +51934,7 @@
   {
     "billId": "BL002017",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 47.04,
     "payTime": "2026-09-13",
     "payMethod": "微信支付",
@@ -52011,7 +52011,7 @@
   {
     "billId": "BL002020",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 56.8,
     "payTime": "",
     "payMethod": "",
@@ -52113,7 +52113,7 @@
   {
     "billId": "BL002024",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.3,
     "payTime": "2026-08-19",
     "payMethod": "现金",
@@ -52165,7 +52165,7 @@
   {
     "billId": "BL002026",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 63,
     "payTime": "2026-09-30",
     "payMethod": "微信支付",
@@ -52217,7 +52217,7 @@
   {
     "billId": "BL002028",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.7,
     "payTime": "2026-10-25",
     "payMethod": "微信支付",
@@ -52294,7 +52294,7 @@
   {
     "billId": "BL002031",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 32.76,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -52346,7 +52346,7 @@
   {
     "billId": "BL002033",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.76,
     "payTime": "2026-10-29",
     "payMethod": "支付宝",
@@ -52398,7 +52398,7 @@
   {
     "billId": "BL002035",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 60.48,
     "payTime": "2026-08-17",
     "payMethod": "支付宝",
@@ -52450,7 +52450,7 @@
   {
     "billId": "BL002037",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -52502,7 +52502,7 @@
   {
     "billId": "BL002039",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -52554,7 +52554,7 @@
   {
     "billId": "BL002041",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 219.03,
     "payTime": "2026-08-13",
     "payMethod": "银行代扣",
@@ -52631,7 +52631,7 @@
   {
     "billId": "BL002044",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 115.94,
     "payTime": "2026-10-09",
     "payMethod": "微信支付",
@@ -52683,7 +52683,7 @@
   {
     "billId": "BL002046",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 187.42,
     "payTime": "2026-08-16",
     "payMethod": "微信支付",
@@ -52735,7 +52735,7 @@
   {
     "billId": "BL002048",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 120.96,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -52787,7 +52787,7 @@
   {
     "billId": "BL002050",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 28.14,
     "payTime": "2026-10-24",
     "payMethod": "微信支付",
@@ -52839,7 +52839,7 @@
   {
     "billId": "BL002052",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 427.8,
     "payTime": "2026-08-20",
     "payMethod": "支付宝",
@@ -52891,7 +52891,7 @@
   {
     "billId": "BL002054",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 418.6,
     "payTime": "2026-09-10",
     "payMethod": "支付宝",
@@ -52943,7 +52943,7 @@
   {
     "billId": "BL002056",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 57.12,
     "payTime": "2026-10-18",
     "payMethod": "微信支付",
@@ -53045,7 +53045,7 @@
   {
     "billId": "BL002060",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -53097,7 +53097,7 @@
   {
     "billId": "BL002062",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 136.08,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -53149,7 +53149,7 @@
   {
     "billId": "BL002064",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -53201,7 +53201,7 @@
   {
     "billId": "BL002066",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -53253,7 +53253,7 @@
   {
     "billId": "BL002068",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 48.72,
     "payTime": "2026-08-12",
     "payMethod": "银行代扣",
@@ -53355,7 +53355,7 @@
   {
     "billId": "BL002072",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.28,
     "payTime": "2026-08-07",
     "payMethod": "银行代扣",
@@ -53432,7 +53432,7 @@
   {
     "billId": "BL002075",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 77.5,
     "payTime": "2026-10-12",
     "payMethod": "支付宝",
@@ -53484,7 +53484,7 @@
   {
     "billId": "BL002077",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 425.04,
     "payTime": "2026-08-23",
     "payMethod": "微信支付",
@@ -53536,7 +53536,7 @@
   {
     "billId": "BL002079",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.28,
     "payTime": "2026-09-25",
     "payMethod": "现金",
@@ -53588,7 +53588,7 @@
   {
     "billId": "BL002081",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 53.96,
     "payTime": "",
     "payMethod": "",
@@ -53690,7 +53690,7 @@
   {
     "billId": "BL002085",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 47.46,
     "payTime": "2026-10-22",
     "payMethod": "微信支付",
@@ -53742,7 +53742,7 @@
   {
     "billId": "BL002087",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 211.68,
     "payTime": "2026-08-10",
     "payMethod": "银行代扣",
@@ -53794,7 +53794,7 @@
   {
     "billId": "BL002089",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 263.16,
     "payTime": "2026-09-12",
     "payMethod": "支付宝",
@@ -53921,7 +53921,7 @@
   {
     "billId": "BL002094",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 170.68,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -53998,7 +53998,7 @@
   {
     "billId": "BL002097",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 220.5,
     "payTime": "2026-09-09",
     "payMethod": "微信支付",
@@ -54075,7 +54075,7 @@
   {
     "billId": "BL002100",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 33.6,
     "payTime": "2026-08-16",
     "payMethod": "微信支付",
@@ -54152,7 +54152,7 @@
   {
     "billId": "BL002103",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 117.8,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -54204,7 +54204,7 @@
   {
     "billId": "BL002105",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 212.41,
     "payTime": "2026-08-28",
     "payMethod": "现金",
@@ -54256,7 +54256,7 @@
   {
     "billId": "BL002107",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 105.84,
     "payTime": "2026-09-18",
     "payMethod": "现金",
@@ -54333,7 +54333,7 @@
   {
     "billId": "BL002110",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 39.48,
     "payTime": "2026-08-26",
     "payMethod": "支付宝",
@@ -54385,7 +54385,7 @@
   {
     "billId": "BL002112",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 67.58,
     "payTime": "2026-09-29",
     "payMethod": "现金",
@@ -54487,7 +54487,7 @@
   {
     "billId": "BL002116",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 68.2,
     "payTime": "2026-09-14",
     "payMethod": "微信支付",
@@ -54539,7 +54539,7 @@
   {
     "billId": "BL002118",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -54591,7 +54591,7 @@
   {
     "billId": "BL002120",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 461.84,
     "payTime": "2026-08-23",
     "payMethod": "微信支付",
@@ -54643,7 +54643,7 @@
   {
     "billId": "BL002122",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.94,
     "payTime": "2026-09-24",
     "payMethod": "微信支付",
@@ -54695,7 +54695,7 @@
   {
     "billId": "BL002124",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 45.78,
     "payTime": "2026-10-20",
     "payMethod": "微信支付",
@@ -54772,7 +54772,7 @@
   {
     "billId": "BL002127",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 114.08,
     "payTime": "2026-09-23",
     "payMethod": "现金",
@@ -54824,7 +54824,7 @@
   {
     "billId": "BL002129",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -54876,7 +54876,7 @@
   {
     "billId": "BL002131",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 371.68,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -55028,7 +55028,7 @@
   {
     "billId": "BL002137",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -55105,7 +55105,7 @@
   {
     "billId": "BL002140",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.28,
     "payTime": "2026-09-25",
     "payMethod": "银行代扣",
@@ -55157,7 +55157,7 @@
   {
     "billId": "BL002142",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.64,
     "payTime": "2026-10-31",
     "payMethod": "微信支付",
@@ -55209,7 +55209,7 @@
   {
     "billId": "BL002144",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -55261,7 +55261,7 @@
   {
     "billId": "BL002146",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 375.36,
     "payTime": "2026-09-19",
     "payMethod": "微信支付",
@@ -55363,7 +55363,7 @@
   {
     "billId": "BL002150",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 83.7,
     "payTime": "2026-09-06",
     "payMethod": "支付宝",
@@ -55440,7 +55440,7 @@
   {
     "billId": "BL002153",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 60.06,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -55542,7 +55542,7 @@
   {
     "billId": "BL002157",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 118.42,
     "payTime": "2026-08-08",
     "payMethod": "支付宝",
@@ -55644,7 +55644,7 @@
   {
     "billId": "BL002161",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 96.1,
     "payTime": "2026-08-07",
     "payMethod": "微信支付",
@@ -55696,7 +55696,7 @@
   {
     "billId": "BL002163",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 466.44,
     "payTime": "2026-09-20",
     "payMethod": "银行代扣",
@@ -55823,7 +55823,7 @@
   {
     "billId": "BL002168",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -55900,7 +55900,7 @@
   {
     "billId": "BL002171",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 45.36,
     "payTime": "2026-09-25",
     "payMethod": "现金",
@@ -56052,7 +56052,7 @@
   {
     "billId": "BL002177",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 37.38,
     "payTime": "2026-08-26",
     "payMethod": "微信支付",
@@ -56104,7 +56104,7 @@
   {
     "billId": "BL002179",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 61.74,
     "payTime": "2026-09-07",
     "payMethod": "支付宝",
@@ -56181,7 +56181,7 @@
   {
     "billId": "BL002182",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 444.36,
     "payTime": "2026-08-24",
     "payMethod": "微信支付",
@@ -56258,7 +56258,7 @@
   {
     "billId": "BL002185",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 131.04,
     "payTime": "2026-10-16",
     "payMethod": "支付宝",
@@ -56310,7 +56310,7 @@
   {
     "billId": "BL002187",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 232.26,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -56387,7 +56387,7 @@
   {
     "billId": "BL002190",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 438.84,
     "payTime": "2026-10-27",
     "payMethod": "支付宝",
@@ -56489,7 +56489,7 @@
   {
     "billId": "BL002194",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -56541,7 +56541,7 @@
   {
     "billId": "BL002196",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 112.56,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -56668,7 +56668,7 @@
   {
     "billId": "BL002201",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -56720,7 +56720,7 @@
   {
     "billId": "BL002203",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 87.42,
     "payTime": "2026-10-22",
     "payMethod": "支付宝",
@@ -56822,7 +56822,7 @@
   {
     "billId": "BL002207",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -56924,7 +56924,7 @@
   {
     "billId": "BL002211",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -57001,7 +57001,7 @@
   {
     "billId": "BL002214",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.66,
     "payTime": "2026-09-23",
     "payMethod": "微信支付",
@@ -57078,7 +57078,7 @@
   {
     "billId": "BL002217",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 432.4,
     "payTime": "2026-08-16",
     "payMethod": "支付宝",
@@ -57180,7 +57180,7 @@
   {
     "billId": "BL002221",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 473.8,
     "payTime": "2026-08-23",
     "payMethod": "银行代扣",
@@ -57232,7 +57232,7 @@
   {
     "billId": "BL002223",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 53.94,
     "payTime": "2026-09-14",
     "payMethod": "银行代扣",
@@ -57309,7 +57309,7 @@
   {
     "billId": "BL002226",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 28.98,
     "payTime": "2026-08-17",
     "payMethod": "微信支付",
@@ -57411,7 +57411,7 @@
   {
     "billId": "BL002230",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 220.32,
     "payTime": "2026-08-07",
     "payMethod": "支付宝",
@@ -57463,7 +57463,7 @@
   {
     "billId": "BL002232",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 25.62,
     "payTime": "2026-09-13",
     "payMethod": "现金",
@@ -57515,7 +57515,7 @@
   {
     "billId": "BL002234",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 26.46,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -57592,7 +57592,7 @@
   {
     "billId": "BL002237",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 128.24,
     "payTime": "2026-09-16",
     "payMethod": "支付宝",
@@ -57644,7 +57644,7 @@
   {
     "billId": "BL002239",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -57696,7 +57696,7 @@
   {
     "billId": "BL002241",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 152.32,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -57748,7 +57748,7 @@
   {
     "billId": "BL002243",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 201.96,
     "payTime": "2026-09-14",
     "payMethod": "银行代扣",
@@ -57800,7 +57800,7 @@
   {
     "billId": "BL002245",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -57877,7 +57877,7 @@
   {
     "billId": "BL002248",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 139.4,
     "payTime": "2026-09-24",
     "payMethod": "微信支付",
@@ -57929,7 +57929,7 @@
   {
     "billId": "BL002250",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -58031,7 +58031,7 @@
   {
     "billId": "BL002254",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -58083,7 +58083,7 @@
   {
     "billId": "BL002256",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 44.94,
     "payTime": "2026-08-17",
     "payMethod": "微信支付",
@@ -58160,7 +58160,7 @@
   {
     "billId": "BL002259",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 102.3,
     "payTime": "2026-10-23",
     "payMethod": "支付宝",
@@ -58262,7 +58262,7 @@
   {
     "billId": "BL002263",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 214.2,
     "payTime": "2026-10-13",
     "payMethod": "支付宝",
@@ -58389,7 +58389,7 @@
   {
     "billId": "BL002268",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 187.42,
     "payTime": "2026-08-11",
     "payMethod": "银行代扣",
@@ -58441,7 +58441,7 @@
   {
     "billId": "BL002270",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 105.84,
     "payTime": "2026-09-30",
     "payMethod": "支付宝",
@@ -58518,7 +58518,7 @@
   {
     "billId": "BL002273",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 93,
     "payTime": "2026-08-21",
     "payMethod": "支付宝",
@@ -58570,7 +58570,7 @@
   {
     "billId": "BL002275",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 224.91,
     "payTime": "2026-09-17",
     "payMethod": "微信支付",
@@ -58622,7 +58622,7 @@
   {
     "billId": "BL002277",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -58674,7 +58674,7 @@
   {
     "billId": "BL002279",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.72,
     "payTime": "2026-08-22",
     "payMethod": "现金",
@@ -58726,7 +58726,7 @@
   {
     "billId": "BL002281",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 30.66,
     "payTime": "2026-09-18",
     "payMethod": "现金",
@@ -58778,7 +58778,7 @@
   {
     "billId": "BL002283",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 38.64,
     "payTime": "2026-10-21",
     "payMethod": "微信支付",
@@ -58830,7 +58830,7 @@
   {
     "billId": "BL002285",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 418.6,
     "payTime": "2026-08-14",
     "payMethod": "支付宝",
@@ -58882,7 +58882,7 @@
   {
     "billId": "BL002287",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 145.52,
     "payTime": "2026-09-25",
     "payMethod": "支付宝",
@@ -58959,7 +58959,7 @@
   {
     "billId": "BL002290",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 210.94,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -59011,7 +59011,7 @@
   {
     "billId": "BL002292",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 260.44,
     "payTime": "2026-09-29",
     "payMethod": "支付宝",
@@ -59063,7 +59063,7 @@
   {
     "billId": "BL002294",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 61.32,
     "payTime": "2026-10-26",
     "payMethod": "支付宝",
@@ -59115,7 +59115,7 @@
   {
     "billId": "BL002296",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 86.8,
     "payTime": "2026-08-19",
     "payMethod": "微信支付",
@@ -59192,7 +59192,7 @@
   {
     "billId": "BL002299",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 411.24,
     "payTime": "2026-10-21",
     "payMethod": "现金",
@@ -59269,7 +59269,7 @@
   {
     "billId": "BL002302",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 113.12,
     "payTime": "2026-09-10",
     "payMethod": "银行代扣",
@@ -59346,7 +59346,7 @@
   {
     "billId": "BL002305",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.3,
     "payTime": "2026-08-31",
     "payMethod": "支付宝",
@@ -59423,7 +59423,7 @@
   {
     "billId": "BL002308",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 56.42,
     "payTime": "2026-10-31",
     "payMethod": "微信支付",
@@ -59475,7 +59475,7 @@
   {
     "billId": "BL002310",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 46.2,
     "payTime": "2026-08-25",
     "payMethod": "微信支付",
@@ -59602,7 +59602,7 @@
   {
     "billId": "BL002315",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 120.28,
     "payTime": "2026-09-21",
     "payMethod": "支付宝",
@@ -59654,7 +59654,7 @@
   {
     "billId": "BL002317",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -59806,7 +59806,7 @@
   {
     "billId": "BL002323",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 109.2,
     "payTime": "2026-09-29",
     "payMethod": "支付宝",
@@ -59858,7 +59858,7 @@
   {
     "billId": "BL002325",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 191.84,
     "payTime": "2026-10-09",
     "payMethod": "支付宝",
@@ -59910,7 +59910,7 @@
   {
     "billId": "BL002327",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 109.74,
     "payTime": "2026-08-09",
     "payMethod": "微信支付",
@@ -59962,7 +59962,7 @@
   {
     "billId": "BL002329",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 372.6,
     "payTime": "2026-09-17",
     "payMethod": "支付宝",
@@ -60014,7 +60014,7 @@
   {
     "billId": "BL002331",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 46.62,
     "payTime": "2026-10-08",
     "payMethod": "微信支付",
@@ -60066,7 +60066,7 @@
   {
     "billId": "BL002333",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -60143,7 +60143,7 @@
   {
     "billId": "BL002336",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -60195,7 +60195,7 @@
   {
     "billId": "BL002338",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 195.84,
     "payTime": "2026-08-13",
     "payMethod": "微信支付",
@@ -60247,7 +60247,7 @@
   {
     "billId": "BL002340",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 35.28,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -60374,7 +60374,7 @@
   {
     "billId": "BL002345",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.76,
     "payTime": "2026-10-28",
     "payMethod": "微信支付",
@@ -60426,7 +60426,7 @@
   {
     "billId": "BL002347",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 121.52,
     "payTime": "2026-08-11",
     "payMethod": "微信支付",
@@ -60478,7 +60478,7 @@
   {
     "billId": "BL002349",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 77.5,
     "payTime": "2026-09-19",
     "payMethod": "银行代扣",
@@ -60530,7 +60530,7 @@
   {
     "billId": "BL002351",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 34.04,
     "payTime": "",
     "payMethod": "",
@@ -60582,7 +60582,7 @@
   {
     "billId": "BL002353",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 75.64,
     "payTime": "2026-08-15",
     "payMethod": "银行代扣",
@@ -60659,7 +60659,7 @@
   {
     "billId": "BL002356",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 105.84,
     "payTime": "2026-10-31",
     "payMethod": "支付宝",
@@ -60736,7 +60736,7 @@
   {
     "billId": "BL002359",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.76,
     "payTime": "2026-09-15",
     "payMethod": "支付宝",
@@ -60838,7 +60838,7 @@
   {
     "billId": "BL002363",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 35.7,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -60965,7 +60965,7 @@
   {
     "billId": "BL002368",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 60.06,
     "payTime": "2026-10-29",
     "payMethod": "现金",
@@ -61092,7 +61092,7 @@
   {
     "billId": "BL002373",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 207.27,
     "payTime": "2026-08-12",
     "payMethod": "微信支付",
@@ -61169,7 +61169,7 @@
   {
     "billId": "BL002376",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -61221,7 +61221,7 @@
   {
     "billId": "BL002378",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 25.62,
     "payTime": "2026-08-26",
     "payMethod": "银行代扣",
@@ -61298,7 +61298,7 @@
   {
     "billId": "BL002381",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -61400,7 +61400,7 @@
   {
     "billId": "BL002385",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 471.04,
     "payTime": "2026-10-30",
     "payMethod": "微信支付",
@@ -61452,7 +61452,7 @@
   {
     "billId": "BL002387",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 104.16,
     "payTime": "2026-08-23",
     "payMethod": "现金",
@@ -61504,7 +61504,7 @@
   {
     "billId": "BL002389",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -61556,7 +61556,7 @@
   {
     "billId": "BL002391",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 34.44,
     "payTime": "2026-10-09",
     "payMethod": "支付宝",
@@ -61608,7 +61608,7 @@
   {
     "billId": "BL002393",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 433.32,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -61685,7 +61685,7 @@
   {
     "billId": "BL002396",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -61737,7 +61737,7 @@
   {
     "billId": "BL002398",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 233.73,
     "payTime": "2026-08-20",
     "payMethod": "银行代扣",
@@ -61789,7 +61789,7 @@
   {
     "billId": "BL002400",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 389.16,
     "payTime": "2026-09-13",
     "payMethod": "银行代扣",
@@ -61866,7 +61866,7 @@
   {
     "billId": "BL002403",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 38.22,
     "payTime": "2026-08-24",
     "payMethod": "支付宝",
@@ -61968,7 +61968,7 @@
   {
     "billId": "BL002407",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 148.24,
     "payTime": "2026-08-13",
     "payMethod": "现金",
@@ -62020,7 +62020,7 @@
   {
     "billId": "BL002409",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -62072,7 +62072,7 @@
   {
     "billId": "BL002411",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 147.56,
     "payTime": "2026-10-08",
     "payMethod": "支付宝",
@@ -62174,7 +62174,7 @@
   {
     "billId": "BL002415",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 42,
     "payTime": "2026-10-07",
     "payMethod": "支付宝",
@@ -62226,7 +62226,7 @@
   {
     "billId": "BL002417",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 138.88,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -62278,7 +62278,7 @@
   {
     "billId": "BL002419",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 128.8,
     "payTime": "2026-09-18",
     "payMethod": "微信支付",
@@ -62355,7 +62355,7 @@
   {
     "billId": "BL002422",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -62407,7 +62407,7 @@
   {
     "billId": "BL002424",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 29.82,
     "payTime": "2026-09-22",
     "payMethod": "微信支付",
@@ -62484,7 +62484,7 @@
   {
     "billId": "BL002427",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 188.16,
     "payTime": "2026-08-24",
     "payMethod": "微信支付",
@@ -62536,7 +62536,7 @@
   {
     "billId": "BL002429",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 435.16,
     "payTime": "2026-09-08",
     "payMethod": "现金",
@@ -62588,7 +62588,7 @@
   {
     "billId": "BL002431",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 437,
     "payTime": "2026-10-15",
     "payMethod": "支付宝",
@@ -62640,7 +62640,7 @@
   {
     "billId": "BL002433",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 174.08,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -62717,7 +62717,7 @@
   {
     "billId": "BL002436",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -62769,7 +62769,7 @@
   {
     "billId": "BL002438",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 62.16,
     "payTime": "2026-08-10",
     "payMethod": "微信支付",
@@ -62921,7 +62921,7 @@
   {
     "billId": "BL002444",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 229.16,
     "payTime": "2026-10-16",
     "payMethod": "支付宝",
@@ -62998,7 +62998,7 @@
   {
     "billId": "BL002447",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 114.24,
     "payTime": "2026-09-30",
     "payMethod": "现金",
@@ -63050,7 +63050,7 @@
   {
     "billId": "BL002449",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -63127,7 +63127,7 @@
   {
     "billId": "BL002452",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 252.96,
     "payTime": "2026-09-25",
     "payMethod": "支付宝",
@@ -63179,7 +63179,7 @@
   {
     "billId": "BL002454",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -63231,7 +63231,7 @@
   {
     "billId": "BL002456",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.28,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -63308,7 +63308,7 @@
   {
     "billId": "BL002459",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -63360,7 +63360,7 @@
   {
     "billId": "BL002461",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 61.32,
     "payTime": "2026-08-25",
     "payMethod": "支付宝",
@@ -63437,7 +63437,7 @@
   {
     "billId": "BL002464",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 266.56,
     "payTime": "2026-10-23",
     "payMethod": "银行代扣",
@@ -63489,7 +63489,7 @@
   {
     "billId": "BL002466",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 26.46,
     "payTime": "2026-08-20",
     "payMethod": "支付宝",
@@ -63541,7 +63541,7 @@
   {
     "billId": "BL002468",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 266.56,
     "payTime": "2026-09-17",
     "payMethod": "微信支付",
@@ -63618,7 +63618,7 @@
   {
     "billId": "BL002471",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 216.09,
     "payTime": "2026-08-23",
     "payMethod": "支付宝",
@@ -63670,7 +63670,7 @@
   {
     "billId": "BL002473",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 226.44,
     "payTime": "2026-09-07",
     "payMethod": "微信支付",
@@ -63722,7 +63722,7 @@
   {
     "billId": "BL002475",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -63774,7 +63774,7 @@
   {
     "billId": "BL002477",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 213.15,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -63851,7 +63851,7 @@
   {
     "billId": "BL002480",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 253.64,
     "payTime": "2026-10-07",
     "payMethod": "微信支付",
@@ -63928,7 +63928,7 @@
   {
     "billId": "BL002483",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 54.18,
     "payTime": "2026-09-09",
     "payMethod": "银行代扣",
@@ -64030,7 +64030,7 @@
   {
     "billId": "BL002487",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 187.68,
     "payTime": "2026-09-19",
     "payMethod": "银行代扣",
@@ -64082,7 +64082,7 @@
   {
     "billId": "BL002489",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -64134,7 +64134,7 @@
   {
     "billId": "BL002491",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 203.59,
     "payTime": "2026-08-18",
     "payMethod": "银行代扣",
@@ -64186,7 +64186,7 @@
   {
     "billId": "BL002493",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 454.48,
     "payTime": "2026-09-30",
     "payMethod": "银行代扣",
@@ -64238,7 +64238,7 @@
   {
     "billId": "BL002495",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 147.56,
     "payTime": "2026-10-13",
     "payMethod": "微信支付",
@@ -64290,7 +64290,7 @@
   {
     "billId": "BL002497",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -64342,7 +64342,7 @@
   {
     "billId": "BL002499",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 228.48,
     "payTime": "2026-09-11",
     "payMethod": "支付宝",
@@ -64394,7 +64394,7 @@
   {
     "billId": "BL002501",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -64496,7 +64496,7 @@
   {
     "billId": "BL002505",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -64598,7 +64598,7 @@
   {
     "billId": "BL002509",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 140,
     "payTime": "2026-10-26",
     "payMethod": "微信支付",
@@ -64725,7 +64725,7 @@
   {
     "billId": "BL002514",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 103.04,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -64802,7 +64802,7 @@
   {
     "billId": "BL002517",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 129.36,
     "payTime": "2026-10-23",
     "payMethod": "微信支付",
@@ -64879,7 +64879,7 @@
   {
     "billId": "BL002520",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 225.76,
     "payTime": "2026-09-15",
     "payMethod": "微信支付",
@@ -64931,7 +64931,7 @@
   {
     "billId": "BL002522",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 127.68,
     "payTime": "2026-10-27",
     "payMethod": "微信支付",
@@ -64983,7 +64983,7 @@
   {
     "billId": "BL002524",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 110.88,
     "payTime": "2026-08-08",
     "payMethod": "现金",
@@ -65035,7 +65035,7 @@
   {
     "billId": "BL002526",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 54.56,
     "payTime": "2026-09-16",
     "payMethod": "银行代扣",
@@ -65137,7 +65137,7 @@
   {
     "billId": "BL002530",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 38.22,
     "payTime": "2026-09-06",
     "payMethod": "现金",
@@ -65264,7 +65264,7 @@
   {
     "billId": "BL002535",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -65316,7 +65316,7 @@
   {
     "billId": "BL002537",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 269.96,
     "payTime": "2026-08-09",
     "payMethod": "银行代扣",
@@ -65443,7 +65443,7 @@
   {
     "billId": "BL002542",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.56,
     "payTime": "2026-09-15",
     "payMethod": "支付宝",
@@ -65520,7 +65520,7 @@
   {
     "billId": "BL002545",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 95.48,
     "payTime": "2026-08-11",
     "payMethod": "现金",
@@ -65597,7 +65597,7 @@
   {
     "billId": "BL002548",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -65649,7 +65649,7 @@
   {
     "billId": "BL002550",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 199.92,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -65701,7 +65701,7 @@
   {
     "billId": "BL002552",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.32,
     "payTime": "2026-09-23",
     "payMethod": "支付宝",
@@ -65753,7 +65753,7 @@
   {
     "billId": "BL002554",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 448.96,
     "payTime": "2026-10-19",
     "payMethod": "支付宝",
@@ -65830,7 +65830,7 @@
   {
     "billId": "BL002557",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 220.32,
     "payTime": "2026-09-11",
     "payMethod": "支付宝",
@@ -65882,7 +65882,7 @@
   {
     "billId": "BL002559",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -65934,7 +65934,7 @@
   {
     "billId": "BL002561",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 161.84,
     "payTime": "2026-08-26",
     "payMethod": "现金",
@@ -66036,7 +66036,7 @@
   {
     "billId": "BL002565",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 230.06,
     "payTime": "2026-08-30",
     "payMethod": "支付宝",
@@ -66113,7 +66113,7 @@
   {
     "billId": "BL002568",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 196.52,
     "payTime": "2026-10-09",
     "payMethod": "微信支付",
@@ -66165,7 +66165,7 @@
   {
     "billId": "BL002570",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 222.36,
     "payTime": "2026-08-27",
     "payMethod": "现金",
@@ -66217,7 +66217,7 @@
   {
     "billId": "BL002572",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 266.56,
     "payTime": "2026-09-18",
     "payMethod": "微信支付",
@@ -66269,7 +66269,7 @@
   {
     "billId": "BL002574",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 277.44,
     "payTime": "",
     "payMethod": "",
@@ -66321,7 +66321,7 @@
   {
     "billId": "BL002576",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 110.88,
     "payTime": "2026-08-10",
     "payMethod": "支付宝",
@@ -66373,7 +66373,7 @@
   {
     "billId": "BL002578",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 113.12,
     "payTime": "2026-09-11",
     "payMethod": "银行代扣",
@@ -66475,7 +66475,7 @@
   {
     "billId": "BL002582",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -66552,7 +66552,7 @@
   {
     "billId": "BL002585",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 57.54,
     "payTime": "2026-08-09",
     "payMethod": "微信支付",
@@ -66604,7 +66604,7 @@
   {
     "billId": "BL002587",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 222.36,
     "payTime": "2026-09-08",
     "payMethod": "现金",
@@ -66656,7 +66656,7 @@
   {
     "billId": "BL002589",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 238,
     "payTime": "2026-10-23",
     "payMethod": "微信支付",
@@ -66708,7 +66708,7 @@
   {
     "billId": "BL002591",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 251.6,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -66785,7 +66785,7 @@
   {
     "billId": "BL002594",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 120.9,
     "payTime": "2026-10-28",
     "payMethod": "银行代扣",
@@ -66837,7 +66837,7 @@
   {
     "billId": "BL002596",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 41.16,
     "payTime": "2026-08-16",
     "payMethod": "现金",
@@ -66914,7 +66914,7 @@
   {
     "billId": "BL002599",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 17.79,
     "payTime": "",
     "payMethod": "",
@@ -66991,7 +66991,7 @@
   {
     "billId": "BL002602",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 101.36,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -67043,7 +67043,7 @@
   {
     "billId": "BL002604",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -67095,7 +67095,7 @@
   {
     "billId": "BL002606",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 112,
     "payTime": "2026-08-13",
     "payMethod": "微信支付",
@@ -67172,7 +67172,7 @@
   {
     "billId": "BL002609",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 137.2,
     "payTime": "2026-10-26",
     "payMethod": "现金",
@@ -67224,7 +67224,7 @@
   {
     "billId": "BL002611",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 127.12,
     "payTime": "2026-08-16",
     "payMethod": "现金",
@@ -67301,7 +67301,7 @@
   {
     "billId": "BL002614",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -67353,7 +67353,7 @@
   {
     "billId": "BL002616",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 101.92,
     "payTime": "2026-08-19",
     "payMethod": "微信支付",
@@ -67405,7 +67405,7 @@
   {
     "billId": "BL002618",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.76,
     "payTime": "2026-09-07",
     "payMethod": "银行代扣",
@@ -67457,7 +67457,7 @@
   {
     "billId": "BL002620",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -67509,7 +67509,7 @@
   {
     "billId": "BL002622",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 117.8,
     "payTime": "2026-08-23",
     "payMethod": "微信支付",
@@ -67561,7 +67561,7 @@
   {
     "billId": "BL002624",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 91.28,
     "payTime": "2026-09-11",
     "payMethod": "支付宝",
@@ -67613,7 +67613,7 @@
   {
     "billId": "BL002626",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -67665,7 +67665,7 @@
   {
     "billId": "BL002628",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 130.48,
     "payTime": "2026-08-22",
     "payMethod": "支付宝",
@@ -67717,7 +67717,7 @@
   {
     "billId": "BL002630",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 451.72,
     "payTime": "2026-09-08",
     "payMethod": "微信支付",
@@ -67769,7 +67769,7 @@
   {
     "billId": "BL002632",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -67821,7 +67821,7 @@
   {
     "billId": "BL002634",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 230.79,
     "payTime": "2026-08-16",
     "payMethod": "微信支付",
@@ -67873,7 +67873,7 @@
   {
     "billId": "BL002636",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 373.52,
     "payTime": "2026-09-19",
     "payMethod": "银行代扣",
@@ -68000,7 +68000,7 @@
   {
     "billId": "BL002641",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -68077,7 +68077,7 @@
   {
     "billId": "BL002644",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 94.86,
     "payTime": "2026-09-21",
     "payMethod": "微信支付",
@@ -68254,7 +68254,7 @@
   {
     "billId": "BL002651",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 96.72,
     "payTime": "2026-09-27",
     "payMethod": "支付宝",
@@ -68331,7 +68331,7 @@
   {
     "billId": "BL002654",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 124.32,
     "payTime": "2026-08-07",
     "payMethod": "微信支付",
@@ -68383,7 +68383,7 @@
   {
     "billId": "BL002656",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 101.68,
     "payTime": "2026-09-17",
     "payMethod": "支付宝",
@@ -68485,7 +68485,7 @@
   {
     "billId": "BL002660",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 152.32,
     "payTime": "2026-09-16",
     "payMethod": "微信支付",
@@ -68537,7 +68537,7 @@
   {
     "billId": "BL002662",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -68589,7 +68589,7 @@
   {
     "billId": "BL002664",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 45.36,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -68641,7 +68641,7 @@
   {
     "billId": "BL002666",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 170.68,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -68693,7 +68693,7 @@
   {
     "billId": "BL002668",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -68745,7 +68745,7 @@
   {
     "billId": "BL002670",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 397.44,
     "payTime": "2026-08-18",
     "payMethod": "现金",
@@ -68797,7 +68797,7 @@
   {
     "billId": "BL002672",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 94.24,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -68924,7 +68924,7 @@
   {
     "billId": "BL002677",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -69026,7 +69026,7 @@
   {
     "billId": "BL002681",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -69103,7 +69103,7 @@
   {
     "billId": "BL002684",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -69155,7 +69155,7 @@
   {
     "billId": "BL002686",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 127.68,
     "payTime": "2026-10-25",
     "payMethod": "微信支付",
@@ -69232,7 +69232,7 @@
   {
     "billId": "BL002689",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 128.8,
     "payTime": "2026-09-28",
     "payMethod": "微信支付",
@@ -69284,7 +69284,7 @@
   {
     "billId": "BL002691",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 95.48,
     "payTime": "2026-10-11",
     "payMethod": "银行代扣",
@@ -69336,7 +69336,7 @@
   {
     "billId": "BL002693",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 98.56,
     "payTime": "2026-08-11",
     "payMethod": "微信支付",
@@ -69413,7 +69413,7 @@
   {
     "billId": "BL002696",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -69490,7 +69490,7 @@
   {
     "billId": "BL002699",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 465.52,
     "payTime": "2026-09-19",
     "payMethod": "微信支付",
@@ -69567,7 +69567,7 @@
   {
     "billId": "BL002702",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 99.12,
     "payTime": "2026-08-09",
     "payMethod": "银行代扣",
@@ -69719,7 +69719,7 @@
   {
     "billId": "BL002708",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 433.32,
     "payTime": "2026-10-17",
     "payMethod": "银行代扣",
@@ -69846,7 +69846,7 @@
   {
     "billId": "BL002713",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 47.46,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -69898,7 +69898,7 @@
   {
     "billId": "BL002715",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 107.52,
     "payTime": "2026-09-17",
     "payMethod": "微信支付",
@@ -69950,7 +69950,7 @@
   {
     "billId": "BL002717",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 391,
     "payTime": "2026-10-26",
     "payMethod": "现金",
@@ -70002,7 +70002,7 @@
   {
     "billId": "BL002719",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 112.56,
     "payTime": "2026-08-31",
     "payMethod": "支付宝",
@@ -70054,7 +70054,7 @@
   {
     "billId": "BL002721",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 124.88,
     "payTime": "2026-09-15",
     "payMethod": "银行代扣",
@@ -70156,7 +70156,7 @@
   {
     "billId": "BL002725",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 215.56,
     "payTime": "2026-09-22",
     "payMethod": "微信支付",
@@ -70208,7 +70208,7 @@
   {
     "billId": "BL002727",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 155.72,
     "payTime": "2026-10-19",
     "payMethod": "微信支付",
@@ -70260,7 +70260,7 @@
   {
     "billId": "BL002729",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 172.72,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -70312,7 +70312,7 @@
   {
     "billId": "BL002731",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 216.09,
     "payTime": "2026-09-22",
     "payMethod": "微信支付",
@@ -70389,7 +70389,7 @@
   {
     "billId": "BL002734",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 155.72,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -70441,7 +70441,7 @@
   {
     "billId": "BL002736",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 189.72,
     "payTime": "2026-09-25",
     "payMethod": "支付宝",
@@ -70493,7 +70493,7 @@
   {
     "billId": "BL002738",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -70645,7 +70645,7 @@
   {
     "billId": "BL002744",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 60.9,
     "payTime": "2026-09-18",
     "payMethod": "支付宝",
@@ -70722,7 +70722,7 @@
   {
     "billId": "BL002747",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 103.54,
     "payTime": "2026-08-18",
     "payMethod": "微信支付",
@@ -70824,7 +70824,7 @@
   {
     "billId": "BL002751",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 79.36,
     "payTime": "2026-08-16",
     "payMethod": "微信支付",
@@ -70876,7 +70876,7 @@
   {
     "billId": "BL002753",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 473.8,
     "payTime": "2026-09-16",
     "payMethod": "现金",
@@ -70928,7 +70928,7 @@
   {
     "billId": "BL002755",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -70980,7 +70980,7 @@
   {
     "billId": "BL002757",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 40.74,
     "payTime": "2026-08-13",
     "payMethod": "现金",
@@ -71032,7 +71032,7 @@
   {
     "billId": "BL002759",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 48.3,
     "payTime": "2026-09-21",
     "payMethod": "支付宝",
@@ -71084,7 +71084,7 @@
   {
     "billId": "BL002761",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -71211,7 +71211,7 @@
   {
     "billId": "BL002766",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 52.08,
     "payTime": "2026-08-22",
     "payMethod": "支付宝",
@@ -71263,7 +71263,7 @@
   {
     "billId": "BL002768",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 29.4,
     "payTime": "2026-09-08",
     "payMethod": "微信支付",
@@ -71340,7 +71340,7 @@
   {
     "billId": "BL002771",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 31.08,
     "payTime": "2026-08-27",
     "payMethod": "支付宝",
@@ -71492,7 +71492,7 @@
   {
     "billId": "BL002777",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -71544,7 +71544,7 @@
   {
     "billId": "BL002779",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 221.24,
     "payTime": "2026-08-18",
     "payMethod": "微信支付",
@@ -71621,7 +71621,7 @@
   {
     "billId": "BL002782",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.04,
     "payTime": "2026-10-18",
     "payMethod": "微信支付",
@@ -71673,7 +71673,7 @@
   {
     "billId": "BL002784",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 402.96,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -71725,7 +71725,7 @@
   {
     "billId": "BL002786",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 240.04,
     "payTime": "2026-09-24",
     "payMethod": "微信支付",
@@ -71777,7 +71777,7 @@
   {
     "billId": "BL002788",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -71854,7 +71854,7 @@
   {
     "billId": "BL002791",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -71906,7 +71906,7 @@
   {
     "billId": "BL002793",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -71958,7 +71958,7 @@
   {
     "billId": "BL002795",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 122.08,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -72035,7 +72035,7 @@
   {
     "billId": "BL002798",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 218.28,
     "payTime": "2026-10-26",
     "payMethod": "支付宝",
@@ -72112,7 +72112,7 @@
   {
     "billId": "BL002801",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 447.12,
     "payTime": "2026-09-09",
     "payMethod": "银行代扣",
@@ -72164,7 +72164,7 @@
   {
     "billId": "BL002803",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 184.96,
     "payTime": "2026-10-27",
     "payMethod": "微信支付",
@@ -72216,7 +72216,7 @@
   {
     "billId": "BL002805",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 417.68,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -72268,7 +72268,7 @@
   {
     "billId": "BL002807",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 105.28,
     "payTime": "2026-09-08",
     "payMethod": "支付宝",
@@ -72345,7 +72345,7 @@
   {
     "billId": "BL002810",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 219.76,
     "payTime": "2026-08-28",
     "payMethod": "微信支付",
@@ -72397,7 +72397,7 @@
   {
     "billId": "BL002812",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.72,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -72474,7 +72474,7 @@
   {
     "billId": "BL002815",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 89.9,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -72526,7 +72526,7 @@
   {
     "billId": "BL002817",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 145.52,
     "payTime": "2026-09-07",
     "payMethod": "微信支付",
@@ -72578,7 +72578,7 @@
   {
     "billId": "BL002819",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 140,
     "payTime": "2026-10-07",
     "payMethod": "支付宝",
@@ -72655,7 +72655,7 @@
   {
     "billId": "BL002822",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 207.27,
     "payTime": "2026-09-09",
     "payMethod": "现金",
@@ -72732,7 +72732,7 @@
   {
     "billId": "BL002825",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 97.34,
     "payTime": "2026-08-13",
     "payMethod": "银行代扣",
@@ -72809,7 +72809,7 @@
   {
     "billId": "BL002828",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 243.44,
     "payTime": "2026-10-30",
     "payMethod": "微信支付",
@@ -72911,7 +72911,7 @@
   {
     "billId": "BL002832",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 117.04,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -72963,7 +72963,7 @@
   {
     "billId": "BL002834",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 196.24,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -73040,7 +73040,7 @@
   {
     "billId": "BL002837",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -73092,7 +73092,7 @@
   {
     "billId": "BL002839",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 157.08,
     "payTime": "2026-08-31",
     "payMethod": "支付宝",
@@ -73144,7 +73144,7 @@
   {
     "billId": "BL002841",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 116.48,
     "payTime": "2026-09-14",
     "payMethod": "银行代扣",
@@ -73196,7 +73196,7 @@
   {
     "billId": "BL002843",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 206.72,
     "payTime": "2026-10-14",
     "payMethod": "支付宝",
@@ -73248,7 +73248,7 @@
   {
     "billId": "BL002845",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 225.76,
     "payTime": "2026-08-21",
     "payMethod": "支付宝",
@@ -73350,7 +73350,7 @@
   {
     "billId": "BL002849",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 128.24,
     "payTime": "2026-08-28",
     "payMethod": "银行代扣",
@@ -73402,7 +73402,7 @@
   {
     "billId": "BL002851",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 409.4,
     "payTime": "2026-09-24",
     "payMethod": "微信支付",
@@ -73454,7 +73454,7 @@
   {
     "billId": "BL002853",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 21.55,
     "payTime": "",
     "payMethod": "",
@@ -73531,7 +73531,7 @@
   {
     "billId": "BL002856",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -73583,7 +73583,7 @@
   {
     "billId": "BL002858",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 48.72,
     "payTime": "2026-10-19",
     "payMethod": "微信支付",
@@ -73635,7 +73635,7 @@
   {
     "billId": "BL002860",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 218.29,
     "payTime": "2026-08-25",
     "payMethod": "支付宝",
@@ -73687,7 +73687,7 @@
   {
     "billId": "BL002862",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.3,
     "payTime": "2026-09-30",
     "payMethod": "微信支付",
@@ -73739,7 +73739,7 @@
   {
     "billId": "BL002864",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 114.8,
     "payTime": "2026-10-27",
     "payMethod": "微信支付",
@@ -73791,7 +73791,7 @@
   {
     "billId": "BL002866",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 37.8,
     "payTime": "2026-08-10",
     "payMethod": "微信支付",
@@ -73868,7 +73868,7 @@
   {
     "billId": "BL002869",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 228.48,
     "payTime": "2026-10-20",
     "payMethod": "支付宝",
@@ -73945,7 +73945,7 @@
   {
     "billId": "BL002872",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 197.71,
     "payTime": "2026-09-14",
     "payMethod": "微信支付",
@@ -74022,7 +74022,7 @@
   {
     "billId": "BL002875",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 213.15,
     "payTime": "2026-08-23",
     "payMethod": "微信支付",
@@ -74074,7 +74074,7 @@
   {
     "billId": "BL002877",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -74126,7 +74126,7 @@
   {
     "billId": "BL002879",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 215.35,
     "payTime": "2026-10-24",
     "payMethod": "银行代扣",
@@ -74178,7 +74178,7 @@
   {
     "billId": "BL002881",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 376.28,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -74230,7 +74230,7 @@
   {
     "billId": "BL002883",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 95.2,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -74282,7 +74282,7 @@
   {
     "billId": "BL002885",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 264.1,
     "payTime": "",
     "payMethod": "",
@@ -74434,7 +74434,7 @@
   {
     "billId": "BL002891",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 36.96,
     "payTime": "2026-09-12",
     "payMethod": "微信支付",
@@ -74486,7 +74486,7 @@
   {
     "billId": "BL002893",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 372.6,
     "payTime": "2026-10-09",
     "payMethod": "银行代扣",
@@ -74538,7 +74538,7 @@
   {
     "billId": "BL002895",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 73.78,
     "payTime": "2026-08-30",
     "payMethod": "银行代扣",
@@ -74715,7 +74715,7 @@
   {
     "billId": "BL002902",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.04,
     "payTime": "2026-08-25",
     "payMethod": "支付宝",
@@ -74792,7 +74792,7 @@
   {
     "billId": "BL002905",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 69.44,
     "payTime": "2026-10-28",
     "payMethod": "微信支付",
@@ -74919,7 +74919,7 @@
   {
     "billId": "BL002910",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 228.48,
     "payTime": "2026-08-31",
     "payMethod": "银行代扣",
@@ -74971,7 +74971,7 @@
   {
     "billId": "BL002912",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 104.16,
     "payTime": "2026-09-13",
     "payMethod": "微信支付",
@@ -75048,7 +75048,7 @@
   {
     "billId": "BL002915",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 88.48,
     "payTime": "2026-08-16",
     "payMethod": "支付宝",
@@ -75100,7 +75100,7 @@
   {
     "billId": "BL002917",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 268.6,
     "payTime": "2026-09-12",
     "payMethod": "微信支付",
@@ -75152,7 +75152,7 @@
   {
     "billId": "BL002919",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 25.62,
     "payTime": "2026-10-15",
     "payMethod": "微信支付",
@@ -75254,7 +75254,7 @@
   {
     "billId": "BL002923",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -75356,7 +75356,7 @@
   {
     "billId": "BL002927",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 45.99,
     "payTime": "",
     "payMethod": "",
@@ -75408,7 +75408,7 @@
   {
     "billId": "BL002929",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 430.56,
     "payTime": "2026-08-17",
     "payMethod": "支付宝",
@@ -75485,7 +75485,7 @@
   {
     "billId": "BL002932",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 61.74,
     "payTime": "2026-10-08",
     "payMethod": "支付宝",
@@ -75562,7 +75562,7 @@
   {
     "billId": "BL002935",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 113.68,
     "payTime": "2026-09-24",
     "payMethod": "现金",
@@ -75614,7 +75614,7 @@
   {
     "billId": "BL002937",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -75666,7 +75666,7 @@
   {
     "billId": "BL002939",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 107.26,
     "payTime": "2026-08-13",
     "payMethod": "支付宝",
@@ -75743,7 +75743,7 @@
   {
     "billId": "BL002942",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -75795,7 +75795,7 @@
   {
     "billId": "BL002944",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 101.92,
     "payTime": "2026-08-21",
     "payMethod": "支付宝",
@@ -75847,7 +75847,7 @@
   {
     "billId": "BL002946",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 32.34,
     "payTime": "2026-09-09",
     "payMethod": "支付宝",
@@ -75899,7 +75899,7 @@
   {
     "billId": "BL002948",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 265.2,
     "payTime": "2026-10-29",
     "payMethod": "支付宝",
@@ -75951,7 +75951,7 @@
   {
     "billId": "BL002950",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 163.2,
     "payTime": "2026-08-18",
     "payMethod": "微信支付",
@@ -76003,7 +76003,7 @@
   {
     "billId": "BL002952",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 27.3,
     "payTime": "2026-09-15",
     "payMethod": "微信支付",
@@ -76180,7 +76180,7 @@
   {
     "billId": "BL002959",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 58.9,
     "payTime": "2026-09-08",
     "payMethod": "微信支付",
@@ -76232,7 +76232,7 @@
   {
     "billId": "BL002961",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 194.48,
     "payTime": "2026-10-19",
     "payMethod": "微信支付",
@@ -76309,7 +76309,7 @@
   {
     "billId": "BL002964",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 85.68,
     "payTime": "2026-09-20",
     "payMethod": "支付宝",
@@ -76361,7 +76361,7 @@
   {
     "billId": "BL002966",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -76565,7 +76565,7 @@
   {
     "billId": "BL002974",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 442.52,
     "payTime": "2026-10-07",
     "payMethod": "支付宝",
@@ -76796,7 +76796,7 @@
   {
     "billId": "BL002983",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -76950,7 +76950,7 @@
   {
     "billId": "BL002989",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 116.56,
     "payTime": "2026-08-11",
     "payMethod": "银行代扣",
@@ -77002,7 +77002,7 @@
   {
     "billId": "BL002991",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 464.6,
     "payTime": "2026-09-17",
     "payMethod": "支付宝",
@@ -77131,7 +77131,7 @@
   {
     "billId": "BL002996",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 94.24,
     "payTime": "2026-09-21",
     "payMethod": "微信支付",
@@ -77412,7 +77412,7 @@
   {
     "billId": "BL003007",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 197.2,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -77489,7 +77489,7 @@
   {
     "billId": "BL003010",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 204,
     "payTime": "2026-10-17",
     "payMethod": "微信支付",
@@ -77566,7 +77566,7 @@
   {
     "billId": "BL003013",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 94.86,
     "payTime": "2026-09-29",
     "payMethod": "微信支付",
@@ -77797,7 +77797,7 @@
   {
     "billId": "BL003022",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -77849,7 +77849,7 @@
   {
     "billId": "BL003024",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 211.48,
     "payTime": "2026-10-31",
     "payMethod": "支付宝",
@@ -78030,7 +78030,7 @@
   {
     "billId": "BL003031",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.94,
     "payTime": "2026-08-21",
     "payMethod": "微信支付",
@@ -78159,7 +78159,7 @@
   {
     "billId": "BL003036",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 233.24,
     "payTime": "2026-08-21",
     "payMethod": "银行代扣",
@@ -78338,7 +78338,7 @@
   {
     "billId": "BL003043",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 233.24,
     "payTime": "2026-10-10",
     "payMethod": "支付宝",
@@ -78542,7 +78542,7 @@
   {
     "billId": "BL003051",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 387.32,
     "payTime": "2026-10-18",
     "payMethod": "支付宝",
@@ -78850,7 +78850,7 @@
   {
     "billId": "BL003063",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 451.72,
     "payTime": "2026-09-26",
     "payMethod": "微信支付",
@@ -78902,7 +78902,7 @@
   {
     "billId": "BL003065",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -79108,7 +79108,7 @@
   {
     "billId": "BL003073",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 176.12,
     "payTime": "2026-09-24",
     "payMethod": "银行代扣",
@@ -79185,7 +79185,7 @@
   {
     "billId": "BL003076",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 216.92,
     "payTime": "2026-08-13",
     "payMethod": "微信支付",
@@ -79389,7 +79389,7 @@
   {
     "billId": "BL003084",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 460,
     "payTime": "2026-08-31",
     "payMethod": "微信支付",
@@ -79441,7 +79441,7 @@
   {
     "billId": "BL003086",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 256.36,
     "payTime": "2026-09-21",
     "payMethod": "支付宝",
@@ -79545,7 +79545,7 @@
   {
     "billId": "BL003090",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 139.4,
     "payTime": "2026-08-17",
     "payMethod": "支付宝",
@@ -79751,7 +79751,7 @@
   {
     "billId": "BL003098",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -79905,7 +79905,7 @@
   {
     "billId": "BL003104",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 62,
     "payTime": "2026-08-28",
     "payMethod": "银行代扣",
@@ -79957,7 +79957,7 @@
   {
     "billId": "BL003106",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 251.6,
     "payTime": "2026-09-22",
     "payMethod": "支付宝",
@@ -80009,7 +80009,7 @@
   {
     "billId": "BL003108",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -80186,7 +80186,7 @@
   {
     "billId": "BL003115",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 395.6,
     "payTime": "2026-10-27",
     "payMethod": "微信支付",
@@ -80338,7 +80338,7 @@
   {
     "billId": "BL003121",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 219.64,
     "payTime": "2026-09-26",
     "payMethod": "微信支付",
@@ -80390,7 +80390,7 @@
   {
     "billId": "BL003123",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 385.48,
     "payTime": "2026-10-15",
     "payMethod": "银行代扣",
@@ -80546,7 +80546,7 @@
   {
     "billId": "BL003129",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -80648,7 +80648,7 @@
   {
     "billId": "BL003133",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 171.36,
     "payTime": "2026-10-23",
     "payMethod": "银行代扣",
@@ -80777,7 +80777,7 @@
   {
     "billId": "BL003138",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 384.56,
     "payTime": "2026-10-18",
     "payMethod": "支付宝",
@@ -80829,7 +80829,7 @@
   {
     "billId": "BL003140",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 142.8,
     "payTime": "2026-08-07",
     "payMethod": "微信支付",
@@ -81264,7 +81264,7 @@
   {
     "billId": "BL003157",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 453.56,
     "payTime": "2026-08-11",
     "payMethod": "支付宝",
@@ -81316,7 +81316,7 @@
   {
     "billId": "BL003159",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -81368,7 +81368,7 @@
   {
     "billId": "BL003161",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 263.84,
     "payTime": "2026-10-21",
     "payMethod": "银行代扣",
@@ -81420,7 +81420,7 @@
   {
     "billId": "BL003163",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -81472,7 +81472,7 @@
   {
     "billId": "BL003165",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 199.92,
     "payTime": "2026-09-18",
     "payMethod": "微信支付",
@@ -81574,7 +81574,7 @@
   {
     "billId": "BL003169",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 153.68,
     "payTime": "2026-09-20",
     "payMethod": "现金",
@@ -81830,7 +81830,7 @@
   {
     "billId": "BL003179",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -81882,7 +81882,7 @@
   {
     "billId": "BL003181",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 169.32,
     "payTime": "2026-08-22",
     "payMethod": "现金",
@@ -81934,7 +81934,7 @@
   {
     "billId": "BL003183",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 149.6,
     "payTime": "2026-09-18",
     "payMethod": "银行代扣",
@@ -82011,7 +82011,7 @@
   {
     "billId": "BL003186",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 181.56,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -82088,7 +82088,7 @@
   {
     "billId": "BL003189",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 57.04,
     "payTime": "2026-10-08",
     "payMethod": "支付宝",
@@ -82165,7 +82165,7 @@
   {
     "billId": "BL003192",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 452.64,
     "payTime": "2026-09-18",
     "payMethod": "支付宝",
@@ -82242,7 +82242,7 @@
   {
     "billId": "BL003195",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 157.08,
     "payTime": "2026-08-14",
     "payMethod": "支付宝",
@@ -82527,7 +82527,7 @@
   {
     "billId": "BL003206",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 430.56,
     "payTime": "2026-08-14",
     "payMethod": "微信支付",
@@ -82808,7 +82808,7 @@
   {
     "billId": "BL003217",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 240.72,
     "payTime": "2026-10-10",
     "payMethod": "微信支付",
@@ -82860,7 +82860,7 @@
   {
     "billId": "BL003219",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 119.66,
     "payTime": "2026-08-29",
     "payMethod": "微信支付",
@@ -82912,7 +82912,7 @@
   {
     "billId": "BL003221",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -83168,7 +83168,7 @@
   {
     "billId": "BL003231",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -83270,7 +83270,7 @@
   {
     "billId": "BL003235",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 257.04,
     "payTime": "2026-10-31",
     "payMethod": "支付宝",
@@ -83399,7 +83399,7 @@
   {
     "billId": "BL003240",
     "period": "2026-10",
-    "status": "部分缴",
+    "status": "已作废",
     "paidAmount": 35.87,
     "payTime": "",
     "payMethod": "",
@@ -83553,7 +83553,7 @@
   {
     "billId": "BL003246",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 84.32,
     "payTime": "2026-08-08",
     "payMethod": "微信支付",
@@ -83732,7 +83732,7 @@
   {
     "billId": "BL003253",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 142.8,
     "payTime": "2026-10-09",
     "payMethod": "支付宝",
@@ -83784,7 +83784,7 @@
   {
     "billId": "BL003255",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 117.18,
     "payTime": "2026-08-27",
     "payMethod": "微信支付",
@@ -84017,7 +84017,7 @@
   {
     "billId": "BL003264",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -84094,7 +84094,7 @@
   {
     "billId": "BL003267",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -84327,7 +84327,7 @@
   {
     "billId": "BL003276",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 121.52,
     "payTime": "2026-08-26",
     "payMethod": "微信支付",
@@ -84379,7 +84379,7 @@
   {
     "billId": "BL003278",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 393.76,
     "payTime": "2026-09-24",
     "payMethod": "支付宝",
@@ -84456,7 +84456,7 @@
   {
     "billId": "BL003281",
     "period": "2026-08",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -84508,7 +84508,7 @@
   {
     "billId": "BL003283",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 231.88,
     "payTime": "2026-09-15",
     "payMethod": "现金",
@@ -84612,7 +84612,7 @@
   {
     "billId": "BL003287",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 218.96,
     "payTime": "2026-08-20",
     "payMethod": "微信支付",
@@ -84870,7 +84870,7 @@
   {
     "billId": "BL003297",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 99.82,
     "payTime": "2026-08-22",
     "payMethod": "支付宝",
@@ -84947,7 +84947,7 @@
   {
     "billId": "BL003300",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 72.54,
     "payTime": "2026-10-31",
     "payMethod": "支付宝",
@@ -85049,7 +85049,7 @@
   {
     "billId": "BL003304",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 269.28,
     "payTime": "2026-10-24",
     "payMethod": "支付宝",
@@ -85101,7 +85101,7 @@
   {
     "billId": "BL003306",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 217.6,
     "payTime": "2026-08-25",
     "payMethod": "银行代扣",
@@ -85665,7 +85665,7 @@
   {
     "billId": "BL003328",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 199.92,
     "payTime": "2026-08-13",
     "payMethod": "银行代扣",
@@ -85717,7 +85717,7 @@
   {
     "billId": "BL003330",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 442.52,
     "payTime": "2026-09-18",
     "payMethod": "微信支付",
@@ -85794,7 +85794,7 @@
   {
     "billId": "BL003333",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 450.8,
     "payTime": "2026-08-16",
     "payMethod": "微信支付",
@@ -85846,7 +85846,7 @@
   {
     "billId": "BL003335",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 459.08,
     "payTime": "2026-09-15",
     "payMethod": "银行代扣",
@@ -85950,7 +85950,7 @@
   {
     "billId": "BL003339",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 437,
     "payTime": "2026-08-11",
     "payMethod": "支付宝",
@@ -86206,7 +86206,7 @@
   {
     "billId": "BL003349",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 438.84,
     "payTime": "2026-09-29",
     "payMethod": "支付宝",
@@ -86749,7 +86749,7 @@
   {
     "billId": "BL003370",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 63.86,
     "payTime": "2026-09-22",
     "payMethod": "微信支付",
@@ -86801,7 +86801,7 @@
   {
     "billId": "BL003372",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -86982,7 +86982,7 @@
   {
     "billId": "BL003379",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 432.4,
     "payTime": "2026-08-14",
     "payMethod": "微信支付",
@@ -87034,7 +87034,7 @@
   {
     "billId": "BL003381",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 203.32,
     "payTime": "2026-09-07",
     "payMethod": "支付宝",
@@ -87138,7 +87138,7 @@
   {
     "billId": "BL003385",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 108.5,
     "payTime": "2026-08-30",
     "payMethod": "微信支付",
@@ -87242,7 +87242,7 @@
   {
     "billId": "BL003389",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 235.96,
     "payTime": "2026-10-15",
     "payMethod": "支付宝",
@@ -87396,7 +87396,7 @@
   {
     "billId": "BL003395",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 71.92,
     "payTime": "2026-08-18",
     "payMethod": "微信支付",
@@ -87835,7 +87835,7 @@
   {
     "billId": "BL003412",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 250.92,
     "payTime": "2026-09-11",
     "payMethod": "支付宝",
@@ -88041,7 +88041,7 @@
   {
     "billId": "BL003420",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 437.92,
     "payTime": "2026-08-26",
     "payMethod": "现金",
@@ -88145,7 +88145,7 @@
   {
     "billId": "BL003424",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -88272,7 +88272,7 @@
   {
     "billId": "BL003429",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 394.68,
     "payTime": "2026-08-18",
     "payMethod": "现金",
@@ -88453,7 +88453,7 @@
   {
     "billId": "BL003436",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 470.12,
     "payTime": "2026-09-08",
     "payMethod": "支付宝",
@@ -88609,7 +88609,7 @@
   {
     "billId": "BL003442",
     "period": "2026-09",
-    "status": "逾期",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -88713,7 +88713,7 @@
   {
     "billId": "BL003446",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 74.4,
     "payTime": "2026-08-14",
     "payMethod": "微信支付",
@@ -89100,7 +89100,7 @@
   {
     "billId": "BL003461",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 111.6,
     "payTime": "2026-08-09",
     "payMethod": "微信支付",
@@ -89227,7 +89227,7 @@
   {
     "billId": "BL003466",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 168.64,
     "payTime": "2026-09-22",
     "payMethod": "微信支付",
@@ -89279,7 +89279,7 @@
   {
     "billId": "BL003468",
     "period": "2026-10",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 250.92,
     "payTime": "2026-10-25",
     "payMethod": "支付宝",
@@ -89485,7 +89485,7 @@
   {
     "billId": "BL003476",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 471.04,
     "payTime": "2026-09-23",
     "payMethod": "支付宝",
@@ -89641,7 +89641,7 @@
   {
     "billId": "BL003482",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 181.56,
     "payTime": "2026-09-19",
     "payMethod": "微信支付",
@@ -89693,7 +89693,7 @@
   {
     "billId": "BL003484",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -89797,7 +89797,7 @@
   {
     "billId": "BL003488",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 252.28,
     "payTime": "2026-09-28",
     "payMethod": "微信支付",
@@ -90001,7 +90001,7 @@
   {
     "billId": "BL003496",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 68.2,
     "payTime": "2026-09-11",
     "payMethod": "微信支付",
@@ -90078,7 +90078,7 @@
   {
     "billId": "BL003499",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 460.92,
     "payTime": "2026-08-22",
     "payMethod": "银行代扣",
@@ -90257,7 +90257,7 @@
   {
     "billId": "BL003506",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",
@@ -90334,7 +90334,7 @@
   {
     "billId": "BL003509",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 409.4,
     "payTime": "2026-09-30",
     "payMethod": "微信支付",
@@ -90592,7 +90592,7 @@
   {
     "billId": "BL003519",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 172.04,
     "payTime": "2026-09-13",
     "payMethod": "微信支付",
@@ -90696,7 +90696,7 @@
   {
     "billId": "BL003523",
     "period": "2026-08",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 212.16,
     "payTime": "2026-08-15",
     "payMethod": "微信支付",
@@ -90748,7 +90748,7 @@
   {
     "billId": "BL003525",
     "period": "2026-09",
-    "status": "已缴",
+    "status": "已作废",
     "paidAmount": 189.72,
     "payTime": "2026-09-18",
     "payMethod": "支付宝",
@@ -90800,7 +90800,7 @@
   {
     "billId": "BL003527",
     "period": "2026-10",
-    "status": "未缴",
+    "status": "已作废",
     "paidAmount": 0,
     "payTime": "",
     "payMethod": "",

@@ -4293,12 +4293,17 @@ function buildCollection(statDate) {
       billCount: 0, payable: 0, paid: 0, unpaid: 0, reduction: 0, voided: 0
     }
     cur.billCount++
-    cur.paid = r2(cur.paid + (b.paidAmount || 0))
+    /* 实收**只在非作废账单上累加**：作废单的钱确实收过，但它进的是「收入」，
+       不进「收缴率考核」—— 分母已经把作废的应收剔了，分子再留着这笔钱，
+       率就会飙到 3000%（2026-11-14 作废 565 张后当场就是这么炸的）。
+       与 03 的 feeSummary 同口径：那边是 effectiveBills 先过滤、应收与实收同源。 */
     if (b.status === '已作废') {
       cur.voided = r2(cur.voided + (b.payable || 0))
     } else if (b.status === '已减免') {
+      cur.paid = r2(cur.paid + (b.paidAmount || 0))
       cur.reduction = r2(cur.reduction + Math.max(0, (b.payable || 0) - (b.paidAmount || 0)))
     } else {
+      cur.paid = r2(cur.paid + (b.paidAmount || 0))
       cur.payable = r2(cur.payable + (b.payable || 0))
       cur.unpaid = r2(cur.unpaid + (b.unpaid || 0))
     }
@@ -13017,7 +13022,11 @@ on('GET', '/reports/three-rate', (ctx) => {
   if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
   if (String(from) > String(to)) throw bad('起始账期不能晚于结束账期')
 
+  /* 作废单不进三率（Q1 口径：作废与减免都不进分母）。2026-11-14 之前这里含作废，
+     因为当时全站只有 11 张作废单，差几十块钱看不出来；把「模式与账单不符」的 565 张
+     水电单作废之后，含作废会让应收凭空多出一大截，与 PC 的矩阵口径对不上。 */
   const list = bills.filter(b => b.itemId === itemId
+    && b.status !== '已作废'
     && String(b.period) >= from && String(b.period) <= to
     && (!cid || b.communityId === cid))
   const sum = k => r2(list.reduce((s, b) => s + (Number(b[k]) || 0), 0))
@@ -13252,8 +13261,11 @@ on('GET', '/reports/waive-analysis', (ctx) => {
   const cid = ctx.query.communityId || ''
   if (!from || !to) throw bad('from / to 必填（YYYY-MM）')
 
-  /* 契约数据集里没有任何一张带减免的账单（种子只造"已缴"），所以这里一般是空表。
-     正式实现读**减免流水**（一张账单可以分两次减），不是账单上的 discount 累计值。 */
+  /* 数据来自 `fixtures/bills.json` 的 discount / discountReasonId —— 由
+     `scripts/gen-waive-seeds.mjs` 把 PC `_seedWaives()` 的同一套规则施加到 fixture 上（90 笔）。
+     2026-11-14 之前这里恒为空表：种子文件里 discount 全是 0，减免只在 PC 运行时注入。
+     正式实现读**减免流水**（一张账单可以分两次减），这里读账单上的累计值 —— 演示够用，
+     分次减免的场景要等真实流水接口。 */
   const rows = bills.filter(b => (Number(b.discount) || 0) > 0
     && String(b.period) >= from && String(b.period) <= to
     && (!cid || b.communityId === cid))
@@ -13264,16 +13276,22 @@ on('GET', '/reports/waive-analysis', (ctx) => {
   for (const b of rows) {
     const id = b.discountReasonId || ''
     const key = id || '__none__'
+    /* 原因的 type / 是否计考核 / 免审额度都从字典取，不在聚合里写死：
+       写死过一版（type 恒「个案」、approveAbove 恒 0），跑出来的「超免审额度」永远是 0，
+       看上去像"没人超权减免"，实际是这一列没算 */
+    const rec = id ? WAIVE_REASONS.find(r => r.reasonId === id) : null
+    const disc = Number(b.discount) || 0
     const cur = byKey.get(key) || {
       reasonId: id,
-      name: b.discountReason || '未填原因（历史数据）',
-      type: id ? '个案' : '历史',
-      countInAssess: false,
-      approveAbove: 0,
+      name: (rec && rec.name) || b.discountReason || '未填原因（历史数据）',
+      type: rec ? rec.type : '历史',
+      countInAssess: rec ? !!rec.countInAssess : false,
+      approveAbove: rec ? Number(rec.approveAbove) || 0 : 0,
       count: 0, amount: 0, overLimit: 0, houseSet: new Set()
     }
     cur.count += 1
-    cur.amount = r2(cur.amount + (Number(b.discount) || 0))
+    cur.amount = r2(cur.amount + disc)
+    if (cur.approveAbove > 0 && disc > cur.approveAbove) cur.overLimit += 1
     cur.houseSet.add(b.houseId)
     byKey.set(key, cur)
 
