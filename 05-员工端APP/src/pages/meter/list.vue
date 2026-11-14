@@ -19,6 +19,10 @@
       <view class="sum__p">{{ (s && s.period) || '' }}</view>
     </view>
 
+    <view v-if="offlineTip" class="offline">
+      <text class="offline__t">{{ offlineTip }}</text>
+    </view>
+
     <view v-if="!groups.length" class="empty">
       <Empty text="本期的表都抄完了" sub="等后台复核后推单出账" />
     </view>
@@ -48,7 +52,8 @@
           </text>
         </view>
         <view class="row__r">
-          <text v-if="r.status === '待录入'" class="btn btn--sm">录入</text>
+          <text v-if="r.status === '待录入' && isPending(r.readingId)" class="pending">待同步</text>
+          <text v-else-if="r.status === '待录入'" class="btn btn--sm">录入</text>
           <view v-else class="done">
             <text class="done__v num">{{ r.usage }}</text>
             <text class="done__k">{{ r.unit }}</text>
@@ -118,7 +123,7 @@ import NavBar from '@/components/NavBar.vue'
 import Sheet from '@/components/Sheet.vue'
 import Empty from '@/components/Empty.vue'
 import { abnormalLimitOf, lastMeters, loadMeters, submitReading } from '@/api/meter'
-import { persona } from '@/store/app'
+import { app, isOffline, isPending, persona, stageMeterReading } from '@/store/app'
 import { toastErr, toastOk } from '@/utils/ui'
 
 const data = ref(null)
@@ -127,6 +132,12 @@ const cur = ref(null)
 const input = ref('')
 const inputErr = ref('')
 const saving = ref(false)
+
+const offlineTip = computed(() => {
+  const n = app.pending.filter(p => (p.kind || 'inspect') === 'meter').length
+  if (isOffline()) return n ? `当前离线 · ${n} 条读数存在本地，回网自动上传` : '当前离线 · 抄完会先存在本地'
+  return n ? `${n} 条读数待上传` : ''
+})
 
 const s = computed(() => data.value?.summary || null)
 const rows = computed(() => data.value?.rows || [])
@@ -183,6 +194,10 @@ const canSubmit = computed(() => {
 })
 
 function open(r) {
+  if (isPending(r.readingId)) {
+    toastOk('这条已经抄好了，等回网自动上传 —— 现在重复录会白跑一趟')
+    return
+  }
   if (r.status !== '待录入') {
     toastOk(`这户已抄过（用量 ${r.usage} ${r.unit}）`)
     return
@@ -211,17 +226,52 @@ async function submit() {
     return
   }
   saving.value = true
+  const n = Number(input.value)
+  const target = cur.value
+
+  /* 先入队，再决定要不要立刻上传 —— 断网直接等回网，在线失败也留在队列里 */
+  const queue = () => {
+    stageMeterReading({
+      readingId: target.readingId,
+      currentReading: n,
+      houseName: target.houseName,
+      type: target.type,
+      unit: target.unit
+    })
+  }
+
   try {
-    const r = await submitReading(persona.value, cur.value.readingId, Number(input.value))
+    if (isOffline()) {
+      queue()
+      sheet.value = false
+      await reload()
+      toastOk(`已存到本地：用量 ${n - target.lastReading} ${target.unit}，回网后自动上传`)
+      return
+    }
+
+    const r = await submitReading(persona.value, target.readingId, n)
     await reload()
     sheet.value = false
     toastOk(
       r.abnormal
-        ? `已提交：用量 ${r.usage} ${cur.value.unit}，标为异常待复核`
-        : `已提交：用量 ${r.usage} ${cur.value.unit}`
+        ? `已提交：用量 ${r.usage} ${target.unit}，标为异常待复核`
+        : `已提交：用量 ${r.usage} ${target.unit}`
     )
   } catch (e) {
-    inputErr.value = e?.message || '提交失败'
+    /*
+     * 在线但提交失败：网络抖动、服务端 5xx 都归这一类 —— 入队比让师傅重录好。
+     * 但校验类错误（小于上期、超量程）不该入队，那是读数本身有问题，得当场改。
+     */
+    const msg = String(e?.message || '')
+    const isValidation = /不得小于|量程|不能为负|请输入有效|不能再录入/.test(msg)
+    if (isValidation) {
+      inputErr.value = msg || '提交失败'
+    } else {
+      queue()
+      sheet.value = false
+      await reload()
+      toastOk('网络不给力，已存到本地，回网后自动上传')
+    }
   } finally {
     saving.value = false
   }
@@ -404,6 +454,23 @@ onLoad(async () => {
 }
 .btn.is-off {
   opacity: 0.4;
+}
+.pending {
+  font-size: 22rpx;
+  color: #b8860b;
+  background: rgba(184, 134, 11, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 6rpx;
+}
+.offline {
+  margin: 12rpx 24rpx 0;
+  padding: 16rpx 22rpx;
+  background: rgba(184, 134, 11, 0.08);
+  border-radius: 14rpx;
+}
+.offline__t {
+  font-size: 22rpx;
+  color: #8a6508;
 }
 .empty {
   margin-top: 120rpx;

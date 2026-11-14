@@ -5,6 +5,8 @@
 import { computed, reactive } from 'vue'
 import { personaById } from '@/config/personas'
 import { submitInspectResult } from '@/api/mobile'
+/* 抄表离线入队后要靠这里回传；meter.js 不 import 本文件，不会成环 */
+import { submitReading as submitMeterReading } from '@/api/meter'
 import { demoNow } from '@/config/personas'
 import { fullTimeText } from '@/utils/deadline'
 
@@ -213,6 +215,7 @@ export const lastCollectionOf = houseId => collectionsOf(houseId)[0] || null
 export function stageSubmission({ taskId, planName, payload }) {
   const item = {
     id: `P${Date.now().toString(36)}`,
+    kind: 'inspect',
     taskId,
     planName,
     payload,
@@ -223,6 +226,34 @@ export function stageSubmission({ taskId, planName, payload }) {
   return item
 }
 
+/**
+ * 抄表入队。
+ *
+ * 与巡检共用 `app.pending`，靠 `kind` 区分 —— 楼道里没信号是共性问题，
+ * 两套队列会导致"回网后先同步谁、失败怎么提示"各说各话。
+ *
+ * `taskId` 用 readingId 占位：一条表只该有一条待同步记录，
+ * 重复入队时按 taskId 去重（stageSubmission 里已有的逻辑）。
+ */
+export function stageMeterReading({ readingId, currentReading, houseName, type, unit }) {
+  const item = {
+    id: `M${Date.now().toString(36)}`,
+    kind: 'meter',
+    taskId: readingId,
+    readingId,
+    currentReading,
+    houseName: houseName || '',
+    type: type || '',
+    unit: unit || '',
+    at: fullTimeText(demoNow())
+  }
+  app.pending = app.pending.filter(p => p.taskId !== readingId).concat(item)
+  persist()
+  return item
+}
+
+export const pendingOfKind = kind => app.pending.filter(p => (p.kind || 'inspect') === kind)
+
 export const isPending = taskId => app.pending.some(p => p.taskId === taskId)
 
 export function dropPending(taskId) {
@@ -231,8 +262,12 @@ export function dropPending(taskId) {
 }
 
 /**
- * 恢复网络后同步：逐条调用 PC 的 submitInspectResult（唯一入口）。
- * 任务若已被提交过，接口会抛「不能重复提交」——按已同步处理，不留在队列里死循环。
+ * 恢复网络后同步：按 `kind` 分发到各自的唯一入口。
+ *   · inspect → PC 的 submitInspectResult
+ *   · meter   → 抄表的 submitReading
+ *
+ * 已经提交过的按"已同步"处理，不留在队列里死循环 —— 否则回网一次失败一次，
+ * 横幅永远消不掉，师傅会以为没抄进去。
  */
 export async function syncPending() {
   if (!app.pending.length || app.syncing) return { ok: 0, fail: 0, skipped: 0 }
@@ -243,11 +278,21 @@ export async function syncPending() {
   const rest = []
   for (const item of app.pending) {
     try {
-      submitInspectResult(item.taskId, item.payload)
+      if ((item.kind || 'inspect') === 'meter') {
+        await submitMeterReading(personaById(app.personaId), item.readingId, item.currentReading)
+      } else {
+        submitInspectResult(item.taskId, item.payload)
+      }
       ok++
     } catch (e) {
       const msg = String(e?.message || '')
-      if (msg.includes('不能重复提交') || msg.includes('任务不存在')) {
+      /* 「不能再录入」「不存在」都算已处理过：要么别处录了，要么记录没了 */
+      if (
+        msg.includes('不能重复提交') ||
+        msg.includes('任务不存在') ||
+        msg.includes('不能再录入') ||
+        msg.includes('不存在')
+      ) {
         skipped++
       } else {
         fail++
