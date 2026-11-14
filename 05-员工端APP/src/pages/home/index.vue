@@ -122,6 +122,7 @@ import { app, login, persona } from '@/store/app'
 import { money } from '@/utils/format'
 import { todoOf } from '@/api/neighbor'
 import { listingAuditQueueOf, viewingsOf } from '@/api/listing'
+import { lastMeters, loadMeters } from '@/api/meter'
 import { toast } from '@/utils/ui'
 
 const switchSheet = ref(false)
@@ -235,6 +236,8 @@ const todos = computed(() => {
 
 const nb = ref({ total: 0, items: 0, reports: 0, listings: 0 })
 const vw = ref({ pending: 0, overdue: 0 })
+/* 抄表：只关心"还剩多少户"，明细在 /pages/meter/list */
+const mt = ref({ pending: 0, abnormal: 0 })
 
 /**
  * 邻里待办只数数，不拉列表：工作台不该因为它变慢。
@@ -258,6 +261,19 @@ async function loadNeighbor() {
     }
   } catch (e) {
     nb.value = { total: 0, items: 0, reports: 0, listings: 0 }
+  }
+}
+
+/** 抄表：本期还剩多少户没抄。拿不到就归零，不影响工作台其它卡片 */
+async function loadMeter() {
+  const p = persona.value
+  if (!can(p, CAP.metersView)) return
+  try {
+    await loadMeters(p)
+    const s2 = lastMeters()?.summary || {}
+    mt.value = { pending: s2.pending || 0, abnormal: s2.abnormal || 0 }
+  } catch {
+    mt.value = { pending: 0, abnormal: 0 }
   }
 }
 
@@ -290,6 +306,18 @@ const modules = computed(() => {
       fg: '#a35c13',
       show: can(p, CAP.neighborItemAudit) || can(p, CAP.neighborReportHandle) || can(p, CAP.listingAudit),
       to: { page: '/pages/neighbor/todo' }
+    },
+    {
+      key: 'meter',
+      label: '抄表',
+      icon: '表',
+      desc: mt.value.pending
+        ? `还有 ${mt.value.pending} 户没抄${mt.value.abnormal ? ` · ${mt.value.abnormal} 户异常` : ''}`
+        : '本期都抄完了',
+      bg: '#fef9e7',
+      fg: '#8a6508',
+      show: can(p, CAP.metersView),
+      to: { page: '/pages/meter/list' }
     },
     {
       key: 'viewing',
@@ -326,6 +354,7 @@ onShow(() => {
   ver.value++
   loadNeighbor()
   loadViewing()
+  loadMeter()
 })
 
 function onSwitch(id) {

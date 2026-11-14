@@ -44,7 +44,17 @@ await sleep(1400)
 await page.evaluate(() => document.querySelectorAll('.pcard')[2].click())
 await sleep(1800)
 
-/* ① 任务页入口 */
+/* ① 工作台卡片 */
+await page.goto(`${BASE}/#/pages/home/index`, { waitUntil: 'networkidle2' })
+await sleep(2600)
+const homeCard = await page.evaluate(() => {
+  const el = document.querySelector('#mod-meter')
+  return el ? el.innerText.replace(/\s+/g, ' ') : ''
+})
+if (homeCard) ok(`工作台有抄表卡片：${homeCard.slice(0, 40)}`)
+else bad('工作台没有抄表卡片', (await bodyText()).slice(0, 90))
+
+/* ② 任务页入口 */
 await page.goto(`${BASE}/#/pages/tasks/list`, { waitUntil: 'networkidle2' })
 await sleep(2600)
 const hasEntry = await page.evaluate(() => !!document.querySelector('#meter-entry'))
@@ -55,7 +65,7 @@ else bad('任务页没有抄表入口', (await bodyText()).slice(0, 90))
 
 if (/\d+/.test(entryText)) ok('入口带待抄户数') ; else bad('入口没有数字', entryText)
 
-/* ② 进清单 */
+/* ③ 进清单 */
 const jumped = await page.evaluate(() => {
   const el = document.querySelector('#meter-entry')
   if (!el) return false
@@ -74,7 +84,7 @@ if (jumped) {
   if (rows > 0) ok(`清单 ${rows} 行`) ; else bad('清单没有行', t.slice(0, 120))
   await page.screenshot({ path: '/tmp/meter-list.png' })
 
-  /* ③ 点一行 → 弹层 → 录入 */
+  /* ④ 点一行 → 弹层 → 录入 */
   const opened = await page.evaluate(() => {
     const el = document.querySelector('[id^="mt-"]')
     if (!el) return false
