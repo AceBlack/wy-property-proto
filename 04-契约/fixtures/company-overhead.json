@@ -1,0 +1,80 @@
+[
+  {
+    "expenseId": "EX9005",
+    "applyNo": "EXP-HQ-2610-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "period": "2026-10",
+    "happenDate": "2026-10-01",
+    "payDate": "2026-10-08",
+    "applicant": "周敏",
+    "reason": "总部办公场地租金（10 月）",
+    "status": "已付款"
+  },
+  {
+    "expenseId": "EX9006",
+    "applyNo": "EXP-HQ-2610-02",
+    "expenseType": "招聘费",
+    "categoryId": "EXP_OP_OTHER",
+    "amount": 8000,
+    "period": "2026-10",
+    "happenDate": "2026-10-16",
+    "payDate": "",
+    "applicant": "周敏",
+    "reason": "秩序岗与管理岗招聘渠道费",
+    "status": "待付款"
+  },
+  {
+    "expenseId": "EX9003",
+    "applyNo": "EXP-HQ-2609-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "period": "2026-09",
+    "happenDate": "2026-09-01",
+    "payDate": "2026-09-05",
+    "applicant": "周敏",
+    "reason": "总部办公场地租金（9 月）",
+    "status": "已付款"
+  },
+  {
+    "expenseId": "EX9004",
+    "applyNo": "EXP-HQ-2609-02",
+    "expenseType": "审计费",
+    "categoryId": "EXP_OP_OTHER",
+    "amount": 15000,
+    "period": "2026-09",
+    "happenDate": "2026-09-18",
+    "payDate": "2026-09-25",
+    "applicant": "周敏",
+    "reason": "半年度财务审计",
+    "status": "已付款"
+  },
+  {
+    "expenseId": "EX9001",
+    "applyNo": "EXP-HQ-2608-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "period": "2026-08",
+    "happenDate": "2026-08-01",
+    "payDate": "2026-08-05",
+    "applicant": "周敏",
+    "reason": "总部办公场地租金（8 月）",
+    "status": "已付款"
+  },
+  {
+    "expenseId": "EX9002",
+    "applyNo": "EXP-HQ-2608-02",
+    "expenseType": "系统年费",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 36000,
+    "period": "2026-08",
+    "happenDate": "2026-08-12",
+    "payDate": "2026-08-15",
+    "applicant": "周敏",
+    "reason": "收费与工单系统年度授权（三个项目共用）",
+    "status": "已付款"
+  }
+]

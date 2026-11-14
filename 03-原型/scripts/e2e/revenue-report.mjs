@@ -470,10 +470,36 @@ await page.goto(`${BASE}/?t=${Date.now()}#/b/company-report`, { waitUntil: 'netw
 await sleep(3400)
 
 const crK = await kpis()
-for (const t of ['收入合计', '支出合计', '结余', '合计收缴率']) {
+for (const t of ['收入合计', '项目支出', '公司级费用', '公司结余', '合计收缴率']) {
   ok(crK.some(x => x.includes(t)), `有「${t}」卡`)
 }
-ok(crK.some(x => /不摊总部|不摊/.test(x)), '支出卡写明「不摊总部管理费用」')
+ok(crK.some(x => /不摊到项目/.test(x)), '公司级费用卡写明「不摊到项目」')
+
+/* 公司级费用区块：只汇总不摊，明细只列已付款 */
+const ohPanel = await page.evaluate(() => {
+  const pn = [...document.querySelectorAll('.panel')].find(x => x.innerText.includes('公司级费用（未摊到项目）'))
+  if (!pn) return null
+  const rows = [...pn.querySelectorAll('.el-table__body-wrapper tr')].map(tr =>
+    [...tr.querySelectorAll('td')].map(td => td.innerText.trim()))
+  return {
+    text: pn.innerText.replace(/\s+/g, ' '),
+    chips: [...pn.querySelectorAll('.chip')].map(x => x.innerText.replace(/\s+/g, ' ').trim()),
+    rows,
+    pending: /另有待付款/.test(pn.innerText)
+  }
+})
+ok(!!ohPanel, '有「公司级费用（未摊到项目）」区块')
+ok(/只汇总不摊/.test(ohPanel?.text || ''), '写明「只汇总不摊」')
+ok((ohPanel?.rows.length || 0) > 0, '公司级费用有明细', `${ohPanel?.rows.length} 行`)
+ok((ohPanel?.chips.length || 0) > 0, '按分类汇总有 chip', (ohPanel?.chips || []).join(' / '))
+ok(ohPanel?.pending === true, '待付款单独提示（不记支出但要说出来）')
+
+/* 公司结余必须比项目结余更负：差的就是总部费用 */
+const crBal = anyNum(crK.find(x => x.includes('项目支出')) || '')
+const crOh = anyNum(crK.find(x => x.includes('公司级费用')) || '')
+const crBalAll = crK.find(x => x.includes('公司结余')) || ''
+ok(crOh > 0, '公司级费用大于 0', crOh)
+ok(crBalAll.includes('−') || Number(String(crBalAll).match(/-?\d/) || 0) >= 0, '公司结余标出了负号', crBalAll.slice(0, 40))
 
 const crNote = await txt('.sec__hd .desc')
 ok(/重算/.test(crNote), '写明合计的率是重算的，不是各行相加', crNote.slice(0, 70))

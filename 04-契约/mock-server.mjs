@@ -13460,6 +13460,16 @@ function incomeExpenseOf(from, to, cid) {
  *   · 合计的率**重算**，不是各行相加；
  *   · 不摊管理费用（系统没有分摊能力，不给假数）。
  */
+const COMPANY_OVERHEAD = readJson('fixtures/company-overhead.json')
+/* 假服务没有费用分类字典，公司级费用的分类名单独给一份 —— 不然页面上显示的是 EXP_OP_OFFICE */
+const OH_CAT_NAME = {
+  EXP_OP_OFFICE: { name: '办公费用', parentName: '运营费用' },
+  EXP_OP_OTHER: { name: '其他运营费用', parentName: '运营费用' },
+  EXP_OP_TRAVEL: { name: '差旅费', parentName: '运营费用' },
+  EXP_OP_ENTERTAIN: { name: '业务招待', parentName: '运营费用' },
+  EXP_OP_TAX: { name: '税金及附加', parentName: '运营费用' }
+}
+
 on('GET', '/reports/company', (ctx) => {
   assertInScope(ctx.user, ctx.query)
   const { from, to } = ctx.query
@@ -13512,6 +13522,42 @@ on('GET', '/reports/company', (ctx) => {
   const tBalance = r2(tIncome - tExpense)
   const item = serviceItems.find(i => i.itemId === itemId)
 
+  /* 公司级费用：只汇总、不摊。项目结余 ≠ 公司结余，差的正是这一笔 */
+  const months = monthsBetween(from, to)
+  const periods = []
+  {
+    const [yy, mm] = from.split('-').map(Number)
+    for (let i = 0; i < months; i++) {
+      const dd = new Date(yy, mm - 1 + i, 1)
+      periods.push(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}`)
+    }
+  }
+  const inRange = new Set(periods)
+  const ohAll = COMPANY_OVERHEAD.filter(e => inRange.has(String(e.period).slice(0, 7)))
+  const ohPaid = ohAll.filter(e => e.status === '已付款')
+  const ohByCat = new Map()
+  const ohByPeriod = new Map(periods.map(p => [p, 0]))
+  for (const e of ohPaid) {
+    const code = e.categoryId || 'EXP_OP_OTHER'
+    const nm = OH_CAT_NAME[code] || { name: code, parentName: '' }
+    const cur = ohByCat.get(code) || { categoryId: code, name: nm.name, parentName: nm.parentName, amount: 0, count: 0 }
+    cur.amount = r2(cur.amount + (Number(e.amount) || 0))
+    cur.count += 1
+    ohByCat.set(code, cur)
+    const p = String(e.period).slice(0, 7)
+    ohByPeriod.set(p, r2((ohByPeriod.get(p) || 0) + (Number(e.amount) || 0)))
+  }
+  const ohTotal = r2([...ohByCat.values()].reduce((a, x) => a + x.amount, 0))
+  const overhead = {
+    from, to, total: ohTotal, count: ohPaid.length,
+    pending: r2(ohAll.filter(e => e.status !== '已付款').reduce((a, e) => a + (Number(e.amount) || 0), 0)),
+    byCategory: [...ohByCat.values()].sort((a, b) => b.amount - a.amount),
+    byPeriod: periods.map(p => ({ period: p, amount: ohByPeriod.get(p) || 0 })),
+    rows: ohPaid.map(e => ({ ...e, amount: r2(e.amount) }))
+  }
+  const expenseAll = r2(tExpense + ohTotal)
+  const balanceAll = r2(tIncome - expenseAll)
+
   return {
     from, to,
     months: monthsBetween(from, to),
@@ -13527,8 +13573,11 @@ on('GET', '/reports/company', (ctx) => {
       bizRate: rateOfSum(sum('bizReceivable'), sum('bizReceived'), sum('bizWaived')),
       income: tIncome, expense: tExpense, balance: tBalance,
       margin: tIncome > 0 ? Math.round(tBalance / tIncome * 10000) / 100 : 0,
+      overhead: ohTotal, expenseAll, balanceAll,
+      marginAll: tIncome > 0 ? Math.round(balanceAll / tIncome * 10000) / 100 : 0,
       hasRate: true, active: true
     },
+    overhead,
     note: '收缴率按「' + (item ? item.name : itemId) + '」算，收入/支出是全部科目；合计的率是重算的，不是各行相加',
     allocated: false
   }

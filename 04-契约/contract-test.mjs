@@ -8769,6 +8769,17 @@ test('公司月报：多项目并排，合计的率是重算的不是加总', as
     near(d.totals.houseRate, Math.round(hgot / (hrcv - hwv) * 10000) / 100, '合计住宅率是重算的')
   }
 
+  /* 公司级费用：只汇总不摊。项目结余 ≠ 公司结余，差的正是这一笔 */
+  const oh = d.overhead
+  near(oh.total, r2(oh.byCategory.reduce((a, x) => a + x.amount, 0)), '公司级费用合计 = 分类相加')
+  eq(oh.rows.every(x => x.status === '已付款'), true, '明细只列已付款（没付的钱不记成本）')
+  assert(oh.pending > 0, `区间内应有待付款的公司级费用（实际 ${oh.pending}）—— 不说出来就是"这个月没花钱"的假话`)
+
+  near(d.totals.expenseAll, r2(d.totals.expense + d.totals.overhead), '总支出 = 项目支出 + 公司级')
+  near(d.totals.balanceAll, r2(d.totals.income - d.totals.expenseAll), '公司结余 = 收入 − 总支出')
+  assert(d.totals.balanceAll < d.totals.balance,
+    `公司结余应小于项目结余（${d.totals.balanceAll} vs ${d.totals.balance}）—— 多减了总部费用`)
+
   const badBird = await call('GET', '/reports/company', { query: { from: '2026-10', to: '2026-08' } })
   eq(badBird.status, 400, '起止倒挂 400')
 })

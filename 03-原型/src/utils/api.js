@@ -21852,6 +21852,67 @@ export function budgetVsActual({ from = '2026-01', to = periodOf(), communityId 
 }
 
 /**
+ * 公司级费用（未摊到项目）。
+ *
+ * 客户月报里「管理费用」与「支出」并列，那笔钱是总部花的，不归属任何项目。
+ * 系统里所有费用都挂在 communityId 上，没有"公司级"这个概念 ——
+ * 于是公司合计只能等于"三个项目相加"，总部费用无处安放，利润就虚高。
+ *
+ * 口径与 `expenseCollect` 一致：**只看已付款**。审批通过但没付的钱，
+ * 记成支出就是提前确认成本，公司利润会凭空变差。
+ *
+ * 这里**只汇总、不摊**。摊到项目是另一件事（见 `口径待确认-费用分摊.md`）：
+ * 摊法一改，四个项目经理的奖金全变，得客户先定口径。
+ */
+export function companyOverhead({ from = '2026-01', to = periodOf() } = {}) {
+  const periods = monthRange(from, to)
+  if (!periods.length) throw new Error('开始账期不能晚于结束账期')
+  const inRange = new Set(periods)
+
+  const list = expenses.filter(e => e.level === 'company' && e.status === '已付款'
+    && inRange.has(String(e.period).slice(0, 7)))
+
+  const byCat = new Map()
+  const byPeriod = new Map(periods.map(p => [p, 0]))
+  for (const e of list) {
+    const code = e.categoryId || 'EXP_OP_OTHER'
+    const cat = feeCategories.find(f => f.code === code) || {}
+    const cur = byCat.get(code) || {
+      categoryId: code,
+      name: cat.name || code,
+      parentName: (feeCategories.find(f => f.code === cat.parentCode) || {}).name || '未归类',
+      amount: 0, count: 0
+    }
+    cur.amount = _e2(cur.amount + (Number(e.amount) || 0))
+    cur.count += 1
+    byCat.set(code, cur)
+
+    const p = String(e.period).slice(0, 7)
+    byPeriod.set(p, _e2((byPeriod.get(p) || 0) + (Number(e.amount) || 0)))
+  }
+
+  const total = _e2([...byCat.values()].reduce((s2, x) => s2 + x.amount, 0))
+
+  return {
+    from, to,
+    total,
+    count: list.length,
+    /* 池子里还剩多少没付：待付款的公司级费用不记支出，但要说出来，
+       否则"这个月怎么没花钱"会变成一句假话 */
+    pending: _e2(expenses.filter(e => e.level === 'company' && e.status !== '已付款'
+      && inRange.has(String(e.period).slice(0, 7))).reduce((s2, e) => s2 + (Number(e.amount) || 0), 0)),
+    byCategory: [...byCat.values()].sort((a, b) => b.amount - a.amount),
+    byPeriod: periods.map(p => ({ period: p, amount: byPeriod.get(p) || 0 })),
+    rows: list.map(e => ({
+      expenseId: e.expenseId, applyNo: e.applyNo, expenseType: e.expenseType,
+      categoryId: e.categoryId || '', amount: _e2(e.amount), period: e.period,
+      happenDate: e.happenDate, payDate: e.payDate || '',
+      applicant: e.applicant, reason: e.reason, status: e.status
+    })).sort((a, b) => String(b.period).localeCompare(String(a.period)) || String(a.expenseId).localeCompare(String(b.expenseId)))
+  }
+}
+
+/**
  * 公司经营月报：多项目并排（2026-11-15）。
  *
  * 客户线下月报的第一张表就是「8 个项目 × 收入/支出/管理费用/税金/利润 + 住宅收费率 + 商铺收费率」。
@@ -21936,6 +21997,13 @@ export function companyReport({ from = '2026-01', to = periodOf(), itemId = 'FI0
      分用途同理 —— 各项目住宅的应收/已收加起来再算率。 */
   const rateOfSum = (rcv, got, wv) => (rcv - wv) > 0 ? Math.round(got / (rcv - wv) * 10000) / 100 : null
 
+  /* 公司级费用：不摊，单列。项目结余 ≠ 公司结余，差的正是这一笔。
+     **必须在 totals 之前算** —— totals 要引用这三个数，放到后面就是 TDZ 报错
+     （整页白屏，而 try/catch 会把错误吞掉，只剩一排 0，很难看出来）。 */
+  const overhead = companyOverhead({ from, to })
+  const expenseAll = _e2(tExpense + overhead.total)
+  const balanceAll = _e2(tIncome - expenseAll)
+
   const totals = {
     name: '合计',
     manager: '',
@@ -21947,9 +22015,15 @@ export function companyReport({ from = '2026-01', to = periodOf(), itemId = 'FI0
     houseRate: rateOfSum(sum('houseReceivable'), sum('houseReceived'), sum('houseWaived')),
     bizRate: rateOfSum(sum('bizReceivable'), sum('bizReceived'), sum('bizWaived')),
     income: tIncome,
+    /* expense / balance 保持"各项目之和"的语义（表格合计行用它）；
+       expenseAll / balanceAll 才是公司口径（项目 + 总部费用） */
     expense: tExpense,
     balance: tBalance,
     margin: tIncome > 0 ? Math.round(tBalance / tIncome * 10000) / 100 : 0,
+    overhead: overhead.total,
+    expenseAll,
+    balanceAll,
+    marginAll: tIncome > 0 ? Math.round(balanceAll / tIncome * 10000) / 100 : 0,
     active: true
   }
 
@@ -21959,6 +22033,7 @@ export function companyReport({ from = '2026-01', to = periodOf(), itemId = 'FI0
     itemId,
     itemName: item ? item.name : '',
     rows,
+    overhead,
     totals,
     /* 页面直接展示，别让看的人自己猜这两列是不是一套数 */
     note: '收缴率按「' + (item ? item.name : itemId) + '」算，收入/支出是全部科目；合计的率是重算的，不是各行相加',

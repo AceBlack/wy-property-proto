@@ -15,7 +15,8 @@
     "status": "已付款",
     "payDate": "2026-01-31",
     "invoiceCount": 2,
-    "reason": "供应商洽谈接待（翡翠城）"
+    "reason": "供应商洽谈接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0002",
@@ -33,7 +34,8 @@
     "status": "已付款",
     "payDate": "2026-01-29",
     "invoiceCount": 3,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0003",
@@ -51,7 +53,8 @@
     "status": "已付款",
     "payDate": "2026-01-20",
     "invoiceCount": 1,
-    "reason": "社区活动接待（翡翠城）"
+    "reason": "社区活动接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0004",
@@ -69,7 +72,8 @@
     "status": "已付款",
     "payDate": "2026-01-31",
     "invoiceCount": 3,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0005",
@@ -87,7 +91,8 @@
     "status": "已付款",
     "payDate": "2026-01-27",
     "invoiceCount": 3,
-    "reason": "单元门禁配件更换（翡翠城）"
+    "reason": "单元门禁配件更换（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0006",
@@ -105,7 +110,8 @@
     "status": "已付款",
     "payDate": "2026-01-05",
     "invoiceCount": 2,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0007",
@@ -123,7 +129,8 @@
     "status": "已付款",
     "payDate": "2026-01-25",
     "invoiceCount": 3,
-    "reason": "业委会沟通接待（锦绣家园）"
+    "reason": "业委会沟通接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0008",
@@ -141,7 +148,8 @@
     "status": "已付款",
     "payDate": "2026-01-29",
     "invoiceCount": 2,
-    "reason": "前台物料与表单印刷（锦绣家园）"
+    "reason": "前台物料与表单印刷（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0009",
@@ -159,7 +167,8 @@
     "status": "已付款",
     "payDate": "2026-01-25",
     "invoiceCount": 3,
-    "reason": "消防设施配件（锦绣家园）"
+    "reason": "消防设施配件（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0010",
@@ -177,7 +186,8 @@
     "status": "已付款",
     "payDate": "2026-01-16",
     "invoiceCount": 1,
-    "reason": "供应商考察差旅（锦绣家园）"
+    "reason": "供应商考察差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0011",
@@ -195,7 +205,8 @@
     "status": "已付款",
     "payDate": "2026-02-05",
     "invoiceCount": 1,
-    "reason": "保洁工具补充（锦绣家园）"
+    "reason": "保洁工具补充（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0012",
@@ -213,7 +224,8 @@
     "status": "已付款",
     "payDate": "2026-01-17",
     "invoiceCount": 2,
-    "reason": "集团项目巡检差旅（星光天地）"
+    "reason": "集团项目巡检差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0013",
@@ -231,7 +243,8 @@
     "status": "已付款",
     "payDate": "2026-01-19",
     "invoiceCount": 2,
-    "reason": "集团项目巡检差旅（星光天地）"
+    "reason": "集团项目巡检差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0014",
@@ -249,7 +262,8 @@
     "status": "已付款",
     "payDate": "2026-01-31",
     "invoiceCount": 1,
-    "reason": "单元门禁配件更换（星光天地）"
+    "reason": "单元门禁配件更换（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0015",
@@ -267,7 +281,8 @@
     "status": "已驳回",
     "payDate": "",
     "invoiceCount": 1,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0016",
@@ -285,7 +300,8 @@
     "status": "已付款",
     "payDate": "2026-02-11",
     "invoiceCount": 1,
-    "reason": "消防设施配件（翡翠城）"
+    "reason": "消防设施配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0017",
@@ -303,7 +319,8 @@
     "status": "已付款",
     "payDate": "2026-02-14",
     "invoiceCount": 1,
-    "reason": "业委会沟通接待（翡翠城）"
+    "reason": "业委会沟通接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0018",
@@ -321,7 +338,8 @@
     "status": "已付款",
     "payDate": "2026-02-11",
     "invoiceCount": 1,
-    "reason": "水泵房维修材料（翡翠城）"
+    "reason": "水泵房维修材料（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0019",
@@ -339,7 +357,8 @@
     "status": "已付款",
     "payDate": "2026-03-02",
     "invoiceCount": 2,
-    "reason": "单元门禁配件更换（翡翠城）"
+    "reason": "单元门禁配件更换（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0020",
@@ -357,7 +376,8 @@
     "status": "已付款",
     "payDate": "2026-02-18",
     "invoiceCount": 2,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0021",
@@ -375,7 +395,8 @@
     "status": "已付款",
     "payDate": "2026-03-02",
     "invoiceCount": 2,
-    "reason": "供应商考察差旅（锦绣家园）"
+    "reason": "供应商考察差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0022",
@@ -393,7 +414,8 @@
     "status": "已付款",
     "payDate": "2026-03-01",
     "invoiceCount": 3,
-    "reason": "供应商洽谈接待（锦绣家园）"
+    "reason": "供应商洽谈接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0023",
@@ -411,7 +433,8 @@
     "status": "已付款",
     "payDate": "2026-02-19",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（锦绣家园）"
+    "reason": "保洁工具补充（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0024",
@@ -429,7 +452,8 @@
     "status": "已付款",
     "payDate": "2026-02-22",
     "invoiceCount": 3,
-    "reason": "业委会沟通接待（锦绣家园）"
+    "reason": "业委会沟通接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0025",
@@ -447,7 +471,8 @@
     "status": "已付款",
     "payDate": "2026-02-12",
     "invoiceCount": 3,
-    "reason": "前台物料与表单印刷（星光天地）"
+    "reason": "前台物料与表单印刷（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0026",
@@ -465,7 +490,8 @@
     "status": "已付款",
     "payDate": "2026-02-13",
     "invoiceCount": 3,
-    "reason": "电梯门机配件（星光天地）"
+    "reason": "电梯门机配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0027",
@@ -483,7 +509,8 @@
     "status": "已付款",
     "payDate": "2026-02-22",
     "invoiceCount": 1,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0028",
@@ -501,7 +528,8 @@
     "status": "已付款",
     "payDate": "2026-02-22",
     "invoiceCount": 2,
-    "reason": "服务中心办公用品（星光天地）"
+    "reason": "服务中心办公用品（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0029",
@@ -519,7 +547,8 @@
     "status": "已付款",
     "payDate": "2026-03-11",
     "invoiceCount": 3,
-    "reason": "水泵房维修材料（翡翠城）"
+    "reason": "水泵房维修材料（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0030",
@@ -537,7 +566,8 @@
     "status": "已付款",
     "payDate": "2026-03-29",
     "invoiceCount": 1,
-    "reason": "外出培训差旅（翡翠城）"
+    "reason": "外出培训差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0031",
@@ -555,7 +585,8 @@
     "status": "已付款",
     "payDate": "2026-03-20",
     "invoiceCount": 2,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0032",
@@ -573,7 +604,8 @@
     "status": "已付款",
     "payDate": "2026-03-10",
     "invoiceCount": 3,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0033",
@@ -591,7 +623,8 @@
     "status": "已付款",
     "payDate": "2026-03-15",
     "invoiceCount": 3,
-    "reason": "公共照明灯具与线材（翡翠城）"
+    "reason": "公共照明灯具与线材（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0034",
@@ -609,7 +642,8 @@
     "status": "已付款",
     "payDate": "2026-03-28",
     "invoiceCount": 1,
-    "reason": "单元门禁配件更换（翡翠城）"
+    "reason": "单元门禁配件更换（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0035",
@@ -627,7 +661,8 @@
     "status": "已付款",
     "payDate": "2026-03-25",
     "invoiceCount": 2,
-    "reason": "跨项目支援差旅（翡翠城）"
+    "reason": "跨项目支援差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0036",
@@ -645,7 +680,8 @@
     "status": "已付款",
     "payDate": "2026-04-04",
     "invoiceCount": 1,
-    "reason": "消防设施配件（锦绣家园）"
+    "reason": "消防设施配件（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0037",
@@ -663,7 +699,8 @@
     "status": "已付款",
     "payDate": "2026-04-01",
     "invoiceCount": 1,
-    "reason": "水泵房维修材料（锦绣家园）"
+    "reason": "水泵房维修材料（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0038",
@@ -681,7 +718,8 @@
     "status": "已付款",
     "payDate": "2026-03-06",
     "invoiceCount": 2,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0039",
@@ -699,7 +737,8 @@
     "status": "已付款",
     "payDate": "2026-03-15",
     "invoiceCount": 2,
-    "reason": "打印耗材与纸张（锦绣家园）"
+    "reason": "打印耗材与纸张（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0040",
@@ -717,7 +756,8 @@
     "status": "已付款",
     "payDate": "2026-03-11",
     "invoiceCount": 1,
-    "reason": "快递与跑腿（锦绣家园）"
+    "reason": "快递与跑腿（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0041",
@@ -735,7 +775,8 @@
     "status": "已付款",
     "payDate": "2026-04-03",
     "invoiceCount": 3,
-    "reason": "消防设施配件（星光天地）"
+    "reason": "消防设施配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0042",
@@ -753,7 +794,8 @@
     "status": "已付款",
     "payDate": "2026-03-19",
     "invoiceCount": 3,
-    "reason": "电梯门机配件（星光天地）"
+    "reason": "电梯门机配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0043",
@@ -771,7 +813,8 @@
     "status": "已付款",
     "payDate": "2026-03-31",
     "invoiceCount": 2,
-    "reason": "服务中心办公用品（星光天地）"
+    "reason": "服务中心办公用品（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0044",
@@ -789,7 +832,8 @@
     "status": "已付款",
     "payDate": "2026-03-17",
     "invoiceCount": 3,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0045",
@@ -807,7 +851,8 @@
     "status": "已付款",
     "payDate": "2026-04-21",
     "invoiceCount": 1,
-    "reason": "快递与跑腿（翡翠城）"
+    "reason": "快递与跑腿（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0046",
@@ -825,7 +870,8 @@
     "status": "审批中",
     "payDate": "",
     "invoiceCount": 3,
-    "reason": "跨项目支援差旅（翡翠城）"
+    "reason": "跨项目支援差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0047",
@@ -843,7 +889,8 @@
     "status": "已付款",
     "payDate": "2026-04-14",
     "invoiceCount": 2,
-    "reason": "电梯门机配件（翡翠城）"
+    "reason": "电梯门机配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0048",
@@ -861,7 +908,8 @@
     "status": "已付款",
     "payDate": "2026-04-12",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0049",
@@ -879,7 +927,8 @@
     "status": "已付款",
     "payDate": "2026-04-14",
     "invoiceCount": 1,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0050",
@@ -897,7 +946,8 @@
     "status": "已付款",
     "payDate": "2026-04-25",
     "invoiceCount": 3,
-    "reason": "供应商考察差旅（翡翠城）"
+    "reason": "供应商考察差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0051",
@@ -915,7 +965,8 @@
     "status": "已付款",
     "payDate": "2026-04-25",
     "invoiceCount": 2,
-    "reason": "供应商考察差旅（锦绣家园）"
+    "reason": "供应商考察差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0052",
@@ -933,7 +984,8 @@
     "status": "审批中",
     "payDate": "",
     "invoiceCount": 3,
-    "reason": "消防设施配件（锦绣家园）"
+    "reason": "消防设施配件（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0053",
@@ -951,7 +1003,8 @@
     "status": "已付款",
     "payDate": "2026-04-12",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（锦绣家园）"
+    "reason": "保洁工具补充（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0054",
@@ -969,7 +1022,8 @@
     "status": "已付款",
     "payDate": "2026-04-23",
     "invoiceCount": 1,
-    "reason": "服务中心办公用品（锦绣家园）"
+    "reason": "服务中心办公用品（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0055",
@@ -987,7 +1041,8 @@
     "status": "已付款",
     "payDate": "2026-04-09",
     "invoiceCount": 2,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0056",
@@ -1005,7 +1060,8 @@
     "status": "已付款",
     "payDate": "2026-04-25",
     "invoiceCount": 2,
-    "reason": "临时用工费用（星光天地）"
+    "reason": "临时用工费用（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0057",
@@ -1023,7 +1079,8 @@
     "status": "已付款",
     "payDate": "2026-04-16",
     "invoiceCount": 1,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0058",
@@ -1041,7 +1098,8 @@
     "status": "已付款",
     "payDate": "2026-05-28",
     "invoiceCount": 1,
-    "reason": "供应商考察差旅（翡翠城）"
+    "reason": "供应商考察差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0059",
@@ -1059,7 +1117,8 @@
     "status": "已付款",
     "payDate": "2026-05-22",
     "invoiceCount": 2,
-    "reason": "供应商考察差旅（翡翠城）"
+    "reason": "供应商考察差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0060",
@@ -1077,7 +1136,8 @@
     "status": "已付款",
     "payDate": "2026-05-10",
     "invoiceCount": 3,
-    "reason": "消防设施配件（翡翠城）"
+    "reason": "消防设施配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0061",
@@ -1095,7 +1155,8 @@
     "status": "已付款",
     "payDate": "2026-05-16",
     "invoiceCount": 3,
-    "reason": "电梯门机配件（翡翠城）"
+    "reason": "电梯门机配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0062",
@@ -1113,7 +1174,8 @@
     "status": "已付款",
     "payDate": "2026-06-03",
     "invoiceCount": 3,
-    "reason": "社区活动接待（翡翠城）"
+    "reason": "社区活动接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0063",
@@ -1131,7 +1193,8 @@
     "status": "已付款",
     "payDate": "2026-05-16",
     "invoiceCount": 1,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0064",
@@ -1149,7 +1212,8 @@
     "status": "已付款",
     "payDate": "2026-05-14",
     "invoiceCount": 3,
-    "reason": "跨项目支援差旅（锦绣家园）"
+    "reason": "跨项目支援差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0065",
@@ -1167,7 +1231,8 @@
     "status": "审批中",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "零星杂费（锦绣家园）"
+    "reason": "零星杂费（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0066",
@@ -1185,7 +1250,8 @@
     "status": "已付款",
     "payDate": "2026-05-27",
     "invoiceCount": 2,
-    "reason": "单元门禁配件更换（锦绣家园）"
+    "reason": "单元门禁配件更换（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0067",
@@ -1203,7 +1269,8 @@
     "status": "已付款",
     "payDate": "2026-05-23",
     "invoiceCount": 3,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0068",
@@ -1221,7 +1288,8 @@
     "status": "已付款",
     "payDate": "2026-05-16",
     "invoiceCount": 1,
-    "reason": "供应商洽谈接待（锦绣家园）"
+    "reason": "供应商洽谈接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0069",
@@ -1239,7 +1307,8 @@
     "status": "已付款",
     "payDate": "2026-05-12",
     "invoiceCount": 2,
-    "reason": "打印耗材与纸张（星光天地）"
+    "reason": "打印耗材与纸张（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0070",
@@ -1257,7 +1326,8 @@
     "status": "已付款",
     "payDate": "2026-06-06",
     "invoiceCount": 1,
-    "reason": "社区活动接待（星光天地）"
+    "reason": "社区活动接待（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0071",
@@ -1275,7 +1345,8 @@
     "status": "已付款",
     "payDate": "2026-05-23",
     "invoiceCount": 1,
-    "reason": "水泵房维修材料（星光天地）"
+    "reason": "水泵房维修材料（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0072",
@@ -1293,7 +1364,8 @@
     "status": "已驳回",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0073",
@@ -1311,7 +1383,8 @@
     "status": "已付款",
     "payDate": "2026-06-08",
     "invoiceCount": 1,
-    "reason": "社区活动接待（翡翠城）"
+    "reason": "社区活动接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0074",
@@ -1329,7 +1402,8 @@
     "status": "已付款",
     "payDate": "2026-06-10",
     "invoiceCount": 2,
-    "reason": "快递与跑腿（翡翠城）"
+    "reason": "快递与跑腿（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0075",
@@ -1347,7 +1421,8 @@
     "status": "已付款",
     "payDate": "2026-07-02",
     "invoiceCount": 2,
-    "reason": "集团项目巡检差旅（翡翠城）"
+    "reason": "集团项目巡检差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0076",
@@ -1365,7 +1440,8 @@
     "status": "已付款",
     "payDate": "2026-06-13",
     "invoiceCount": 1,
-    "reason": "前台物料与表单印刷（翡翠城）"
+    "reason": "前台物料与表单印刷（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0077",
@@ -1383,7 +1459,8 @@
     "status": "已驳回",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "外出培训差旅（翡翠城）"
+    "reason": "外出培训差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0078",
@@ -1401,7 +1478,8 @@
     "status": "已付款",
     "payDate": "2026-06-12",
     "invoiceCount": 2,
-    "reason": "跨项目支援差旅（锦绣家园）"
+    "reason": "跨项目支援差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0079",
@@ -1419,7 +1497,8 @@
     "status": "已付款",
     "payDate": "2026-06-16",
     "invoiceCount": 2,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0080",
@@ -1437,7 +1516,8 @@
     "status": "已付款",
     "payDate": "2026-06-17",
     "invoiceCount": 3,
-    "reason": "零星杂费（锦绣家园）"
+    "reason": "零星杂费（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0081",
@@ -1455,7 +1535,8 @@
     "status": "已付款",
     "payDate": "2026-07-02",
     "invoiceCount": 2,
-    "reason": "消防设施配件（锦绣家园）"
+    "reason": "消防设施配件（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0082",
@@ -1473,7 +1554,8 @@
     "status": "已付款",
     "payDate": "2026-06-28",
     "invoiceCount": 2,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0083",
@@ -1491,7 +1573,8 @@
     "status": "已付款",
     "payDate": "2026-06-14",
     "invoiceCount": 1,
-    "reason": "公共照明灯具与线材（星光天地）"
+    "reason": "公共照明灯具与线材（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0084",
@@ -1509,7 +1592,8 @@
     "status": "已付款",
     "payDate": "2026-06-20",
     "invoiceCount": 2,
-    "reason": "零星杂费（星光天地）"
+    "reason": "零星杂费（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0085",
@@ -1527,7 +1611,8 @@
     "status": "已付款",
     "payDate": "2026-07-05",
     "invoiceCount": 1,
-    "reason": "公共照明灯具与线材（星光天地）"
+    "reason": "公共照明灯具与线材（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0086",
@@ -1545,7 +1630,8 @@
     "status": "已付款",
     "payDate": "2026-07-31",
     "invoiceCount": 2,
-    "reason": "社区活动接待（翡翠城）"
+    "reason": "社区活动接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0087",
@@ -1563,7 +1649,8 @@
     "status": "已付款",
     "payDate": "2026-07-08",
     "invoiceCount": 2,
-    "reason": "前台物料与表单印刷（翡翠城）"
+    "reason": "前台物料与表单印刷（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0088",
@@ -1581,7 +1668,8 @@
     "status": "已付款",
     "payDate": "2026-07-15",
     "invoiceCount": 2,
-    "reason": "单元门禁配件更换（翡翠城）"
+    "reason": "单元门禁配件更换（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0089",
@@ -1599,7 +1687,8 @@
     "status": "审批中",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "前台物料与表单印刷（翡翠城）"
+    "reason": "前台物料与表单印刷（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0090",
@@ -1617,7 +1706,8 @@
     "status": "已付款",
     "payDate": "2026-07-18",
     "invoiceCount": 2,
-    "reason": "服务中心办公用品（翡翠城）"
+    "reason": "服务中心办公用品（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0091",
@@ -1635,7 +1725,8 @@
     "status": "已付款",
     "payDate": "2026-08-06",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0092",
@@ -1653,7 +1744,8 @@
     "status": "已付款",
     "payDate": "2026-07-12",
     "invoiceCount": 3,
-    "reason": "单元门禁配件更换（翡翠城）"
+    "reason": "单元门禁配件更换（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0093",
@@ -1671,7 +1763,8 @@
     "status": "已付款",
     "payDate": "2026-07-16",
     "invoiceCount": 1,
-    "reason": "供应商洽谈接待（锦绣家园）"
+    "reason": "供应商洽谈接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0094",
@@ -1689,7 +1782,8 @@
     "status": "已付款",
     "payDate": "2026-07-26",
     "invoiceCount": 3,
-    "reason": "快递与跑腿（锦绣家园）"
+    "reason": "快递与跑腿（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0095",
@@ -1707,7 +1801,8 @@
     "status": "已付款",
     "payDate": "2026-07-12",
     "invoiceCount": 3,
-    "reason": "临时用工费用（锦绣家园）"
+    "reason": "临时用工费用（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0096",
@@ -1725,7 +1820,8 @@
     "status": "已付款",
     "payDate": "2026-07-19",
     "invoiceCount": 3,
-    "reason": "零星杂费（锦绣家园）"
+    "reason": "零星杂费（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0097",
@@ -1743,7 +1839,8 @@
     "status": "已付款",
     "payDate": "2026-07-27",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（星光天地）"
+    "reason": "保洁工具补充（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0098",
@@ -1761,7 +1858,8 @@
     "status": "已付款",
     "payDate": "2026-08-03",
     "invoiceCount": 1,
-    "reason": "保洁工具补充（星光天地）"
+    "reason": "保洁工具补充（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0099",
@@ -1779,7 +1877,8 @@
     "status": "已付款",
     "payDate": "2026-07-20",
     "invoiceCount": 1,
-    "reason": "前台物料与表单印刷（星光天地）"
+    "reason": "前台物料与表单印刷（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0100",
@@ -1797,7 +1896,8 @@
     "status": "已付款",
     "payDate": "2026-07-10",
     "invoiceCount": 3,
-    "reason": "公共照明灯具与线材（星光天地）"
+    "reason": "公共照明灯具与线材（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0101",
@@ -1815,7 +1915,8 @@
     "status": "已付款",
     "payDate": "2026-08-15",
     "invoiceCount": 3,
-    "reason": "服务中心办公用品（翡翠城）"
+    "reason": "服务中心办公用品（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0102",
@@ -1833,7 +1934,8 @@
     "status": "已付款",
     "payDate": "2026-08-24",
     "invoiceCount": 3,
-    "reason": "供应商考察差旅（翡翠城）"
+    "reason": "供应商考察差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0103",
@@ -1851,7 +1953,8 @@
     "status": "已付款",
     "payDate": "2026-08-31",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0104",
@@ -1869,7 +1972,8 @@
     "status": "已付款",
     "payDate": "2026-08-31",
     "invoiceCount": 3,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0105",
@@ -1887,7 +1991,8 @@
     "status": "已付款",
     "payDate": "2026-08-17",
     "invoiceCount": 1,
-    "reason": "打印耗材与纸张（翡翠城）"
+    "reason": "打印耗材与纸张（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0106",
@@ -1905,7 +2010,8 @@
     "status": "已付款",
     "payDate": "2026-08-18",
     "invoiceCount": 2,
-    "reason": "保洁工具补充（翡翠城）"
+    "reason": "保洁工具补充（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0107",
@@ -1923,7 +2029,8 @@
     "status": "已付款",
     "payDate": "2026-08-11",
     "invoiceCount": 1,
-    "reason": "电梯门机配件（翡翠城）"
+    "reason": "电梯门机配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0108",
@@ -1941,7 +2048,8 @@
     "status": "已付款",
     "payDate": "2026-08-23",
     "invoiceCount": 1,
-    "reason": "公共照明灯具与线材（锦绣家园）"
+    "reason": "公共照明灯具与线材（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0109",
@@ -1959,7 +2067,8 @@
     "status": "已付款",
     "payDate": "2026-08-21",
     "invoiceCount": 2,
-    "reason": "前台物料与表单印刷（锦绣家园）"
+    "reason": "前台物料与表单印刷（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0110",
@@ -1977,7 +2086,8 @@
     "status": "已付款",
     "payDate": "2026-08-15",
     "invoiceCount": 1,
-    "reason": "社区活动接待（锦绣家园）"
+    "reason": "社区活动接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0111",
@@ -1995,7 +2105,8 @@
     "status": "已付款",
     "payDate": "2026-08-16",
     "invoiceCount": 3,
-    "reason": "消防设施配件（锦绣家园）"
+    "reason": "消防设施配件（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0112",
@@ -2013,7 +2124,8 @@
     "status": "已付款",
     "payDate": "2026-08-11",
     "invoiceCount": 2,
-    "reason": "临时用工费用（锦绣家园）"
+    "reason": "临时用工费用（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0113",
@@ -2031,7 +2143,8 @@
     "status": "已付款",
     "payDate": "2026-08-10",
     "invoiceCount": 3,
-    "reason": "打印耗材与纸张（锦绣家园）"
+    "reason": "打印耗材与纸张（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0114",
@@ -2049,7 +2162,8 @@
     "status": "已驳回",
     "payDate": "",
     "invoiceCount": 3,
-    "reason": "快递与跑腿（星光天地）"
+    "reason": "快递与跑腿（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0115",
@@ -2067,7 +2181,8 @@
     "status": "已付款",
     "payDate": "2026-08-11",
     "invoiceCount": 1,
-    "reason": "电梯门机配件（星光天地）"
+    "reason": "电梯门机配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0116",
@@ -2085,7 +2200,8 @@
     "status": "已付款",
     "payDate": "2026-09-04",
     "invoiceCount": 3,
-    "reason": "电梯门机配件（星光天地）"
+    "reason": "电梯门机配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0117",
@@ -2103,7 +2219,8 @@
     "status": "已付款",
     "payDate": "2026-08-17",
     "invoiceCount": 1,
-    "reason": "单元门禁配件更换（星光天地）"
+    "reason": "单元门禁配件更换（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0118",
@@ -2121,7 +2238,8 @@
     "status": "已付款",
     "payDate": "2026-08-31",
     "invoiceCount": 1,
-    "reason": "跨项目支援差旅（星光天地）"
+    "reason": "跨项目支援差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0119",
@@ -2139,7 +2257,8 @@
     "status": "已付款",
     "payDate": "2026-09-19",
     "invoiceCount": 3,
-    "reason": "外出培训差旅（翡翠城）"
+    "reason": "外出培训差旅（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0120",
@@ -2157,7 +2276,8 @@
     "status": "已付款",
     "payDate": "2026-09-25",
     "invoiceCount": 3,
-    "reason": "消防设施配件（翡翠城）"
+    "reason": "消防设施配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0121",
@@ -2175,7 +2295,8 @@
     "status": "已付款",
     "payDate": "2026-09-08",
     "invoiceCount": 2,
-    "reason": "前台物料与表单印刷（翡翠城）"
+    "reason": "前台物料与表单印刷（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0122",
@@ -2193,7 +2314,8 @@
     "status": "已付款",
     "payDate": "2026-09-20",
     "invoiceCount": 3,
-    "reason": "公共照明灯具与线材（翡翠城）"
+    "reason": "公共照明灯具与线材（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0123",
@@ -2211,7 +2333,8 @@
     "status": "已付款",
     "payDate": "2026-09-23",
     "invoiceCount": 1,
-    "reason": "临时用工费用（翡翠城）"
+    "reason": "临时用工费用（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0124",
@@ -2229,7 +2352,8 @@
     "status": "已付款",
     "payDate": "2026-09-13",
     "invoiceCount": 1,
-    "reason": "打印耗材与纸张（锦绣家园）"
+    "reason": "打印耗材与纸张（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0125",
@@ -2247,7 +2371,8 @@
     "status": "已付款",
     "payDate": "2026-09-21",
     "invoiceCount": 1,
-    "reason": "服务中心办公用品（锦绣家园）"
+    "reason": "服务中心办公用品（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0126",
@@ -2265,7 +2390,8 @@
     "status": "已付款",
     "payDate": "2026-09-30",
     "invoiceCount": 2,
-    "reason": "跨项目支援差旅（锦绣家园）"
+    "reason": "跨项目支援差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0127",
@@ -2283,7 +2409,8 @@
     "status": "审批中",
     "payDate": "",
     "invoiceCount": 3,
-    "reason": "快递与跑腿（锦绣家园）"
+    "reason": "快递与跑腿（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0128",
@@ -2301,7 +2428,8 @@
     "status": "已付款",
     "payDate": "2026-09-17",
     "invoiceCount": 3,
-    "reason": "电梯门机配件（星光天地）"
+    "reason": "电梯门机配件（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0129",
@@ -2319,7 +2447,8 @@
     "status": "已付款",
     "payDate": "2026-09-08",
     "invoiceCount": 2,
-    "reason": "水泵房维修材料（星光天地）"
+    "reason": "水泵房维修材料（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0130",
@@ -2337,7 +2466,8 @@
     "status": "已付款",
     "payDate": "2026-09-07",
     "invoiceCount": 3,
-    "reason": "外出培训差旅（星光天地）"
+    "reason": "外出培训差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0131",
@@ -2355,7 +2485,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 3,
-    "reason": "供应商洽谈接待（翡翠城）"
+    "reason": "供应商洽谈接待（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0132",
@@ -2373,7 +2504,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "消防设施配件（翡翠城）"
+    "reason": "消防设施配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0133",
@@ -2391,7 +2523,8 @@
     "status": "已付款",
     "payDate": "2026-10-18",
     "invoiceCount": 2,
-    "reason": "快递与跑腿（翡翠城）"
+    "reason": "快递与跑腿（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0134",
@@ -2409,7 +2542,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 1,
-    "reason": "水泵房维修材料（翡翠城）"
+    "reason": "水泵房维修材料（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0135",
@@ -2427,7 +2561,8 @@
     "status": "已付款",
     "payDate": "2026-10-07",
     "invoiceCount": 2,
-    "reason": "消防设施配件（翡翠城）"
+    "reason": "消防设施配件（翡翠城）",
+    "level": "project"
   },
   {
     "expenseId": "EX0136",
@@ -2445,7 +2580,8 @@
     "status": "已付款",
     "payDate": "2026-10-05",
     "invoiceCount": 2,
-    "reason": "零星杂费（锦绣家园）"
+    "reason": "零星杂费（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0137",
@@ -2463,7 +2599,8 @@
     "status": "已付款",
     "payDate": "2026-10-18",
     "invoiceCount": 1,
-    "reason": "打印耗材与纸张（锦绣家园）"
+    "reason": "打印耗材与纸张（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0138",
@@ -2481,7 +2618,8 @@
     "status": "已付款",
     "payDate": "2026-10-16",
     "invoiceCount": 3,
-    "reason": "跨项目支援差旅（锦绣家园）"
+    "reason": "跨项目支援差旅（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0139",
@@ -2499,7 +2637,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 1,
-    "reason": "供应商洽谈接待（锦绣家园）"
+    "reason": "供应商洽谈接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0140",
@@ -2517,7 +2656,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "供应商洽谈接待（锦绣家园）"
+    "reason": "供应商洽谈接待（锦绣家园）",
+    "level": "project"
   },
   {
     "expenseId": "EX0141",
@@ -2535,7 +2675,8 @@
     "status": "待付款",
     "payDate": "",
     "invoiceCount": 2,
-    "reason": "跨项目支援差旅（星光天地）"
+    "reason": "跨项目支援差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0142",
@@ -2553,7 +2694,8 @@
     "status": "已付款",
     "payDate": "2026-10-12",
     "invoiceCount": 2,
-    "reason": "外出培训差旅（星光天地）"
+    "reason": "外出培训差旅（星光天地）",
+    "level": "project"
   },
   {
     "expenseId": "EX0143",
@@ -2571,6 +2713,121 @@
     "status": "已付款",
     "payDate": "2026-10-15",
     "invoiceCount": 1,
-    "reason": "业委会沟通接待（星光天地）"
+    "reason": "业委会沟通接待（星光天地）",
+    "level": "project"
+  },
+  {
+    "expenseId": "EX9001",
+    "applyNo": "EXP-HQ-2608-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "happenDate": "2026-08-01",
+    "period": "2026-08",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "已付款",
+    "payDate": "2026-08-05",
+    "reason": "总部办公场地租金（8 月）",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
+  },
+  {
+    "expenseId": "EX9002",
+    "applyNo": "EXP-HQ-2608-02",
+    "expenseType": "系统年费",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 36000,
+    "happenDate": "2026-08-12",
+    "period": "2026-08",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "已付款",
+    "payDate": "2026-08-15",
+    "reason": "收费与工单系统年度授权（三个项目共用）",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
+  },
+  {
+    "expenseId": "EX9003",
+    "applyNo": "EXP-HQ-2609-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "happenDate": "2026-09-01",
+    "period": "2026-09",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "已付款",
+    "payDate": "2026-09-05",
+    "reason": "总部办公场地租金（9 月）",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
+  },
+  {
+    "expenseId": "EX9004",
+    "applyNo": "EXP-HQ-2609-02",
+    "expenseType": "审计费",
+    "categoryId": "EXP_OP_OTHER",
+    "amount": 15000,
+    "happenDate": "2026-09-18",
+    "period": "2026-09",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "已付款",
+    "payDate": "2026-09-25",
+    "reason": "半年度财务审计",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
+  },
+  {
+    "expenseId": "EX9005",
+    "applyNo": "EXP-HQ-2610-01",
+    "expenseType": "房租",
+    "categoryId": "EXP_OP_OFFICE",
+    "amount": 28000,
+    "happenDate": "2026-10-01",
+    "period": "2026-10",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "已付款",
+    "payDate": "2026-10-08",
+    "reason": "总部办公场地租金（10 月）",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
+  },
+  {
+    "expenseId": "EX9006",
+    "applyNo": "EXP-HQ-2610-02",
+    "expenseType": "招聘费",
+    "categoryId": "EXP_OP_OTHER",
+    "amount": 8000,
+    "happenDate": "2026-10-16",
+    "period": "2026-10",
+    "applicant": "周敏",
+    "applicantEmpId": "EM0002",
+    "status": "待付款",
+    "payDate": "",
+    "reason": "秩序岗与管理岗招聘渠道费",
+    "invoiceCount": 1,
+    "communityId": "",
+    "communityName": "",
+    "orgId": "O-HQ",
+    "level": "company"
   }
 ]

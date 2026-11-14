@@ -20307,13 +20307,74 @@ components:
         totals:
           allOf:
             - $ref: '#/components/schemas/CompanyRow'
+            - type: object
+              properties:
+                overhead: { type: number, description: 公司级费用合计 }
+                expenseAll: { type: number, description: 项目支出 + 公司级费用 = 公司口径总支出 }
+                balanceAll: { type: number, description: 公司结余 = 收入 − expenseAll }
+                marginAll: { type: number, description: 公司结余率，百分数 }
           description: |
             合计行。**率是重算的**（分母相加再相除），不是各行相加；
             客户看到的"合计收缴率"必须是重算值，加总会得出 >100% 的数。
+
+            金额有两套：`expense` / `balance` 是**各项目之和**（表格合计行用它），
+            `expenseAll` / `balanceAll` 是**公司口径**（多了公司级费用）。
+            两个数不一样是对的 —— 差的正是总部房租、系统年费这些不该由某个项目背的钱。
+        overhead:
+          $ref: '#/components/schemas/CompanyOverhead'
         note: { type: string, description: 直接给页面展示的口径说明 }
         allocated:
           type: boolean
           description: 是否包含分摊的管理费用。false = 未摊（系统还没有分摊能力）
+
+    CompanyOverhead:
+      type: object
+      description: |
+        公司级费用（未摊到项目）。总部花的钱，不归属任何项目。
+
+        **只汇总、不摊。** 摊到项目是另一件事：摊法（面积 / 收入 / 户数）一改，
+        四个项目的利润全变，得客户先定口径（见《口径待确认-费用分摊》）。
+      properties:
+        from: { type: string }
+        to: { type: string }
+        total: { type: number, description: 区间内**已付款**的公司级费用 }
+        count: { type: integer }
+        pending:
+          type: number
+          description: 区间内待付款金额。不计入支出（钱还没出去），但要说出来 —— 否则"这个月怎么没花钱"是句假话
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              categoryId: { type: string }
+              name: { type: string }
+              parentName: { type: string }
+              amount: { type: number }
+              count: { type: integer }
+        byPeriod:
+          type: array
+          items:
+            type: object
+            properties:
+              period: { type: string }
+              amount: { type: number }
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              expenseId: { type: string }
+              applyNo: { type: string }
+              expenseType: { type: string }
+              categoryId: { type: string }
+              amount: { type: number }
+              period: { type: string }
+              happenDate: { type: string, format: date }
+              payDate: { type: string }
+              applicant: { type: string }
+              reason: { type: string }
+              status: { type: string }
 
     CompanyReportEnvelope:
       allOf:

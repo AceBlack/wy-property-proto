@@ -26,21 +26,26 @@
       </el-form>
     </div>
 
-    <div class="grid" style="margin-top:16px;grid-template-columns:repeat(4,minmax(0,1fr));">
+    <div class="grid" style="margin-top:16px;grid-template-columns:repeat(5,minmax(0,1fr));">
       <div class="panel rsum" data-card="c-income">
         <div class="rsum__l">收入合计</div>
         <div class="rsum__v">¥ {{ wan(d.totals.income) }}</div>
         <div class="rsum__s">{{ d.rows.length }} 个项目 · {{ d.months }} 个月</div>
       </div>
-      <div class="panel rsum" data-card="c-expense">
-        <div class="rsum__l">支出合计</div>
+      <div class="panel rsum" data-card="c-pexpense">
+        <div class="rsum__l">项目支出</div>
         <div class="rsum__v money--out">¥ {{ wan(d.totals.expense) }}</div>
-        <div class="rsum__s">不摊总部管理费用</div>
+        <div class="rsum__s">各项目自身发生，可归属</div>
+      </div>
+      <div class="panel rsum" data-card="c-overhead">
+        <div class="rsum__l">公司级费用</div>
+        <div class="rsum__v money--out">¥ {{ wan(d.overhead.total) }}</div>
+        <div class="rsum__s">{{ d.overhead.count }} 笔 · 不摊到项目</div>
       </div>
       <div class="panel rsum" data-card="c-balance">
-        <div class="rsum__l">结余</div>
-        <div class="rsum__v" :class="d.totals.balance < 0 ? 'money--out' : ''">{{ d.totals.balance < 0 ? '−' : '' }}¥ {{ wan(Math.abs(d.totals.balance)) }}</div>
-        <div class="rsum__s">结余率 {{ d.totals.margin }}%</div>
+        <div class="rsum__l">公司结余</div>
+        <div class="rsum__v" :class="d.totals.balanceAll < 0 ? 'money--out' : ''">{{ d.totals.balanceAll < 0 ? '−' : '' }}¥ {{ wan(Math.abs(d.totals.balanceAll)) }}</div>
+        <div class="rsum__s">收入 − 项目支出 − 公司级费用 · {{ d.totals.marginAll }}%</div>
       </div>
       <div class="panel rsum" data-card="c-rate">
         <div class="rsum__l">合计收缴率</div>
@@ -107,6 +112,45 @@
       </el-table>
     </div>
 
+    <!-- 公司级费用：只汇总、不摊。摊到项目是另一件事，得客户先定口径 -->
+    <div class="panel" style="margin-top:16px;">
+      <div class="sec__hd" style="margin:0 0 10px;">
+        <h4>公司级费用（未摊到项目）</h4>
+        <span class="desc">
+          总部花、不归属任何项目的钱。<b>只汇总不摊</b> ——
+          摊法一改，各项目利润全变，得先定口径（见《口径待确认-费用分摊》）
+        </span>
+      </div>
+
+      <div v-if="d.overhead.byCategory.length" class="chips">
+        <span v-for="c in d.overhead.byCategory" :key="c.categoryId" class="chip">
+          {{ c.name }} <b>¥{{ money(c.amount) }}</b>
+          <i>{{ c.count }} 笔</i>
+        </span>
+      </div>
+
+      <el-table :data="d.overhead.rows" size="small" max-height="280" style="margin-top:10px;">
+        <el-table-column prop="period" label="账期" width="88" />
+        <el-table-column prop="reason" label="事由" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="expenseType" label="类型" width="96" />
+        <el-table-column label="金额" width="118" align="right">
+          <template #default="{ row }"><span class="num money--out">¥{{ money(row.amount) }}</span></template>
+        </el-table-column>
+        <el-table-column prop="applicant" label="经办" width="88" />
+        <el-table-column prop="payDate" label="付款日" width="110">
+          <template #default="{ row }">
+            <span v-if="row.payDate">{{ row.payDate }}</span>
+            <span v-else class="ps-sub">未付款</span>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="d.overhead.pending > 0" class="pend">
+        另有待付款 ¥{{ money(d.overhead.pending) }} 未计入支出 —— 审批通过但钱还没出去，
+        记成支出就是提前确认成本。
+      </div>
+    </div>
+
     <div class="panel foot-note">
       <b>为什么不摊管理费用</b>：客户月报里「管理费用」与「支出」并列，说明它是总部摊下来的。
       系统现在没有公共费用池、也没有分摊规则（按面积？按收入？按人头？），
@@ -115,8 +159,13 @@
       <b>为什么合计的率要重算</b>：翡翠城应收 100 万收了 80 万（80%）、锦绣家园应收 10 万收了 5 万（50%），
       合计是 85 万 ÷ 110 万 = 77%，不是 (80% + 50%) ÷ 2 = 65%。分母不同，率不能加。
       <br /><br />
-      <b>结余为负说明什么</b>：项目自身的收入盖不住自身支出。不含总部管理费用、不含押金（负债）——
-      所以负得比客户月报好看，那部分差额就是没摊的管理费用。
+      <b>项目结余 ≠ 公司结余</b>：表格合计行是「各项目相加」（项目结余），
+      顶部的「公司结余」多减了一笔公司级费用。这两个数不一样是对的 ——
+      差的正是总部房租、系统年费、审计费这些不该由某个项目背的钱。
+      <br /><br />
+      <b>结余为负说明什么</b>：收入盖不住支出。演示数据里三个项目全负 ——
+      756 户的物业费对 120 人薪酬，规模不匹配。这张表的价值是**横向比**
+      （星光天地 -55.86% 比翡翠城 -305% 健康得多），不是绝对值。
     </div>
   </div>
 </template>
@@ -135,10 +184,17 @@ const d = computed(() => {
   try {
     return companyReport({ from: from.value, to: to.value })
   } catch (e) {
+    /* 出错时也要给出完整形状：模板里读了 overhead.byCategory / totals.balanceAll，
+       少一个字段就是二次崩，用户只会看到白屏而不是那句错误 */
     return {
       from: from.value, to: to.value, months: 0, itemName: '',
       rows: [],
-      totals: { name: '合计', houses: 0, receivable: 0, received: 0, collectionRate: null, houseRate: null, bizRate: null, income: 0, expense: 0, balance: 0, margin: 0 },
+      overhead: { total: 0, count: 0, pending: 0, byCategory: [], byPeriod: [], rows: [] },
+      totals: {
+        name: '合计', houses: 0, receivable: 0, received: 0, collectionRate: null,
+        houseRate: null, bizRate: null, income: 0, expense: 0, balance: 0, margin: 0,
+        overhead: 0, expenseAll: 0, balanceAll: 0, marginAll: 0
+      },
       note: e?.message || '', allocated: false, error: e?.message
     }
   }
@@ -168,6 +224,19 @@ function onExport() {
 </script>
 
 <style scoped>
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  background: #f7f9fc; border: 1px solid var(--biz-border-light);
+}
+.chip b { font-family: var(--biz-font-num); }
+.chip i { font-style: normal; color: var(--biz-text-3); font-size: 11px; }
+.pend {
+  margin-top: 10px; font-size: 12px; color: #a6700f;
+  background: #fdf6ec; border: 1px solid #f5dab1; border-radius: 8px; padding: 8px 12px;
+}
+
 :deep(.cr-total) td { background: #eef4ff !important; font-weight: 600; }
 :deep(.cr-loss) td { background: #fffbfb; }
 .foot-note {
