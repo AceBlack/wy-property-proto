@@ -241,6 +241,12 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "我的联系方式"
       }
+    },
+    {
+      "path": "pages/meter/list",
+      "style": {
+        "navigationBarTitleText": "抄表"
+      }
     }
   ],
   "globalStyle": {

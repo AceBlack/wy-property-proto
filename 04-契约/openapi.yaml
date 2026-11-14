@@ -4370,6 +4370,113 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden', description: 这套房不在登录人的数据范围内 }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /mobile/meters:
+    get:
+      tags: [mobile, meters]
+      operationId: queryMobileMeters
+      summary: 待抄清单（移动端）
+      description: |
+        按**责任房屋**收敛：楼栋管家只看到自己管的几栋，不是整个项目（后台 `Meter.vue` 是管理员视角）。
+
+        排序：楼栋 → 房号 → 表类型。一户两块表（水 + 电）是两行 —— 混在一行会漏抄。
+
+        `summary` 永远按"这个人的全部待办"算，**不随筛选跳动**：
+        切到某一栋时数字变来变去，会让人以为自己抄漏了。
+
+        「待录入」的行 `currentReading` / `usage` 下发 `null` —— 还没抄，
+        给个 0 会让人以为读数本来就是 0。
+      x-permission: b.meters.view
+      parameters:
+        - name: communityId
+          in: query
+          schema: { type: string }
+        - name: buildingId
+          in: query
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string, example: '2026-10' }
+        - name: status
+          in: query
+          schema: { type: string, enum: [待录入, 待复核, 已计费] }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: '#/components/schemas/MeterReading' }
+                  summary:
+                    type: object
+                    properties:
+                      period: { type: string }
+                      pending: { type: integer, description: 待录入 }
+                      done: { type: integer, description: 待复核 }
+                      abnormal: { type: integer, description: 待复核里用量超阈值的 }
+                      total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /mobile/meters/{readingId}/reading:
+    post:
+      tags: [mobile, meters]
+      operationId: submitMeterReading
+      summary: 录入本期读数（移动端）
+      description: |
+        三条校验**照抄后台 `saveReading()`**，端上不重写任何一条：
+
+        1. 本期读数 **不得小于**上期读数（硬约束，不是提示）；
+        2. 不得超过表类型量程（水表 99999 / 电表 999999）；
+        3. 用量超阈值（电表 330 度 / 水表 24 吨）**只标异常，不拦提交**。
+
+        第 3 条是有意为之：拦住提交的后果是师傅改数字凑合规 —— 数字好看了，漏水的问题被埋了。
+        异常单进「待复核」，由后台判断。
+
+        只有「待录入」的记录能录；已抄过的返回 40970。
+      x-permission: b.meters.read
+      parameters:
+        - name: readingId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentReading]
+              properties:
+                currentReading:
+                  type: number
+                  description: 表盘上的本期读数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readingId: { type: string }
+                  usage: { type: number, description: 本期 − 上期 }
+                  abnormal: { type: boolean }
+                  status: { type: string, example: 待复核 }
+                  reader: { type: string }
+                  readDate: { type: string }
+                  abnormalLimit:
+                    type: number
+                    description: 异常时回传阈值，端上不用自己存常量；正常时为 0
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: '已抄过（40970），不能再录入' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /mobile/houses/{houseId}/residents:
     get:
       tags: [mobile]
@@ -15764,6 +15871,34 @@ components:
                 recentPayments:
                   type: array
                   items: { $ref: '#/components/schemas/Payment' }
+    MeterReading:
+      type: object
+      properties:
+        readingId: { type: string }
+        meterNo: { type: string }
+        type: { type: string, enum: [水表, 电表] }
+        unit: { type: string, example: 吨 }
+        period: { type: string, example: '2026-10' }
+        communityId: { type: string }
+        houseId: { type: string }
+        houseName: { type: string }
+        buildingId: { type: string }
+        buildingName: { type: string }
+        ownerName: { type: string }
+        lastReading: { type: number, description: 上期读数，现场最容易把它当本期填 }
+        currentReading:
+          type: number
+          nullable: true
+          description: 待录入时为 null
+        usage:
+          type: number
+          nullable: true
+          description: 待录入时为 null
+        readDate: { type: string }
+        reader: { type: string }
+        status: { type: string, enum: [待录入, 待复核, 已计费] }
+        abnormal: { type: boolean }
+
     HouseEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'

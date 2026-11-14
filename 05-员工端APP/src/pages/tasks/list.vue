@@ -10,6 +10,24 @@
     </NavBar>
 
     <view class="body body--tab">
+      <!-- 抄表入口：有权限且有待抄任务才出现。数字放这里是为了"不点进去也知道还剩多少" -->
+      <view
+        v-if="canMeter && meterPending > 0"
+        id="meter-entry"
+        class="mentry"
+        hover-class="mentry--hover"
+        @tap="goMeter"
+      >
+        <view class="mentry__l">
+          <text class="mentry__t">抄表</text>
+          <text class="mentry__s">本期 {{ meterPeriod }} · 还有 {{ meterPending }} 户没抄</text>
+        </view>
+        <view class="mentry__r">
+          <text class="mentry__n num">{{ meterPending }}</text>
+          <view class="mentry__chev" />
+        </view>
+      </view>
+
       <!-- 身份 + 今日概览 -->
       <view class="hd">
         <view class="hd__l">
@@ -125,12 +143,32 @@ import NavBar from '@/components/NavBar.vue'
 import TaskCard from '@/components/TaskCard.vue'
 import Empty from '@/components/Empty.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import { DEMO, PERSONAS, roleBadge } from '@/config/personas'
+import { CAP, DEMO, PERSONAS, can, roleBadge } from '@/config/personas'
 import { TASK_TABS, kpiOf, listForTab, loadTasks, tabCounts } from '@/api/mobile'
+import { lastMeters, loadMeters } from '@/api/meter'
 import { app, isPending, login, persona, syncPending } from '@/store/app'
 import { toast, toastErr, toastOk } from '@/utils/ui'
 
 const tab = ref('todo')
+const meter = ref(null)
+const canMeter = computed(() => can(persona.value, CAP.metersView))
+const meterPending = computed(() => meter.value?.summary?.pending || 0)
+const meterPeriod = computed(() => meter.value?.summary?.period || '')
+
+function goMeter() {
+  uni.navigateTo({ url: '/pages/meter/list' })
+}
+
+async function loadMeter() {
+  if (!canMeter.value) return
+  try {
+    await loadMeters(persona.value)
+    meter.value = lastMeters()
+  } catch {
+    /* 抄表拿不到不影响任务页本身，静默 */
+    meter.value = null
+  }
+}
 const switchSheet = ref(false)
 /** 自增版本号：mock 数据是普通数组（非响应式），提交/打卡后靠它触发重算 */
 const ver = ref(0)
@@ -167,6 +205,7 @@ onShow(async () => {
      mock 模式下 loadTasks 直接返回，这一行等于没做。 */
   try {
     await loadTasks(persona.value)
+  loadMeter()
   } catch (e) {
     toastErr(e.message || '任务加载失败')
   }
@@ -199,6 +238,50 @@ async function onSync() {
 </script>
 
 <style scoped>
+.mentry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 24rpx 16rpx;
+  padding: 24rpx 28rpx;
+  background: var(--card);
+  border-radius: 20rpx;
+  border-left: 6rpx solid #b8860b;
+}
+.mentry--hover {
+  opacity: 0.85;
+}
+.mentry__l {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.mentry__t {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--ink);
+}
+.mentry__s {
+  font-size: 22rpx;
+  color: var(--muted);
+}
+.mentry__r {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.mentry__n {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #b8860b;
+}
+.mentry__chev {
+  width: 14rpx;
+  height: 14rpx;
+  border-top: 3rpx solid var(--muted);
+  border-right: 3rpx solid var(--muted);
+  transform: rotate(45deg);
+}
 .who {
   display: flex;
   align-items: center;

@@ -1148,5 +1148,25 @@
     "op": "edit",
     "opName": "操作",
     "route": "/f/wo-detail"
+  },
+  {
+    "code": "b.meters.view",
+    "domain": "b",
+    "domainName": "B 费用与财务",
+    "func": "meters",
+    "funcName": "抄表与公摊",
+    "op": "view",
+    "opName": "查看",
+    "route": "/b/meters"
+  },
+  {
+    "code": "b.meters.read",
+    "domain": "b",
+    "domainName": "B 费用与财务",
+    "func": "meters",
+    "funcName": "抄表与公摊",
+    "op": "read",
+    "opName": "录入读数",
+    "route": "/b/meters"
   }
 ]

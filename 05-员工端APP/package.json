@@ -18,7 +18,8 @@
     "verify:listing": "node scripts/verify-listing.mjs",
     "verify:activity": "node scripts/verify-activity.mjs",
     "verify:house": "node scripts/verify-house.mjs",
-    "verify:tenant": "node scripts/verify-tenant.mjs"
+    "verify:tenant": "node scripts/verify-tenant.mjs",
+    "verify:meter": "node scripts/verify-meter.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5030420261029002",

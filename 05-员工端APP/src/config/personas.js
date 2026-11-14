@@ -64,6 +64,8 @@ export const CAP = {
   /* 租售信息（PC 第 69 批）。审核口径与邻里**不同**：楼管在邻里只读，
      在租售里却是审核人和回拨人 —— 两个模块各用各的码，别为了"统一"合并。 */
   listingView: 'a.listings.view',
+  metersView: 'b.meters.view',
+  metersRead: 'b.meters.read',
   listingAudit: 'a.listings.audit',
   listViewing: 'a.listings.viewing',
   billsView: 'b.bills.view',
@@ -95,7 +97,9 @@ export const PERSONAS = [
     empNo: '',
     lead: false,
     desc: '一线 · 巡检 + 接工单，今日 3 单待办',
-    perms: [CAP.inspView, CAP.inspExec, CAP.woView, CAP.woEdit, CAP.noticeRead, CAP.attendanceSelf, CAP.payrollSelf, CAP.contactsView]
+    /* 抄表：一线维修工现场录读数（2026-11-14） */
+    perms: [CAP.inspView, CAP.inspExec, CAP.woView, CAP.woEdit, CAP.noticeRead, CAP.attendanceSelf, CAP.payrollSelf, CAP.contactsView,
+      CAP.metersView, CAP.metersRead]
   },
   {
     id: 'wang-lei',
@@ -172,8 +176,11 @@ export const PERSONAS = [
       CAP.listingView,
       CAP.listingAudit,
       CAP.listViewing,
-      CAP.contactsView
-    ]
+      CAP.contactsView,
+      /* 抄表：楼管与维修工现场录读数（2026-11-14） */
+      CAP.metersView,
+      CAP.metersRead
+        ]
   },
   {
     id: 'xu-yue',
@@ -214,8 +221,10 @@ export const PERSONAS = [
       CAP.listingView,
       CAP.listingAudit,
       CAP.listViewing,
-      CAP.contactsView
-    ]
+      CAP.contactsView,
+      /* 抄表：楼管与维修工现场录读数（2026-11-14） */
+      CAP.metersView
+        ]
   }
 ]
 

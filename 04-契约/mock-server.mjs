@@ -38,6 +38,8 @@ const workOrders = readJson('fixtures/work-orders.json')
 const serviceItems = readJson('fixtures/serviceItems.json')
 const employees = readJson('fixtures/employees.json')
 const tenants = readJson('fixtures/tenants.json')
+/* 抄表记录（1218 条）：待录入 165 是移动端的任务池，见 gen-meter-fixtures.mjs */
+const meterReadings = readJson('fixtures/meter-readings.json')
 const inspectTasks = readJson('fixtures/inspect-tasks.json')
 const rectifyOrders = readJson('fixtures/rectify-orders.json')
 const qualityChecks = readJson('fixtures/quality-checks.json')
@@ -11507,7 +11509,9 @@ const MT_PERM = {
   payrollSelf: 'c.payroll.self',
   stewardView: 'a.stewards.view',
   ownersView: 'a.owners.view',
-  approvalHandle: 'f.approval.handle'
+  approvalHandle: 'f.approval.handle',
+  metersView: 'b.meters.view',
+  metersRead: 'b.meters.read'
 }
 
 /*
@@ -12332,6 +12336,140 @@ on('GET', '/mobile/houses/{houseId}', (ctx) => {
     debtCount: debtBills.length,
     tenants: tenantsOfHouse,
     members: membersOfHouse
+  }
+})
+
+/* ---------------- 抄表（移动端） ---------------- */
+
+/* 与 PC 的 `METER_CAP` 同一套值：水表 99999 / 电表 999999 */
+const METER_CAP = { 水表: 99999, 电表: 999999 }
+/* 与 PC 的 `saveReading()` 同一套异常阈值：电表 330 度、水表 24 吨 */
+const METER_ABNORMAL_LIMIT = { 水表: 24, 电表: 330 }
+
+const meterRowOf = r => {
+  const h = HOUSE.get(r.houseId)
+  return {
+    readingId: r.readingId,
+    meterNo: r.meterNo,
+    type: r.type,
+    unit: r.unit,
+    period: r.period,
+    communityId: r.communityId,
+    houseId: r.houseId,
+    houseName: r.houseName,
+    buildingId: h ? h.buildingId : '',
+    buildingName: h ? ((buildings.find(b => b.buildingId === h.buildingId) || {}).name || '') : '',
+    ownerName: r.ownerName,
+    lastReading: r.lastReading,
+    /* 「待录入」不下发本期读数：清单上不该出现一个"看起来已经抄过"的数字 */
+    currentReading: r.status === '待录入' ? null : r.currentReading,
+    usage: r.status === '待录入' ? null : r.usage,
+    readDate: r.readDate,
+    reader: r.reader,
+    status: r.status,
+    abnormal: r.abnormal
+  }
+}
+
+/**
+ * 待抄清单。
+ *
+ * 范围按**责任房屋**收敛（楼管只看到自己管的那几栋），这是与 PC 最大的不同 ——
+ * 后台是管理员视角，抄全项目；端上是现场视角，只抄自己的。
+ */
+on('GET', '/mobile/meters', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.metersView, `缺少权限位 ${MT_PERM.metersView}：无权查看抄表任务`)
+  const q = ctx.query || {}
+
+  /*
+   * 已计费的默认不返回：端上关心的是"还要不要抄"，推单出账是后台的事。
+   * 只有显式要 `status=已计费` 时才给 —— 那也是做对账，不是抄表。
+   */
+  const base = meterReadings
+    .filter(r => inScopeHouse(ctx.user, r.houseId))
+    .filter(r => (q.status === '已计费' ? r.status === '已计费' : r.status !== '已计费'))
+  const rows = base
+    .filter(r => !q.communityId || r.communityId === q.communityId)
+    .filter(r => !q.status || r.status === q.status)
+    .filter(r => !q.period || r.period === q.period)
+    .filter(r => {
+      if (!q.buildingId) return true
+      const h = HOUSE.get(r.houseId)
+      return h && h.buildingId === q.buildingId
+    })
+    .map(meterRowOf)
+    .sort((a, b) =>
+      String(a.buildingName).localeCompare(String(b.buildingName), 'zh') ||
+      String(a.houseName).localeCompare(String(b.houseName), 'zh') ||
+      String(a.type).localeCompare(String(b.type), 'zh'))
+
+  /* 汇总永远按"这个人的全部待办"算，不随筛选跳动 —— 切到某一栋时数字变来变去会让人以为抄漏了 */
+  const pending = base.filter(r => r.status === '待录入').length
+  const done = base.filter(r => r.status === '待复核').length
+  const abnormal = base.filter(r => r.status === '待复核' && r.abnormal).length
+
+  return {
+    rows,
+    summary: {
+      period: (base[0] || {}).period || '',
+      pending,
+      done,
+      abnormal,
+      total: pending + done
+    }
+  }
+})
+
+/**
+ * 录一户读数。
+ *
+ * 三条校验**照抄 PC 的 `saveReading()`**，一条都不重写：
+ *   ① 不得小于上期读数（这是硬约束，不是提示）
+ *   ② 不得超过表类型量程
+ *   ③ 用量超阈值只标异常，**不拦提交**
+ *
+ * 第三条尤其重要：拦住提交的后果是师傅改数字凑合规 —— 数字好看了，漏水的问题被埋了。
+ * 让它进「待复核」，由后台判断。
+ */
+on('POST', '/mobile/meters/{readingId}/reading', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.metersRead, `缺少权限位 ${MT_PERM.metersRead}：无权录入读数`)
+  const r = meterReadings.find(x => x.readingId === ctx.params.readingId)
+  if (!r) throw notFound('抄表记录不存在')
+  if (!inScopeHouse(ctx.user, r.houseId)) throw forbidden('这户不在你的责任范围内')
+  if (r.status !== '待录入') {
+    throw new ApiError(409, 40970, `这条记录当前是「${r.status}」，不能再录入`)
+  }
+
+  const raw = (ctx.body || {}).currentReading
+  const cur = Number(raw)
+  if (raw === '' || raw === null || raw === undefined || Number.isNaN(cur)) {
+    throw invalid('请输入有效的本期读数')
+  }
+  if (cur < 0) throw invalid('本期读数不能为负数')
+  if (cur < r.lastReading) {
+    throw invalid(`本期读数不得小于上期读数（${r.lastReading}）`)
+  }
+  const cap = METER_CAP[r.type] || 99999
+  if (cur > cap) {
+    throw invalid(`本期读数超出${r.type}量程（上限 ${cap}），请核对后重新录入`)
+  }
+
+  r.currentReading = r2(cur)
+  r.usage = r2(cur - r.lastReading)
+  r.abnormal = r.usage > (METER_ABNORMAL_LIMIT[r.type] || 99999)
+  r.status = '待复核'
+  r.reader = ctx.user.name
+  r.readDate = DATA_DATE
+
+  return {
+    readingId: r.readingId,
+    usage: r.usage,
+    abnormal: r.abnormal,
+    status: r.status,
+    reader: r.reader,
+    readDate: r.readDate,
+    /* 异常时把阈值带上，端上直接显示"超过 24 吨"，不用自己再存一份常量 */
+    abnormalLimit: r.abnormal ? METER_ABNORMAL_LIMIT[r.type] : 0
   }
 })
 
