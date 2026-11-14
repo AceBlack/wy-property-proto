@@ -12141,6 +12141,84 @@ on('GET', '/mobile/work-orders/{woId}', (ctx) => {
   }
 })
 
+/**
+ * 房屋详情（移动端聚合）。
+ *
+ * 为什么聚合：这一屏要「房屋 + 业主 + 最近账单 + 欠费 + 同住人 + 租户」六样东西，
+ * 拆成四个接口的话 —— `/bills` 又**没有 houseId 过滤**（只有 buildingId / unitId / kw），
+ * 前端拿不到"这套房最近六张账"。为了一个字段加一条筛选参数，不如直接给一个聚合读。
+ *
+ * 业主手机号给**明文**：这一屏的存在意义就是楼管照着拨过去，
+ * 掩码在这里没有意义（列表页才是该脱敏的地方）。
+ */
+on('GET', '/mobile/houses/{houseId}', (ctx) => {
+  requirePerm(ctx.user, MT_PERM.ownersView, `缺少权限位 ${MT_PERM.ownersView}：无权查看房屋`)
+  const h = HOUSE.get(ctx.params.houseId)
+  if (!h) throw notFound('房屋不存在')
+  if (!inScopeHouse(ctx.user, h.houseId)) throw forbidden('这套房不在你的数据范围内')
+
+  const owner = h.ownerId ? OWNER.get(h.ownerId) : null
+  const bd = buildings.find(x => x.buildingId === h.buildingId) || {}
+
+  const list = bills
+    .filter(b => b.houseId === h.houseId)
+    .sort((a, b) => String(b.period).localeCompare(String(a.period)))
+  const debtBills = list.filter(b =>
+    !['已作废', '已减免'].includes(b.status) && BILL_DEBT.includes(b.status) && (Number(b.unpaid) || 0) > 0
+  )
+  const debt = r2(debtBills.reduce((s2, b) => s2 + (Number(b.unpaid) || 0), 0))
+
+  const tenantsOfHouse = tenants
+    .filter(t => t.houseId === h.houseId && t.status !== '已搬离')
+    .map(t => ({
+      tenantId: t.tenantId,
+      name: t.name,
+      phone: maskPhone(t.phone),
+      relation: t.relation || '',
+      leaseStart: t.leaseStart,
+      leaseEnd: t.leaseEnd,
+      residents: Number(t.residents) || 0,
+      verifyStatus: t.verifyStatus,
+      certified: !!t.certified,
+      faceRegistered: !!t.faceRegistered,
+      source: t.source || ''
+    }))
+  const membersOfHouse = houseMembers
+    .filter(m => m.ownerId === h.ownerId && m.liveTogether !== false)
+    .map(m => ({
+      memberId: m.memberId,
+      name: m.name,
+      relation: m.relation,
+      phone: maskPhone(m.phone),
+      certified: !!m.certified,
+      faceRegistered: !!m.faceRegistered,
+      appUser: !!m.appUser
+    }))
+
+  return {
+    house: {
+      ...h,
+      buildingName: bd.name || '',
+      unitName: h.unitId ? `${String(h.unitId).slice(-1)} 单元` : ''
+    },
+    owner: owner ? ownerRow(owner, { mask: false }) : null,
+    bills: list.slice(0, 6).map(b => ({
+      billId: b.billId,
+      period: b.period,
+      itemName: b.itemName,
+      payable: Number(b.payable) || 0,
+      unpaid: Number(b.unpaid) || 0,
+      status: b.status,
+      dueDate: b.dueDate,
+      overdueDays: Number(b.overdueDays) || 0
+    })),
+    debt,
+    debtCount: debtBills.length,
+    tenants: tenantsOfHouse,
+    members: membersOfHouse
+  }
+})
+
 on('GET', '/mobile/houses/{houseId}/residents', (ctx) => {
   requirePerm(ctx.user, MT_PERM.ownersView, `缺少权限位 ${MT_PERM.ownersView}：无权查看住户`)
   const h = HOUSE.get(ctx.params.houseId)

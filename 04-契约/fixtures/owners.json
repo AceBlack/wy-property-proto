@@ -26,7 +26,9 @@
     "tagIds": [
       "OT12",
       "OT07"
-    ]
+    ],
+    "emergencyContact": "曹淼然",
+    "remark": "一人多房 + 车位 + 欠费 + 在途报修"
   },
   {
     "ownerId": "OW00002",
@@ -56,7 +58,9 @@
       "OT01",
       "OT05",
       "OT07"
-    ]
+    ],
+    "emergencyContact": "蒋雨欣",
+    "remark": "欠费大户，逾期 182 天，走催缴流程"
   },
   {
     "ownerId": "OW00003",
@@ -84,7 +88,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT07"
-    ]
+    ],
+    "emergencyContact": "董平",
+    "remark": "一人三房，用于演示合并收费"
   },
   {
     "ownerId": "OW00004",
@@ -110,7 +116,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "秦博",
+    "remark": "商业业主，自营餐饮，租约 60 天内到期需续约跟进"
   },
   {
     "ownerId": "OW00005",
@@ -139,7 +147,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "钱红",
+    "remark": ""
   },
   {
     "ownerId": "OW00006",
@@ -165,7 +175,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "付玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00007",
@@ -193,7 +205,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "范强",
+    "remark": ""
   },
   {
     "ownerId": "OW00008",
@@ -219,7 +233,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杜子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00009",
@@ -245,7 +261,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "崔杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00010",
@@ -271,7 +289,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "贾梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00011",
@@ -297,7 +317,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "夏瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00012",
@@ -326,7 +348,9 @@
     "tagIds": [
       "OT04",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邱红",
+    "remark": ""
   },
   {
     "ownerId": "OW00013",
@@ -352,7 +376,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "龙秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00014",
@@ -382,7 +408,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "赵霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00015",
@@ -411,7 +439,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "孔建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00016",
@@ -437,7 +467,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曾杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00017",
@@ -467,7 +499,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "雷浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00018",
@@ -495,7 +529,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "赵雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00019",
@@ -521,7 +557,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "万悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00020",
@@ -550,7 +588,9 @@
     "tagIds": [
       "OT04",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "胡艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00021",
@@ -576,7 +616,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "冯悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00022",
@@ -604,7 +646,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "石敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00023",
@@ -630,7 +674,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "雷敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00024",
@@ -656,7 +702,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00025",
@@ -682,7 +730,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孔宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00026",
@@ -710,7 +760,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郑明",
+    "remark": ""
   },
   {
     "ownerId": "OW00027",
@@ -736,7 +788,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢文",
+    "remark": ""
   },
   {
     "ownerId": "OW00028",
@@ -764,7 +818,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "白洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00029",
@@ -790,7 +846,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "毛刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00030",
@@ -816,7 +874,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00031",
@@ -842,7 +902,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "汤娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00032",
@@ -868,7 +930,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "向悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00033",
@@ -894,7 +958,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吴雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00034",
@@ -920,7 +986,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "白芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00035",
@@ -946,7 +1014,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "潘文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00036",
@@ -974,7 +1044,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "杜雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00037",
@@ -1000,7 +1072,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00038",
@@ -1026,7 +1100,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "肖建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00039",
@@ -1054,7 +1130,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "邱雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00040",
@@ -1082,7 +1160,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "罗嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00041",
@@ -1108,7 +1188,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "石秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00042",
@@ -1136,7 +1218,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "王雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00043",
@@ -1165,7 +1249,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "曾军",
+    "remark": ""
   },
   {
     "ownerId": "OW00044",
@@ -1193,7 +1279,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黎辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00045",
@@ -1219,7 +1307,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邵鹏",
+    "remark": ""
   },
   {
     "ownerId": "OW00046",
@@ -1247,7 +1337,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "宋国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00047",
@@ -1273,7 +1365,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "汪欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00048",
@@ -1299,7 +1393,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00049",
@@ -1327,7 +1423,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "任嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00050",
@@ -1353,7 +1451,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "沈婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00051",
@@ -1381,7 +1481,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "陈一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00052",
@@ -1410,7 +1512,9 @@
     "tagIds": [
       "OT04",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "沈刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00053",
@@ -1436,7 +1540,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "周志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00054",
@@ -1464,7 +1570,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "马雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00055",
@@ -1490,7 +1598,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "苏辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00056",
@@ -1516,7 +1626,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "戴悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00057",
@@ -1542,7 +1654,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00058",
@@ -1570,7 +1684,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "杜浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00059",
@@ -1598,7 +1714,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "闫辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00060",
@@ -1624,7 +1742,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "沈涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00061",
@@ -1650,7 +1770,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "谢霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00062",
@@ -1679,7 +1801,9 @@
     "tagIds": [
       "OT06",
       "OT09"
-    ]
+    ],
+    "emergencyContact": "毛文",
+    "remark": ""
   },
   {
     "ownerId": "OW00063",
@@ -1711,7 +1835,9 @@
       "OT05",
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "史雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00064",
@@ -1739,7 +1865,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "田娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00065",
@@ -1767,7 +1895,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "汪伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00066",
@@ -1795,7 +1925,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "曾春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00067",
@@ -1821,7 +1953,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "余振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00068",
@@ -1847,7 +1981,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "任强",
+    "remark": ""
   },
   {
     "ownerId": "OW00069",
@@ -1875,7 +2011,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "吕娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00070",
@@ -1904,7 +2042,9 @@
     "tagIds": [
       "OT05",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "马振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00071",
@@ -1932,7 +2072,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "任春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00072",
@@ -1958,7 +2100,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00073",
@@ -1984,7 +2128,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "向瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00074",
@@ -2010,7 +2156,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "沈坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00075",
@@ -2036,7 +2184,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "贾军",
+    "remark": ""
   },
   {
     "ownerId": "OW00076",
@@ -2062,7 +2212,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "付涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00077",
@@ -2088,7 +2240,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "熊佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00078",
@@ -2114,7 +2268,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00079",
@@ -2142,7 +2298,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "秦霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00080",
@@ -2171,7 +2329,9 @@
     "tagIds": [
       "OT09",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "尹国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00081",
@@ -2197,7 +2357,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陆丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00082",
@@ -2225,7 +2387,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "罗秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00083",
@@ -2251,7 +2415,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孙子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00084",
@@ -2280,7 +2446,9 @@
     "tagIds": [
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "程淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00085",
@@ -2306,7 +2474,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姜国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00086",
@@ -2332,7 +2502,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00087",
@@ -2358,7 +2530,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00088",
@@ -2387,7 +2561,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "田建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00089",
@@ -2413,7 +2589,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "任强",
+    "remark": ""
   },
   {
     "ownerId": "OW00090",
@@ -2439,7 +2617,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "宋文",
+    "remark": ""
   },
   {
     "ownerId": "OW00091",
@@ -2465,7 +2645,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00092",
@@ -2491,7 +2673,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蔡秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00093",
@@ -2519,7 +2703,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "戴振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00094",
@@ -2545,7 +2731,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "万国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00095",
@@ -2571,7 +2759,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00096",
@@ -2597,7 +2787,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "谭坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00097",
@@ -2626,7 +2818,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "廖辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00098",
@@ -2655,7 +2849,9 @@
     "tagIds": [
       "OT10",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "吕欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00099",
@@ -2681,7 +2877,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "胡杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00100",
@@ -2707,7 +2905,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00101",
@@ -2733,7 +2933,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "梁坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00102",
@@ -2762,7 +2964,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "赵天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00103",
@@ -2788,7 +2992,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "万嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00104",
@@ -2814,7 +3020,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "谭悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00105",
@@ -2842,7 +3050,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "卢勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00106",
@@ -2870,7 +3080,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "黄子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00107",
@@ -2896,7 +3108,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "尹振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00108",
@@ -2922,7 +3136,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00109",
@@ -2950,7 +3166,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "谢建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00110",
@@ -2976,7 +3194,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "丁子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00111",
@@ -3002,7 +3222,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "黄春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00112",
@@ -3028,7 +3250,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "王宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00113",
@@ -3054,7 +3278,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "肖坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00114",
@@ -3083,7 +3309,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "郭刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00115",
@@ -3111,7 +3339,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "史悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00116",
@@ -3137,7 +3367,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "韩思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00117",
@@ -3165,7 +3397,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "魏超",
+    "remark": ""
   },
   {
     "ownerId": "OW00118",
@@ -3191,7 +3425,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "马平",
+    "remark": ""
   },
   {
     "ownerId": "OW00119",
@@ -3217,7 +3453,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "林天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00120",
@@ -3243,7 +3481,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "崔雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00121",
@@ -3269,7 +3509,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "夏国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00122",
@@ -3295,7 +3537,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陆涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00123",
@@ -3323,7 +3567,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "孟天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00124",
@@ -3349,7 +3595,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "石红",
+    "remark": ""
   },
   {
     "ownerId": "OW00125",
@@ -3375,7 +3623,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "彭建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00126",
@@ -3404,7 +3654,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蒋秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00127",
@@ -3433,7 +3685,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "邱梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00128",
@@ -3461,7 +3715,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陶一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00129",
@@ -3489,7 +3745,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "沈博",
+    "remark": ""
   },
   {
     "ownerId": "OW00130",
@@ -3517,7 +3775,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "江宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00131",
@@ -3545,7 +3805,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蔡超",
+    "remark": ""
   },
   {
     "ownerId": "OW00132",
@@ -3571,7 +3833,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "方春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00133",
@@ -3597,7 +3861,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "江欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00134",
@@ -3623,7 +3889,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "董建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00135",
@@ -3651,7 +3919,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "戴辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00136",
@@ -3681,7 +3951,9 @@
       "OT05",
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "董丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00137",
@@ -3709,7 +3981,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郭强",
+    "remark": ""
   },
   {
     "ownerId": "OW00138",
@@ -3737,7 +4011,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "王文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00139",
@@ -3763,7 +4039,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "顾瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00140",
@@ -3794,7 +4072,9 @@
       "OT02",
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "潘秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00141",
@@ -3822,7 +4102,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "程建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00142",
@@ -3850,7 +4132,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "谭瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00143",
@@ -3878,7 +4162,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "马敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00144",
@@ -3904,7 +4190,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蒋军",
+    "remark": ""
   },
   {
     "ownerId": "OW00145",
@@ -3930,7 +4218,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "石秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00146",
@@ -3958,7 +4248,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "曹浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00147",
@@ -3986,7 +4278,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "龚雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00148",
@@ -4012,7 +4306,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "李浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00149",
@@ -4038,7 +4334,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郭丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00150",
@@ -4064,7 +4362,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孟秀兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00151",
@@ -4093,7 +4393,9 @@
     "tagIds": [
       "OT04",
       "OT10"
-    ]
+    ],
+    "emergencyContact": "姜振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00152",
@@ -4119,7 +4421,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吴思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00153",
@@ -4147,7 +4451,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "周秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00154",
@@ -4173,7 +4479,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "熊秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00155",
@@ -4199,7 +4507,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00156",
@@ -4227,7 +4537,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "侯建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00157",
@@ -4255,7 +4567,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "李强",
+    "remark": ""
   },
   {
     "ownerId": "OW00158",
@@ -4283,7 +4597,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "廖振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00159",
@@ -4311,7 +4627,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "朱若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00160",
@@ -4337,7 +4655,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00161",
@@ -4363,7 +4683,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "彭辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00162",
@@ -4391,7 +4713,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "董秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00163",
@@ -4420,7 +4744,9 @@
     "tagIds": [
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "戴婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00164",
@@ -4446,7 +4772,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00165",
@@ -4472,7 +4800,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "董文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00166",
@@ -4498,7 +4828,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝强",
+    "remark": ""
   },
   {
     "ownerId": "OW00167",
@@ -4524,7 +4856,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "尹雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00168",
@@ -4550,7 +4884,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00169",
@@ -4578,7 +4914,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "廖淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00170",
@@ -4606,7 +4944,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "杜秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00171",
@@ -4635,7 +4975,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黎淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00172",
@@ -4661,7 +5003,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杜丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00173",
@@ -4687,7 +5031,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "赵娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00174",
@@ -4713,7 +5059,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "袁秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00175",
@@ -4741,7 +5089,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "武军",
+    "remark": ""
   },
   {
     "ownerId": "OW00176",
@@ -4769,7 +5119,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "范晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00177",
@@ -4795,7 +5147,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杜静",
+    "remark": ""
   },
   {
     "ownerId": "OW00178",
@@ -4821,7 +5175,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曹敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00179",
@@ -4850,7 +5206,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "戴强",
+    "remark": ""
   },
   {
     "ownerId": "OW00180",
@@ -4879,7 +5237,9 @@
     "tagIds": [
       "OT04",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "谢丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00181",
@@ -4907,7 +5267,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郑涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00182",
@@ -4933,7 +5295,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蒋秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00183",
@@ -4961,7 +5325,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "罗浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00184",
@@ -4989,7 +5355,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "蒋建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00185",
@@ -5018,7 +5386,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "徐玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00186",
@@ -5044,7 +5414,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00187",
@@ -5073,7 +5445,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "田雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00188",
@@ -5101,7 +5475,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "戴春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00189",
@@ -5127,7 +5503,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "严一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00190",
@@ -5153,7 +5531,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "韩丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00191",
@@ -5182,7 +5562,9 @@
     "tagIds": [
       "OT03",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "丁一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00192",
@@ -5211,7 +5593,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "姜秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00193",
@@ -5239,7 +5623,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邱静",
+    "remark": ""
   },
   {
     "ownerId": "OW00194",
@@ -5265,7 +5651,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00195",
@@ -5295,7 +5683,9 @@
       "OT01",
       "OT02",
       "OT04"
-    ]
+    ],
+    "emergencyContact": "邵军",
+    "remark": ""
   },
   {
     "ownerId": "OW00196",
@@ -5323,7 +5713,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蒋文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00197",
@@ -5349,7 +5741,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "熊文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00198",
@@ -5375,7 +5769,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "江志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00199",
@@ -5403,7 +5799,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陶淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00200",
@@ -5429,7 +5827,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "胡文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00201",
@@ -5458,7 +5858,9 @@
     "tagIds": [
       "OT03",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "潘静",
+    "remark": ""
   },
   {
     "ownerId": "OW00202",
@@ -5484,7 +5886,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "韩佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00203",
@@ -5510,7 +5914,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "张子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00204",
@@ -5538,7 +5944,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "尹静",
+    "remark": ""
   },
   {
     "ownerId": "OW00205",
@@ -5564,7 +5972,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00206",
@@ -5593,7 +6003,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "沈浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00207",
@@ -5619,7 +6031,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "廖悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00208",
@@ -5645,7 +6059,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蒋浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00209",
@@ -5671,7 +6087,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孔振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00210",
@@ -5700,7 +6118,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "丁瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00211",
@@ -5728,7 +6148,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "薛雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00212",
@@ -5754,7 +6176,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚军",
+    "remark": ""
   },
   {
     "ownerId": "OW00213",
@@ -5782,7 +6206,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "汤子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00214",
@@ -5808,7 +6234,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "许杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00215",
@@ -5834,7 +6262,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00216",
@@ -5860,7 +6290,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杨悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00217",
@@ -5886,7 +6318,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "彭春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00218",
@@ -5916,7 +6350,9 @@
       "OT01",
       "OT02",
       "OT04"
-    ]
+    ],
+    "emergencyContact": "叶建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00219",
@@ -5942,7 +6378,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姜晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00220",
@@ -5968,7 +6406,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "廖天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00221",
@@ -5994,7 +6434,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "史文",
+    "remark": ""
   },
   {
     "ownerId": "OW00222",
@@ -6022,7 +6464,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "何琳",
+    "remark": ""
   },
   {
     "ownerId": "OW00223",
@@ -6048,7 +6492,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "刘嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00224",
@@ -6074,7 +6520,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邹嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00225",
@@ -6100,7 +6548,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "何雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00226",
@@ -6126,7 +6576,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "刘一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00227",
@@ -6155,7 +6607,9 @@
     "tagIds": [
       "OT04",
       "OT05"
-    ]
+    ],
+    "emergencyContact": "夏佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00228",
@@ -6181,7 +6635,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00229",
@@ -6211,7 +6667,9 @@
       "OT01",
       "OT02",
       "OT08"
-    ]
+    ],
+    "emergencyContact": "郑艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00230",
@@ -6237,7 +6695,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邵刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00231",
@@ -6263,7 +6723,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陆秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00232",
@@ -6289,7 +6751,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00233",
@@ -6317,7 +6781,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "宋杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00234",
@@ -6345,7 +6811,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "石红",
+    "remark": ""
   },
   {
     "ownerId": "OW00235",
@@ -6374,7 +6842,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "侯瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00236",
@@ -6402,7 +6872,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "龚若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00237",
@@ -6428,7 +6900,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陈娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00238",
@@ -6457,7 +6931,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "黄瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00239",
@@ -6483,7 +6959,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姜海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00240",
@@ -6512,7 +6990,9 @@
     "tagIds": [
       "OT05",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "吴鑫",
+    "remark": ""
   },
   {
     "ownerId": "OW00241",
@@ -6540,7 +7020,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "曹天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00242",
@@ -6569,7 +7051,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "陈悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00243",
@@ -6597,7 +7081,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "闫淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00244",
@@ -6623,7 +7109,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "苏文",
+    "remark": ""
   },
   {
     "ownerId": "OW00245",
@@ -6651,7 +7139,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "薛强",
+    "remark": ""
   },
   {
     "ownerId": "OW00246",
@@ -6679,7 +7169,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "韩子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00247",
@@ -6705,7 +7197,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孙子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00248",
@@ -6733,7 +7227,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "钱博",
+    "remark": ""
   },
   {
     "ownerId": "OW00249",
@@ -6759,7 +7255,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "戴晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00250",
@@ -6785,7 +7283,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00251",
@@ -6813,7 +7313,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "贾建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00252",
@@ -6841,7 +7343,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "魏秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00253",
@@ -6867,7 +7371,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "尹丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00254",
@@ -6895,7 +7401,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "马佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00255",
@@ -6921,7 +7429,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00256",
@@ -6947,7 +7457,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "周悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00257",
@@ -6973,7 +7485,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陈梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00258",
@@ -6999,7 +7513,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "任国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00259",
@@ -7027,7 +7543,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "严欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00260",
@@ -7055,7 +7573,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "丁娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00261",
@@ -7083,7 +7603,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邓晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00262",
@@ -7113,7 +7635,9 @@
       "OT01",
       "OT02",
       "OT08"
-    ]
+    ],
+    "emergencyContact": "贺涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00263",
@@ -7142,7 +7666,9 @@
     "tagIds": [
       "OT03",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "付婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00264",
@@ -7168,7 +7694,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "严涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00265",
@@ -7196,7 +7724,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "江文",
+    "remark": ""
   },
   {
     "ownerId": "OW00266",
@@ -7222,7 +7752,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "袁明",
+    "remark": ""
   },
   {
     "ownerId": "OW00267",
@@ -7248,7 +7780,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "付玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00268",
@@ -7276,7 +7810,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "赵玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00269",
@@ -7304,7 +7840,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郭秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00270",
@@ -7332,7 +7870,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "邵军",
+    "remark": ""
   },
   {
     "ownerId": "OW00271",
@@ -7360,7 +7900,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "崔辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00272",
@@ -7388,7 +7930,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "雷建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00273",
@@ -7414,7 +7958,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "许浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00274",
@@ -7440,7 +7986,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "叶磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00275",
@@ -7466,7 +8014,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "胡秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00276",
@@ -7492,7 +8042,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "马勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00277",
@@ -7518,7 +8070,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "覃淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00278",
@@ -7544,7 +8098,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00279",
@@ -7570,7 +8126,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "田天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00280",
@@ -7596,7 +8154,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "丁海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00281",
@@ -7624,7 +8184,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "许佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00282",
@@ -7650,7 +8212,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "余杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00283",
@@ -7676,7 +8240,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00284",
@@ -7704,7 +8270,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "杨嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00285",
@@ -7733,7 +8301,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "唐浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00286",
@@ -7759,7 +8329,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "刘雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00287",
@@ -7788,7 +8360,9 @@
     "tagIds": [
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "任涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00288",
@@ -7816,7 +8390,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "余丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00289",
@@ -7844,7 +8420,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "韦娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00290",
@@ -7870,7 +8448,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "赵刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00291",
@@ -7896,7 +8476,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "谭霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00292",
@@ -7926,7 +8508,9 @@
       "OT08",
       "OT09",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "刘浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00293",
@@ -7952,7 +8536,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "熊淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00294",
@@ -7981,7 +8567,9 @@
     "tagIds": [
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "范雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00295",
@@ -8009,7 +8597,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "戴明",
+    "remark": ""
   },
   {
     "ownerId": "OW00296",
@@ -8039,7 +8629,9 @@
       "OT10",
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "崔平",
+    "remark": ""
   },
   {
     "ownerId": "OW00297",
@@ -8067,7 +8659,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "肖秀兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00298",
@@ -8096,7 +8690,9 @@
     "tagIds": [
       "OT03",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黄丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00299",
@@ -8122,7 +8718,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "朱建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00300",
@@ -8150,7 +8748,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "戴婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00301",
@@ -8178,7 +8778,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蔡建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00302",
@@ -8204,7 +8806,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "覃嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00303",
@@ -8232,7 +8836,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陈雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00304",
@@ -8260,7 +8866,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "熊坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00305",
@@ -8290,7 +8898,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陶晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00306",
@@ -8318,7 +8928,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "龙佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00307",
@@ -8346,7 +8958,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "何丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00308",
@@ -8374,7 +8988,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "薛红",
+    "remark": ""
   },
   {
     "ownerId": "OW00309",
@@ -8400,7 +9016,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杜婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00310",
@@ -8426,7 +9044,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "何磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00311",
@@ -8454,7 +9074,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蒋志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00312",
@@ -8482,7 +9104,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "张丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00313",
@@ -8511,7 +9135,9 @@
     "tagIds": [
       "OT03",
       "OT08"
-    ]
+    ],
+    "emergencyContact": "宋嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00314",
@@ -8539,7 +9165,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "肖晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00315",
@@ -8567,7 +9195,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "汪建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00316",
@@ -8596,7 +9226,9 @@
     "tagIds": [
       "OT06",
       "OT08"
-    ]
+    ],
+    "emergencyContact": "蔡建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00317",
@@ -8624,7 +9256,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "贺秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00318",
@@ -8650,7 +9284,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "汪浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00319",
@@ -8676,7 +9312,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "徐子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00320",
@@ -8704,7 +9342,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "廖秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00321",
@@ -8733,7 +9373,9 @@
     "tagIds": [
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "杜思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00322",
@@ -8761,7 +9403,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "王玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00323",
@@ -8789,7 +9433,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "苏磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00324",
@@ -8815,7 +9461,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00325",
@@ -8841,7 +9489,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "朱悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00326",
@@ -8869,7 +9519,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "唐梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00327",
@@ -8897,7 +9549,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "贾婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00328",
@@ -8925,7 +9579,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "方洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00329",
@@ -8955,7 +9611,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "汤娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00330",
@@ -8981,7 +9639,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "魏明",
+    "remark": ""
   },
   {
     "ownerId": "OW00331",
@@ -9009,7 +9669,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "吕娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00332",
@@ -9035,7 +9697,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "龚秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00333",
@@ -9063,7 +9727,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蒋雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00334",
@@ -9089,7 +9755,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00335",
@@ -9115,7 +9783,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "金强",
+    "remark": ""
   },
   {
     "ownerId": "OW00336",
@@ -9141,7 +9811,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00337",
@@ -9169,7 +9841,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "徐淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00338",
@@ -9195,7 +9869,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "胡涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00339",
@@ -9223,7 +9899,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "史秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00340",
@@ -9252,7 +9930,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "孔平",
+    "remark": ""
   },
   {
     "ownerId": "OW00341",
@@ -9278,7 +9958,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钟明",
+    "remark": ""
   },
   {
     "ownerId": "OW00342",
@@ -9304,7 +9986,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00343",
@@ -9332,7 +10016,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "魏红",
+    "remark": ""
   },
   {
     "ownerId": "OW00344",
@@ -9358,7 +10044,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00345",
@@ -9384,7 +10072,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钟玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00346",
@@ -9410,7 +10100,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00347",
@@ -9436,7 +10128,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "付思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00348",
@@ -9462,7 +10156,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "马娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00349",
@@ -9488,7 +10184,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "毛艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00350",
@@ -9514,7 +10212,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "何文",
+    "remark": ""
   },
   {
     "ownerId": "OW00351",
@@ -9540,7 +10240,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "梁子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00352",
@@ -9568,7 +10270,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黄勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00353",
@@ -9598,7 +10302,9 @@
       "OT03",
       "OT05",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "刘秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00354",
@@ -9624,7 +10330,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "许雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00355",
@@ -9650,7 +10358,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00356",
@@ -9676,7 +10386,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郭明",
+    "remark": ""
   },
   {
     "ownerId": "OW00357",
@@ -9702,7 +10414,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孙文",
+    "remark": ""
   },
   {
     "ownerId": "OW00358",
@@ -9728,7 +10442,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "黎秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00359",
@@ -9754,7 +10470,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "贾淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00360",
@@ -9782,7 +10500,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "薛红",
+    "remark": ""
   },
   {
     "ownerId": "OW00361",
@@ -9808,7 +10528,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "林一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00362",
@@ -9834,7 +10556,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "龙丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00363",
@@ -9862,7 +10586,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "罗嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00364",
@@ -9890,7 +10616,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "袁建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00365",
@@ -9919,7 +10647,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "贺雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00366",
@@ -9948,7 +10678,9 @@
     "tagIds": [
       "OT03",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "郭伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00367",
@@ -9976,7 +10708,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "林一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00368",
@@ -10002,7 +10736,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00369",
@@ -10028,7 +10764,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00370",
@@ -10057,7 +10795,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "龙浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00371",
@@ -10083,7 +10823,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吴秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00372",
@@ -10111,7 +10853,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "龚明",
+    "remark": ""
   },
   {
     "ownerId": "OW00373",
@@ -10137,7 +10881,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "秦静",
+    "remark": ""
   },
   {
     "ownerId": "OW00374",
@@ -10165,7 +10911,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "田春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00375",
@@ -10193,7 +10941,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "金博",
+    "remark": ""
   },
   {
     "ownerId": "OW00376",
@@ -10221,7 +10971,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "严浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00377",
@@ -10247,7 +10999,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曾丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00378",
@@ -10273,7 +11027,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "崔红",
+    "remark": ""
   },
   {
     "ownerId": "OW00379",
@@ -10299,7 +11055,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "金文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00380",
@@ -10325,7 +11083,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "廖秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00381",
@@ -10353,7 +11113,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郭雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00382",
@@ -10379,7 +11141,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "肖琳",
+    "remark": ""
   },
   {
     "ownerId": "OW00383",
@@ -10405,7 +11169,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蔡磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00384",
@@ -10435,7 +11201,9 @@
       "OT03",
       "OT08",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "梁建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00385",
@@ -10461,7 +11229,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "刘天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00386",
@@ -10491,7 +11261,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "肖平",
+    "remark": ""
   },
   {
     "ownerId": "OW00387",
@@ -10521,7 +11293,9 @@
       "OT01",
       "OT02",
       "OT05"
-    ]
+    ],
+    "emergencyContact": "宋文",
+    "remark": ""
   },
   {
     "ownerId": "OW00388",
@@ -10549,7 +11323,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "金婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00389",
@@ -10577,7 +11353,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "宋浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00390",
@@ -10605,7 +11383,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "姜强",
+    "remark": ""
   },
   {
     "ownerId": "OW00391",
@@ -10633,7 +11413,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "罗思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00392",
@@ -10662,7 +11444,9 @@
     "tagIds": [
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "梁浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00393",
@@ -10690,7 +11474,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "向瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00394",
@@ -10716,7 +11502,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吕文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00395",
@@ -10744,7 +11532,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "夏志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00396",
@@ -10773,7 +11563,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "雷淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00397",
@@ -10799,7 +11591,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00398",
@@ -10828,7 +11622,9 @@
     "tagIds": [
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "曾丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00399",
@@ -10856,7 +11652,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "魏婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00400",
@@ -10882,7 +11680,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "黄建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00401",
@@ -10910,7 +11710,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "林明",
+    "remark": ""
   },
   {
     "ownerId": "OW00402",
@@ -10938,7 +11740,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "雷坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00403",
@@ -10964,7 +11768,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "向秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00404",
@@ -10992,7 +11798,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邹军",
+    "remark": ""
   },
   {
     "ownerId": "OW00405",
@@ -11018,7 +11826,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邵婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00406",
@@ -11046,7 +11856,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "王明",
+    "remark": ""
   },
   {
     "ownerId": "OW00407",
@@ -11074,7 +11886,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "钟雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00408",
@@ -11102,7 +11916,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "邵坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00409",
@@ -11130,7 +11946,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "邹磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00410",
@@ -11159,7 +11977,9 @@
     "tagIds": [
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "白嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00411",
@@ -11185,7 +12005,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孟建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00412",
@@ -11211,7 +12033,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郭浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00413",
@@ -11237,7 +12061,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00414",
@@ -11263,7 +12089,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "朱丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00415",
@@ -11289,7 +12117,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00416",
@@ -11315,7 +12145,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "江静",
+    "remark": ""
   },
   {
     "ownerId": "OW00417",
@@ -11343,7 +12175,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "江伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00418",
@@ -11371,7 +12205,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "苏强",
+    "remark": ""
   },
   {
     "ownerId": "OW00419",
@@ -11397,7 +12233,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "向玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00420",
@@ -11425,7 +12263,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "毛雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00421",
@@ -11451,7 +12291,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "白瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00422",
@@ -11479,7 +12321,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "邵娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00423",
@@ -11507,7 +12351,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "余瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00424",
@@ -11533,7 +12379,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陆悦",
+    "remark": ""
   },
   {
     "ownerId": "OW00425",
@@ -11559,7 +12407,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "徐桂英",
+    "remark": ""
   },
   {
     "ownerId": "OW00426",
@@ -11585,7 +12435,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00427",
@@ -11613,7 +12465,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "贺晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00428",
@@ -11644,7 +12498,9 @@
       "OT02",
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "雷磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00429",
@@ -11670,7 +12526,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "何杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00430",
@@ -11696,7 +12554,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "白鹏",
+    "remark": ""
   },
   {
     "ownerId": "OW00431",
@@ -11726,7 +12586,9 @@
       "OT01",
       "OT02",
       "OT06"
-    ]
+    ],
+    "emergencyContact": "顾建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00432",
@@ -11757,7 +12619,9 @@
       "OT02",
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "何静",
+    "remark": ""
   },
   {
     "ownerId": "OW00433",
@@ -11783,7 +12647,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孙建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00434",
@@ -11811,7 +12677,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "丁刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00435",
@@ -11841,7 +12709,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "石思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00436",
@@ -11867,7 +12737,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "韦国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00437",
@@ -11893,7 +12765,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "张瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00438",
@@ -11921,7 +12795,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黎淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00439",
@@ -11947,7 +12823,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杜洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00440",
@@ -11973,7 +12851,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00441",
@@ -11999,7 +12879,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00442",
@@ -12027,7 +12909,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "贺天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00443",
@@ -12055,7 +12939,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "姚子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00444",
@@ -12083,7 +12969,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "罗宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00445",
@@ -12109,7 +12997,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00446",
@@ -12138,7 +13028,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "孟桂英",
+    "remark": ""
   },
   {
     "ownerId": "OW00447",
@@ -12166,7 +13058,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "钟一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00448",
@@ -12192,7 +13086,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00449",
@@ -12220,7 +13116,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "何淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00450",
@@ -12246,7 +13144,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "林浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00451",
@@ -12274,7 +13174,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "吕艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00452",
@@ -12302,7 +13204,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "魏艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00453",
@@ -12330,7 +13234,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "胡雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00454",
@@ -12360,7 +13266,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "吴浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00455",
@@ -12386,7 +13294,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "贺芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00456",
@@ -12412,7 +13322,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "向思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00457",
@@ -12440,7 +13352,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "贾娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00458",
@@ -12468,7 +13382,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "苏国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00459",
@@ -12496,7 +13412,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "侯红",
+    "remark": ""
   },
   {
     "ownerId": "OW00460",
@@ -12522,7 +13440,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "金鹏",
+    "remark": ""
   },
   {
     "ownerId": "OW00461",
@@ -12548,7 +13468,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吴海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00462",
@@ -12574,7 +13496,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "朱浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00463",
@@ -12602,7 +13526,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "冯伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00464",
@@ -12631,7 +13557,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "田文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00465",
@@ -12657,7 +13585,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "王坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00466",
@@ -12685,7 +13615,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "金婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00467",
@@ -12715,7 +13647,9 @@
       "OT09",
       "OT11",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "莫春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00468",
@@ -12744,7 +13678,9 @@
     "tagIds": [
       "OT05",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "唐涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00469",
@@ -12770,7 +13706,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "金玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00470",
@@ -12798,7 +13736,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "龙志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00471",
@@ -12826,7 +13766,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "姜一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00472",
@@ -12852,7 +13794,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陶娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00473",
@@ -12878,7 +13822,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "唐一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00474",
@@ -12904,7 +13850,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邱晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00475",
@@ -12932,7 +13880,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "白刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00476",
@@ -12958,7 +13908,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00477",
@@ -12986,7 +13938,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "杜国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00478",
@@ -13014,7 +13968,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "徐海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00479",
@@ -13040,7 +13996,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陈浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00480",
@@ -13070,7 +14028,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "武秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00481",
@@ -13098,7 +14058,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "曾春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00482",
@@ -13124,7 +14086,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "韦明",
+    "remark": ""
   },
   {
     "ownerId": "OW00483",
@@ -13152,7 +14116,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "何坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00484",
@@ -13178,7 +14144,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钟雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00485",
@@ -13204,7 +14172,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "史天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00486",
@@ -13232,7 +14202,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "蒋海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00487",
@@ -13262,7 +14234,9 @@
       "OT01",
       "OT02",
       "OT09"
-    ]
+    ],
+    "emergencyContact": "黎秀珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00488",
@@ -13290,7 +14264,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "严磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00489",
@@ -13316,7 +14292,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "冯刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00490",
@@ -13344,7 +14322,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "韦雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00491",
@@ -13372,7 +14352,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邱勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00492",
@@ -13398,7 +14380,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00493",
@@ -13426,7 +14410,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "马静",
+    "remark": ""
   },
   {
     "ownerId": "OW00494",
@@ -13452,7 +14438,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "黄静",
+    "remark": ""
   },
   {
     "ownerId": "OW00495",
@@ -13480,7 +14468,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "顾伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00496",
@@ -13506,7 +14496,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "梁志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00497",
@@ -13534,7 +14526,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "谢子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00498",
@@ -13560,7 +14554,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "许建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00499",
@@ -13589,7 +14585,9 @@
     "tagIds": [
       "OT04",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "廖超",
+    "remark": ""
   },
   {
     "ownerId": "OW00500",
@@ -13615,7 +14613,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00501",
@@ -13643,7 +14643,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陶娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00502",
@@ -13672,7 +14674,9 @@
     "tagIds": [
       "OT05",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "刘勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00503",
@@ -13698,7 +14702,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邵春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00504",
@@ -13726,7 +14732,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "李秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00505",
@@ -13754,7 +14762,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "蒋欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00506",
@@ -13780,7 +14790,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曾欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00507",
@@ -13806,7 +14818,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "段勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00508",
@@ -13835,7 +14849,9 @@
     "tagIds": [
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "郝文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00509",
@@ -13863,7 +14879,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "胡晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00510",
@@ -13891,7 +14909,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "韦天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00511",
@@ -13919,7 +14939,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT03"
-    ]
+    ],
+    "emergencyContact": "林淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00512",
@@ -13945,7 +14967,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "何嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00513",
@@ -13971,7 +14995,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗平",
+    "remark": ""
   },
   {
     "ownerId": "OW00514",
@@ -13997,7 +15023,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "毛晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00515",
@@ -14025,7 +15053,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "崔艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00516",
@@ -14053,7 +15083,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "许婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00517",
@@ -14081,7 +15113,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "田秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00518",
@@ -14109,7 +15143,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "潘嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00519",
@@ -14135,7 +15171,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "宋超",
+    "remark": ""
   },
   {
     "ownerId": "OW00520",
@@ -14164,7 +15202,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "孔娜",
+    "remark": ""
   },
   {
     "ownerId": "OW00521",
@@ -14192,7 +15232,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "丁琳",
+    "remark": ""
   },
   {
     "ownerId": "OW00522",
@@ -14221,7 +15263,9 @@
     "tagIds": [
       "OT04",
       "OT06"
-    ]
+    ],
+    "emergencyContact": "苏志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00523",
@@ -14247,7 +15291,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "张文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00524",
@@ -14273,7 +15319,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "梁雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00525",
@@ -14299,7 +15347,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00526",
@@ -14327,7 +15377,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "潘芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00527",
@@ -14353,7 +15405,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "毛子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00528",
@@ -14379,7 +15433,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "宋娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00529",
@@ -14405,7 +15461,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程平",
+    "remark": ""
   },
   {
     "ownerId": "OW00530",
@@ -14433,7 +15491,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "闫伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00531",
@@ -14461,7 +15521,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "钟浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00532",
@@ -14487,7 +15549,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢红",
+    "remark": ""
   },
   {
     "ownerId": "OW00533",
@@ -14513,7 +15577,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曾淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00534",
@@ -14541,7 +15607,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "付平",
+    "remark": ""
   },
   {
     "ownerId": "OW00535",
@@ -14569,7 +15637,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "陶志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00536",
@@ -14595,7 +15665,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛鑫",
+    "remark": ""
   },
   {
     "ownerId": "OW00537",
@@ -14624,7 +15696,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "唐一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00538",
@@ -14652,7 +15726,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "邓娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00539",
@@ -14681,7 +15757,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "顾志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00540",
@@ -14707,7 +15785,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "廖浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00541",
@@ -14735,7 +15815,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "胡敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00542",
@@ -14763,7 +15845,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "白子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00543",
@@ -14789,7 +15873,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "武春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00544",
@@ -14818,7 +15904,9 @@
     "tagIds": [
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "吴子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00545",
@@ -14844,7 +15932,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "汪思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00546",
@@ -14872,7 +15962,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT04"
-    ]
+    ],
+    "emergencyContact": "史刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00547",
@@ -14900,7 +15992,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "龚若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00548",
@@ -14928,7 +16022,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "方淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00549",
@@ -14954,7 +16050,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陈欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00550",
@@ -14982,7 +16080,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "戴若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00551",
@@ -15008,7 +16108,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "闫子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00552",
@@ -15036,7 +16138,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "彭强",
+    "remark": ""
   },
   {
     "ownerId": "OW00553",
@@ -15062,7 +16166,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "孙雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00554",
@@ -15088,7 +16194,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "程秀英",
+    "remark": ""
   },
   {
     "ownerId": "OW00555",
@@ -15114,7 +16222,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "石丽华",
+    "remark": ""
   },
   {
     "ownerId": "OW00556",
@@ -15142,7 +16252,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "任宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00557",
@@ -15168,7 +16280,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00558",
@@ -15196,7 +16310,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "卢芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00559",
@@ -15224,7 +16340,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "龙艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00560",
@@ -15250,7 +16368,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "刘军",
+    "remark": ""
   },
   {
     "ownerId": "OW00561",
@@ -15276,7 +16396,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "张淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00562",
@@ -15302,7 +16424,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "杨淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00563",
@@ -15328,7 +16452,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "苏婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00564",
@@ -15357,7 +16483,9 @@
     "tagIds": [
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "杨勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00565",
@@ -15383,7 +16511,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邹浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00566",
@@ -15409,7 +16539,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郑平",
+    "remark": ""
   },
   {
     "ownerId": "OW00567",
@@ -15435,7 +16567,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "崔玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00568",
@@ -15463,7 +16597,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "徐欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00569",
@@ -15489,7 +16625,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "段丽",
+    "remark": ""
   },
   {
     "ownerId": "OW00570",
@@ -15518,7 +16656,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "宋鑫",
+    "remark": ""
   },
   {
     "ownerId": "OW00571",
@@ -15546,7 +16686,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "孔伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00572",
@@ -15572,7 +16714,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "吴杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00573",
@@ -15600,7 +16744,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "邓军",
+    "remark": ""
   },
   {
     "ownerId": "OW00574",
@@ -15626,7 +16772,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "董秀兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00575",
@@ -15652,7 +16800,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "李振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00576",
@@ -15681,7 +16831,9 @@
     "tagIds": [
       "OT08",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "苏淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00577",
@@ -15707,7 +16859,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "史国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00578",
@@ -15735,7 +16889,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "夏淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00579",
@@ -15765,7 +16921,9 @@
       "OT03",
       "OT09",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "潘博",
+    "remark": ""
   },
   {
     "ownerId": "OW00580",
@@ -15794,7 +16952,9 @@
     "tagIds": [
       "OT05",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "曹晨",
+    "remark": ""
   },
   {
     "ownerId": "OW00581",
@@ -15824,7 +16984,9 @@
       "OT04",
       "OT09",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "肖瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00582",
@@ -15852,7 +17014,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "许洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00583",
@@ -15878,7 +17042,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "贾秀兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00584",
@@ -15908,7 +17074,9 @@
       "OT01",
       "OT02",
       "OT06"
-    ]
+    ],
+    "emergencyContact": "顾海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00585",
@@ -15934,7 +17102,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钟秀兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00586",
@@ -15960,7 +17130,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00587",
@@ -15986,7 +17158,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚志强",
+    "remark": ""
   },
   {
     "ownerId": "OW00588",
@@ -16012,7 +17186,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "石琳",
+    "remark": ""
   },
   {
     "ownerId": "OW00589",
@@ -16040,7 +17216,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "郭淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00590",
@@ -16068,7 +17246,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "吴伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00591",
@@ -16096,7 +17276,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "崔坤",
+    "remark": ""
   },
   {
     "ownerId": "OW00592",
@@ -16124,7 +17306,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "黎海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00593",
@@ -16154,7 +17338,9 @@
       "OT01",
       "OT05",
       "OT08"
-    ]
+    ],
+    "emergencyContact": "郝晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00594",
@@ -16180,7 +17366,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "顾艳",
+    "remark": ""
   },
   {
     "ownerId": "OW00595",
@@ -16206,7 +17394,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00596",
@@ -16235,7 +17425,9 @@
     "tagIds": [
       "OT01",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "朱静",
+    "remark": ""
   },
   {
     "ownerId": "OW00597",
@@ -16261,7 +17453,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "曹杰",
+    "remark": ""
   },
   {
     "ownerId": "OW00598",
@@ -16289,7 +17483,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "杜春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00599",
@@ -16315,7 +17511,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "薛淼然",
+    "remark": ""
   },
   {
     "ownerId": "OW00600",
@@ -16341,7 +17539,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "彭思远",
+    "remark": ""
   },
   {
     "ownerId": "OW00601",
@@ -16371,7 +17571,9 @@
       "OT08",
       "OT10",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "宋雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00602",
@@ -16397,7 +17599,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "江娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00603",
@@ -16425,7 +17629,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邓磊",
+    "remark": ""
   },
   {
     "ownerId": "OW00604",
@@ -16451,7 +17657,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "袁建华",
+    "remark": ""
   },
   {
     "ownerId": "OW00605",
@@ -16477,7 +17685,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "莫梓涵",
+    "remark": ""
   },
   {
     "ownerId": "OW00606",
@@ -16503,7 +17713,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00607",
@@ -16532,7 +17744,9 @@
     "tagIds": [
       "OT06",
       "OT10"
-    ]
+    ],
+    "emergencyContact": "韩静",
+    "remark": ""
   },
   {
     "ownerId": "OW00608",
@@ -16558,7 +17772,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "汤淑珍",
+    "remark": ""
   },
   {
     "ownerId": "OW00609",
@@ -16587,7 +17803,9 @@
     "tagIds": [
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "徐雨欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00610",
@@ -16616,7 +17834,9 @@
     "tagIds": [
       "OT04",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "魏浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00611",
@@ -16644,7 +17864,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT10"
-    ]
+    ],
+    "emergencyContact": "陆一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00612",
@@ -16672,7 +17894,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "肖文",
+    "remark": ""
   },
   {
     "ownerId": "OW00613",
@@ -16700,7 +17924,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邱子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00614",
@@ -16726,7 +17952,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "方涛",
+    "remark": ""
   },
   {
     "ownerId": "OW00615",
@@ -16752,7 +17980,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00616",
@@ -16778,7 +18008,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "林霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00617",
@@ -16808,7 +18040,9 @@
       "OT01",
       "OT02",
       "OT06"
-    ]
+    ],
+    "emergencyContact": "任晓东",
+    "remark": ""
   },
   {
     "ownerId": "OW00618",
@@ -16836,7 +18070,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "严玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00619",
@@ -16864,7 +18100,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "杜雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00620",
@@ -16890,7 +18128,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "徐敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00621",
@@ -16916,7 +18156,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郭嘉",
+    "remark": ""
   },
   {
     "ownerId": "OW00622",
@@ -16944,7 +18186,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "赵佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00623",
@@ -16973,7 +18217,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "薛敏",
+    "remark": ""
   },
   {
     "ownerId": "OW00624",
@@ -17001,7 +18247,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "李平",
+    "remark": ""
   },
   {
     "ownerId": "OW00625",
@@ -17027,7 +18275,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "付辉",
+    "remark": ""
   },
   {
     "ownerId": "OW00626",
@@ -17053,7 +18303,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "陆婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00627",
@@ -17082,7 +18334,9 @@
     "tagIds": [
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "吴浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00628",
@@ -17111,7 +18365,9 @@
     "tagIds": [
       "OT06",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "卢瑞",
+    "remark": ""
   },
   {
     "ownerId": "OW00629",
@@ -17139,7 +18395,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邵婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00630",
@@ -17165,7 +18423,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚强",
+    "remark": ""
   },
   {
     "ownerId": "OW00631",
@@ -17191,7 +18451,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯秀芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00632",
@@ -17217,7 +18479,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "尹一鸣",
+    "remark": ""
   },
   {
     "ownerId": "OW00633",
@@ -17245,7 +18509,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "黎娟",
+    "remark": ""
   },
   {
     "ownerId": "OW00634",
@@ -17273,7 +18539,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "王洋",
+    "remark": ""
   },
   {
     "ownerId": "OW00635",
@@ -17301,7 +18569,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "田刚",
+    "remark": ""
   },
   {
     "ownerId": "OW00636",
@@ -17329,7 +18599,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT08"
-    ]
+    ],
+    "emergencyContact": "黄玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00637",
@@ -17357,7 +18629,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "邓建军",
+    "remark": ""
   },
   {
     "ownerId": "OW00638",
@@ -17385,7 +18659,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "熊明",
+    "remark": ""
   },
   {
     "ownerId": "OW00639",
@@ -17413,7 +18689,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT05"
-    ]
+    ],
+    "emergencyContact": "彭静",
+    "remark": ""
   },
   {
     "ownerId": "OW00640",
@@ -17439,7 +18717,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钱子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00641",
@@ -17465,7 +18745,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "卢子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00642",
@@ -17493,7 +18775,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT01"
-    ]
+    ],
+    "emergencyContact": "杨天佑",
+    "remark": ""
   },
   {
     "ownerId": "OW00643",
@@ -17522,7 +18806,9 @@
     "tagIds": [
       "OT09",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "谭若曦",
+    "remark": ""
   },
   {
     "ownerId": "OW00644",
@@ -17550,7 +18836,9 @@
     "negativeNotes": "夜间噪音被投诉 1 次",
     "tagIds": [
       "OT11"
-    ]
+    ],
+    "emergencyContact": "尹文",
+    "remark": ""
   },
   {
     "ownerId": "OW00645",
@@ -17576,7 +18864,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "段婷",
+    "remark": ""
   },
   {
     "ownerId": "OW00646",
@@ -17602,7 +18892,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚勇",
+    "remark": ""
   },
   {
     "ownerId": "OW00647",
@@ -17628,7 +18920,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "丁浩",
+    "remark": ""
   },
   {
     "ownerId": "OW00648",
@@ -17656,7 +18950,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "闫玉兰",
+    "remark": ""
   },
   {
     "ownerId": "OW00649",
@@ -17682,7 +18978,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "莫建国",
+    "remark": ""
   },
   {
     "ownerId": "OW00650",
@@ -17708,7 +19006,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "尹军",
+    "remark": ""
   },
   {
     "ownerId": "OW00651",
@@ -17737,7 +19037,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "王琳",
+    "remark": ""
   },
   {
     "ownerId": "OW00652",
@@ -17768,7 +19070,9 @@
       "OT05",
       "OT06",
       "OT11"
-    ]
+    ],
+    "emergencyContact": "杨明",
+    "remark": ""
   },
   {
     "ownerId": "OW00653",
@@ -17798,7 +19102,9 @@
       "OT01",
       "OT02",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "钱雅静",
+    "remark": ""
   },
   {
     "ownerId": "OW00654",
@@ -17824,7 +19130,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郝霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00655",
@@ -17852,7 +19160,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT09"
-    ]
+    ],
+    "emergencyContact": "夏超",
+    "remark": ""
   },
   {
     "ownerId": "OW00656",
@@ -17878,7 +19188,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "侯军",
+    "remark": ""
   },
   {
     "ownerId": "OW00657",
@@ -17906,7 +19218,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "谢雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00658",
@@ -17932,7 +19246,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "罗文博",
+    "remark": ""
   },
   {
     "ownerId": "OW00659",
@@ -17958,7 +19274,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "莫伟",
+    "remark": ""
   },
   {
     "ownerId": "OW00660",
@@ -17984,7 +19302,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邵平",
+    "remark": ""
   },
   {
     "ownerId": "OW00661",
@@ -18010,7 +19330,9 @@
     "pets": "无",
     "positiveNotes": "连续三年按时缴费",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "朱芳",
+    "remark": ""
   },
   {
     "ownerId": "OW00662",
@@ -18038,7 +19360,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT01"
-    ]
+    ],
+    "emergencyContact": "林浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00663",
@@ -18064,7 +19388,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "郭子轩",
+    "remark": ""
   },
   {
     "ownerId": "OW00664",
@@ -18090,7 +19416,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "王海燕",
+    "remark": ""
   },
   {
     "ownerId": "OW00665",
@@ -18119,7 +19447,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "邵超",
+    "remark": ""
   },
   {
     "ownerId": "OW00666",
@@ -18145,7 +19475,9 @@
     "pets": "无",
     "positiveNotes": "配合度高，报修后主动反馈",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "钟欣",
+    "remark": ""
   },
   {
     "ownerId": "OW00667",
@@ -18171,7 +19503,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "叶霞",
+    "remark": ""
   },
   {
     "ownerId": "OW00668",
@@ -18199,7 +19533,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT06"
-    ]
+    ],
+    "emergencyContact": "邱淼",
+    "remark": ""
   },
   {
     "ownerId": "OW00669",
@@ -18228,7 +19564,9 @@
     "tagIds": [
       "OT01",
       "OT02"
-    ]
+    ],
+    "emergencyContact": "毛春梅",
+    "remark": ""
   },
   {
     "ownerId": "OW00670",
@@ -18257,7 +19595,9 @@
     "tagIds": [
       "OT03",
       "OT12"
-    ]
+    ],
+    "emergencyContact": "王鑫",
+    "remark": ""
   },
   {
     "ownerId": "OW00671",
@@ -18283,7 +19623,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "邓雪",
+    "remark": ""
   },
   {
     "ownerId": "OW00672",
@@ -18311,7 +19653,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "袁子墨",
+    "remark": ""
   },
   {
     "ownerId": "OW00673",
@@ -18337,7 +19681,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "欠费催缴响应慢",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "蒋鑫",
+    "remark": ""
   },
   {
     "ownerId": "OW00674",
@@ -18363,7 +19709,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "徐振华",
+    "remark": ""
   },
   {
     "ownerId": "OW00675",
@@ -18389,7 +19737,9 @@
     "pets": "无",
     "positiveNotes": "担任楼栋志愿者",
     "negativeNotes": "夜间噪音被投诉 1 次",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "姚佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00676",
@@ -18417,7 +19767,9 @@
     "negativeNotes": "欠费催缴响应慢",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "韦国强",
+    "remark": ""
   },
   {
     "ownerId": "OW00677",
@@ -18445,7 +19797,9 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "莫佳怡",
+    "remark": ""
   },
   {
     "ownerId": "OW00678",
@@ -18473,7 +19827,9 @@
     "negativeNotes": "多次占用消防通道",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "武浩然",
+    "remark": ""
   },
   {
     "ownerId": "OW00679",
@@ -18499,7 +19855,9 @@
     "pets": "无",
     "positiveNotes": "积极参与社区活动",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "潘宇",
+    "remark": ""
   },
   {
     "ownerId": "OW00680",
@@ -18525,7 +19883,9 @@
     "pets": "无",
     "positiveNotes": "",
     "negativeNotes": "多次占用消防通道",
-    "tagIds": []
+    "tagIds": [],
+    "emergencyContact": "龙静",
+    "remark": ""
   },
   {
     "ownerId": "OW00681",
@@ -18555,7 +19915,9 @@
       "OT01",
       "OT02",
       "OT05"
-    ]
+    ],
+    "emergencyContact": "武静",
+    "remark": ""
   },
   {
     "ownerId": "OW00682",
@@ -18583,6 +19945,8 @@
     "negativeNotes": "",
     "tagIds": [
       "OT12"
-    ]
+    ],
+    "emergencyContact": "闫建军",
+    "remark": ""
   }
 ]

@@ -264,6 +264,8 @@ import {
   addTag,
   dropTag,
   houseDetailOf,
+  houseDetailLoaded,
+  loadHouseDetail,
   maskPhone,
   residentsOf,
   saveHouseField,
@@ -342,8 +344,9 @@ const houseFields = computed(() => {
 
 const canReveal = computed(() => can(persona.value, CAP.sensitive))
 
-onLoad(o => {
+onLoad(async (o) => {
   houseId.value = o.houseId || ''
+  await reload()
 })
 
 /**
@@ -359,7 +362,7 @@ onMounted(() => {
     const next = decodeURIComponent(m[1])
     if (next !== houseId.value) {
       houseId.value = next
-      ver.value++
+      reload()
     }
   }
   syncFromHash()
@@ -368,9 +371,22 @@ onMounted(() => {
   // #endif
 })
 
-onShow(() => {
+onShow(async () => {
+  /* 首次进入（或直接深链进来）时补一次；已有数据就只重算，不重复请求 */
+  if (!houseDetailLoaded()) await reload()
   ver.value++
 })
+
+/** 拉房屋详情的聚合读：房屋 + 业主 + 账单 + 欠费 + 租户 + 同住人 */
+async function reload() {
+  if (!houseId.value || !persona.value?.empId) return
+  try {
+    await loadHouseDetail(persona.value, houseId.value)
+  } catch (e) {
+    toastErr(e?.message || '房屋详情加载失败')
+  }
+  ver.value++
+}
 
 function refresh() {
   ver.value++

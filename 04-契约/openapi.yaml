@@ -598,6 +598,46 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [houses, mobile]
+      operationId: patchHouseField
+      summary: 房屋字段内联编辑（一次一个字段）
+      description: |
+        移动端「房屋详情」的就地修改。**不做乐观锁**：房屋没有版本概念，
+        改动都是低频静态属性（用途、装修、朝向），加 ver 只会让前端多一次取版本。
+
+        `useStatus` 有两个方向的业务拦截：
+        - 未交房的房子不能标成「已入住 / 正在装修」——否则当天就进计费与可出租候选，而钥匙还没交；
+        - 已交房的也不能改回「未交房」——计费停了但人还住着，账就漏了。
+
+        白名单：`useStatus` / `usage` / `propertyStatus` / `decorationViolation` 走枚举校验，
+        `decoration` / `decorationResult` / `orientation` / `certNo` / `remark` 自由文本，
+        `deliverDate` 走日期格式。其余字段一律 422「不支持内联编辑」。
+      x-permission: a.owners.edit
+      parameters:
+        - $ref: '#/components/parameters/houseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [field, value]
+              properties:
+                field:
+                  type: string
+                  enum: [useStatus, usage, propertyStatus, decoration, deliverDate,
+                         decorationViolation, decorationResult, orientation, certNo, remark]
+                value: { type: string }
+      responses:
+        '200':
+          description: 成功，返回改后的房屋
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HouseEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ----------------------------------------------------------------- bills
   /bills:

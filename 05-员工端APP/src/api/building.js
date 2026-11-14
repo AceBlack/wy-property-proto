@@ -26,7 +26,8 @@ import {
   verifyTenant
 } from '@pc/utils/api'
 
-import { IS_API, get, loginAs, post } from './client'
+import { IS_API, del, get, loginAs, patch, post } from './client'
+import { persona } from '@/store/app'
 
 /* ---------- HTTP 模式：欠费与催收 ---------- */
 
@@ -36,6 +37,31 @@ import { IS_API, get, loginAs, post } from './client'
  * 切筛选时页面重新 `loadDebts(...)`，`ver++` 触发重算即可。
  */
 let LAST_DEBT = null
+/* 房屋详情：一个聚合读（房屋 + 业主 + 账单 + 欠费 + 租户 + 同住人），一次拉全 */
+let HOUSE_DETAIL = null
+let OWNER_TAG_DICT = null
+
+export const houseDetailLoaded = () => !!HOUSE_DETAIL
+export const lastHouseDetail = () => HOUSE_DETAIL
+
+/**
+ * 拉房屋详情。
+ * 业主标签的字典（`/owner-tags`）跟着一起拉一次并缓存 —— 标签是低频变更的字典表，
+ * 每进一次页面拉一遍没必要。
+ */
+export async function loadHouseDetail(personaLike, houseId) {
+  if (!IS_API) return null
+  if (personaLike?.id) await loginAs(personaLike.id)
+  HOUSE_DETAIL = await get(`/mobile/houses/${houseId}`)
+  if (!OWNER_TAG_DICT) {
+    try {
+      const t = await get('/owner-tags?size=100')
+      OWNER_TAG_DICT = t.rows || []
+    } catch { OWNER_TAG_DICT = [] }
+  }
+  return HOUSE_DETAIL
+}
+
 const EMPTY_DEBT = {
   summary: { buildingCount: 0, houseCount: 0, payable: 0, paid: 0, debtHouseCount: 0, debtAmount: 0 },
   buildings: [],
@@ -212,6 +238,8 @@ export { HOUSE_PROPERTY_OPTS, HOUSE_USE_OPTS }
 export const ownerFields = () => ownerEditableFields()
 
 export function houseDetailOf(houseId) {
+  /* HTTP 模式：服务端的聚合接口已经算好 house / owner / bills / debt / 租户同住人 */
+  if (IS_API) return HOUSE_DETAIL
   const house = HOUSE_OF.get(houseId)
   if (!house) return null
   const owner = OWNER_OF.get(house.ownerId) || null
@@ -247,12 +275,28 @@ export function houseDetailOf(houseId) {
 }
 
 /** 改业主字段：手机号唯一 + 格式校验都在数据层，页面只负责把错误显示出来 */
-export function saveOwnerField(ownerId, field, value) {
+export async function saveOwnerField(ownerId, field, value) {
+  if (IS_API) {
+    const r = await patch(`/owners/${ownerId}`, { field, value })
+    /* 改完把新值写回聚合缓存：页面的 houseDetailOf 读的是这份引用，
+       不回写的话要重新进页面才能看到改动 */
+    if (HOUSE_DETAIL?.owner?.ownerId === ownerId) {
+      HOUSE_DETAIL = { ...HOUSE_DETAIL, owner: { ...HOUSE_DETAIL.owner, [field]: value } }
+    }
+    return r
+  }
   return updateOwnerField(ownerId, field, value)
 }
 
 /** 改房屋字段：使用状态 / 产权状态 / 装修 / 备注（不动面积与权属，避免影响账单口径） */
-export function saveHouseField(houseId, field, value) {
+export async function saveHouseField(houseId, field, value) {
+  if (IS_API) {
+    const r = await patch(`/houses/${houseId}`, { field, value })
+    if (HOUSE_DETAIL?.house?.houseId === houseId) {
+      HOUSE_DETAIL = { ...HOUSE_DETAIL, house: { ...HOUSE_DETAIL.house, [field]: value } }
+    }
+    return r
+  }
   return updateHouseField(houseId, field, value)
 }
 
@@ -266,6 +310,10 @@ export function saveHouseField(houseId, field, value) {
  *   - 身份证一律不返回，人脸/认证只给"有没有"的布尔值
  */
 export function residentsOf(houseId) {
+  if (IS_API) {
+    const d = HOUSE_DETAIL
+    return { tenants: d?.tenants || [], members: d?.members || [] }
+  }
   const house = HOUSE_OF.get(houseId)
   const active = tenants.filter(t => t.houseId === houseId && t.status === '在住')
   const list = members.filter(m => m.ownerId === (house?.ownerId || active[0]?.ownerId))
@@ -388,7 +436,10 @@ export function makeBatchNo(existing = [], today = DEMO.today) {
  * 标签不是装饰：独居老人 51 位、重点关怀 57 位，是管家的走访清单；投诉频繁 19 位，
  * 决定上门时先说什么话。这些数据原本只在 PC 的业主 360 里能看到。
  */
-export const tagCategories = () => [...new Set(ownerTags.map(t => t.category))]
+export const tagCategories = () =>
+  IS_API
+    ? [...new Set((OWNER_TAG_DICT || []).map(t => t.category))]
+    : [...new Set(ownerTags.map(t => t.category))]
 
 /** 可选标签：默认只给启用中的（停用的不能再打，已打过的不受影响） */
 export function tagDict({ includeDisabled = false } = {}) {
@@ -406,6 +457,15 @@ export function tagDict({ includeDisabled = false } = {}) {
 
 /** 某业主身上的标签（含已停用的：显示但标灰，不能悄悄消失） */
 export function tagsOfOwner(ownerId) {
+  if (IS_API) {
+    /* 业主身上挂的 tagIds 来自聚合读；名字与颜色从字典补 */
+    const ids = HOUSE_DETAIL?.owner?.tagIds || []
+    const dict = OWNER_TAG_DICT || []
+    return ids
+      .map(id => dict.find(t => t.tagId === id))
+      .filter(Boolean)
+      .map(t => ({ tagId: t.tagId, name: t.name, category: t.category, color: t.color, enabled: t.enabled }))
+  }
   const o = owners.find(x => x.ownerId === ownerId)
   const ids = o?.tagIds || []
   return ids
@@ -414,8 +474,29 @@ export function tagsOfOwner(ownerId) {
     .map(t => ({ tagId: t.tagId, name: t.name, category: t.category, color: t.color, enabled: t.enabled }))
 }
 
-export const addTag = (ownerId, tagId) => addOwnerTag(ownerId, tagId)
-export const dropTag = (ownerId, tagId) => removeOwnerTag(ownerId, tagId)
+export async function addTag(ownerId, tagId) {
+  if (IS_API) {
+    const r = await post(`/owners/${ownerId}/tags`, { tagId })
+    /* 聚合缓存里的 tagIds 要同步，否则页面重算时标签又变回旧的 */
+    if (HOUSE_DETAIL?.owner?.ownerId === ownerId) {
+      const ids = [...(HOUSE_DETAIL.owner.tagIds || []), tagId]
+      HOUSE_DETAIL = { ...HOUSE_DETAIL, owner: { ...HOUSE_DETAIL.owner, tagIds: ids } }
+    }
+    return r
+  }
+  return addOwnerTag(ownerId, tagId)
+}
+export async function dropTag(ownerId, tagId) {
+  if (IS_API) {
+    const r = await del(`/owners/${ownerId}/tags/${tagId}`)
+    if (HOUSE_DETAIL?.owner?.ownerId === ownerId) {
+      const ids = (HOUSE_DETAIL.owner.tagIds || []).filter(x => x !== tagId)
+      HOUSE_DETAIL = { ...HOUSE_DETAIL, owner: { ...HOUSE_DETAIL.owner, tagIds: ids } }
+    }
+    return r
+  }
+  return removeOwnerTag(ownerId, tagId)
+}
 
 /* ================= 租户管理（后台 2026-11-02 新增；员工端 11-04 从「只看」升到「能管」） =================
  * 楼管本来就有 `a.tenants.edit`，但移动端之前只把租户当只读信息展示，
@@ -426,7 +507,11 @@ export const dropTag = (ownerId, tagId) => removeOwnerTag(ownerId, tagId)
  *   · 录人脸必须在「已核验 + 已实名」之后；
  *   · 搬离要释放房屋的在住关系，否则那套房永远显示有人住。
  */
-export const tenantDetailOf = tenantId => getTenantDetail(tenantId)
+export const tenantDetailOf = async tenantId => {
+  if (!IS_API) return getTenantDetail(tenantId)
+  if (persona.value?.id) await loginAs(persona.value.id)
+  return get(`/tenants/${tenantId}`)
+}
 
 export const tenantFillOf = row => computeTenantFill(row)
 
@@ -439,18 +524,34 @@ export const TENANT_PATCH_FIELDS = [
   { key: 'remark', label: '备注', type: 'text' }
 ]
 
-export function saveTenantFields(persona, tenantId, patch) {
-  return supplementTenant(tenantId, patch, persona?.name || '楼栋管家')
+export async function saveTenantFields(persona, tenantId, patchBody) {
+  if (IS_API) {
+    if (persona?.id) await loginAs(persona.id)
+    return post(`/tenants/${tenantId}`, patchBody)
+  }
+  return supplementTenant(tenantId, patchBody, persona?.name || '楼栋管家')
 }
 
-export function verifyTenantBy(persona, tenantId, { pass = true, note = '' } = {}) {
+export async function verifyTenantBy(persona, tenantId, { pass = true, note = '' } = {}) {
+  if (IS_API) {
+    if (persona?.id) await loginAs(persona.id)
+    return post(`/tenants/${tenantId}/verify`, { pass, note: String(note || '') })
+  }
   return verifyTenant(tenantId, { verifier: persona?.name || '楼栋管家', pass, note })
 }
 
-export function registerFaceBy(persona, tenantId) {
+export async function registerFaceBy(persona, tenantId) {
+  if (IS_API) {
+    if (persona?.id) await loginAs(persona.id)
+    return post(`/tenants/${tenantId}/face`, {})
+  }
   return registerTenantFace(tenantId, { operator: persona?.name || '楼栋管家' })
 }
 
-export function moveOutBy(persona, tenantId, { date = '', reason = '' } = {}) {
+export async function moveOutBy(persona, tenantId, { date = '', reason = '' } = {}) {
+  if (IS_API) {
+    if (persona?.id) await loginAs(persona.id)
+    return post(`/tenants/${tenantId}/move-out`, { date, reason: String(reason || '') })
+  }
   return moveOutTenant(tenantId, { date, reason, operator: persona?.name || '楼栋管家' })
 }

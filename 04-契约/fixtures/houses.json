@@ -21,7 +21,8 @@
     "deliverDate": "2015-09-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010110102",
@@ -45,7 +46,8 @@
     "deliverDate": "2015-08-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010110201",
@@ -69,7 +71,8 @@
     "deliverDate": "2015-06-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110202",
@@ -93,7 +96,8 @@
     "deliverDate": "2015-09-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110301",
@@ -117,7 +121,8 @@
     "deliverDate": "2015-09-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110302",
@@ -141,7 +146,8 @@
     "deliverDate": "2015-07-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010110401",
@@ -165,7 +171,8 @@
     "deliverDate": "2015-08-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110402",
@@ -189,7 +196,8 @@
     "deliverDate": "2015-07-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010110501",
@@ -213,7 +221,8 @@
     "deliverDate": "2015-07-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010110502",
@@ -237,7 +246,8 @@
     "deliverDate": "2015-07-13",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110601",
@@ -261,7 +271,8 @@
     "deliverDate": "2015-09-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010110602",
@@ -285,7 +296,8 @@
     "deliverDate": "2015-07-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010110701",
@@ -309,7 +321,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010110702",
@@ -333,7 +346,8 @@
     "deliverDate": "2015-09-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010110801",
@@ -357,7 +371,8 @@
     "deliverDate": "2015-07-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010110802",
@@ -381,7 +396,8 @@
     "deliverDate": "2015-11-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010110901",
@@ -405,7 +421,8 @@
     "deliverDate": "2015-11-10",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010110902",
@@ -429,7 +446,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010111001",
@@ -453,7 +471,8 @@
     "deliverDate": "2015-10-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010111002",
@@ -477,7 +496,8 @@
     "deliverDate": "2015-07-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010111101",
@@ -501,7 +521,8 @@
     "deliverDate": "2015-10-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010111102",
@@ -525,7 +546,8 @@
     "deliverDate": "2015-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010120101",
@@ -549,7 +571,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120102",
@@ -573,7 +596,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010120201",
@@ -597,7 +621,8 @@
     "deliverDate": "2015-10-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010120202",
@@ -621,7 +646,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010120301",
@@ -645,7 +671,8 @@
     "deliverDate": "2015-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120302",
@@ -669,7 +696,8 @@
     "deliverDate": "2015-09-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010120401",
@@ -693,7 +721,8 @@
     "deliverDate": "2015-08-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010120402",
@@ -717,7 +746,8 @@
     "deliverDate": "2015-09-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120501",
@@ -741,7 +771,8 @@
     "deliverDate": "2015-09-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120502",
@@ -765,7 +796,8 @@
     "deliverDate": "2015-10-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010120601",
@@ -789,7 +821,8 @@
     "deliverDate": "2015-10-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120602",
@@ -813,7 +846,8 @@
     "deliverDate": "2015-10-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010120701",
@@ -837,7 +871,8 @@
     "deliverDate": "2015-10-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010120702",
@@ -861,7 +896,8 @@
     "deliverDate": "2015-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010120801",
@@ -885,7 +921,8 @@
     "deliverDate": "2015-11-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010120802",
@@ -909,7 +946,8 @@
     "deliverDate": "2015-10-18",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010120901",
@@ -933,7 +971,8 @@
     "deliverDate": "2015-08-02",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010120902",
@@ -957,7 +996,8 @@
     "deliverDate": "2015-09-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010121001",
@@ -981,7 +1021,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010121002",
@@ -1005,7 +1046,8 @@
     "deliverDate": "2015-07-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010121101",
@@ -1029,7 +1071,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010121102",
@@ -1053,7 +1096,8 @@
     "deliverDate": "2015-10-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010210101",
@@ -1077,7 +1121,8 @@
     "deliverDate": "2015-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010210102",
@@ -1101,7 +1146,8 @@
     "deliverDate": "2015-10-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010210201",
@@ -1125,7 +1171,8 @@
     "deliverDate": "2015-08-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010210202",
@@ -1149,7 +1196,8 @@
     "deliverDate": "2015-08-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010210301",
@@ -1173,7 +1221,8 @@
     "deliverDate": "2015-08-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010210302",
@@ -1197,7 +1246,8 @@
     "deliverDate": "2015-08-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010210401",
@@ -1221,7 +1271,8 @@
     "deliverDate": "2015-07-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210402",
@@ -1245,7 +1296,8 @@
     "deliverDate": "2015-11-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010210501",
@@ -1269,7 +1321,8 @@
     "deliverDate": "2015-09-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210502",
@@ -1293,7 +1346,8 @@
     "deliverDate": "2015-07-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010210601",
@@ -1317,7 +1371,8 @@
     "deliverDate": "2015-10-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210602",
@@ -1341,7 +1396,8 @@
     "deliverDate": "2015-07-27",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210701",
@@ -1365,7 +1421,8 @@
     "deliverDate": "2015-09-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210702",
@@ -1389,7 +1446,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010210801",
@@ -1413,7 +1471,8 @@
     "deliverDate": "2015-08-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010210802",
@@ -1437,7 +1496,8 @@
     "deliverDate": "2015-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210901",
@@ -1461,7 +1521,8 @@
     "deliverDate": "2015-11-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010210902",
@@ -1485,7 +1546,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010211001",
@@ -1509,7 +1571,8 @@
     "deliverDate": "2015-07-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010211002",
@@ -1533,7 +1596,8 @@
     "deliverDate": "2015-10-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010211101",
@@ -1557,7 +1621,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010211102",
@@ -1581,7 +1646,8 @@
     "deliverDate": "2015-10-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010220101",
@@ -1605,7 +1671,8 @@
     "deliverDate": "2015-07-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010220102",
@@ -1629,7 +1696,8 @@
     "deliverDate": "2015-07-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220201",
@@ -1653,7 +1721,8 @@
     "deliverDate": "2015-07-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010220202",
@@ -1677,7 +1746,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010220301",
@@ -1701,7 +1771,8 @@
     "deliverDate": "2015-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010220302",
@@ -1725,7 +1796,8 @@
     "deliverDate": "2015-09-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010220401",
@@ -1749,7 +1821,8 @@
     "deliverDate": "2015-09-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220402",
@@ -1773,7 +1846,8 @@
     "deliverDate": "2015-07-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220501",
@@ -1797,7 +1871,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220502",
@@ -1821,7 +1896,8 @@
     "deliverDate": "2015-10-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010220601",
@@ -1845,7 +1921,8 @@
     "deliverDate": "2015-07-02",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010220602",
@@ -1869,7 +1946,8 @@
     "deliverDate": "2015-09-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010220701",
@@ -1893,7 +1971,8 @@
     "deliverDate": "2015-09-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010220702",
@@ -1917,7 +1996,8 @@
     "deliverDate": "2015-09-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010220801",
@@ -1941,7 +2021,8 @@
     "deliverDate": "2015-08-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220802",
@@ -1965,7 +2046,8 @@
     "deliverDate": "2015-11-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010220901",
@@ -1989,7 +2071,8 @@
     "deliverDate": "2015-10-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010220902",
@@ -2013,7 +2096,8 @@
     "deliverDate": "2015-09-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010221001",
@@ -2037,7 +2121,8 @@
     "deliverDate": "2015-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010221002",
@@ -2061,7 +2146,8 @@
     "deliverDate": "2015-09-07",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010221101",
@@ -2085,7 +2171,8 @@
     "deliverDate": "2015-07-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010221102",
@@ -2109,7 +2196,8 @@
     "deliverDate": "2015-07-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010310101",
@@ -2133,7 +2221,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010310102",
@@ -2157,7 +2246,8 @@
     "deliverDate": "2015-10-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010310201",
@@ -2181,7 +2271,8 @@
     "deliverDate": "2015-11-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010310202",
@@ -2205,7 +2296,8 @@
     "deliverDate": "2015-10-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010310301",
@@ -2229,7 +2321,8 @@
     "deliverDate": "2015-11-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010310302",
@@ -2253,7 +2346,8 @@
     "deliverDate": "2015-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010310401",
@@ -2277,7 +2371,8 @@
     "deliverDate": "2015-09-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010310402",
@@ -2301,7 +2396,8 @@
     "deliverDate": "2015-08-03",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010310501",
@@ -2325,7 +2421,8 @@
     "deliverDate": "2015-08-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010310502",
@@ -2349,7 +2446,8 @@
     "deliverDate": "2015-08-09",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010310601",
@@ -2373,7 +2471,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010310602",
@@ -2397,7 +2496,8 @@
     "deliverDate": "2015-07-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010310701",
@@ -2421,7 +2521,8 @@
     "deliverDate": "2015-07-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010310702",
@@ -2445,7 +2546,8 @@
     "deliverDate": "2015-08-11",
     "decorationViolation": "已整改",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010310801",
@@ -2469,7 +2571,8 @@
     "deliverDate": "2015-08-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010310802",
@@ -2493,7 +2596,8 @@
     "deliverDate": "2015-08-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010310901",
@@ -2517,7 +2621,8 @@
     "deliverDate": "2015-07-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010310902",
@@ -2541,7 +2646,8 @@
     "deliverDate": "2015-09-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010311001",
@@ -2565,7 +2671,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010311002",
@@ -2589,7 +2696,8 @@
     "deliverDate": "2015-07-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010311101",
@@ -2613,7 +2721,8 @@
     "deliverDate": "2015-07-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010311102",
@@ -2637,7 +2746,8 @@
     "deliverDate": "2015-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010320101",
@@ -2661,7 +2771,8 @@
     "deliverDate": "2015-08-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010320102",
@@ -2685,7 +2796,8 @@
     "deliverDate": "2015-09-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010320201",
@@ -2709,7 +2821,8 @@
     "deliverDate": "2015-10-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010320202",
@@ -2733,7 +2846,8 @@
     "deliverDate": "2015-08-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010320301",
@@ -2757,7 +2871,8 @@
     "deliverDate": "2015-10-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010320302",
@@ -2781,7 +2896,8 @@
     "deliverDate": "2015-08-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010320401",
@@ -2805,7 +2921,8 @@
     "deliverDate": "2015-10-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010320402",
@@ -2829,7 +2946,8 @@
     "deliverDate": "2015-10-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010320501",
@@ -2853,7 +2971,8 @@
     "deliverDate": "2015-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010320502",
@@ -2877,7 +2996,8 @@
     "deliverDate": "2015-11-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010320601",
@@ -2901,7 +3021,8 @@
     "deliverDate": "2015-09-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010320602",
@@ -2925,7 +3046,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010320701",
@@ -2949,7 +3071,8 @@
     "deliverDate": "2015-11-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010320702",
@@ -2973,7 +3096,8 @@
     "deliverDate": "2015-08-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010320801",
@@ -2997,7 +3121,8 @@
     "deliverDate": "2015-11-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010320802",
@@ -3021,7 +3146,8 @@
     "deliverDate": "2015-10-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010320901",
@@ -3045,7 +3171,8 @@
     "deliverDate": "2015-11-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010320902",
@@ -3069,7 +3196,8 @@
     "deliverDate": "2015-09-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010321001",
@@ -3093,7 +3221,8 @@
     "deliverDate": "2015-09-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010321002",
@@ -3117,7 +3246,8 @@
     "deliverDate": "2015-11-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010321101",
@@ -3141,7 +3271,8 @@
     "deliverDate": "2015-11-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010321102",
@@ -3165,7 +3296,8 @@
     "deliverDate": "2015-07-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010410101",
@@ -3189,7 +3321,8 @@
     "deliverDate": "2015-11-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010410102",
@@ -3213,7 +3346,8 @@
     "deliverDate": "2015-11-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010410201",
@@ -3237,7 +3371,8 @@
     "deliverDate": "2015-07-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010410202",
@@ -3261,7 +3396,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010410301",
@@ -3285,7 +3421,8 @@
     "deliverDate": "2015-08-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010410302",
@@ -3309,7 +3446,8 @@
     "deliverDate": "2015-09-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010410401",
@@ -3333,7 +3471,8 @@
     "deliverDate": "2015-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010410402",
@@ -3357,7 +3496,8 @@
     "deliverDate": "2015-10-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010410501",
@@ -3381,7 +3521,8 @@
     "deliverDate": "2015-08-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010410502",
@@ -3405,7 +3546,8 @@
     "deliverDate": "2015-09-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010410601",
@@ -3429,7 +3571,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010410602",
@@ -3453,7 +3596,8 @@
     "deliverDate": "2015-08-31",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010410701",
@@ -3477,7 +3621,8 @@
     "deliverDate": "2015-07-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010410702",
@@ -3501,7 +3646,8 @@
     "deliverDate": "2015-09-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010410801",
@@ -3525,7 +3671,8 @@
     "deliverDate": "2015-08-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010410802",
@@ -3549,7 +3696,8 @@
     "deliverDate": "2015-09-19",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010410901",
@@ -3573,7 +3721,8 @@
     "deliverDate": "2015-08-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010410902",
@@ -3597,7 +3746,8 @@
     "deliverDate": "2015-11-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010411001",
@@ -3621,7 +3771,8 @@
     "deliverDate": "2015-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010411002",
@@ -3645,7 +3796,8 @@
     "deliverDate": "2015-08-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010411101",
@@ -3669,7 +3821,8 @@
     "deliverDate": "2015-10-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010411102",
@@ -3693,7 +3846,8 @@
     "deliverDate": "2015-07-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010420101",
@@ -3717,7 +3871,8 @@
     "deliverDate": "2015-09-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010420102",
@@ -3741,7 +3896,8 @@
     "deliverDate": "2015-09-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010420201",
@@ -3765,7 +3921,8 @@
     "deliverDate": "2015-11-19",
     "decorationViolation": "疑似",
     "decorationResult": "待现场复核",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010420202",
@@ -3789,7 +3946,8 @@
     "deliverDate": "2015-10-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010420301",
@@ -3813,7 +3971,8 @@
     "deliverDate": "2015-09-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420302",
@@ -3837,7 +3996,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420402",
@@ -3861,7 +4021,8 @@
     "deliverDate": "2015-07-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010421102",
@@ -3885,7 +4046,8 @@
     "deliverDate": "2015-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510402",
@@ -3909,7 +4071,8 @@
     "deliverDate": "2015-11-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510601",
@@ -3933,7 +4096,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "已整改",
     "decorationResult": "待现场复核",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010511101",
@@ -3957,7 +4121,8 @@
     "deliverDate": "2015-07-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010520502",
@@ -3981,7 +4146,8 @@
     "deliverDate": "2015-07-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520801",
@@ -4005,7 +4171,8 @@
     "deliverDate": "2015-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010610301",
@@ -4029,7 +4196,8 @@
     "deliverDate": "2015-07-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010610602",
@@ -4053,7 +4221,8 @@
     "deliverDate": "2015-09-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010610702",
@@ -4077,7 +4246,8 @@
     "deliverDate": "2015-10-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010610802",
@@ -4101,7 +4271,8 @@
     "deliverDate": "2015-10-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010610901",
@@ -4125,7 +4296,8 @@
     "deliverDate": "2015-08-16",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010610902",
@@ -4149,7 +4321,8 @@
     "deliverDate": "2015-09-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010611102",
@@ -4173,7 +4346,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620201",
@@ -4197,7 +4371,8 @@
     "deliverDate": "2015-08-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010620202",
@@ -4221,7 +4396,8 @@
     "deliverDate": "2015-10-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620802",
@@ -4245,7 +4421,8 @@
     "deliverDate": "2015-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010621002",
@@ -4269,7 +4446,8 @@
     "deliverDate": "2015-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010710102",
@@ -4293,7 +4471,8 @@
     "deliverDate": "2015-08-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010710401",
@@ -4317,7 +4496,8 @@
     "deliverDate": "2015-10-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010710902",
@@ -4341,7 +4521,8 @@
     "deliverDate": "2015-11-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010711002",
@@ -4365,7 +4546,8 @@
     "deliverDate": "2015-07-23",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010720302",
@@ -4389,7 +4571,8 @@
     "deliverDate": "2015-08-21",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720502",
@@ -4413,7 +4596,8 @@
     "deliverDate": "2015-07-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720602",
@@ -4437,7 +4621,8 @@
     "deliverDate": "2015-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010720901",
@@ -4461,7 +4646,8 @@
     "deliverDate": "2015-07-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010510401",
@@ -4485,7 +4671,8 @@
     "deliverDate": "2015-10-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010610601",
@@ -4509,7 +4696,8 @@
     "deliverDate": "2015-08-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010620101",
@@ -4533,7 +4721,8 @@
     "deliverDate": "2015-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010710801",
@@ -4557,7 +4746,8 @@
     "deliverDate": "2015-08-04",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010720902",
@@ -4581,7 +4771,8 @@
     "deliverDate": "2015-08-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010820602",
@@ -4605,7 +4796,8 @@
     "deliverDate": "2015-09-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020110401",
@@ -4629,7 +4821,8 @@
     "deliverDate": "2020-10-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120301",
@@ -4653,7 +4846,8 @@
     "deliverDate": "2021-01-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210902",
@@ -4677,7 +4871,8 @@
     "deliverDate": "2020-11-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020310202",
@@ -4701,7 +4896,8 @@
     "deliverDate": "2021-02-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320801",
@@ -4725,7 +4921,8 @@
     "deliverDate": "2021-02-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020420401",
@@ -4749,7 +4946,8 @@
     "deliverDate": "2020-11-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020511002",
@@ -4773,7 +4971,8 @@
     "deliverDate": "2021-01-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020610102",
@@ -4797,7 +4996,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020610601",
@@ -4821,7 +5021,8 @@
     "deliverDate": "2020-10-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110101",
@@ -4845,7 +5046,8 @@
     "deliverDate": "2019-04-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110102",
@@ -4869,7 +5071,8 @@
     "deliverDate": "2019-07-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020610402",
@@ -4893,7 +5096,8 @@
     "deliverDate": "2021-01-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110404",
@@ -4917,7 +5121,8 @@
     "deliverDate": "2019-03-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210103",
@@ -4941,7 +5146,8 @@
     "deliverDate": "2019-05-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020610301",
@@ -4965,7 +5171,8 @@
     "deliverDate": "2020-10-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020611001",
@@ -4989,7 +5196,8 @@
     "deliverDate": "2021-02-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110105",
@@ -5013,7 +5221,8 @@
     "deliverDate": "2019-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110210",
@@ -5037,7 +5246,8 @@
     "deliverDate": "2019-06-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020620302",
@@ -5061,7 +5271,8 @@
     "deliverDate": "2021-02-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020620502",
@@ -5085,7 +5296,8 @@
     "deliverDate": "2021-02-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110202",
@@ -5109,7 +5321,8 @@
     "deliverDate": "2019-04-11",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110207",
@@ -5133,7 +5346,8 @@
     "deliverDate": "2019-06-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020710101",
@@ -5157,7 +5371,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710201",
@@ -5181,7 +5396,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020610801",
@@ -5205,7 +5421,8 @@
     "deliverDate": "2021-01-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020620101",
@@ -5229,7 +5446,8 @@
     "deliverDate": "2020-10-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110115",
@@ -5253,7 +5471,8 @@
     "deliverDate": "2019-03-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110314",
@@ -5277,7 +5496,8 @@
     "deliverDate": "2019-03-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420401",
@@ -5301,7 +5521,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010420501",
@@ -5325,7 +5546,8 @@
     "deliverDate": "2015-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010420502",
@@ -5349,7 +5571,8 @@
     "deliverDate": "2015-10-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010420601",
@@ -5373,7 +5596,8 @@
     "deliverDate": "2015-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420602",
@@ -5397,7 +5621,8 @@
     "deliverDate": "2015-07-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420701",
@@ -5421,7 +5646,8 @@
     "deliverDate": "2015-10-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010420702",
@@ -5445,7 +5671,8 @@
     "deliverDate": "2015-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010420801",
@@ -5469,7 +5696,8 @@
     "deliverDate": "2015-11-07",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010420802",
@@ -5493,7 +5721,8 @@
     "deliverDate": "2015-09-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010420901",
@@ -5517,7 +5746,8 @@
     "deliverDate": "2015-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010420902",
@@ -5541,7 +5771,8 @@
     "deliverDate": "2015-10-28",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010421001",
@@ -5565,7 +5796,8 @@
     "deliverDate": "2015-08-26",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010421002",
@@ -5589,7 +5821,8 @@
     "deliverDate": "2015-11-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010421101",
@@ -5613,7 +5846,8 @@
     "deliverDate": "2015-11-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010510101",
@@ -5637,7 +5871,8 @@
     "deliverDate": "2015-07-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010510102",
@@ -5661,7 +5896,8 @@
     "deliverDate": "2015-10-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510201",
@@ -5685,7 +5921,8 @@
     "deliverDate": "2015-09-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010510202",
@@ -5709,7 +5946,8 @@
     "deliverDate": "2015-07-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010510301",
@@ -5733,7 +5971,8 @@
     "deliverDate": "2015-09-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010510302",
@@ -5757,7 +5996,8 @@
     "deliverDate": "2015-08-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510501",
@@ -5781,7 +6021,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010510502",
@@ -5805,7 +6046,8 @@
     "deliverDate": "2015-07-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510602",
@@ -5829,7 +6071,8 @@
     "deliverDate": "2015-07-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010510701",
@@ -5853,7 +6096,8 @@
     "deliverDate": "2015-07-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010510702",
@@ -5877,7 +6121,8 @@
     "deliverDate": "2015-09-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010510801",
@@ -5901,7 +6146,8 @@
     "deliverDate": "2015-09-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010510802",
@@ -5925,7 +6171,8 @@
     "deliverDate": "2015-08-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010510901",
@@ -5949,7 +6196,8 @@
     "deliverDate": "2015-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010510902",
@@ -5973,7 +6221,8 @@
     "deliverDate": "2015-11-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010511001",
@@ -5997,7 +6246,8 @@
     "deliverDate": "2015-09-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010511002",
@@ -6021,7 +6271,8 @@
     "deliverDate": "2015-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010511102",
@@ -6045,7 +6296,8 @@
     "deliverDate": "2015-08-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010520101",
@@ -6069,7 +6321,8 @@
     "deliverDate": "2015-10-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010520102",
@@ -6093,7 +6346,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520201",
@@ -6117,7 +6371,8 @@
     "deliverDate": "2015-11-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010520202",
@@ -6141,7 +6396,8 @@
     "deliverDate": "2015-07-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010520301",
@@ -6165,7 +6421,8 @@
     "deliverDate": "2015-11-04",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010520302",
@@ -6189,7 +6446,8 @@
     "deliverDate": "2015-07-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520401",
@@ -6213,7 +6471,8 @@
     "deliverDate": "2015-08-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010520402",
@@ -6237,7 +6496,8 @@
     "deliverDate": "2015-10-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520501",
@@ -6261,7 +6521,8 @@
     "deliverDate": "2015-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010520601",
@@ -6285,7 +6546,8 @@
     "deliverDate": "2015-11-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520602",
@@ -6309,7 +6571,8 @@
     "deliverDate": "2015-10-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010520701",
@@ -6333,7 +6596,8 @@
     "deliverDate": "2015-10-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010520702",
@@ -6357,7 +6621,8 @@
     "deliverDate": "2015-06-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010520802",
@@ -6381,7 +6646,8 @@
     "deliverDate": "2015-09-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010520901",
@@ -6405,7 +6671,8 @@
     "deliverDate": "2015-11-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010520902",
@@ -6429,7 +6696,8 @@
     "deliverDate": "2015-08-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010521001",
@@ -6453,7 +6721,8 @@
     "deliverDate": "2015-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010521002",
@@ -6477,7 +6746,8 @@
     "deliverDate": "2015-10-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010521101",
@@ -6501,7 +6771,8 @@
     "deliverDate": "2015-08-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010521102",
@@ -6525,7 +6796,8 @@
     "deliverDate": "2015-09-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010610101",
@@ -6549,7 +6821,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010610102",
@@ -6573,7 +6846,8 @@
     "deliverDate": "2015-09-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010610201",
@@ -6597,7 +6871,8 @@
     "deliverDate": "2015-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010610202",
@@ -6621,7 +6896,8 @@
     "deliverDate": "2015-08-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010610302",
@@ -6645,7 +6921,8 @@
     "deliverDate": "2015-09-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010610401",
@@ -6669,7 +6946,8 @@
     "deliverDate": "2015-09-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010610402",
@@ -6693,7 +6971,8 @@
     "deliverDate": "2015-09-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010610501",
@@ -6717,7 +6996,8 @@
     "deliverDate": "2015-08-15",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010610502",
@@ -6741,7 +7021,8 @@
     "deliverDate": "2015-10-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010610701",
@@ -6765,7 +7046,8 @@
     "deliverDate": "2015-09-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010610801",
@@ -6789,7 +7071,8 @@
     "deliverDate": "2015-09-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010611001",
@@ -6813,7 +7096,8 @@
     "deliverDate": "2015-10-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010611002",
@@ -6837,7 +7121,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010611101",
@@ -6861,7 +7146,8 @@
     "deliverDate": "2015-08-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620102",
@@ -6885,7 +7171,8 @@
     "deliverDate": "2015-11-20",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010620301",
@@ -6909,7 +7196,8 @@
     "deliverDate": "2015-10-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010620302",
@@ -6933,7 +7221,8 @@
     "deliverDate": "2015-07-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010620401",
@@ -6957,7 +7246,8 @@
     "deliverDate": "2015-10-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010620402",
@@ -6981,7 +7271,8 @@
     "deliverDate": "2015-11-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010620501",
@@ -7005,7 +7296,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010620502",
@@ -7029,7 +7321,8 @@
     "deliverDate": "2015-09-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620601",
@@ -7053,7 +7346,8 @@
     "deliverDate": "2015-08-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010620602",
@@ -7077,7 +7371,8 @@
     "deliverDate": "2015-11-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620701",
@@ -7101,7 +7396,8 @@
     "deliverDate": "2015-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010620702",
@@ -7125,7 +7421,8 @@
     "deliverDate": "2015-09-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010620801",
@@ -7149,7 +7446,8 @@
     "deliverDate": "2015-11-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010620901",
@@ -7173,7 +7471,8 @@
     "deliverDate": "2015-09-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010620902",
@@ -7197,7 +7496,8 @@
     "deliverDate": "2015-07-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010621001",
@@ -7221,7 +7521,8 @@
     "deliverDate": "2015-09-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010621101",
@@ -7245,7 +7546,8 @@
     "deliverDate": "2015-07-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010621102",
@@ -7269,7 +7571,8 @@
     "deliverDate": "2015-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010710101",
@@ -7293,7 +7596,8 @@
     "deliverDate": "2015-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010710201",
@@ -7317,7 +7621,8 @@
     "deliverDate": "2015-07-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010710202",
@@ -7341,7 +7646,8 @@
     "deliverDate": "2015-10-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010710301",
@@ -7365,7 +7671,8 @@
     "deliverDate": "2015-08-22",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010710302",
@@ -7389,7 +7696,8 @@
     "deliverDate": "2015-09-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010710402",
@@ -7413,7 +7721,8 @@
     "deliverDate": "2015-09-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010710501",
@@ -7437,7 +7746,8 @@
     "deliverDate": "2015-11-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010710502",
@@ -7461,7 +7771,8 @@
     "deliverDate": "2015-07-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010710601",
@@ -7485,7 +7796,8 @@
     "deliverDate": "2015-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010710602",
@@ -7509,7 +7821,8 @@
     "deliverDate": "2015-08-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010710701",
@@ -7533,7 +7846,8 @@
     "deliverDate": "2015-08-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010710702",
@@ -7557,7 +7871,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010710802",
@@ -7581,7 +7896,8 @@
     "deliverDate": "2015-11-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010710901",
@@ -7605,7 +7921,8 @@
     "deliverDate": "2015-08-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010711001",
@@ -7629,7 +7946,8 @@
     "deliverDate": "2015-08-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010711101",
@@ -7653,7 +7971,8 @@
     "deliverDate": "2015-10-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010711102",
@@ -7677,7 +7996,8 @@
     "deliverDate": "2015-08-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010720101",
@@ -7701,7 +8021,8 @@
     "deliverDate": "2015-08-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010720102",
@@ -7725,7 +8046,8 @@
     "deliverDate": "2015-07-04",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720201",
@@ -7749,7 +8071,8 @@
     "deliverDate": "2015-08-31",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010720202",
@@ -7773,7 +8096,8 @@
     "deliverDate": "2015-10-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010720301",
@@ -7797,7 +8121,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010720401",
@@ -7821,7 +8146,8 @@
     "deliverDate": "2015-10-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010720402",
@@ -7845,7 +8171,8 @@
     "deliverDate": "2015-08-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720501",
@@ -7869,7 +8196,8 @@
     "deliverDate": "2015-10-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010720601",
@@ -7893,7 +8221,8 @@
     "deliverDate": "2015-08-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720701",
@@ -7917,7 +8246,8 @@
     "deliverDate": "2015-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720702",
@@ -7941,7 +8271,8 @@
     "deliverDate": "2015-07-17",
     "decorationViolation": "已整改",
     "decorationResult": "待现场复核",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010720801",
@@ -7965,7 +8296,8 @@
     "deliverDate": "2015-11-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010720802",
@@ -7989,7 +8321,8 @@
     "deliverDate": "2015-07-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010721001",
@@ -8013,7 +8346,8 @@
     "deliverDate": "2015-10-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010721002",
@@ -8037,7 +8371,8 @@
     "deliverDate": "2015-11-14",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010721101",
@@ -8061,7 +8396,8 @@
     "deliverDate": "2015-09-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010721102",
@@ -8085,7 +8421,8 @@
     "deliverDate": "2015-10-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010810101",
@@ -8109,7 +8446,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010810102",
@@ -8133,7 +8471,8 @@
     "deliverDate": "2015-08-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010810201",
@@ -8157,7 +8496,8 @@
     "deliverDate": "2015-09-01",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010810202",
@@ -8181,7 +8521,8 @@
     "deliverDate": "2015-07-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010810301",
@@ -8205,7 +8546,8 @@
     "deliverDate": "2015-08-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010810302",
@@ -8229,7 +8571,8 @@
     "deliverDate": "2015-07-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010810401",
@@ -8253,7 +8596,8 @@
     "deliverDate": "2015-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010810402",
@@ -8277,7 +8621,8 @@
     "deliverDate": "2015-10-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010810501",
@@ -8301,7 +8646,8 @@
     "deliverDate": "2015-09-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010810502",
@@ -8325,7 +8671,8 @@
     "deliverDate": "2015-08-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010810601",
@@ -8349,7 +8696,8 @@
     "deliverDate": "2015-07-24",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010810602",
@@ -8373,7 +8721,8 @@
     "deliverDate": "2015-09-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010810701",
@@ -8397,7 +8746,8 @@
     "deliverDate": "2015-07-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010810702",
@@ -8421,7 +8771,8 @@
     "deliverDate": "2015-08-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010810801",
@@ -8445,7 +8796,8 @@
     "deliverDate": "2015-10-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010810802",
@@ -8469,7 +8821,8 @@
     "deliverDate": "2015-09-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010810901",
@@ -8493,7 +8846,8 @@
     "deliverDate": "2015-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010810902",
@@ -8517,7 +8871,8 @@
     "deliverDate": "2015-08-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010811001",
@@ -8541,7 +8896,8 @@
     "deliverDate": "2015-09-13",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010811002",
@@ -8565,7 +8921,8 @@
     "deliverDate": "2015-09-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010811101",
@@ -8589,7 +8946,8 @@
     "deliverDate": "2015-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010811102",
@@ -8613,7 +8971,8 @@
     "deliverDate": "2015-07-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010820101",
@@ -8637,7 +8996,8 @@
     "deliverDate": "2015-11-08",
     "decorationViolation": "已整改",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010820102",
@@ -8661,7 +9021,8 @@
     "deliverDate": "2015-08-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010820201",
@@ -8685,7 +9046,8 @@
     "deliverDate": "2015-08-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010820202",
@@ -8709,7 +9071,8 @@
     "deliverDate": "2015-10-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010820301",
@@ -8733,7 +9096,8 @@
     "deliverDate": "2015-10-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010820302",
@@ -8757,7 +9121,8 @@
     "deliverDate": "2015-11-09",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010820401",
@@ -8781,7 +9146,8 @@
     "deliverDate": "2015-08-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010820402",
@@ -8805,7 +9171,8 @@
     "deliverDate": "2015-11-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010820501",
@@ -8829,7 +9196,8 @@
     "deliverDate": "2015-10-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010820502",
@@ -8853,7 +9221,8 @@
     "deliverDate": "2015-08-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H010820601",
@@ -8877,7 +9246,8 @@
     "deliverDate": "2015-11-16",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010820701",
@@ -8901,7 +9271,8 @@
     "deliverDate": "2015-08-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010820702",
@@ -8925,7 +9296,8 @@
     "deliverDate": "2015-08-28",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010820801",
@@ -8949,7 +9321,8 @@
     "deliverDate": "2015-07-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010820802",
@@ -8973,7 +9346,8 @@
     "deliverDate": "2015-09-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H010820901",
@@ -8997,7 +9371,8 @@
     "deliverDate": "2015-09-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010820902",
@@ -9021,7 +9396,8 @@
     "deliverDate": "2015-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H010821001",
@@ -9045,7 +9421,8 @@
     "deliverDate": "2015-07-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010821002",
@@ -9069,7 +9446,8 @@
     "deliverDate": "2015-08-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H010821101",
@@ -9093,7 +9471,8 @@
     "deliverDate": "2015-10-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H010821102",
@@ -9117,7 +9496,8 @@
     "deliverDate": "2015-09-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020110101",
@@ -9141,7 +9521,8 @@
     "deliverDate": "2021-01-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020110102",
@@ -9165,7 +9546,8 @@
     "deliverDate": "2021-01-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020110201",
@@ -9189,7 +9571,8 @@
     "deliverDate": "2020-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020110202",
@@ -9213,7 +9596,8 @@
     "deliverDate": "2020-11-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020110301",
@@ -9237,7 +9621,8 @@
     "deliverDate": "2020-10-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020110302",
@@ -9261,7 +9646,8 @@
     "deliverDate": "2021-01-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020110402",
@@ -9285,7 +9671,8 @@
     "deliverDate": "2020-12-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020110501",
@@ -9309,7 +9696,8 @@
     "deliverDate": "2021-01-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020110502",
@@ -9333,7 +9721,8 @@
     "deliverDate": "2021-01-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020110601",
@@ -9357,7 +9746,8 @@
     "deliverDate": "2020-12-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020110602",
@@ -9381,7 +9771,8 @@
     "deliverDate": "2021-01-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020110701",
@@ -9405,7 +9796,8 @@
     "deliverDate": "2020-12-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020110702",
@@ -9429,7 +9821,8 @@
     "deliverDate": "2020-11-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020110801",
@@ -9453,7 +9846,8 @@
     "deliverDate": "2020-11-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020110802",
@@ -9477,7 +9871,8 @@
     "deliverDate": "2020-11-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020110901",
@@ -9501,7 +9896,8 @@
     "deliverDate": "2020-12-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020110902",
@@ -9525,7 +9921,8 @@
     "deliverDate": "2020-10-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020111001",
@@ -9549,7 +9946,8 @@
     "deliverDate": "2020-11-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020111002",
@@ -9573,7 +9971,8 @@
     "deliverDate": "2020-11-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020111101",
@@ -9597,7 +9996,8 @@
     "deliverDate": "2020-12-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020111102",
@@ -9621,7 +10021,8 @@
     "deliverDate": "2020-12-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020120101",
@@ -9645,7 +10046,8 @@
     "deliverDate": "2020-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020120102",
@@ -9669,7 +10071,8 @@
     "deliverDate": "2021-02-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120201",
@@ -9693,7 +10096,8 @@
     "deliverDate": "2020-12-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020120202",
@@ -9717,7 +10121,8 @@
     "deliverDate": "2020-10-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120302",
@@ -9741,7 +10146,8 @@
     "deliverDate": "2020-12-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020120401",
@@ -9765,7 +10171,8 @@
     "deliverDate": "2020-10-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020120402",
@@ -9789,7 +10196,8 @@
     "deliverDate": "2021-02-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120501",
@@ -9813,7 +10221,8 @@
     "deliverDate": "2021-01-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020120502",
@@ -9837,7 +10246,8 @@
     "deliverDate": "2020-12-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020120601",
@@ -9861,7 +10271,8 @@
     "deliverDate": "2021-01-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120602",
@@ -9885,7 +10296,8 @@
     "deliverDate": "2020-11-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020120701",
@@ -9909,7 +10321,8 @@
     "deliverDate": "2021-01-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020120702",
@@ -9933,7 +10346,8 @@
     "deliverDate": "2020-12-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020120801",
@@ -9957,7 +10371,8 @@
     "deliverDate": "2021-01-26",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020120802",
@@ -9981,7 +10396,8 @@
     "deliverDate": "2020-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020120901",
@@ -10005,7 +10421,8 @@
     "deliverDate": "2020-10-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020120902",
@@ -10029,7 +10446,8 @@
     "deliverDate": "2020-11-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020121001",
@@ -10053,7 +10471,8 @@
     "deliverDate": "2020-12-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020121002",
@@ -10077,7 +10496,8 @@
     "deliverDate": "2020-12-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020121101",
@@ -10101,7 +10521,8 @@
     "deliverDate": "2021-01-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020121102",
@@ -10125,7 +10546,8 @@
     "deliverDate": "2020-12-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020210101",
@@ -10149,7 +10571,8 @@
     "deliverDate": "2021-01-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020210102",
@@ -10173,7 +10596,8 @@
     "deliverDate": "2021-02-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210201",
@@ -10197,7 +10621,8 @@
     "deliverDate": "2020-10-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020210202",
@@ -10221,7 +10646,8 @@
     "deliverDate": "2020-12-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210301",
@@ -10245,7 +10671,8 @@
     "deliverDate": "2020-10-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020210302",
@@ -10269,7 +10696,8 @@
     "deliverDate": "2021-02-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020210401",
@@ -10293,7 +10721,8 @@
     "deliverDate": "2020-11-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020210402",
@@ -10317,7 +10746,8 @@
     "deliverDate": "2020-10-04",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020210501",
@@ -10341,7 +10771,8 @@
     "deliverDate": "2020-10-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020210502",
@@ -10365,7 +10796,8 @@
     "deliverDate": "2021-02-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020210601",
@@ -10389,7 +10821,8 @@
     "deliverDate": "2020-12-18",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210602",
@@ -10413,7 +10846,8 @@
     "deliverDate": "2021-02-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020210701",
@@ -10437,7 +10871,8 @@
     "deliverDate": "2021-01-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210702",
@@ -10461,7 +10896,8 @@
     "deliverDate": "2020-10-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210801",
@@ -10485,7 +10921,8 @@
     "deliverDate": "2021-02-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020210802",
@@ -10509,7 +10946,8 @@
     "deliverDate": "2020-12-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020210901",
@@ -10533,7 +10971,8 @@
     "deliverDate": "2020-12-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020211001",
@@ -10557,7 +10996,8 @@
     "deliverDate": "2020-12-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020211002",
@@ -10581,7 +11021,8 @@
     "deliverDate": "2020-11-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020211101",
@@ -10605,7 +11046,8 @@
     "deliverDate": "2020-11-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020211102",
@@ -10629,7 +11071,8 @@
     "deliverDate": "2020-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020220101",
@@ -10653,7 +11096,8 @@
     "deliverDate": "2021-01-31",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020220102",
@@ -10677,7 +11121,8 @@
     "deliverDate": "2020-11-05",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020220201",
@@ -10701,7 +11146,8 @@
     "deliverDate": "2020-10-08",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020220202",
@@ -10725,7 +11171,8 @@
     "deliverDate": "2020-12-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020220301",
@@ -10749,7 +11196,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020220302",
@@ -10773,7 +11221,8 @@
     "deliverDate": "2021-01-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020220401",
@@ -10797,7 +11246,8 @@
     "deliverDate": "2020-11-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020220402",
@@ -10821,7 +11271,8 @@
     "deliverDate": "2021-01-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020220501",
@@ -10845,7 +11296,8 @@
     "deliverDate": "2020-12-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020220502",
@@ -10869,7 +11321,8 @@
     "deliverDate": "2020-11-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020220601",
@@ -10893,7 +11346,8 @@
     "deliverDate": "2021-01-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020220602",
@@ -10917,7 +11371,8 @@
     "deliverDate": "2020-11-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020220701",
@@ -10941,7 +11396,8 @@
     "deliverDate": "2020-11-07",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020220702",
@@ -10965,7 +11421,8 @@
     "deliverDate": "2020-12-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020220801",
@@ -10989,7 +11446,8 @@
     "deliverDate": "2020-10-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020220802",
@@ -11013,7 +11471,8 @@
     "deliverDate": "2020-12-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020220901",
@@ -11037,7 +11496,8 @@
     "deliverDate": "2020-11-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020220902",
@@ -11061,7 +11521,8 @@
     "deliverDate": "2021-01-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020221001",
@@ -11085,7 +11546,8 @@
     "deliverDate": "2021-01-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020221002",
@@ -11109,7 +11571,8 @@
     "deliverDate": "2020-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020221101",
@@ -11133,7 +11596,8 @@
     "deliverDate": "2020-11-02",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020221102",
@@ -11157,7 +11621,8 @@
     "deliverDate": "2021-02-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310101",
@@ -11181,7 +11646,8 @@
     "deliverDate": "2021-01-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310102",
@@ -11205,7 +11671,8 @@
     "deliverDate": "2021-02-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020310201",
@@ -11229,7 +11696,8 @@
     "deliverDate": "2020-10-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310301",
@@ -11253,7 +11721,8 @@
     "deliverDate": "2021-01-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020310302",
@@ -11277,7 +11746,8 @@
     "deliverDate": "2021-01-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310401",
@@ -11301,7 +11771,8 @@
     "deliverDate": "2021-02-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020310402",
@@ -11325,7 +11796,8 @@
     "deliverDate": "2020-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310501",
@@ -11349,7 +11821,8 @@
     "deliverDate": "2020-11-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310502",
@@ -11373,7 +11846,8 @@
     "deliverDate": "2020-12-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310601",
@@ -11397,7 +11871,8 @@
     "deliverDate": "2021-02-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310602",
@@ -11421,7 +11896,8 @@
     "deliverDate": "2020-10-17",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310701",
@@ -11445,7 +11921,8 @@
     "deliverDate": "2020-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020310702",
@@ -11469,7 +11946,8 @@
     "deliverDate": "2020-10-08",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310801",
@@ -11493,7 +11971,8 @@
     "deliverDate": "2020-11-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020310802",
@@ -11517,7 +11996,8 @@
     "deliverDate": "2020-11-04",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310901",
@@ -11541,7 +12021,8 @@
     "deliverDate": "2021-01-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020310902",
@@ -11565,7 +12046,8 @@
     "deliverDate": "2021-01-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020311001",
@@ -11589,7 +12071,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020311002",
@@ -11613,7 +12096,8 @@
     "deliverDate": "2021-01-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020311101",
@@ -11637,7 +12121,8 @@
     "deliverDate": "2020-10-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020311102",
@@ -11661,7 +12146,8 @@
     "deliverDate": "2020-11-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320101",
@@ -11685,7 +12171,8 @@
     "deliverDate": "2020-12-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020320102",
@@ -11709,7 +12196,8 @@
     "deliverDate": "2021-01-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020320201",
@@ -11733,7 +12221,8 @@
     "deliverDate": "2020-12-25",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320202",
@@ -11757,7 +12246,8 @@
     "deliverDate": "2020-12-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320301",
@@ -11781,7 +12271,8 @@
     "deliverDate": "2020-10-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020320302",
@@ -11805,7 +12296,8 @@
     "deliverDate": "2021-01-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020320401",
@@ -11829,7 +12321,8 @@
     "deliverDate": "2020-11-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020320402",
@@ -11853,7 +12346,8 @@
     "deliverDate": "2021-02-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020320501",
@@ -11877,7 +12371,8 @@
     "deliverDate": "2020-12-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020320502",
@@ -11901,7 +12396,8 @@
     "deliverDate": "2020-12-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020320601",
@@ -11925,7 +12421,8 @@
     "deliverDate": "2021-01-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020320602",
@@ -11949,7 +12446,8 @@
     "deliverDate": "2020-09-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020320701",
@@ -11973,7 +12471,8 @@
     "deliverDate": "2020-10-22",
     "decorationViolation": "疑似",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320702",
@@ -11997,7 +12496,8 @@
     "deliverDate": "2020-11-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020320802",
@@ -12021,7 +12521,8 @@
     "deliverDate": "2020-11-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020320901",
@@ -12045,7 +12546,8 @@
     "deliverDate": "2020-10-30",
     "decorationViolation": "已整改",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020320902",
@@ -12069,7 +12571,8 @@
     "deliverDate": "2020-11-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020321001",
@@ -12093,7 +12596,8 @@
     "deliverDate": "2020-12-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020321002",
@@ -12117,7 +12621,8 @@
     "deliverDate": "2021-01-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020321101",
@@ -12141,7 +12646,8 @@
     "deliverDate": "2020-11-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020321102",
@@ -12165,7 +12671,8 @@
     "deliverDate": "2020-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020410101",
@@ -12189,7 +12696,8 @@
     "deliverDate": "2021-02-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020410102",
@@ -12213,7 +12721,8 @@
     "deliverDate": "2020-11-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020410201",
@@ -12237,7 +12746,8 @@
     "deliverDate": "2021-02-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410202",
@@ -12261,7 +12771,8 @@
     "deliverDate": "2021-02-06",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410301",
@@ -12285,7 +12796,8 @@
     "deliverDate": "2020-11-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020410302",
@@ -12309,7 +12821,8 @@
     "deliverDate": "2020-10-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020410401",
@@ -12333,7 +12846,8 @@
     "deliverDate": "2020-12-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020410402",
@@ -12357,7 +12871,8 @@
     "deliverDate": "2020-11-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020410501",
@@ -12381,7 +12896,8 @@
     "deliverDate": "2021-01-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410502",
@@ -12405,7 +12921,8 @@
     "deliverDate": "2020-11-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020410601",
@@ -12429,7 +12946,8 @@
     "deliverDate": "2020-10-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410602",
@@ -12453,7 +12971,8 @@
     "deliverDate": "2021-01-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410701",
@@ -12477,7 +12996,8 @@
     "deliverDate": "2020-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020410702",
@@ -12501,7 +13021,8 @@
     "deliverDate": "2020-10-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020410801",
@@ -12525,7 +13046,8 @@
     "deliverDate": "2021-01-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020410802",
@@ -12549,7 +13071,8 @@
     "deliverDate": "2020-12-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020410901",
@@ -12573,7 +13096,8 @@
     "deliverDate": "2020-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020410902",
@@ -12597,7 +13121,8 @@
     "deliverDate": "2020-12-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020411001",
@@ -12621,7 +13146,8 @@
     "deliverDate": "2020-11-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020411002",
@@ -12645,7 +13171,8 @@
     "deliverDate": "2021-01-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020411101",
@@ -12669,7 +13196,8 @@
     "deliverDate": "2021-02-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020411102",
@@ -12693,7 +13221,8 @@
     "deliverDate": "2021-01-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420101",
@@ -12717,7 +13246,8 @@
     "deliverDate": "2021-02-23",
     "decorationViolation": "疑似",
     "decorationResult": "待现场复核",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020420102",
@@ -12741,7 +13271,8 @@
     "deliverDate": "2021-01-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020420201",
@@ -12765,7 +13296,8 @@
     "deliverDate": "2020-10-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420202",
@@ -12789,7 +13321,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020420301",
@@ -12813,7 +13346,8 @@
     "deliverDate": "2020-10-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420302",
@@ -12837,7 +13371,8 @@
     "deliverDate": "2020-12-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020420402",
@@ -12861,7 +13396,8 @@
     "deliverDate": "2020-10-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020420501",
@@ -12885,7 +13421,8 @@
     "deliverDate": "2021-01-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020420502",
@@ -12909,7 +13446,8 @@
     "deliverDate": "2020-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420601",
@@ -12933,7 +13471,8 @@
     "deliverDate": "2020-10-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420602",
@@ -12957,7 +13496,8 @@
     "deliverDate": "2020-12-30",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020420701",
@@ -12981,7 +13521,8 @@
     "deliverDate": "2020-10-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020420702",
@@ -13005,7 +13546,8 @@
     "deliverDate": "2020-10-24",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020420801",
@@ -13029,7 +13571,8 @@
     "deliverDate": "2020-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020420802",
@@ -13053,7 +13596,8 @@
     "deliverDate": "2021-01-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020420901",
@@ -13077,7 +13621,8 @@
     "deliverDate": "2020-10-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020420902",
@@ -13101,7 +13646,8 @@
     "deliverDate": "2021-01-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020421001",
@@ -13125,7 +13671,8 @@
     "deliverDate": "2020-12-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020421002",
@@ -13149,7 +13696,8 @@
     "deliverDate": "2021-02-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020421101",
@@ -13173,7 +13721,8 @@
     "deliverDate": "2020-10-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020421102",
@@ -13197,7 +13746,8 @@
     "deliverDate": "2021-02-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020510101",
@@ -13221,7 +13771,8 @@
     "deliverDate": "2021-01-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020510102",
@@ -13245,7 +13796,8 @@
     "deliverDate": "2021-02-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020510201",
@@ -13269,7 +13821,8 @@
     "deliverDate": "2021-02-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020510202",
@@ -13293,7 +13846,8 @@
     "deliverDate": "2020-10-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020510301",
@@ -13317,7 +13871,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020510302",
@@ -13341,7 +13896,8 @@
     "deliverDate": "2021-02-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020510401",
@@ -13365,7 +13921,8 @@
     "deliverDate": "2020-11-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020510402",
@@ -13389,7 +13946,8 @@
     "deliverDate": "2020-12-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020510501",
@@ -13413,7 +13971,8 @@
     "deliverDate": "2020-10-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020510502",
@@ -13437,7 +13996,8 @@
     "deliverDate": "2020-11-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020510601",
@@ -13461,7 +14021,8 @@
     "deliverDate": "2020-11-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020510602",
@@ -13485,7 +14046,8 @@
     "deliverDate": "2021-01-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020510701",
@@ -13509,7 +14071,8 @@
     "deliverDate": "2020-10-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020510702",
@@ -13533,7 +14096,8 @@
     "deliverDate": "2021-02-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020510801",
@@ -13557,7 +14121,8 @@
     "deliverDate": "2020-10-07",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020510802",
@@ -13581,7 +14146,8 @@
     "deliverDate": "2020-10-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020510901",
@@ -13605,7 +14171,8 @@
     "deliverDate": "2020-11-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020510902",
@@ -13629,7 +14196,8 @@
     "deliverDate": "2021-01-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020511001",
@@ -13653,7 +14221,8 @@
     "deliverDate": "2020-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020511101",
@@ -13677,7 +14246,8 @@
     "deliverDate": "2021-02-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020511102",
@@ -13701,7 +14271,8 @@
     "deliverDate": "2020-10-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020520101",
@@ -13725,7 +14296,8 @@
     "deliverDate": "2021-01-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520102",
@@ -13749,7 +14321,8 @@
     "deliverDate": "2020-12-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520201",
@@ -13773,7 +14346,8 @@
     "deliverDate": "2021-02-09",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020520202",
@@ -13797,7 +14371,8 @@
     "deliverDate": "2020-12-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020520301",
@@ -13821,7 +14396,8 @@
     "deliverDate": "2021-02-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520302",
@@ -13845,7 +14421,8 @@
     "deliverDate": "2020-12-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520401",
@@ -13869,7 +14446,8 @@
     "deliverDate": "2020-11-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020520402",
@@ -13893,7 +14471,8 @@
     "deliverDate": "2020-11-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520501",
@@ -13917,7 +14496,8 @@
     "deliverDate": "2021-02-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020520502",
@@ -13941,7 +14521,8 @@
     "deliverDate": "2020-10-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520601",
@@ -13965,7 +14546,8 @@
     "deliverDate": "2020-12-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020520602",
@@ -13989,7 +14571,8 @@
     "deliverDate": "2020-10-11",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020520701",
@@ -14013,7 +14596,8 @@
     "deliverDate": "2020-11-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020520702",
@@ -14037,7 +14621,8 @@
     "deliverDate": "2021-01-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020520801",
@@ -14061,7 +14646,8 @@
     "deliverDate": "2021-01-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020520802",
@@ -14085,7 +14671,8 @@
     "deliverDate": "2021-02-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020520901",
@@ -14109,7 +14696,8 @@
     "deliverDate": "2021-01-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020520902",
@@ -14133,7 +14721,8 @@
     "deliverDate": "2020-10-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020521001",
@@ -14157,7 +14746,8 @@
     "deliverDate": "2020-11-27",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020521002",
@@ -14181,7 +14771,8 @@
     "deliverDate": "2020-12-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020521101",
@@ -14205,7 +14796,8 @@
     "deliverDate": "2020-10-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020521102",
@@ -14229,7 +14821,8 @@
     "deliverDate": "2020-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020610101",
@@ -14253,7 +14846,8 @@
     "deliverDate": "2020-10-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020610201",
@@ -14277,7 +14871,8 @@
     "deliverDate": "2020-11-07",
     "decorationViolation": "已整改",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020610202",
@@ -14301,7 +14896,8 @@
     "deliverDate": "2021-02-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020610302",
@@ -14325,7 +14921,8 @@
     "deliverDate": "2021-01-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020610401",
@@ -14349,7 +14946,8 @@
     "deliverDate": "2020-11-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020610501",
@@ -14373,7 +14971,8 @@
     "deliverDate": "2021-02-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020610502",
@@ -14397,7 +14996,8 @@
     "deliverDate": "2021-02-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020610602",
@@ -14421,7 +15021,8 @@
     "deliverDate": "2021-02-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020610701",
@@ -14445,7 +15046,8 @@
     "deliverDate": "2020-10-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020610702",
@@ -14469,7 +15071,8 @@
     "deliverDate": "2020-12-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020610802",
@@ -14493,7 +15096,8 @@
     "deliverDate": "2020-10-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020610901",
@@ -14517,7 +15121,8 @@
     "deliverDate": "2020-10-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020610902",
@@ -14541,7 +15146,8 @@
     "deliverDate": "2020-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020611002",
@@ -14565,7 +15171,8 @@
     "deliverDate": "2020-10-29",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020611101",
@@ -14589,7 +15196,8 @@
     "deliverDate": "2020-12-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020611102",
@@ -14613,7 +15221,8 @@
     "deliverDate": "2020-11-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020620102",
@@ -14637,7 +15246,8 @@
     "deliverDate": "2021-02-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020620201",
@@ -14661,7 +15271,8 @@
     "deliverDate": "2020-11-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020620202",
@@ -14685,7 +15296,8 @@
     "deliverDate": "2020-12-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020620301",
@@ -14709,7 +15321,8 @@
     "deliverDate": "2021-02-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020620401",
@@ -14733,7 +15346,8 @@
     "deliverDate": "2021-01-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020620402",
@@ -14757,7 +15371,8 @@
     "deliverDate": "2020-11-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020620501",
@@ -14781,7 +15396,8 @@
     "deliverDate": "2020-10-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020620601",
@@ -14805,7 +15421,8 @@
     "deliverDate": "2020-11-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020620602",
@@ -14829,7 +15446,8 @@
     "deliverDate": "2021-02-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020620701",
@@ -14853,7 +15471,8 @@
     "deliverDate": "2020-11-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020620702",
@@ -14877,7 +15496,8 @@
     "deliverDate": "2021-01-18",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020620801",
@@ -14901,7 +15521,8 @@
     "deliverDate": "2020-12-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020620802",
@@ -14925,7 +15546,8 @@
     "deliverDate": "2020-11-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020620901",
@@ -14949,7 +15571,8 @@
     "deliverDate": "2020-10-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H020620902",
@@ -14973,7 +15596,8 @@
     "deliverDate": "2020-10-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H020621001",
@@ -14997,7 +15621,8 @@
     "deliverDate": "2020-12-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020621002",
@@ -15021,7 +15646,8 @@
     "deliverDate": "2020-10-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020621101",
@@ -15045,7 +15671,8 @@
     "deliverDate": "2021-02-12",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H020621102",
@@ -15069,7 +15696,8 @@
     "deliverDate": "2021-02-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110103",
@@ -15093,7 +15721,8 @@
     "deliverDate": "2019-07-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110104",
@@ -15117,7 +15746,8 @@
     "deliverDate": "2019-04-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110106",
@@ -15141,7 +15771,8 @@
     "deliverDate": "2019-04-10",
     "decorationViolation": "已整改",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110107",
@@ -15165,7 +15796,8 @@
     "deliverDate": "2019-06-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110108",
@@ -15189,7 +15821,8 @@
     "deliverDate": "2019-06-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110109",
@@ -15213,7 +15846,8 @@
     "deliverDate": "2019-03-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110110",
@@ -15237,7 +15871,8 @@
     "deliverDate": "2019-06-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110111",
@@ -15261,7 +15896,8 @@
     "deliverDate": "2019-06-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110112",
@@ -15285,7 +15921,8 @@
     "deliverDate": "2019-03-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110113",
@@ -15309,7 +15946,8 @@
     "deliverDate": "2019-04-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110114",
@@ -15333,7 +15971,8 @@
     "deliverDate": "2019-08-05",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110201",
@@ -15357,7 +15996,8 @@
     "deliverDate": "2019-07-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110203",
@@ -15381,7 +16021,8 @@
     "deliverDate": "2019-05-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110204",
@@ -15405,7 +16046,8 @@
     "deliverDate": "2019-08-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110205",
@@ -15429,7 +16071,8 @@
     "deliverDate": "2019-04-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110206",
@@ -15453,7 +16096,8 @@
     "deliverDate": "2019-04-21",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110208",
@@ -15477,7 +16121,8 @@
     "deliverDate": "2019-03-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110209",
@@ -15501,7 +16146,8 @@
     "deliverDate": "2019-05-27",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110211",
@@ -15525,7 +16171,8 @@
     "deliverDate": "2019-06-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110212",
@@ -15549,7 +16196,8 @@
     "deliverDate": "2019-06-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110213",
@@ -15573,7 +16221,8 @@
     "deliverDate": "2019-05-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110214",
@@ -15597,7 +16246,8 @@
     "deliverDate": "2019-04-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110215",
@@ -15621,7 +16271,8 @@
     "deliverDate": "2019-04-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110301",
@@ -15645,7 +16296,8 @@
     "deliverDate": "2019-03-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110302",
@@ -15669,7 +16321,8 @@
     "deliverDate": "2019-05-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110303",
@@ -15693,7 +16346,8 @@
     "deliverDate": "2019-03-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110304",
@@ -15717,7 +16371,8 @@
     "deliverDate": "2019-05-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110305",
@@ -15741,7 +16396,8 @@
     "deliverDate": "2019-07-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110306",
@@ -15765,7 +16421,8 @@
     "deliverDate": "2019-06-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110307",
@@ -15789,7 +16446,8 @@
     "deliverDate": "2019-08-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110308",
@@ -15813,7 +16471,8 @@
     "deliverDate": "2019-08-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110309",
@@ -15837,7 +16496,8 @@
     "deliverDate": "2019-06-25",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110310",
@@ -15861,7 +16521,8 @@
     "deliverDate": "2019-06-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110311",
@@ -15885,7 +16546,8 @@
     "deliverDate": "2019-05-03",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110312",
@@ -15909,7 +16571,8 @@
     "deliverDate": "2019-06-25",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110313",
@@ -15933,7 +16596,8 @@
     "deliverDate": "2019-06-19",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110315",
@@ -15957,7 +16621,8 @@
     "deliverDate": "2019-04-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110401",
@@ -15981,7 +16646,8 @@
     "deliverDate": "2019-04-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110402",
@@ -16005,7 +16671,8 @@
     "deliverDate": "2019-04-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110403",
@@ -16029,7 +16696,8 @@
     "deliverDate": "2019-07-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110405",
@@ -16053,7 +16721,8 @@
     "deliverDate": "2019-07-09",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030110406",
@@ -16077,7 +16746,8 @@
     "deliverDate": "2019-07-03",
     "decorationViolation": "已认定",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110407",
@@ -16101,7 +16771,8 @@
     "deliverDate": "2019-08-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030110408",
@@ -16125,7 +16796,8 @@
     "deliverDate": "2019-05-16",
     "decorationViolation": "已整改",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110409",
@@ -16149,7 +16821,8 @@
     "deliverDate": "2019-05-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110410",
@@ -16173,7 +16846,8 @@
     "deliverDate": "2019-04-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110411",
@@ -16197,7 +16871,8 @@
     "deliverDate": "2019-03-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110412",
@@ -16221,7 +16896,8 @@
     "deliverDate": "2019-06-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030110413",
@@ -16245,7 +16921,8 @@
     "deliverDate": "2019-04-28",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030110414",
@@ -16269,7 +16946,8 @@
     "deliverDate": "2019-03-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030110415",
@@ -16293,7 +16971,8 @@
     "deliverDate": "2019-08-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210101",
@@ -16317,7 +16996,8 @@
     "deliverDate": "2019-07-19",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210102",
@@ -16341,7 +17021,8 @@
     "deliverDate": "2019-05-20",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210104",
@@ -16365,7 +17046,8 @@
     "deliverDate": "2019-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210105",
@@ -16389,7 +17071,8 @@
     "deliverDate": "2019-07-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210106",
@@ -16413,7 +17096,8 @@
     "deliverDate": "2019-06-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210107",
@@ -16437,7 +17121,8 @@
     "deliverDate": "2019-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210108",
@@ -16461,7 +17146,8 @@
     "deliverDate": "2019-04-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210109",
@@ -16485,7 +17171,8 @@
     "deliverDate": "2019-04-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210110",
@@ -16509,7 +17196,8 @@
     "deliverDate": "2019-04-17",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210111",
@@ -16533,7 +17221,8 @@
     "deliverDate": "2019-05-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210112",
@@ -16557,7 +17246,8 @@
     "deliverDate": "2019-07-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210113",
@@ -16581,7 +17271,8 @@
     "deliverDate": "2019-04-29",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210114",
@@ -16605,7 +17296,8 @@
     "deliverDate": "2019-07-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210115",
@@ -16629,7 +17321,8 @@
     "deliverDate": "2019-07-22",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210201",
@@ -16653,7 +17346,8 @@
     "deliverDate": "2019-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210202",
@@ -16677,7 +17371,8 @@
     "deliverDate": "2019-04-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210203",
@@ -16701,7 +17396,8 @@
     "deliverDate": "2019-04-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210204",
@@ -16725,7 +17421,8 @@
     "deliverDate": "2019-08-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210205",
@@ -16749,7 +17446,8 @@
     "deliverDate": "2019-04-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210206",
@@ -16773,7 +17471,8 @@
     "deliverDate": "2019-05-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210207",
@@ -16797,7 +17496,8 @@
     "deliverDate": "2019-05-28",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210208",
@@ -16821,7 +17521,8 @@
     "deliverDate": "2019-03-18",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210209",
@@ -16845,7 +17546,8 @@
     "deliverDate": "2019-06-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210210",
@@ -16869,7 +17571,8 @@
     "deliverDate": "2019-05-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210211",
@@ -16893,7 +17596,8 @@
     "deliverDate": "2019-04-21",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210212",
@@ -16917,7 +17621,8 @@
     "deliverDate": "2019-06-14",
     "decorationViolation": "已认定",
     "decorationResult": "已上报城管，待联合处理",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210213",
@@ -16941,7 +17646,8 @@
     "deliverDate": "2019-08-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210214",
@@ -16965,7 +17671,8 @@
     "deliverDate": "2019-06-06",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210215",
@@ -16989,7 +17696,8 @@
     "deliverDate": "2019-07-03",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210301",
@@ -17013,7 +17721,8 @@
     "deliverDate": "2019-07-31",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210302",
@@ -17037,7 +17746,8 @@
     "deliverDate": "2019-04-24",
     "decorationViolation": "已认定",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210303",
@@ -17061,7 +17771,8 @@
     "deliverDate": "2019-05-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210304",
@@ -17085,7 +17796,8 @@
     "deliverDate": "2019-04-26",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210305",
@@ -17109,7 +17821,8 @@
     "deliverDate": "2019-06-05",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210306",
@@ -17133,7 +17846,8 @@
     "deliverDate": "2019-04-02",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210307",
@@ -17157,7 +17871,8 @@
     "deliverDate": "2019-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210308",
@@ -17181,7 +17896,8 @@
     "deliverDate": "2019-07-15",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210309",
@@ -17205,7 +17921,8 @@
     "deliverDate": "2019-04-21",
     "decorationViolation": "疑似",
     "decorationResult": "整改完成并复查通过",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210310",
@@ -17229,7 +17946,8 @@
     "deliverDate": "2019-03-24",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210311",
@@ -17253,7 +17971,8 @@
     "deliverDate": "2019-03-20",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210312",
@@ -17277,7 +17996,8 @@
     "deliverDate": "2019-04-14",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210313",
@@ -17301,7 +18021,8 @@
     "deliverDate": "2019-07-11",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210314",
@@ -17325,7 +18046,8 @@
     "deliverDate": "2019-08-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210315",
@@ -17349,7 +18071,8 @@
     "deliverDate": "2019-04-22",
     "decorationViolation": "已认定",
     "decorationResult": "待现场复核",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210401",
@@ -17373,7 +18096,8 @@
     "deliverDate": "2019-03-16",
     "decorationViolation": "疑似",
     "decorationResult": "已下发整改通知，业主已承诺 15 日内拆除",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210402",
@@ -17397,7 +18121,8 @@
     "deliverDate": "2019-07-09",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210403",
@@ -17421,7 +18146,8 @@
     "deliverDate": "2019-06-13",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210404",
@@ -17445,7 +18171,8 @@
     "deliverDate": "2019-08-04",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝北"
+    "orientation": "朝北",
+    "remark": ""
   },
   {
     "houseId": "H030210405",
@@ -17469,7 +18196,8 @@
     "deliverDate": "2019-05-25",
     "decorationViolation": "疑似",
     "decorationResult": "待现场复核",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210406",
@@ -17493,7 +18221,8 @@
     "deliverDate": "2019-05-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210407",
@@ -17517,7 +18246,8 @@
     "deliverDate": "2019-03-16",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H030210408",
@@ -17541,7 +18271,8 @@
     "deliverDate": "2019-07-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210409",
@@ -17565,7 +18296,8 @@
     "deliverDate": "2019-06-10",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210410",
@@ -17589,7 +18321,8 @@
     "deliverDate": "2019-04-23",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210411",
@@ -17613,7 +18346,8 @@
     "deliverDate": "2019-08-01",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H030210412",
@@ -17637,7 +18371,8 @@
     "deliverDate": "2019-04-07",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东南"
+    "orientation": "朝东南",
+    "remark": ""
   },
   {
     "houseId": "H030210413",
@@ -17661,7 +18396,8 @@
     "deliverDate": "2019-05-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210414",
@@ -17685,7 +18421,8 @@
     "deliverDate": "2019-07-12",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝东"
+    "orientation": "朝东",
+    "remark": ""
   },
   {
     "houseId": "H030210415",
@@ -17709,7 +18446,8 @@
     "deliverDate": "2019-05-08",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝西南"
+    "orientation": "朝西南",
+    "remark": ""
   },
   {
     "houseId": "H020710301",
@@ -17733,7 +18471,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710401",
@@ -17757,7 +18496,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710501",
@@ -17781,7 +18521,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710601",
@@ -17805,7 +18546,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710701",
@@ -17829,7 +18571,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710801",
@@ -17853,7 +18596,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020710901",
@@ -17877,7 +18621,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020711001",
@@ -17901,7 +18646,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720101",
@@ -17925,7 +18671,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720201",
@@ -17949,7 +18696,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720301",
@@ -17973,7 +18721,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720401",
@@ -17997,7 +18746,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720501",
@@ -18021,7 +18771,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720601",
@@ -18045,7 +18796,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720701",
@@ -18069,7 +18821,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720801",
@@ -18093,7 +18846,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020720901",
@@ -18117,7 +18871,8 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   },
   {
     "houseId": "H020721001",
@@ -18141,6 +18896,7 @@
     "deliverDate": "",
     "decorationViolation": "无",
     "decorationResult": "",
-    "orientation": "朝南"
+    "orientation": "朝南",
+    "remark": ""
   }
 ]

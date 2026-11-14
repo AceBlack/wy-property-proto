@@ -68,8 +68,17 @@ const JOBS = [
   }
 ]
 
+/* `--only=bills.json` 只重投影一张表：三张表的来源不同批次时（比如只改了 03 的账单种子），
+   全量跑会把别人正在改的 owners / payments 一起盖掉。不带参数仍是三张全跑。 */
+const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').replace('--only=', '')
+const JOBS_TO_RUN = ONLY ? JOBS.filter(j => j.file === ONLY || j.label === ONLY) : JOBS
+if (ONLY && !JOBS_TO_RUN.length) {
+  console.error(`--only 只认：${JOBS.map(j => j.file).join(' / ')}`)
+  process.exit(1)
+}
+
 const report = {}
-for (const job of JOBS) {
+for (const job of JOBS_TO_RUN) {
   const outPath = path.join(OUT, job.file)
   const existing = readJson(outPath)
   const keys = keyOf(existing)
@@ -104,9 +113,9 @@ const metaPath = path.join(OUT, 'meta.json')
 const meta = readJson(metaPath)
 meta.counts = {
   ...meta.counts,
-  owners: report['owners.json'].after,
-  bills: report['bills.json'].after,
-  payments: report['payments.json'].after
+  ...(report['owners.json'] ? { owners: report['owners.json'].after } : {}),
+  ...(report['bills.json'] ? { bills: report['bills.json'].after } : {}),
+  ...(report['payments.json'] ? { payments: report['payments.json'].after } : {})
 }
 meta.financeAlignedAt = '2026-11-14'
 meta.financeNote = '财务三表（owners / bills / payments）已按 PC 全量对齐；其余表仍是 10-30 裁剪版'

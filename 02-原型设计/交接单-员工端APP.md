@@ -2257,3 +2257,89 @@ PC 这几天做了财务改造（账期铺满、历史推 24 个月），账单�
 `npm run smoke` **197/197** · `npm run build:h5` 通过 · `npm run verify:building` 全绿
 （8 栋 · ¥78,331.96 · 224 户 · 工作集 195 户）。报表（减免分析 / 账龄 / 押金在账）是**后台侧**的，
 员工端不做，端上无入口。
+
+---
+
+## 三十六、楼栋「住户档案」切到 HTTP（§30 的三步全做了，2026-11-14）
+
+> §30 当时判"要么整块做、要么先不动"，因为只切读会出现"改完手机号刷新又变回去"。
+> 这一轮把 3a + 3b + 3c 一起做完，读写同源。
+
+### 36.1 先纠正上一轮的一个错误判断
+
+§30 写"契约缺 2 条 PATCH"，**这是错的**。我当时只看 `openapi.yaml` 的路径列表
+（`/owners/{ownerId}` 显示 `[GET]`），没看 `mock-server.mjs` 的实现 —— 业主的 `PATCH` 早就有了，
+19 个字段白名单、枚举校验、乐观锁、手机号唯一、掩码防回填，一样不缺。
+
+**真正缺的只有两样**：`PATCH /houses/{houseId}`（房屋字段编辑），以及 owners / houses 的三个字段。
+
+教训：**契约的"有没有"要看实现，不能只看文档**。那次误判让整个 §30 多挂了两天。
+
+### 36.2 契约侧改了什么
+
+| 改动 | 说明 |
+|---|---|
+| `fixtures/owners.json` +2 字段 | `emergencyContact`、`remark`（682 条 × 2，脚本 `gen-owner-house-fields.mjs`） |
+| `fixtures/houses.json` +1 字段 | `remark`（756 条） |
+| **新增** `GET /mobile/houses/{houseId}` | 聚合读：房屋 + 业主 + 最近 6 张账 + 欠费 + 租户 + 同住人 |
+| **新增** `PATCH /houses/{houseId}` | 10 字段白名单 + 枚举校验 + 交付边界 |
+| 断言 | +1 条（房屋编辑：白名单 / 枚举 / 交付边界两个方向） |
+
+为什么聚合：这一屏要六样东西，而 `/bills` **没有 houseId 过滤**（只有 buildingId / unitId / kw）。
+为了"这套房最近六张账"去加一个筛选参数，不如直接给一个聚合读 —— 和 `/mobile/debts` 同一个思路。
+
+### 36.3 交付边界两个方向都要拦
+
+`PATCH /houses/{houseId}` 改 `useStatus` 时：
+
+- **未交房 → 已入住**：拒。否则这套房当天就进计费与可出租候选，而钥匙还没交；
+- **已交房 → 未交房**：也拒。计费停了但人还住着，账就漏了。
+
+第二方向容易被漏掉（PC 的 `updateHouseField` 也拦了，我照抄时才注意到）。
+
+### 36.4 05 侧
+
+| 函数 | 接口 |
+|---|---|
+| `houseDetailOf` / `residentsOf` | 都读同一个聚合缓存（一次请求） |
+| `saveOwnerField` / `saveHouseField` | `PATCH /owners/{id}` / `PATCH /houses/{id}` |
+| `tagsOfOwner` / `tagCategories` / `addTag` / `dropTag` | `/owner-tags` 字典 + `/owners/{id}/tags` |
+| `tenantDetailOf` | `GET /tenants/{id}` |
+| `verifyTenantBy` / `registerFaceBy` / `moveOutBy` / `saveTenantFields` | 对应 `POST` |
+
+页面只加了预加载（`onLoad` → `await loadHouseDetail(...)`），其余没动。
+
+### 36.5 三个坑
+
+1. **`persona is not defined`**：`building.js` 里用了 `persona.value` 但没导入（`listing.js` 导了、
+   这个文件没有）。表现是整页"租户不存在"，`console` 里只有一条 `PAGEERROR`——
+   所以验证脚本**必须监听 `pageerror`**，只抓 `console.error` 会漏掉整类异常。
+2. **手机号默认脱敏是对的**：我一开始断言"这一屏要拨出去，应该是明文"，实际页面
+   `{{ revealed ? phone : maskPhone(phone) }}` —— 默认掩码 + 揭示按钮（防投屏）。
+   接口给全号、页面控制展示，这才是对的分工。断言改成了"揭示后是 11 位明文"。
+3. **租户详情接口包了一层**：`GET /tenants/{id}` 返回 `{tenant, house, owner}`，
+   和本地 `getTenantDetail` 同构 ✓。但契约**不返回** `completeness` / `history`，
+   所以 HTTP 模式下这两块是空的 —— 见 §36.6。
+
+### 36.6 已知降级
+
+HTTP 模式下租户页的「资料完整度」与「变更历史」为空（契约接口没返回这两项）。
+mock 模式正常。要补的话是 `GET /tenants/{id}` 加两个字段，不复杂，但属于新的口径
+（完整度怎么算、历史记哪些动作），留待需要时再定。
+
+### 36.7 验证
+
+| 项 | 结果 |
+|---|---|
+| `05 npm run verify:house`（HTTP） | **9/9** |
+| `05 npm run verify:tenant`（HTTP） | **7/7** |
+| `04 npm test` | **293/293** |
+| `05 npm run smoke`（mock） | **197/197** |
+
+```
+房屋 H010120101（莫瑞名下）：走聚合接口 · 房号/业主/账单都在 · 手机号默认掩码 → 揭示后 170****6411
+租户 TN00003（林浩然）：走 /tenants/TN00003 · 姓名/核验状态/租期可见 · 证件手机号脱敏
+```
+
+验证脚本都用**莫瑞**（楼栋管家）身份 —— 这一屏对客服主管是锁着的（`a.owners.edit` 只有楼栋管家有），
+用汪磊跑会看到"只有楼栋管家能维护业主档案"的锁屏。

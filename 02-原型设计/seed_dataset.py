@@ -431,6 +431,11 @@ def mk_pay(b, method, no):
     })
 
 OPERATORS = ['收银员·刘婷', '收银员·陈敏', '客服·王芳', '线上自助']
+# 水电读数链的表头：(houseId, itemId) → 上期读数。逐期往前推，保证「本期 − 上期 = 用量」。
+# 只在本脚本内保证这一条；「没出账的月份表照样在走」（跨期连续）由
+# `03-原型/scripts/fix-meter-bills.mjs` 补齐 —— 重跑过本脚本之后要再跑一次它，
+# 否则会出现「09 期没出账、10 期的上期读数却等于 08 期读数」。
+READING_HEAD = {}
 for h in HOUSES:
     oid_ = h['ownerId']
     for p in PERIODS:
@@ -449,17 +454,31 @@ for h in HOUSES:
         if random.random() < 0.6:
             if random.random() < 0.5:
                 use = round(random.uniform(6, 32), 1)
-                amt = money(use * (4.20 if use <= 15 else (5.60 if use <= 25 else 7.35)))
-                it, nm, q, u, un = 'FI05', '水费', use, 4.20, '吨'
+                tier = 4.20 if use <= 15 else (5.60 if use <= 25 else 7.35)
+                amt = money(use * tier)
+                # 单价存的是**这一单实际执行的阶梯价**（快照），不是收费项里的基准价 4.20。
+                # 存基准价的话，128.8 元的单会写成「23 吨 × 4.20 = 96.6」，业主一眼看出对不上 ——
+                # 2026-11-14 之前就是这样，1327 张里 903 张乘不出金额。
+                it, nm, q, u, un = 'FI05', '水费', use, tier, '吨'
             else:
                 use = round(random.uniform(80, 520), 0)
-                amt = money(use * (0.62 if use <= 200 else (0.68 if use <= 400 else 0.92)))
-                it, nm, q, u, un = 'FI06', '电费', use, 0.62, '度'
+                tier = 0.62 if use <= 200 else (0.68 if use <= 400 else 0.92)
+                amt = money(use * tier)
+                it, nm, q, u, un = 'FI06', '电费', use, tier, '度'
             st2 = '已缴' if random.random() < PAY_RATE[p] else pickw([('未缴', 88), ('部分缴', 12)])
+            # 读数链：以「房屋 + 科目」为单位逐期往前推，保证 本期 − 上期 = 用量。
+            # 以前是 meterReading=str(use)、lastReading=用量减一个随机数 —— 后者能出负数，
+            # 而前者把用量抄进了读数列，于是同一张单上「用量 30.7 · 读数 7.4 → 30.7」。
+            head = READING_HEAD.get((h['houseId'], it))
+            if head is None:
+                head = float(pick([120, 380, 640, 920, 1280, 1560])) if un == '吨' \
+                    else float(pick([3000, 5200, 7400, 9600, 11200]))
+            prev_rd, cur_rd = head, round(head + use, 1)
+            READING_HEAD[(h['houseId'], it)] = cur_rd
             b2 = add_bill(communityId=h['communityId'], houseId=h['houseId'], ownerId=oid_, itemId=it,
                           itemName=nm, period=p, amount=amt, quantity=q, price=u, unit='元/' + un,
                           status=st2, createTime=ds(PERIOD_END[p] - timedelta(days=16)),
-                          meterReading=str(use), lastReading=str(round(use - random.uniform(5, 40), 1)))
+                          meterReading=str(cur_rd), lastReading=str(prev_rd))
             if st2 == '已缴':
                 b2['payTime'] = ds(PERIOD_END[p] - timedelta(days=rint(0, 24)))
                 b2['payMethod'] = pickw([('微信支付', 46), ('支付宝', 30), ('现金', 10), ('银行代扣', 14)])
