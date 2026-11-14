@@ -8025,6 +8025,67 @@ test('考勤与提成：只能动本人，在途单列，价目不下发成本',
   assert(price.data.every(p => p.code && p.name && typeof p.material === 'number'), '价目字段齐全')
 })
 
+test('房屋详情聚合：一屏六样、业主明文、欠费算全量', async () => {
+  token = await login('pm')
+
+  /* 挑一套欠费账单不超过 6 张的房：这样 debt 与 bills 里的欠费可以互相验，
+     超过 6 张时 bills 只给最近六张，就不能拿它加总了 */
+  const unpaids = (await call('GET', '/bills', { query: { communityId: 'P01', status: '未缴', size: 100 } })).data.rows
+  let hit = null
+  for (const b of unpaids.slice(0, 30)) {
+    const r = await call('GET', `/mobile/houses/${b.houseId}`)
+    if (r.status === 200 && r.data.debtCount > 0 && r.data.debtCount <= r.data.bills.length) { hit = r; break }
+  }
+  assert(!!hit, '应能挑到一套欠费张数 ≤ 6 的房')
+  const d = hit.data
+  assertSchema(hit, 'MobileHouseDetailEnvelope', 'GET /mobile/houses/{houseId}')
+
+  eq(d.house.houseId, unpaids.find(b => b.houseId === d.house.houseId).houseId, '回的是这套房')
+  assert(!!d.house.buildingName, '楼栋名由服务端带出（不让前端拿 id 猜）')
+  assert(!!d.house.unitName, '单元名同理')
+
+  /* 业主明文：这一屏的存在意义就是楼管照着拨过去 */
+  assert(!!d.owner, '这套房有业主')
+  assert(!String(d.owner.phone).includes('****'), `业主手机号必须明文（${d.owner.phone}）`)
+  eq('ownerId' in d.owner, true, '带 ownerId，页面跳业主档案要用')
+
+  /* 最近 6 张，按账期倒序 */
+  assert(d.bills.length > 0 && d.bills.length <= 6, `最近账单最多 6 张（实际 ${d.bills.length}）`)
+  for (let i = 1; i < d.bills.length; i++) {
+    assert(String(d.bills[i - 1].period) >= String(d.bills[i].period),
+      `按账期倒序：${d.bills[i - 1].period} → ${d.bills[i].period}`)
+  }
+
+  /* 欠费按状态判，不按金额判；且 debt 是全量欠费，不是六张之和 */
+  const DEBT = ['未缴', '部分缴', '逾期']
+  const sumDebtShown = r2(d.bills.filter(b => DEBT.includes(b.status) && b.unpaid > 0)
+    .reduce((s2, b) => s2 + b.unpaid, 0))
+  assert(Math.abs(d.debt - sumDebtShown) < 0.02,
+    `欠费张数 ≤ 6 时 debt 应等于这几张之和（${d.debt} vs ${sumDebtShown}）`)
+  assert(d.debtCount >= 1 && d.debt > 0, '这套房有欠费（挑的就是未缴账单）')
+
+  /* 租户与成员：手机号仍脱敏（他们不是合同相对方） */
+  for (const t of d.tenants) {
+    assert(String(t.phone).includes('****'), `租户手机号必须脱敏（${t.phone}）`)
+    eq('rent' in t, false, '租户不下发租金')
+    eq('idCard' in t, false, '租户不下发证件号')
+  }
+  for (const m of d.members) {
+    assert(String(m.phone).includes('****'), `成员手机号必须脱敏（${m.phone}）`)
+  }
+
+  /* 数据范围：别项目的房一律 403，不存在的房 404。
+     别项目的房从 fixture 里取 —— pm 的账单接口本身就只回 P01，拿它找 P02 的房会先撞 403 */
+  const allHouses = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'houses.json'), 'utf8'))
+  const otherHouse = allHouses.find(h => h.communityId === 'P02' && h.houseId)
+  assert(!!otherHouse, 'fixture 里应有 P02 的房')
+  const out = await call('GET', `/mobile/houses/${otherHouse.houseId}`)
+  eq(out.status, 403, '别项目的房 403（这套房不在你的数据范围内）')
+
+  const ghost = await call('GET', '/mobile/houses/H_NOT_EXIST')
+  eq(ghost.status, 404, '不存在的房 404')
+})
+
 test('住户与催收：手机号脱敏，责任范围外拒收', async () => {
   token = await login('pm')
 

@@ -4333,6 +4333,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  /mobile/houses/{houseId}:
+    get:
+      tags: [mobile]
+      operationId: mobileHouseDetail
+      summary: 房屋详情（聚合读）
+      description: |
+        楼管在手机上点开一套房，一屏要六样东西：**房屋 + 业主 + 最近账单 + 欠费 + 在住租户 + 共住成员**。
+
+        为什么做成聚合读，而不是让前端拼四个接口：`/bills` 没有 `houseId` 过滤
+        （只有 buildingId / unitId / kw），"这套房最近六张账"拼不出来；
+        为了一个字段给账单列表加个参数，不如直接给一个聚合读。
+
+        **业主手机号与证件号给明文**：这一屏的存在意义就是楼管照着拨过去，
+        掩码在这里没有意义（列表页才是该脱敏的地方）。租户与企业成员的手机号仍然脱敏 ——
+        他们不是合同相对方，楼管不需要直接联系。
+
+        口径：
+        - `bills` 只回最近 **6** 张，按账期倒序，带 `unpaid` 与 `overdueDays`；
+        - `debt` = 欠费账单（`未缴` / `部分缴` / `逾期`，且 `unpaid > 0`）之和，
+          **不是** `bills` 里六张的合计 —— 六张只是给人看的，欠费要算全量；
+        - `已作废` / `已减免` 不进欠费（按状态判，不按金额判）。
+      x-permission: a.owners.view
+      parameters:
+        - name: houseId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MobileHouseDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden', description: 这套房不在登录人的数据范围内 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /mobile/houses/{houseId}/residents:
     get:
       tags: [mobile]
@@ -16716,6 +16753,55 @@ components:
         labor: { type: number }
         unit: { type: string, example: 次 }
         minutes: { type: integer, description: 标准工时，用于排单与超时判断 }
+
+    MobileHouseDetail:
+      type: object
+      description: 房屋详情聚合读。业主明文（楼管要打电话），租户与成员仍脱敏。
+      required: [house, bills, debt, debtCount, tenants, members]
+      properties:
+        house:
+          allOf:
+            - $ref: '#/components/schemas/House'
+            - type: object
+              properties:
+                buildingName: { type: string, description: 服务端带出，别让前端拿 id 猜 }
+                unitName: { type: string, example: '1 单元' }
+        owner:
+          nullable: true
+          description: 房屋当前业主（明文手机号与证件号）；未绑定业主时为 null
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+        bills:
+          type: array
+          description: 最近 6 张账单，按账期倒序。**不是**欠费清单，欠费看 debt
+          items:
+            type: object
+            properties:
+              billId: { type: string }
+              period: { type: string }
+              itemName: { type: string }
+              payable: { type: number }
+              unpaid: { type: number }
+              status: { type: string, description: 账单状态（未缴 / 部分缴 / 已缴 / 逾期 / 已减免 / 已作废） }
+              dueDate: { type: string, format: date }
+              overdueDays: { type: integer }
+        debt: { type: number, description: 欠费合计（全量欠费账单，不是上面六张的和） }
+        debtCount: { type: integer, description: 欠费账单张数 }
+        tenants:
+          type: array
+          description: 在住租户（手机号脱敏，不含租金与证件号）
+          items: { $ref: '#/components/schemas/TenantBrief' }
+        members:
+          type: array
+          description: 共住成员（手机号脱敏）
+          items: { $ref: '#/components/schemas/MemberBrief' }
+
+    MobileHouseDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MobileHouseDetail' }
 
     TenantBrief:
       type: object
