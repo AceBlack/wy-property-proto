@@ -17,15 +17,15 @@ CREATE TABLE IF NOT EXISTS owner (
   id_card_enc    varchar(160),
   gender         varchar(4)  CHECK (gender IN ('男','女')),
   owner_type     varchar(12) NOT NULL DEFAULT '个人'
-                 CHECK (owner_type IN ('个人','单位')),
+                 CHECK (owner_type IN ('个人','单位','业主')),
   -- 认证与注册
   certified      boolean     NOT NULL DEFAULT false,
   face_registered boolean    NOT NULL DEFAULT false,
   app_registered boolean     NOT NULL DEFAULT false,
   register_date  date,
   -- 画像（第 43 批：25 列核对结果）
-  credit_level   varchar(8)  NOT NULL DEFAULT '正常'
-                 CHECK (credit_level IN ('优秀','正常','关注','风险')),
+  credit_level   varchar(8)  NOT NULL DEFAULT 'B'
+                 CHECK (credit_level IN ('A','B','C')),
   owner_category varchar(16),
   economic_level varchar(16),
   political_status varchar(16),
@@ -139,11 +139,11 @@ CREATE TABLE IF NOT EXISTS lessee (
   house_id     varchar(24),                     -- 当前承租房（历史在 lease）
   source       varchar(12),                     -- 业主登记/中介/自主
   verify_status varchar(12) NOT NULL DEFAULT '待核验'
-                CHECK (verify_status IN ('待核验','已核验','已驳回')),
+                CHECK (verify_status IN ('待核验','已核验','已驳回','信息不全')),
   certified    boolean     NOT NULL DEFAULT false,
   face_registered boolean  NOT NULL DEFAULT false,
-  status       varchar(12) NOT NULL DEFAULT '在租'
-               CHECK (status IN ('在租','已退租','已终止')),
+  status       varchar(12) NOT NULL DEFAULT '在住'
+               CHECK (status IN ('在住','已退租','已终止')),
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now(),
   version      integer     NOT NULL DEFAULT 1,

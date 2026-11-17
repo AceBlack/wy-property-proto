@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS meter (
   last_reading  numeric(14,4),
   last_read_date date,
   status        varchar(12) NOT NULL DEFAULT '正常'
-                CHECK (status IN ('正常','停用','换表','拆除')),
+                CHECK (status IN ('正常','故障','已停用','换表','拆除')),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
   version       integer     NOT NULL DEFAULT 1,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS expense (
   incurred_date date,                            -- 发生日
   paid_date     date,                            -- 支付日（支出归月口径）
   status        varchar(12)  NOT NULL DEFAULT '待付款'
-                CHECK (status IN ('待付款','已付款','已作废')),
+                CHECK (status IN ('待付款','审批中','已付款','已驳回','已作废')),
   source        varchar(12)  NOT NULL
                 CHECK (source IN ('采购','合同','报销','手工')),
   source_id     varchar(24),

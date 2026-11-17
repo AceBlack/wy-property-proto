@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS employee (
   level        varchar(12),
 
   emp_type     varchar(12) NOT NULL DEFAULT '正式'
-               CHECK (emp_type IN ('正式','试用','实习','外包','退休返聘')),
+               CHECK (emp_type IN ('正式','试用','实习','劳务','外包','退休返聘')),
   entry_date   date,
   regular_date date,
   status       varchar(12) NOT NULL DEFAULT '在职'
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS role (
   role_id     varchar(16) NOT NULL,
   name        varchar(40) NOT NULL,
   data_scope  varchar(16) NOT NULL DEFAULT '本项目'
-              CHECK (data_scope IN ('全部','本项目','本部门','责任范围','仅本人')),
+              CHECK (data_scope IN ('全部项目','指定项目','本项目','本部门','责任范围','仅本人')),
   perm_count  smallint    NOT NULL DEFAULT 0,
   is_builtin  boolean     NOT NULL DEFAULT true,
   enabled     boolean     NOT NULL DEFAULT true,
@@ -248,13 +248,13 @@ CREATE TABLE IF NOT EXISTS notice (
   community_id varchar(16),
   title        varchar(120) NOT NULL,
   type         varchar(16)  NOT NULL DEFAULT '通知'
-               CHECK (type IN ('通知','公告','紧急','活动')),
+               CHECK (type IN ('通知','公告','停水停电','安全提示','收费通知','政策公告','社区活动','维修施工')),
   content      text,
   channels     varchar(60),                     -- 站内/微信/短信
   target_scope varchar(12)  NOT NULL DEFAULT '全部'
                CHECK (target_scope IN ('全部','楼栋','指定房屋')),
   status       varchar(12)  NOT NULL DEFAULT '草稿'
-               CHECK (status IN ('草稿','待审核','已发布','已下架')),
+               CHECK (status IN ('草稿','待审核','已发布','已过期','已撤回','已下架')),
   is_top       boolean      NOT NULL DEFAULT false,
   publisher_id varchar(16),
   published_at timestamptz,

@@ -21,14 +21,14 @@ CREATE TABLE IF NOT EXISTS work_order (
   reporter_phone  varchar(20),
 
   type            varchar(16)  NOT NULL
-                  CHECK (type IN ('报修','投诉','咨询','建议','公共维修')),
+                  CHECK (type IN ('报事','投诉建议','咨询','公共区域维修','商业服务','其他')),
   category        varchar(24),
   source          varchar(12)  NOT NULL DEFAULT '前台'
-                  CHECK (source IN ('业主端','员工端','电话','前台','巡检','其他')),
+                  CHECK (source IN ('小程序','员工端','前台','电话','巡检转单','其他')),
   priority        varchar(8)   NOT NULL DEFAULT '普通'
-                  CHECK (priority IN ('紧急','高','普通','低')),
+                  CHECK (priority IN ('特急','紧急','普通','低')),
   status          varchar(12)  NOT NULL DEFAULT '待派单'
-                  CHECK (status IN ('待派单','待接单','处理中','待确认','已完成','已取消')),
+                  CHECK (status IN ('待派单','已派单','处理中','待确认','已完工','已评价','已关闭','已取消')),
 
   title           varchar(80)  NOT NULL,
   description     text,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS work_order (
   confirmed_at    timestamptz,
 
   -- 费用
-  fee_type        varchar(12)  CHECK (fee_type IN ('免费','有偿','质保内')),
+  fee_type        varchar(12)  CHECK (fee_type IN ('免费','收费','有偿','质保内')),
   material_fee    numeric(14,2) NOT NULL DEFAULT 0,
   labor_fee       numeric(14,2) NOT NULL DEFAULT 0,
   total_fee       numeric(14,2) NOT NULL DEFAULT 0,
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS inspect_task (
   plan_date    date        NOT NULL,
   executor_id  varchar(16),
   status       varchar(12) NOT NULL DEFAULT '待执行'
-               CHECK (status IN ('待执行','执行中','已完成','已逾期','已取消')),
+               CHECK (status IN ('待执行','执行中','已完成','逾期','已转工单','已取消')),
   item_total   smallint    NOT NULL DEFAULT 0,
   item_done    smallint    NOT NULL DEFAULT 0,
   started_at   timestamptz,
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS rectify_order (
   severity     varchar(8)  NOT NULL DEFAULT '一般'
                CHECK (severity IN ('轻微','一般','严重')),
   status       varchar(12) NOT NULL DEFAULT '待整改'
-               CHECK (status IN ('待整改','待复核','已通过','已驳回')),
+               CHECK (status IN ('待整改','待复核','已闭环','已驳回')),
   assignee_id  varchar(16),
   deadline     date,
   submit_at    timestamptz,

@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS fee_item (
   name         varchar(40)  NOT NULL,
   category     varchar(16)  NOT NULL,           -- 常规服务费/公摊/代收/能耗/押金/经营性/工本费
   calc_type    varchar(12)  NOT NULL
-               CHECK (calc_type IN ('按面积','按户','按车位','按用量','一次性')),
+               CHECK (calc_type IN ('按面积','按户','按车位','按用量','按次','固定','一次性')),
   cycle        varchar(8)   NOT NULL DEFAULT '月'
-               CHECK (cycle IN ('月','季','年','一次性')),
+               CHECK (cycle IN ('月','季','年','按次','一次性')),
   unit         varchar(16)  NOT NULL,           -- 元/㎡·月
   ref_price    numeric(14,4),                   -- 新建项目时的默认价，真实价在 fee_item_price
   tax_rate     numeric(5,2) NOT NULL DEFAULT 0,
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS bill (
   unit          varchar(16)   NOT NULL,
   price         numeric(14,4) NOT NULL,
   amount        numeric(14,2) NOT NULL,          -- 原价 = round(quantity*price,2)
-  waive_amount  numeric(14,2) NOT NULL DEFAULT 0,-- 减免：应收不减，单列
+  waive_amount  numeric(14,2) NOT NULL DEFAULT 0,-- 减免额；净应缴 = payable - waive_amount
   late_fee      numeric(14,2) NOT NULL DEFAULT 0,
-  payable       numeric(14,2) NOT NULL,          -- 应缴 = amount - waive + late
+  payable       numeric(14,2) NOT NULL,          -- 应缴原价 = amount + late（减免不冲减，单列）
   paid_amount   numeric(14,2) NOT NULL DEFAULT 0,-- 物化缓存，真源在 payment_allocation
 
   -- ==== 归属快照 ====
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS bill (
   deleted_at    timestamptz,
 
   CONSTRAINT ck_bill_payable
-    CHECK (payable = amount - waive_amount + late_fee),
+    CHECK (payable = amount + late_fee),
   CONSTRAINT ck_bill_paid_range
     CHECK (paid_amount >= 0 AND paid_amount <= payable),
   CONSTRAINT ck_bill_waive

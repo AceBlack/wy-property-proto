@@ -155,7 +155,7 @@ DO $$
 DECLARE v_lessee bigint; ok boolean := false;
 BEGIN
   INSERT INTO lessee (tenant_id, lessee_type, name, phone, status)
-  VALUES (1, '个人', '李四', '13900000002', '在租')
+  VALUES (1, '个人', '李四', '13900000002', '在住')
   RETURNING lessee_id INTO v_lessee;
 
   INSERT INTO lease (tenant_id, lease_no, house_id, lessee_id, owner_id,

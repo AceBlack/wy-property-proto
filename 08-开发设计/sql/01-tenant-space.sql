@@ -130,12 +130,12 @@ CREATE TABLE IF NOT EXISTS house (
   orientation     varchar(8),                   -- 南北
 
   -- 使用状态六态（第 45 批定的口径）
-  use_status      varchar(12)  NOT NULL DEFAULT '自住'
-                  CHECK (use_status IN ('自住','出租','空置','装修中','待交付','其他')),
-  property_status varchar(12)  NOT NULL DEFAULT '产权清晰'
-                  CHECK (property_status IN ('产权清晰','产权争议','已抵押','查封')),
+  use_status      varchar(12)  NOT NULL DEFAULT '空置房'
+                  CHECK (use_status IN ('已入住','正在装修','装修未入住','空置房','已交房未装修','未交房')),
+  property_status varchar(12)  NOT NULL DEFAULT '未办理'
+                  CHECK (property_status IN ('已办证','抵押中','未办理','办理中')),
   deliver_status  varchar(12)  NOT NULL DEFAULT '已交付'
-                  CHECK (deliver_status IN ('未交付','已交付','已收房')),
+                  CHECK (deliver_status IN ('已交付','未交房')),
   deliver_date    date,
 
   steward_emp_id  varchar(16),                  -- 楼管（责任范围的数据来源）
@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS parking (
   expire_date   date,
   status        varchar(12)  NOT NULL DEFAULT '空闲'
                 CHECK (status IN ('空闲','已租','已售','停用')),
+  remark        varchar(200),
   created_at    timestamptz  NOT NULL DEFAULT now(),
   updated_at    timestamptz  NOT NULL DEFAULT now(),
   version       integer      NOT NULL DEFAULT 1,

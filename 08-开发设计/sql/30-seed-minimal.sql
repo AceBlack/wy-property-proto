@@ -33,13 +33,13 @@ ON CONFLICT DO NOTHING;
 INSERT INTO house (tenant_id, house_id, community_id, building_id, unit_id, room, floor,
                    full_name, build_area, inner_area, usage_type, use_status)
 VALUES
-  (1, 'H0101101', 'P01', 'B01', 'U0101', '101', 1, '翡翠城/1栋/1单元/101', 115.14, 92.00, '住宅', '自住'),
-  (1, 'H0101102', 'P01', 'B01', 'U0101', '102', 1, '翡翠城/1栋/1单元/102',  89.50, 71.60, '住宅', '出租')
+  (1, 'H0101101', 'P01', 'B01', 'U0101', '101', 1, '翡翠城/1栋/1单元/101', 115.14, 92.00, '住宅', '已入住'),
+  (1, 'H0101102', 'P01', 'B01', 'U0101', '102', 1, '翡翠城/1栋/1单元/102',  89.50, 71.60, '住宅', '已入住')
 ON CONFLICT DO NOTHING;
 
 -- 业主
 INSERT INTO owner (tenant_id, owner_id, name, phone, owner_type, certified, credit_level)
-VALUES (1, 'OW00001', '张三', '13800000001', '个人', true, '正常')
+VALUES (1, 'OW00001', '张三', '13800000001', '个人', true, 'B')
 ON CONFLICT DO NOTHING;
 
 -- 产权关系（当前）

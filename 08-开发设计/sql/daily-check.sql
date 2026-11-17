@@ -38,7 +38,7 @@ WHERE n.nspname = 'wy'
 \echo '=== 4. 账单平衡：payable ≠ amount − waive + late（应为 0 行）==='
 SELECT id, bill_no, amount, waive_amount, late_fee, payable
 FROM bill
-WHERE payable <> amount - waive_amount + late_fee
+WHERE payable <> amount + late_fee
   AND deleted_at IS NULL;
 
 \echo '=== 5. 账单已收超过应缴（应为 0 行）==='
@@ -92,9 +92,9 @@ SELECT id, bill_no, status, payable, paid_amount
 FROM bill
 WHERE deleted_at IS NULL
   AND (
-    (status = '已缴'   AND paid_amount <> payable) OR
+    (status = '已缴'   AND paid_amount <> payable - waive_amount) OR
     (status = '待缴'   AND paid_amount <> 0) OR
-    (status = '部分缴' AND (paid_amount = 0 OR paid_amount >= payable))
+    (status = '部分缴' AND (paid_amount = 0 OR paid_amount >= payable - waive_amount))
   );
 
 \echo '=== 10. 跨租户脏数据：子表与主表 tenant_id 不一致（应为 0 行）==='

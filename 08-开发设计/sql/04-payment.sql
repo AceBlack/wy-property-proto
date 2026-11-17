@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS deposit (
   amount         numeric(14,2) NOT NULL CHECK (amount > 0),   -- 应收押金
   balance        numeric(14,2) NOT NULL DEFAULT 0,            -- 物化：ΣI − ΣO − ΣD
   status         varchar(12)  NOT NULL DEFAULT '待收'
-                 CHECK (status IN ('待收','在账','部分退还','已结清','已没收')),
+                 CHECK (status IN ('待收','在押','装修中','已逾期','部分扣除','部分退还','已退还','已结清','已没收')),
   start_date     date         NOT NULL,
   plan_end_date  date,
   closed_at      timestamptz,
@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS invoice (
   amount       numeric(14,2) NOT NULL,          -- 价税合计
   tax_amount   numeric(14,2) NOT NULL DEFAULT 0,
   status       varchar(12)   NOT NULL DEFAULT '待开'
-               CHECK (status IN ('待开','已开','已红冲','已作废')),
+               CHECK (status IN ('待开','已开具','开具失败','已红冲','已作废')),
   issued_at    timestamptz,
   channel      varchar(16),                     -- 税务UKey/百望/航信
   red_against  bigint,                          -- 红冲的原始发票
