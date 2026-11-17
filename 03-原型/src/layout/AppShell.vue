@@ -5,8 +5,8 @@
     <AppSidebar :collapse="collapse" @toggle="collapse = !collapse" />
     <div class="app-main">
       <AppTopBar :collapse="collapse" @toggle="collapse = !collapse" />
-      <div class="app-body">
-        <div class="app-crumb">
+      <div class="app-body" :class="{ 'is-bleed': bleed }">
+        <div v-if="!bleed" class="app-crumb">
           <span>{{ groupName }}</span>
           <span class="sep">/</span>
           <span class="cur">{{ pageName }}</span>
@@ -37,4 +37,5 @@ const groupName = computed(() => groupOf(page.value?.group)?.name || '原型')
 const pageName = computed(() => page.value?.title || route.meta?.title || '')
 const pageDesc = computed(() => page.value?.desc || '')
 const standalone = computed(() => !!route.meta?.standalone)
+const bleed = computed(() => route.meta?.chrome === 'bleed')
 </script>

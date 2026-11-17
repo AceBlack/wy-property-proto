@@ -1,109 +1,140 @@
 <template>
-  <div class="page">
-    <div class="proto-note">
-      <el-icon class="ico"><InfoFilled /></el-icon>
-      <div>
-        <b>工单列表 · 以「一张工单」为行</b>：顶部<b>快捷视图定状态</b>（待派单 / 已超时 / 紧急及以上 / 未闭环），
-        下方<b>范围筛选定空间</b>（项目 → 楼栋 → 单元），两者<b>可叠加</b>。只有入户维修类带房屋（约两成），
-        公共区域 / 投诉 / 咨询类没有房屋归属，用「只看无房屋工单」开关承接；
-        看「哪栋报修集中」用报表中心的<b>工单按楼栋分布</b>，不在列表里翻树。
-      </div>
-    </div>
+  <div class="page bl-page">
+    <div class="bl-main">
+      <!-- 单行工具条 -->
+      <div class="bl-bar">
+        <el-input v-model="query.kw" class="bl-search" placeholder="工单号 / 标题 / 师傅"
+          clearable @keyup.enter="run" @clear="run">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
 
-    <div class="panel" style="margin-top:16px;">
-      <div class="grid g4">
-        <div class="dstat"><div class="dstat__k">工单总数</div><div class="dstat__v">{{ summary.total }}<span class="unit">单</span></div></div>
-        <div class="dstat"><div class="dstat__k">未闭环</div><div class="dstat__v" :class="summary.open > 0 ? 'is-warn' : ''">{{ summary.open }}<span class="unit">单</span></div></div>
-        <div class="dstat"><div class="dstat__k">已超时</div><div class="dstat__v" :class="summary.overdue > 0 ? 'is-warn' : ''">{{ summary.overdue }}<span class="unit">单</span></div></div>
-        <div class="dstat"><div class="dstat__k">待派单</div><div class="dstat__v" :class="summary.pending > 0 ? 'is-warn' : ''">{{ summary.pending }}<span class="unit">单</span></div></div>
-      </div>
-      <div class="sum-note">
-        口径：未闭环 = 待派单 / 已派单 / 处理中 / 待确认四态；已超时按 SLA 截止时间判定，与工单驾驶舱同源。
-        <br />
-        <b>满意度 {{ sat.avg || '—' }} 分</b>（{{ sat.ratedCount }} 单已评，未评价不计入均值 · 参评率 {{ sat.evalRate }}%）
-        · <b>完工未评价 {{ sat.unratedCount }} 单</b>，用上方快捷视图「完工未评价」可直接拉出来催评。
-      </div>
-    </div>
+        <div class="bl-chips">
+          <button v-for="v in quickViews" :key="v.key" class="bl-chip" :class="{ 'is-on': query.vf === v.key }"
+            @click="pickView(v)">
+            {{ v.label }}<span class="bl-chip-n">{{ v.n }}</span>
+          </button>
+        </div>
 
-    <div class="ia is-flat" style="margin-top:16px;">
-      <div class="ia__main">
-        <div class="panel">
-          <div class="qvwrap">
-            <QuickViews v-model="query.vf" :items="quickViews" hint="快捷视图与下方范围可叠加" @change="run">
-              <template #after>
-                <el-checkbox v-model="onlyNoHouse" size="small" @change="onNoHouse">只看无房屋工单</el-checkbox>
-              </template>
-            </QuickViews>
+        <button class="bl-more" :class="{ 'is-on': moreOpen || extraCount > 0 }" @click="moreOpen = !moreOpen">
+          更多筛选<template v-if="extraCount"> · {{ extraCount }}</template>
+          <span class="bl-caret">{{ moreOpen ? '▴' : '▾' }}</span>
+        </button>
+
+        <span class="spacer" />
+        <el-button v-if="picked.length" text @click="openBatch">批量操作 {{ picked.length }}</el-button>
+        <el-button text :disabled="!rows.length" @click="onExport">导出</el-button>
+        <el-popover placement="bottom-end" :width="440" trigger="click" popper-class="bl-pop">
+          <template #reference><button class="bl-ibtn" title="这页怎么用">ⓘ</button></template>
+          <div class="bl-tip">
+            <b>以「一张工单」为行。</b>顶部<b>快捷视图</b>定状态（待派单 / 已超时 / 紧急及以上 / 未闭环），
+            「更多筛选」可叠加楼栋、单元、类型、优先级。只有入户维修类带房屋（约两成），
+            公共区域 / 投诉 / 咨询类没有房屋归属，用「只看无房屋工单」承接。
+            看「哪栋报修集中」用报表中心的<b>工单按楼栋分布</b>。
           </div>
+        </el-popover>
+        <el-button type="primary" @click="$router.push('/f/workorders/new')">发起工单</el-button>
+      </div>
 
-          <el-form :model="query" class="filter-bar" label-width="56px" @submit.prevent>
-            <ScopeFilter :model="query" @patch="p2 => Object.assign(query, p2)" @change="run" />
+      <!-- 更多筛选：就地展开 -->
+      <transition name="bl-exp">
+        <div v-if="moreOpen" class="bl-morepanel">
+          <el-form :model="query" :inline="true" class="bl-moreform" @submit.prevent>
             <el-form-item label="状态">
-              <el-select v-model="query.status" placeholder="全部" clearable style="width:80px">
+              <el-select v-model="query.status" placeholder="全部" clearable style="width:112px" @change="run">
                 <el-option v-for="s in statusOpts" :key="s" :label="s" :value="s" />
               </el-select>
             </el-form-item>
             <el-form-item label="类型">
-              <el-select v-model="query.type" placeholder="全部" clearable style="width:96px">
+              <el-select v-model="query.type" placeholder="全部" clearable style="width:132px" @change="run">
                 <el-option v-for="t in typeOpts" :key="t" :label="t" :value="t" />
               </el-select>
             </el-form-item>
             <el-form-item label="优先级">
-              <el-select v-model="query.priority" placeholder="全部" clearable style="width:76px">
+              <el-select v-model="query.priority" placeholder="全部" clearable style="width:104px" @change="run">
                 <el-option v-for="p in priorityOpts" :key="p" :label="p" :value="p" />
               </el-select>
             </el-form-item>
-            <el-form-item label="关键字">
-              <el-input v-model="query.kw" placeholder="工单号 / 标题 / 师傅" clearable style="width:120px" @keyup.enter="search" />
+            <ScopeFilter :model="query" :levels="['building', 'unit']"
+              @patch="p => Object.assign(query, p)" @change="run" />
+            <el-form-item label="范围">
+              <el-checkbox v-model="onlyNoHouse" @change="onNoHouse">只看无房屋工单</el-checkbox>
             </el-form-item>
-            <el-form-item class="acts">
-              <el-button :icon="'Search'" @click="run">查询</el-button>
-              <el-button :icon="'RefreshLeft'" @click="onResetAll">重置</el-button>
+            <el-form-item>
+              <el-button text @click="onResetAll">清除全部条件</el-button>
             </el-form-item>
           </el-form>
         </div>
+      </transition>
 
-        <div class="panel" style="margin-top:16px;">
-          <div class="scopebar">
-            <span class="scopebar__i is-last">{{ scopeText }}</span>
-            <span v-if="query.nohouse" class="scopebar__vf">无房屋工单</span>
-            <span v-if="vnLabel" class="scopebar__vf">{{ vnLabel }}</span>
-            <span v-if="query.kw" class="scopebar__vf">关键字 {{ query.kw }}</span>
-            <span class="spacer" />
-            <span class="scopebar__sum">
-              本范围 <b>{{ scopeSum.count }}</b> 单 · 未闭环 <b>{{ scopeSum.open }}</b> ·
-              超时 <b class="is-warn">{{ scopeSum.overdue }}</b> · 待派单 <b>{{ scopeSum.pending }}</b>
-            </span>
-            <el-button link type="primary" :disabled="!hasScope" @click="clearScope">清除范围</el-button>
+      <!-- KPI 瓦片 -->
+      <div class="bl-kpis">
+        <div class="bl-kpi">
+          <div class="bl-kpi-ic"><el-icon><Tickets /></el-icon></div>
+          <div class="bl-kpi-v">{{ summary.total }}<span class="bl-kpi-u">单</span></div>
+          <div class="bl-kpi-l">工单总数</div>
+        </div>
+        <div class="bl-kpi">
+          <div class="bl-kpi-ic"><el-icon><Clock /></el-icon></div>
+          <div class="bl-kpi-v" :class="{ 'is-dan': summary.open > 0 }">{{ summary.open }}<span class="bl-kpi-u">单</span></div>
+          <div class="bl-kpi-l">未闭环</div>
+        </div>
+        <div class="bl-kpi">
+          <div class="bl-kpi-ic is-dan"><el-icon><Warning /></el-icon></div>
+          <div class="bl-kpi-v is-dan">{{ summary.overdue }}<span class="bl-kpi-u">单</span></div>
+          <div class="bl-kpi-l">已超时</div>
+        </div>
+        <div class="bl-kpi">
+          <div class="bl-kpi-ic"><el-icon><Bell /></el-icon></div>
+          <div class="bl-kpi-v">{{ summary.pending }}<span class="bl-kpi-u">单</span></div>
+          <div class="bl-kpi-l">
+            待派单
+            <el-popover placement="top" :width="380" trigger="click" popper-class="bl-pop">
+              <template #reference><el-icon class="bl-info is-sm"><InfoFilled /></el-icon></template>
+              <div class="bl-tip">
+                未闭环 = 待派单 / 已派单 / 处理中 / 待确认四态；已超时按 SLA 截止时间判定，与工单驾驶舱同源。<br><br>
+                满意度 <b>{{ sat.avg || '—' }}</b> 分（{{ sat.ratedCount }} 单已评，参评率 {{ sat.evalRate }}%），
+                完工未评价 <b>{{ sat.unratedCount }}</b> 单，可用快捷视图「完工未评价」拉出来催评。
+              </div>
+            </el-popover>
           </div>
+        </div>
+      </div>
 
-          <div class="toolbar" style="margin-top:10px;">
-            <el-button type="primary" :icon="'Plus'" @click="$router.push('/f/workorders/new')">发起工单</el-button>
-            <el-button :icon="'MagicStick'" :disabled="!picked.length" @click="openBatch">
-              批量操作{{ picked.length ? `（${picked.length}）` : '' }}
-            </el-button>
-            <el-button :icon="'Download'" :disabled="!rows.length" @click="onExport">导出</el-button>
-            <span class="spacer" />
-            <span v-if="picked.length" class="muted" style="font-size:12.5px;">已选 {{ picked.length }} 单</span>
-            <el-button :icon="'Refresh'" circle title="刷新" @click="load" />
-            <span class="muted" style="font-size:12.5px;">共 {{ total }} 单</span>
-          </div>
+      <!-- 当前范围小计 -->
+      <div class="bl-scope">
+        <span class="bl-scope-t">{{ scopeText }}</span>
+        <span class="bl-scope-d">
+          本范围 <b>{{ scopeSum.count }}</b> 单 · 未闭环 <b>{{ scopeSum.open }}</b> ·
+          超时 <b class="is-warn">{{ scopeSum.overdue }}</b> · 待派单 <b>{{ scopeSum.pending }}</b>
+        </span>
+        <span v-if="query.nohouse" class="bl-scope-tag">无房屋工单</span>
+        <span v-if="vnLabel" class="bl-scope-tag">{{ vnLabel }}</span>
+        <span class="spacer" />
+        <span class="bl-scope-page">共 {{ total }} 单</span>
+      </div>
 
-          <el-table v-loading="loading" :data="rows" style="width:100%" max-height="calc(100vh - 470px)"
-            :row-class-name="rowClass" @row-click="onRow" @selection-change="l => picked = l">
-            <el-table-column type="selection" width="46" />
-            <el-table-column label="工单号" min-width="104">
+      <!-- 表格：无卡片 -->
+      <div class="bl-table">
+        <div class="bl-tblwrap">
+          <el-table v-loading="loading" :data="rows" class="bl-tbl" style="width:100%"
+            height="100%" :row-class-name="rowClass" @row-click="onRow" @selection-change="l => picked = l">
+            <el-table-column type="selection" width="42" />
+            <el-table-column label="工单号" min-width="112">
               <template #default="{ row }">
-                <div class="nowrap">{{ row.woNo }}</div>
+                <div class="nowrap bl-id">{{ row.woNo }}</div>
                 <div class="ps-sub">{{ row.communityName }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="type" label="类型" min-width="96" show-overflow-tooltip />
-            <el-table-column label="房屋" min-width="140" show-overflow-tooltip>
+            <el-table-column prop="title" label="标题" min-width="190" show-overflow-tooltip>
+              <template #default="{ row }"><span class="bl-addr">{{ row.title }}</span></template>
+            </el-table-column>
+            <el-table-column prop="type" label="类型" min-width="100" show-overflow-tooltip>
+              <template #default="{ row }"><span class="bl-subj">{{ row.type }}</span></template>
+            </el-table-column>
+            <el-table-column label="房屋" min-width="128" show-overflow-tooltip>
               <template #default="{ row }">
                 <span v-if="row.houseId">{{ houseShort(row.houseName || houseName(row.houseId)) }}</span>
-                <span v-else class="ps-sub">公共 / 非入户</span>
+                <span v-else class="bl-subj">公共 / 非入户</span>
               </template>
             </el-table-column>
             <el-table-column label="服务项目 / 费用" min-width="150">
@@ -112,17 +143,17 @@
                   <div>{{ row.serviceName || row.category }}</div>
                   <div class="ps-sub">
                     <span class="money">¥ {{ money(row.totalFee) }}</span>
-                    <span :class="row.payStatus === '未支付' ? 'is-warn' : 'ps-sub'"> · {{ row.payStatus }}</span>
+                    <span :class="row.payStatus === '未支付' ? 'is-warn' : ''"> · {{ row.payStatus }}</span>
                   </div>
                 </template>
-                <span v-else-if="row.type === '公共区域维修'" class="ps-sub">免费 · {{ row.category }}</span>
-                <span v-else class="ps-sub">{{ row.category || '—' }}</span>
+                <span v-else-if="row.type === '公共区域维修'" class="bl-subj">免费 · {{ row.category }}</span>
+                <span v-else class="bl-subj">{{ row.category || '—' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" min-width="86">
-              <template #default="{ row }"><StatusTag domain="workOrder" :value="row.status" /></template>
+            <el-table-column prop="status" label="状态" width="96">
+              <template #default="{ row }"><span class="bl-st"><StatusTag domain="workOrder" :value="row.status" /></span></template>
             </el-table-column>
-            <el-table-column label="业主评分" width="106">
+            <el-table-column label="业主评分" width="104">
               <template #default="{ row }">
                 <span v-if="row.score" class="wos" :class="{ 'is-low': row.score <= 2 }">
                   <i class="wos__stars">{{ '★'.repeat(row.score) }}<span class="wos__off">{{ '★'.repeat(5 - row.score) }}</span></i>
@@ -132,12 +163,12 @@
                 <span v-else class="muted">—</span>
               </template>
             </el-table-column>
-            <el-table-column prop="priority" label="优先级" min-width="72">
+            <el-table-column prop="priority" label="优先级" width="80">
               <template #default="{ row }">
                 <span :class="{ 'is-warn-text': row.priority === '特急' || row.priority === '紧急' }">{{ row.priority }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="assignee" label="处理人" min-width="82" show-overflow-tooltip>
+            <el-table-column prop="assignee" label="处理人" min-width="86" show-overflow-tooltip>
               <template #default="{ row }">{{ row.assignee || '待派单' }}</template>
             </el-table-column>
             <el-table-column label="SLA 剩余" min-width="92" align="right">
@@ -148,22 +179,16 @@
                 <span v-else :class="slaOf(row).pct >= 80 ? 'is-warn-text' : ''">剩 {{ slaOf(row).leftHours }}h</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="66" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click.stop="goDetail(row)">详情</el-button>
-              </template>
-            </el-table-column>
             <template #empty>
               <EmptyState type="search" desc="换个筛选条件，或清除范围重新查看">
                 <template #action><el-button @click="onResetAll">清除筛选条件</el-button></template>
               </EmptyState>
             </template>
           </el-table>
-
-          <div class="table-foot">
-            <el-pagination v-model:current-page="pageNo" v-model:page-size="size"
-              :page-sizes="PAGE_SIZES" :total="total" layout="total, sizes, prev, pager, next, jumper" />
-          </div>
+        </div>
+        <div class="bl-foot">
+          <el-pagination v-model:current-page="pageNo" v-model:page-size="size"
+            :page-sizes="PAGE_SIZES" :total="total" layout="total, sizes, prev, pager, next, jumper" />
         </div>
       </div>
     </div>
@@ -353,6 +378,16 @@ const scopeText = computed(() => {
 const { data: detailData, visible: detailVisible, loading: detailLoading, open: openDetail } = useDetail(getWorkOrder)
 
 /* X3 批量操作：勾选后批量改优先级 / 指派处理人 */
+const moreOpen = ref(false)
+/* 快捷视图：点已选中的再点一次取消 */
+function pickView(v) {
+  query.vf = query.vf === v.key ? '' : v.key
+  run()
+}
+/* 「更多筛选」角标：只数为折叠起来的条件 */
+const extraCount = computed(() =>
+  (query.status ? 1 : 0) + (query.type ? 1 : 0) + (query.priority ? 1 : 0) + (onlyNoHouse.value ? 1 : 0))
+
 const picked = ref([])
 const batchVisible = ref(false)
 const batchForm = ref({ priority: '', assignee: '' })
@@ -456,4 +491,70 @@ useFocusLanding(async ({ focus, open, location }) => {
 .wos__off { color: var(--biz-border); }
 .wos b { font-family: var(--biz-font-num); color: var(--biz-text-2); font-weight: 600; }
 .wos.is-low, .wos.is-low b { color: #a33; }
+
+/* ===== 与账单页一致的骨架样式 ===== */
+.bl-page { height: 100%; display: flex; flex-direction: column; }
+.bl-main { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; padding: 12px 24px 0; }
+.bl-bar { display: flex; align-items: center; gap: 8px; height: 40px; margin-bottom: 4px; }
+.bl-search { flex: 0 0 268px; }
+.bl-chips { display: flex; align-items: center; gap: 2px; }
+.bl-chip {
+  appearance: none; border: 0; background: transparent; height: 32px; padding: 0 11px;
+  border-radius: 999px; font-size: 12.5px; color: var(--biz-text-2); cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.bl-chip:hover { background: #F4F5F9; }
+.bl-chip.is-on { background: #fff; color: var(--biz-text-1); font-weight: 500; box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+.bl-chip-n { font-size: 11px; color: var(--biz-text-4); font-variant-numeric: tabular-nums; }
+.bl-chip.is-on .bl-chip-n { color: var(--el-color-primary); }
+.bl-more {
+  appearance: none; border: 0; background: transparent; height: 32px; padding: 0 10px;
+  border-radius: 8px; font-size: 12.5px; color: var(--el-color-primary); cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.bl-more:hover, .bl-more.is-on { background: #EEF0FF; }
+.bl-caret { margin-left: 4px; font-size: 10px; }
+.bl-ibtn {
+  appearance: none; border: 0; background: transparent; width: 28px; height: 28px;
+  border-radius: 8px; color: var(--biz-text-4); font-size: 15px; cursor: pointer; font-family: inherit;
+}
+.bl-ibtn:hover { background: #F1F2F6; color: var(--el-color-primary); }
+.bl-morepanel { background: #fff; border: 1px solid #F0F2F6; border-radius: 12px; padding: 14px 18px 2px; margin-bottom: 12px; }
+.bl-moreform :deep(.el-form-item) { margin-bottom: 12px; margin-right: 26px; }
+.bl-exp-enter-active, .bl-exp-leave-active { transition: opacity .16s ease, transform .16s ease; }
+.bl-exp-enter-from, .bl-exp-leave-to { opacity: 0; transform: translateY(-4px); }
+.bl-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.bl-kpi { background: #fff; border-radius: 14px; padding: 13px 16px 11px; }
+.bl-kpi-ic { width: 28px; height: 28px; border-radius: 9px; background: #F4F5F9; display: grid; place-items: center; font-size: 14px; color: #616A7D; }
+.bl-kpi-ic.is-dan { background: #FDECEF; color: var(--biz-danger); }
+.bl-kpi-v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 6px; color: var(--biz-text-1); font-variant-numeric: tabular-nums; }
+.bl-kpi-v.is-dan { color: var(--biz-danger); }
+.bl-kpi-u { font-size: 12px; font-weight: 400; color: var(--biz-text-3); margin-left: 3px; }
+.bl-kpi-l { font-size: 12px; color: var(--biz-text-3); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.bl-info { font-size: 14px; color: var(--biz-text-4); cursor: pointer; }
+.bl-info.is-sm { font-size: 12px; }
+.bl-tip { font-size: 12.5px; line-height: 1.8; color: var(--biz-text-2); }
+.bl-tip b { color: var(--biz-text-1); font-weight: 500; }
+.bl-scope { display: flex; align-items: center; gap: 10px; height: 30px; margin-bottom: 4px; }
+.bl-scope-t { font-size: 12.5px; color: var(--biz-text-1); font-weight: 500; }
+.bl-scope-d { font-size: 12px; color: var(--biz-text-3); font-variant-numeric: tabular-nums; }
+.bl-scope-d b { color: var(--biz-text-1); font-weight: 500; }
+.bl-scope-tag { font-size: 11.5px; color: var(--el-color-primary); background: #EEF0FF; border-radius: 999px; padding: 1px 8px; }
+.bl-scope-page { font-size: 11.5px; color: var(--biz-text-4); font-variant-numeric: tabular-nums; }
+.bl-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.bl-tblwrap { flex: 1; min-height: 0; overflow: hidden; }
+.bl-tbl { --el-table-bg-color: transparent; --el-table-tr-bg-color: transparent; --el-table-header-bg-color: transparent; background: transparent; }
+.bl-tbl :deep(.el-table__inner-wrapper), .bl-tbl :deep(.el-table__body-wrapper), .bl-tbl :deep(.el-table__header-wrapper) { background: transparent; }
+.bl-tbl :deep(.el-table__header th) {
+  background: transparent; font-weight: 400; font-size: 12px; color: var(--biz-text-3);
+  border-bottom: 1px solid #F0F2F6; height: 38px; padding: 0;
+}
+.bl-tbl :deep(.el-table__row td) { height: 46px; padding: 0; border-bottom: 1px solid #F6F7FA; font-size: 13px; }
+.bl-tbl :deep(.el-table__row:hover > td) { background: #F2F4FF; }
+.bl-tbl :deep(.el-table__inner-wrapper::before) { display: none; }
+.bl-id { font-size: 12px; color: var(--biz-text-3); font-variant-numeric: tabular-nums; }
+.bl-addr { color: var(--biz-text-1); }
+.bl-subj { color: var(--biz-text-3); font-size: 12.5px; }
+.bl-st :deep(.el-tag) { background: transparent !important; border: 0 !important; padding: 0 !important; height: auto !important; font-size: 12.5px; }
+.bl-st :deep(.el-tag)::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
+.bl-foot { display: flex; justify-content: flex-end; padding: 10px 0 0; }
 </style>

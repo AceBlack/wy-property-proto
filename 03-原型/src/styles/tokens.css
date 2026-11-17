@@ -32,12 +32,12 @@
 
   /* ---------- 1c. 深色导航 ----------
      一级导航 220px 深藏青，二级导航 64px 图标栏（更深一档）。 */
-  --biz-sidebar-bg: #101f42;
+  --biz-sidebar-bg: #ffffff;
   --biz-sidebar-bg-deep: #0b1730;
   --biz-sidebar-2nd-bg: #0c1836;
-  --biz-sidebar-text: #97a3c2;
-  --biz-sidebar-text-active: #ffffff;
-  --biz-sidebar-active-bg: rgba(91, 108, 255, .30);
+  --biz-sidebar-text: #4a5168;
+  --biz-sidebar-text-active: #5b6cff;
+  --biz-sidebar-active-bg: #eff0ff;
   --biz-sidebar-w: 220px;
   --biz-sidebar-2nd-w: 64px;
 
@@ -79,7 +79,7 @@
 
   /* ---------- 3. 中性色 / 背景 ---------- */
   --el-bg-color: #ffffff;
-  --el-bg-color-page: #f1f2fa;
+  --el-bg-color-page: #f7f8fa;
   --el-text-color-primary: #1f2540;
   --el-text-color-regular: #4a5168;
   --el-text-color-secondary: #8a94b0;
@@ -93,7 +93,7 @@
   /* ---------- 3b. 语义别名（v2.2 新增）----------
      业务代码一律用这一层，不直接写 --el-*，也不写死色值。
      好处：换肤只改本段；EP 升级改名时业务代码不受影响。 */
-  --biz-bg-page: #f1f2fa;      /* 页面底 */
+  --biz-bg-page: #f7f8fa;      /* 页面底（与效果图一致） */
   --biz-bg-card: #ffffff;      /* 卡片/面板底 */
   --biz-bg-hover: #f5f6ff;     /* 行 hover / 轻量底 */
   --biz-bg-fill: #f4f5fc;      /* 表头 / 只读块 */
@@ -115,13 +115,13 @@
   /* ---------- 4. 圆角 ----------
      对照截图实测：控件 6px，卡片 10px，面板 12px，标签/步骤条胶囊 999px。
      按钮不做全胶囊 —— 截图中按钮是 6px 小圆角矩形。 */
-  --el-border-radius-base: 6px;
+  --el-border-radius-base: 8px;
   --el-border-radius-small: 4px;
   --el-border-radius-round: 999px;
   --el-border-radius-circle: 100%;
 
-  --biz-radius-control: 6px;
-  --biz-radius-btn: 6px;
+  --biz-radius-control: 8px;
+  --biz-radius-btn: 8px;
   --biz-radius-card: 10px;
   --biz-radius-panel: 12px;
   --biz-radius-pill: 999px;
@@ -193,7 +193,7 @@
   --layout-table-radius: 10px;
 
   /* ---------- 9. 表格 ---------- */
-  --table-row-h: 48px;
+  --table-row-h: 46px;
   --table-row-h-compact: 40px;
   --table-header-bg: #f4f5fc;
   --table-header-color: #6a7390;
@@ -318,22 +318,22 @@
   /* 表格：表头浅底小字；行区分只靠 hover + 选中，不使用斑马纹（E-02） */
   --el-table-header-bg-color: #f4f5fc;
   --el-table-header-text-color: #6a7390;
-  --el-table-row-hover-bg-color: #f5f6ff;
+  --el-table-row-hover-bg-color: #f2f4ff;
   --el-table-current-row-bg-color: #eff0ff;
   --el-table-border-color: #eef0f8;
   --el-table-text-color: #4a5168;
 
-  /* 分页：方块页码，白底 1px 描边。
+  /* 分页：28×28 方块页码，无描边，8px 圆角，当前页浅底主色字。
      注意：EP 的 background 属性本身就是「灰底无描边」方案，与截图不符，已全站禁用。 */
-  --el-pagination-button-width: 32px;
-  --el-pagination-button-height: 32px;
+  --el-pagination-button-width: 28px;
+  --el-pagination-button-height: 28px;
   --el-pagination-button-width-small: 28px;
   --el-pagination-button-height-small: 28px;
-  --el-pagination-border-radius: 6px;
-  --el-pagination-button-bg-color: #ffffff;
+  --el-pagination-border-radius: 8px;
+  --el-pagination-button-bg-color: transparent;
   --el-pagination-hover-color: #5b6cff;
   --el-pagination-text-color: #4a5168;
-  --el-pagination-font-size: 13px;
+  --el-pagination-font-size: 12.5px;
 
   /* 复选框 16×16（EP 默认 14，截图为 16） */
   --el-checkbox-input-width: 16px;
@@ -437,7 +437,7 @@
 }
 .el-table td.el-table__cell {
   border-right: none;   /* 表格不出现竖线 */
-  padding: 11px 0;      /* 11*2 + 行内 26（含状态标签）= 48 */
+  padding: 10px 0;      /* 10*2 + 行内 26（含状态标签）= 46 */
   height: var(--table-row-h);   /* 固定 48，避免内容行高不同导致行高忽高忽低 */
 }
 /* 单元格统一 20px 行高，保证同行各列基线一致、行高可预测 */
@@ -505,39 +505,52 @@
 .el-table {
   --el-table-header-bg-color: #f4f5fc;
   --el-table-header-text-color: #6a7390;
-  --el-table-row-hover-bg-color: #f5f6ff;
+  --el-table-row-hover-bg-color: #f2f4ff;
   --el-table-current-row-bg-color: #eff0ff;
   --el-table-border-color: #eef0f8;
 }
 
-/* 分页：方块页码 · 白底 1px 描边 · 6px 圆角
-   （EP 的 background 属性 = 灰底无描边方案，全站已禁用该属性） */
+/* 分页：28×28 方块 · 无描边 · 8px 圆角 · 当前页浅底主色字
+   （2026-11-18 定稿：原来当前页是主色实底 + 白字，视觉过重；
+     EP 的 background 属性 = 灰底无描边方案，全站已禁用该属性） */
 .el-pagination {
-  --el-pagination-border-radius: 6px;
-  --el-pagination-button-bg-color: #ffffff;
-  --el-pagination-button-width: 32px;
-  --el-pagination-button-height: 32px;
-  --el-pagination-font-size: 13px;
+  --el-pagination-border-radius: 8px;
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-button-width: 28px;
+  --el-pagination-button-height: 28px;
+  --el-pagination-font-size: 12.5px;
   --el-pagination-item-gap: 8px;
 }
 .el-pagination .el-pager li {
-  border: 1px solid var(--el-border-color);
+  border: 0;
+  min-width: 28px;
+  height: 28px;
+  line-height: 28px;
   border-radius: var(--el-pagination-border-radius);
-  background: var(--el-pagination-button-bg-color);
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--biz-text-2);
 }
+.el-pagination .el-pager li:hover { background: #f1f2f6; color: var(--biz-text-1); }
 .el-pagination .el-pager li.is-active {
-  background: var(--el-color-primary);
-  border-color: var(--el-color-primary);
-  color: #fff;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-weight: 500;
 }
+.el-pagination .el-pager li.is-active:hover { background: #e4e7ff; }
 .el-pagination .el-select__wrapper { min-height: 32px; }
 .el-pagination .el-select__wrapper .el-select__selected-item { font-size: 13px; }
 .el-pagination .btn-prev,
 .el-pagination .btn-next {
-  border: 1px solid var(--el-border-color);
+  border: 0;
   border-radius: var(--el-pagination-border-radius);
-  background: #fff;
+  background: transparent;
+  color: var(--biz-text-2);
 }
+.el-pagination .btn-prev:hover,
+.el-pagination .btn-next:hover { background: #f1f2f6; color: var(--biz-text-1); }
+.el-pagination .btn-prev:disabled,
+.el-pagination .btn-next:disabled { background: transparent; color: var(--biz-text-4); }
 
 /* 复选框 16×16（EP 默认 14） */
 .el-checkbox {

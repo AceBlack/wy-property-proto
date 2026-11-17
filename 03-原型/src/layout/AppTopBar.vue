@@ -28,8 +28,9 @@
 
     <span class="spacer" />
 
-    <!-- 收银台入口放顶栏：它不在菜单里（全屏页，进去就没有侧栏了） -->
-    <div class="top-cashier" title="进入全屏收银台" @click="$router.push('/b/cashier')">
+    <!-- 收银台入口放顶栏：它不在菜单里（全屏页，进去就没有侧栏了）。
+         按权限显示——没有收银权限的角色看不到这个入口，避免点了直接 403 -->
+    <div v-if="canCashier" class="top-cashier" title="进入全屏收银台" @click="$router.push('/b/cashier')">
       <el-icon><Money /></el-icon>
       <span>收银台</span>
     </div>
@@ -102,6 +103,9 @@ const roles = roleSwitchOpts()
 const roleGroups = computed(() => ['集团', '项目'].map(scope => ({
   scope, items: roles.filter(r => r.scope === scope)
 })))
+/* 无收银权限的角色不显示入口 */
+const canCashier = computed(() => canVisit('/b/cashier'))
+
 const curRole = computed(() =>
   roles.find(r => r.value === currentRoleId.value) || { label: '未分配角色', permCount: 0 })
 

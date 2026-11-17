@@ -26,12 +26,15 @@ a { color: var(--el-color-primary); text-decoration: none; }
 .app-shell { display: flex; height: 100%; min-width: var(--layout-min-w); }
 .app-main  { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .app-body  { flex: 1; overflow: auto; padding: var(--layout-content-pad); }
+/* 出血页（chrome: 'bleed'）：不出面包屑，内容直贴顶栏，页面自己管留白 */
+.app-body.is-bleed { padding: 0; overflow: auto; }
 
-/* ---------- 侧边栏（深海军蓝） ---------- */
+/* ---------- 侧边栏（浅色 · 2026-11-18 改） ---------- */
 .app-side {
   width: var(--layout-sidebar-w);
   flex: 0 0 var(--layout-sidebar-w);
   background: var(--biz-sidebar-bg);
+  border-right: 1px solid #F0F2F6;
   display: flex; flex-direction: column;
   transition: width var(--el-transition-duration), flex-basis var(--el-transition-duration);
   overflow: hidden;
@@ -41,44 +44,44 @@ a { color: var(--el-color-primary); text-decoration: none; }
 .side-logo {
   height: var(--layout-header-h); flex: 0 0 var(--layout-header-h);
   display: flex; align-items: center; gap: 10px; padding: 0 18px;
-  color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap;
+  color: var(--biz-text-1); font-size: 15px; font-weight: 600; white-space: nowrap;
 }
 .side-logo .mark {
   width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px;
   background: var(--biz-gradient);
   display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff;
 }
-.side-logo .sub { font-size: 11px; font-weight: 400; color: rgba(255,255,255,.45); }
+.side-logo .sub { font-size: 11px; font-weight: 400; color: var(--biz-text-3); }
 
 .side-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 10px 24px; }
-.side-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); }
+.side-nav::-webkit-scrollbar-thumb { background: #E3E6F2; }
 
 .side-group { margin-top: 14px; }
 .side-group:first-child { margin-top: 4px; }
 .side-group__title {
-  font-size: 11px; letter-spacing: .5px; color: rgba(255,255,255,.34);
+  font-size: 11px; letter-spacing: .5px; color: var(--biz-text-4);
   padding: 0 10px 6px; white-space: nowrap;
 }
 .side-item {
   display: flex; align-items: center; gap: 10px;
   height: var(--layout-sidebar-item-h); padding: 0 10px; margin-bottom: 2px;
   border-radius: 8px; cursor: pointer; position: relative;
-  color: rgba(255,255,255,.68); font-size: 13.5px; white-space: nowrap;
+  color: var(--biz-text-2); font-size: 13.5px; white-space: nowrap;
   transition: background var(--el-transition-duration), color var(--el-transition-duration);
 }
-.side-item:hover { background: rgba(255,255,255,.07); color: #fff; }
-.side-item.is-active { background: rgba(91,108,255,.20); color: #fff; font-weight: 500; }
+.side-item:hover { background: #F5F6F9; color: var(--biz-text-1); }
+.side-item.is-active { background: #EEF0FF; color: var(--el-color-primary); font-weight: 500; }
 .side-item.is-active::before {
   content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px;
   border-radius: 0 3px 3px 0; background: var(--el-color-primary);
 }
-.side-item.is-todo { color: rgba(255,255,255,.32); cursor: not-allowed; }
-.side-item.is-todo:hover { background: rgba(255,255,255,.04); color: rgba(255,255,255,.5); }
+.side-item.is-todo { color: var(--biz-text-4); cursor: not-allowed; }
+.side-item.is-todo:hover { background: #FAFBFD; color: var(--biz-text-3); }
 .side-item .el-icon { font-size: 16px; flex: 0 0 16px; }
 .side-item .txt { overflow: hidden; text-overflow: ellipsis; }
 .side-item .dot {
   margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px;
-  background: rgba(255,255,255,.10); color: rgba(255,255,255,.5);
+  background: #F1F2F6; color: var(--biz-text-3);
 }
 .is-collapse .side-group__title { text-align: center; padding: 0 0 6px; }
 .is-collapse .side-item { justify-content: center; padding: 0; }
@@ -86,15 +89,15 @@ a { color: var(--el-color-primary); text-decoration: none; }
 .is-collapse .side-logo .name, .is-collapse .side-logo .sub { display: none; }
 
 .side-foot {
-  flex: 0 0 auto; padding: 12px; border-top: 1px solid rgba(255,255,255,.07);
+  flex: 0 0 auto; padding: 12px; border-top: 1px solid #F0F2F6;
   display: flex; align-items: center; justify-content: center;
 }
 .side-foot .btn {
   width: 100%; height: 32px; border-radius: 8px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  color: rgba(255,255,255,.55); font-size: 13px;
+  color: var(--biz-text-3); font-size: 13px;
 }
-.side-foot .btn:hover { background: rgba(255,255,255,.07); color: #fff; }
+.side-foot .btn:hover { background: #F5F6F9; color: var(--biz-text-1); }
 
 /* ---------- 顶栏 ---------- */
 .app-top {
@@ -150,9 +153,28 @@ a { color: var(--el-color-primary); text-decoration: none; }
 
 /* ---------- 页面通用块 ---------- */
 .page { min-width: 960px; }
+/* ---------- 容器层级（视觉改造 v1）----------
+   背景：.panel 被 507 处复用，所有区块权重相同，页面读起来「平」。
+   改法：默认档用轻描边不投影，只有含表格的主体容器才投影。
+   规则：投影 = 主体，描边 = 次级，无容器 = 说明性内容。
+   ⚠️ 若需回滚：把 .panel 的 border/box-shadow 还原为 box-shadow: var(--biz-shadow-card)。 */
 .panel {
   background: #fff; border-radius: var(--biz-radius-card);
-  box-shadow: var(--biz-shadow-card); padding: var(--sp-5);
+  border: 1px solid var(--biz-border-light);
+  box-shadow: none; padding: var(--sp-5);
+}
+/* L1 主体：含表格的容器浮起来，是每屏唯一的视觉落点 */
+.panel:has(.el-table) {
+  border-color: transparent;
+  border-radius: var(--biz-radius-panel);
+  box-shadow: 0 2px 12px rgba(31, 37, 64, .06);
+}
+/* L2 次级：统计条 / 快捷视图 —— 保留白底维持分组，去掉描边与投影，靠色差与页面分离 */
+.panel:has(.dstat),
+.panel:has(.qvwrap) {
+  background: #fff;
+  border-color: transparent;
+  box-shadow: none;
 }
 .panel + .panel { margin-top: var(--layout-card-gap); }
 .panel__hd {
@@ -393,3 +415,40 @@ a { color: var(--el-color-primary); text-decoration: none; }
 /* 抽屉里的关联跳转区 */
 .rel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .rel__note { font-size: 11.5px; color: var(--biz-text-3); width: 100%; }
+
+
+/* ============================================================
+   全局交互细节（2026-11-18）
+   背景：表格 hover 原来是 #FAFBFD，与白底只差 5 阶，肉眼几乎看不见；
+   分页当前页是主色实底，比设计稿重；控件圆角统一到 8px。
+   ============================================================ */
+
+/* 表格行 hover：用状态底，全站统一 */
+.el-table__body tr:hover > td.el-table__cell { background: #F2F4FF; }
+.el-table__body tr:hover > td.el-table__cell:first-child { border-radius: 8px 0 0 8px; }
+.el-table__body tr:hover > td.el-table__cell:last-child { border-radius: 0 8px 8px 0; }
+
+/* 分页：浅底 + 圆角，当前页用主色浅底而非实底 */
+.el-pagination .el-pager li,
+.el-pagination button {
+  border-radius: 8px;
+  min-width: 28px;
+  height: 28px;
+  line-height: 28px;
+  font-size: 12.5px;
+  color: var(--biz-text-2);
+  background: transparent;
+}
+.el-pagination .el-pager li:hover,
+.el-pagination button:hover { background: #F1F2F6; color: var(--biz-text-1); }
+.el-pagination .el-pager li.is-active {
+  background: #EEF0FF;
+  color: var(--el-color-primary);
+  font-weight: 500;
+}
+.el-pagination .el-pager li.is-active:hover { background: #E4E7FF; }
+
+/* 控件圆角兜底（个别组件没吃 --el-border-radius-base） */
+.el-input__wrapper, .el-select__wrapper, .el-textarea__inner { border-radius: var(--biz-radius-control); }
+.el-button:not(.is-circle):not(.is-round) { border-radius: var(--biz-radius-btn); }
+.el-tag { border-radius: 6px; }

@@ -1,13 +1,5 @@
 <template>
   <div class="page">
-    <div class="proto-note">
-      <el-icon class="ico"><InfoFilled /></el-icon>
-      <div>
-        <b>业主 360 档案</b>：以「业主」而非「房屋」为中心组织。一人多房是本项目的一等公民——
-        头部按业主聚合欠费，账单表可按房切换，收银台与催缴从本页直接进入。
-      </div>
-    </div>
-
     <!-- 概要头 -->
     <div class="panel" style="margin-top:16px;">
       <div class="ohead">
@@ -62,9 +54,16 @@
           <el-select v-model="ownerId" filterable style="width:180px;" placeholder="切换业主">
             <el-option v-for="o in demoOwners" :key="o.ownerId" :label="`${o.name} ${o.phone}`" :value="o.ownerId" />
           </el-select>
+          <el-popover placement="bottom-end" :width="420" trigger="click" popper-class="bl-pop">
+            <template #reference><button class="bl-ibtn" title="这页怎么用">ⓘ</button></template>
+            <div class="bl-tip">
+              <b>以「业主」而非「房屋」为中心组织。</b>一人多房是本项目的一等公民——头部按业主聚合欠费，
+              账单表可按房切换，收银台与催缴从本页直接进入。
+            </div>
+          </el-popover>
           <el-button :icon="'EditPen'">编辑档案</el-button>
           <el-button :icon="'ChatDotRound'">发通知</el-button>
-          <el-button type="primary" :icon="'Money'">去收银台</el-button>
+          <el-button v-if="canCashier" type="primary" :icon="'Money'">去收银台</el-button>
         </div>
       </div>
 
@@ -452,6 +451,7 @@
 </template>
 
 <script setup>
+const canCashier = computed(() => canVisit('/b/cashier'))
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -463,7 +463,7 @@ import {
   OWNER_TAG_CATEGORIES, ownerTagsOf
 } from '@/utils/api'
 import { addOwnerTag, queryOwnerTags, removeOwnerTag } from '@/api'
-import { hasPerm } from '@/utils/auth'
+import { canVisit, hasPerm } from '@/utils/auth'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { expireText, money } from '@/utils/format'
@@ -721,4 +721,55 @@ const timeline = computed(() => {
 .picker__hd { font-size: 12px; color: var(--biz-text-3); margin-bottom: 6px; }
 .picker__bd { display: flex; flex-wrap: wrap; gap: 6px; }
 .picker__ft { font-size: 12px; margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--biz-border-light); }
+
+/* ===== 新版骨架（详情页） ===== */
+.page { padding: 0 24px 24px; }
+.panel { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.proto-note { display: none; }
+.bl-ibtn {
+  appearance: none; border: 1px solid var(--biz-border); background: #fff; width: 32px; height: 32px;
+  border-radius: 8px; color: var(--biz-text-3); font-size: 15px; cursor: pointer; font-family: inherit;
+}
+.bl-ibtn:hover { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+.bl-tip { font-size: 12.5px; line-height: 1.8; color: var(--biz-text-2); }
+.bl-tip b { color: var(--biz-text-1); font-weight: 500; }
+
+/* 概要头独立成一张白面 */
+.ohead { background: #fff; border-radius: 14px; padding: 18px 20px; }
+
+/* dstat → KPI 瓦片 */
+.grid.g4 .dstat { background: #fff; border-radius: 14px; padding: 13px 16px 11px; }
+.dstat__k { font-size: 12px; color: var(--biz-text-3); }
+.dstat__v {
+  font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 6px;
+  color: var(--biz-text-1); font-variant-numeric: tabular-nums;
+}
+.dstat__v .unit { font-size: 12px; font-weight: 400; color: var(--biz-text-3); margin-left: 4px; }
+.dstat__v.is-warn { color: var(--biz-danger); }
+
+/* 表格：统一 46 行高、无表头底色 */
+:deep(.el-table) {
+  --el-table-bg-color: transparent; --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent; background: transparent;
+}
+:deep(.el-table__header th) {
+  background: transparent; font-weight: 400; font-size: 12px; color: var(--biz-text-3);
+  border-bottom: 1px solid #F0F2F6; height: 40px; padding: 0;
+}
+:deep(.el-table--small .el-table__cell) { padding: 0; }
+:deep(.el-table__row td.el-table__cell) { height: 46px; padding: 0; border-bottom: 1px solid #F6F7FA; font-size: 13px; }
+:deep(.el-table__header th.el-table__cell) { padding: 0; }
+:deep(.el-table__row:hover > td) { background: #FAFBFD; }
+:deep(.el-table__inner-wrapper::before) { display: none; }
+/* 状态：圆点 + 文字 */
+:deep(.el-tag) { background: transparent !important; border: 0 !important; padding: 0 !important; height: auto !important; font-size: 12.5px; }
+:deep(.el-tag)::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
+
+/* 区块小标题 */
+.sec__hd h4 { font-size: 14px; font-weight: 500; color: var(--biz-text-1); }
+.sec__hd .desc { font-size: 12px; color: var(--biz-text-4); }
+
+/* Tabs 区域贴白面 */
+.el-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
+.el-tabs :deep(.el-tabs__item) { font-size: 13.5px; }
 </style>

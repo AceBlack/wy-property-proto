@@ -39,7 +39,7 @@ export const PAGES = [
   // ---------- A 资产 ----------
   { path: '/a/dashboard', name: 'AssetDashboard', title: '资产驾驶舱', group: 'a', status: 'done', icon: 'DataAnalysis', desc: '房/车/人全景指标与结构分析',
     component: () => import('@/views/a/AssetDashboard.vue') },
-  { path: '/a/owner360', name: 'Owner360', title: '业主 360 档案', group: 'a', status: 'done', icon: 'User', desc: '一人多房聚合档案与关联业务',
+  { path: '/a/owner360', name: 'Owner360', title: '业主 360 档案', group: 'a', status: 'done', icon: 'User', chrome: 'bleed', desc: '一人多房聚合档案与关联业务',
     component: () => import('@/views/a/Owner360.vue') },
   // 2026-11-02：业主标签字典（楼管打标签、平台维护词条）。权限位在 e 域：e.ownerTags.view/edit
   { path: '/a/owner-tags', name: 'OwnerTag', title: '业主标签', group: 'a', status: 'done', icon: 'CollectionTag', desc: '标签词条维护 · 使用人数 · 启停',
@@ -85,7 +85,7 @@ export const PAGES = [
   { path: '/b/cashier', name: 'Cashier', title: 'PC 收银台', group: 'b', status: 'done', icon: 'Money',
     hidden: true, standalone: true, desc: '左找人 · 中收费 · 右结账',
     component: () => import('@/views/b/Cashier.vue') },
-  { path: '/b/bills', name: 'BillList', title: '账单查询', group: 'b', status: 'done', icon: 'Tickets', desc: '账期 · 科目 · 收缴状态 · 缴费流水',
+  { path: '/b/bills', name: 'BillList', title: '账单查询', group: 'b', status: 'done', icon: 'Tickets', chrome: 'bleed', desc: '账期 · 科目 · 收缴状态 · 缴费流水',
     component: () => import('@/views/b/BillList.vue') },
   // 收费日结（2026-10-30）：现金实点轧账 + 退款冲红核对，一天只能结一次
   { path: '/b/daily-close', name: 'DailyClose', title: '收费日结', group: 'b', status: 'done', icon: 'Wallet',
@@ -224,7 +224,7 @@ export const PAGES = [
   // ---------- F 现场运营（一线交付：工单 / 巡检 / 品质） ----------
   { path: '/f/wo-detail', name: 'WorkOrderDetail', title: '报修工单详情与派单', group: 'f', status: 'done', icon: 'Tools', desc: '五段流程 · 三种派单模式',
     component: () => import('@/views/f/WorkOrderDetail.vue') },
-  { path: '/f/workorders', name: 'WorkOrderList', title: '工单列表', group: 'f', status: 'done', icon: 'List', desc: '全量工单 · 状态筛选 · 超时标记',
+  { path: '/f/workorders', name: 'WorkOrderList', title: '工单列表', group: 'f', status: 'done', icon: 'List', chrome: 'bleed', desc: '全量工单 · 状态筛选 · 超时标记',
     component: () => import('@/views/f/WorkOrderList.vue') },
   // 商业服务项目 = 工单收费的价目字典（入户维修拆出来后的项目目录，可单独维护）
   { path: '/f/service-items', name: 'ServiceItemList', title: '商业服务项目', group: 'f', status: 'done', icon: 'PriceTag', desc: '项目分类 · 服务价格 · 成本价 · 启停',

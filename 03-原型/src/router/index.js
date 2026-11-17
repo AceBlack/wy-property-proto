@@ -7,7 +7,7 @@ const children = PAGES.filter(p => p.status === 'done').map(p => ({
   path: p.path.replace(/^\//, ''),
   name: p.name,
   component: p.component,
-  meta: { title: p.title, group: p.group, desc: p.desc, standalone: !!p.standalone, hidden: !!p.hidden }
+  meta: { title: p.title, group: p.group, desc: p.desc, standalone: !!p.standalone, hidden: !!p.hidden, chrome: p.chrome || '' }
 }))
 
 // 域拆分后旧地址跳转（见 pages.js 的 LEGACY）
