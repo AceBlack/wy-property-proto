@@ -65,6 +65,7 @@ CREATE INDEX IF NOT EXISTS ix_payment_point ON payment (tenant_id, community_id,
   WHERE status = '正常';
 CREATE INDEX IF NOT EXISTS ix_payment_payer ON payment (tenant_id, payer_type, payer_id, paid_at DESC);
 
+DROP TRIGGER IF EXISTS trg_payment_touch ON payment;
 CREATE TRIGGER trg_payment_touch BEFORE UPDATE ON payment
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -162,6 +163,7 @@ CREATE TABLE IF NOT EXISTS deposit (
 CREATE INDEX IF NOT EXISTS ix_deposit_house ON deposit (tenant_id, house_id);
 CREATE INDEX IF NOT EXISTS ix_deposit_status ON deposit (tenant_id, community_id, status);
 
+DROP TRIGGER IF EXISTS trg_deposit_touch ON deposit;
 CREATE TRIGGER trg_deposit_touch BEFORE UPDATE ON deposit
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -222,6 +224,7 @@ CREATE TABLE IF NOT EXISTS invoice (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_invoice_no ON invoice (tenant_id, invoice_no)
   WHERE invoice_no IS NOT NULL;
 
+DROP TRIGGER IF EXISTS trg_invoice_touch ON invoice;
 CREATE TRIGGER trg_invoice_touch BEFORE UPDATE ON invoice
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

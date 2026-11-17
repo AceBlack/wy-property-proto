@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS fee_item (
   UNIQUE (tenant_id, item_code)
 );
 
+DROP TRIGGER IF EXISTS trg_fee_item_touch ON fee_item;
 CREATE TRIGGER trg_fee_item_touch BEFORE UPDATE ON fee_item
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -129,6 +130,7 @@ CREATE INDEX IF NOT EXISTS ix_bill_aging ON bill (tenant_id, community_id, statu
 CREATE INDEX IF NOT EXISTS ix_bill_house ON bill (tenant_id, house_id, period)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_bill_touch ON bill;
 CREATE TRIGGER trg_bill_touch BEFORE UPDATE ON bill
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

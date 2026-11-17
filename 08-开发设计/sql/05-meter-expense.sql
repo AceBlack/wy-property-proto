@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS meter (
 CREATE INDEX IF NOT EXISTS ix_meter_house ON meter (tenant_id, house_id) WHERE house_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_meter_public ON meter (tenant_id, community_id, meter_type) WHERE is_public;
 
+DROP TRIGGER IF EXISTS trg_meter_touch ON meter;
 CREATE TRIGGER trg_meter_touch BEFORE UPDATE ON meter
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -138,6 +139,7 @@ CREATE INDEX IF NOT EXISTS ix_expense_period ON expense (tenant_id, period, stat
 CREATE INDEX IF NOT EXISTS ix_expense_comm   ON expense (tenant_id, community_id, period)
   WHERE community_id IS NOT NULL;
 
+DROP TRIGGER IF EXISTS trg_expense_touch ON expense;
 CREATE TRIGGER trg_expense_touch BEFORE UPDATE ON expense
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -158,6 +160,7 @@ CREATE TABLE IF NOT EXISTS budget (
   UNIQUE (tenant_id, community_id, item_id, period)
 );
 
+DROP TRIGGER IF EXISTS trg_budget_touch ON budget;
 CREATE TRIGGER trg_budget_touch BEFORE UPDATE ON budget
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

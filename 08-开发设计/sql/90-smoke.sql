@@ -8,6 +8,9 @@ SET search_path TO wy, public;
 
 BEGIN;
 SET LOCAL app.tenant_id = '1';
+-- 关键：切到非超级用户。超级用户永远绕过 RLS（FORCE 也拦不住），
+-- 用 wy 跑这个脚本，第 11~13 条会全部假通过。
+SET LOCAL ROLE wy_app;
 
 -- ------------------------------------------------------------
 -- 1. 账单金额不平衡：payable ≠ amount − waive + late

@@ -76,6 +76,7 @@ CREATE INDEX IF NOT EXISTS ix_wo_comm ON work_order (tenant_id, community_id, cr
 CREATE INDEX IF NOT EXISTS ix_wo_assignee ON work_order (tenant_id, assignee_emp_id, status)
   WHERE assignee_emp_id IS NOT NULL;
 
+DROP TRIGGER IF EXISTS trg_wo_touch ON work_order;
 CREATE TRIGGER trg_wo_touch BEFORE UPDATE ON work_order
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -221,6 +222,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_asset_qr ON asset (tenant_id, qr_token)
 CREATE INDEX IF NOT EXISTS ix_asset_cat ON asset (tenant_id, community_id, category_id)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_asset_touch ON asset;
 CREATE TRIGGER trg_asset_touch BEFORE UPDATE ON asset
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

@@ -70,6 +70,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_emp_phone ON employee (tenant_id, phone)
 CREATE INDEX IF NOT EXISTS ix_emp_org ON employee (tenant_id, org_id, status)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_emp_touch ON employee;
 CREATE TRIGGER trg_emp_touch BEFORE UPDATE ON employee
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS payroll (
   UNIQUE (tenant_id, emp_id, period)
 );
 
+DROP TRIGGER IF EXISTS trg_payroll_touch ON payroll;
 CREATE TRIGGER trg_payroll_touch BEFORE UPDATE ON payroll
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -265,6 +267,7 @@ CREATE TABLE IF NOT EXISTS notice (
   UNIQUE (tenant_id, notice_no)
 );
 
+DROP TRIGGER IF EXISTS trg_notice_touch ON notice;
 CREATE TRIGGER trg_notice_touch BEFORE UPDATE ON notice
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

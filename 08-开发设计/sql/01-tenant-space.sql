@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS tenant (
 COMMENT ON TABLE  tenant IS '物业公司。多租户隔离的边界；不是小区，小区在 community';
 COMMENT ON COLUMN tenant.datasource_key IS '预留：大客户独立库路由键，单库部署恒为 main';
 
+DROP TRIGGER IF EXISTS trg_tenant_touch ON tenant;
 CREATE TRIGGER trg_tenant_touch BEFORE UPDATE ON tenant
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS community (
 );
 COMMENT ON COLUMN community.build_area IS '建筑面积合计；费用分摊的唯一基数，不是可售面积';
 
+DROP TRIGGER IF EXISTS trg_community_touch ON community;
 CREATE TRIGGER trg_community_touch BEFORE UPDATE ON community
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -156,6 +158,7 @@ CREATE INDEX IF NOT EXISTS ix_house_tree ON house (tenant_id, community_id, buil
 CREATE INDEX IF NOT EXISTS ix_house_steward ON house (tenant_id, steward_emp_id)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_house_touch ON house;
 CREATE TRIGGER trg_house_touch BEFORE UPDATE ON house
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
@@ -193,6 +196,7 @@ CREATE TABLE IF NOT EXISTS parking (
 CREATE INDEX IF NOT EXISTS ix_parking_plate ON parking (tenant_id, community_id, plate_no)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_parking_touch ON parking;
 CREATE TRIGGER trg_parking_touch BEFORE UPDATE ON parking
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 

@@ -55,6 +55,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_owner_phone ON owner (tenant_id, phone)
 CREATE INDEX IF NOT EXISTS ix_owner_name ON owner (tenant_id, name)
   WHERE deleted_at IS NULL;
 
+DROP TRIGGER IF EXISTS trg_owner_touch ON owner;
 CREATE TRIGGER trg_owner_touch BEFORE UPDATE ON owner
   FOR EACH ROW EXECUTE FUNCTION wy.touch_updated_at();
 
