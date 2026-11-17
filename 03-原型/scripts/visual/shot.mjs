@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------
  * 用法：
  *   node scripts/visual/shot.mjs --base http://localhost:5188 --out screenshots/visual/before
- *   node scripts/visual/shot.mjs --base http://localhost:5188 --out screenshots/visual/after
+ *   node scripts/visual/shot.mjs --base http://localhost:5188 --out screenshots/visual/after12
  *
  * 只依赖仓库已装的 puppeteer-core，自己找 Chrome。
  */
