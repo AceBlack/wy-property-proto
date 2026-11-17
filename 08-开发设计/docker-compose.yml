@@ -1,0 +1,35 @@
+# 本地起库（开发用）
+# 用法：docker compose up -d     起库
+#      ./sql/run-all.sh         建表 + 冒烟
+#      docker compose down -v   清空重来
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: wy-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wy_property
+      POSTGRES_USER: wy
+      POSTGRES_PASSWORD: wy_dev_pass
+      # 账期与日结都按东八区，容器时区必须一致
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wy -d wy_property"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command:
+      - postgres
+      - -c
+      - timezone=Asia/Shanghai
+      - -c
+      - log_min_duration_statement=500
+
+volumes:
+  pgdata:
