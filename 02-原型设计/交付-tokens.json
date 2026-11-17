@@ -1,0 +1,195 @@
+{
+  "$description": "智慧物业 V2 · 后台设计令牌（W3C Design Tokens 格式）。可直接导入 Figma Tokens Studio / Style Dictionary / 自建构建脚本。所有值以《交付-UI规范.md》为准，与原型 03-原型/src/styles/tokens.css 一一对应。",
+  "$version": "1.0.0",
+  "$updated": "2026-11-18",
+
+  "color": {
+    "brand": {
+      "primary": { "$type": "color", "$value": "#5b6cff", "$description": "主色。只用于主按钮、激活态、链接、图表主序列。" },
+      "primary-hover": { "$type": "color", "$value": "#4d5ef7" },
+      "primary-active": { "$type": "color", "$value": "#3f4ee0" },
+      "primary-light-9": { "$type": "color", "$value": "#eff0ff", "$description": "选中的持久底、当前页底" },
+      "primary-light-8": { "$type": "color", "$value": "#dfe2ff" },
+      "primary-light-7": { "$type": "color", "$value": "#ced3ff" },
+      "primary-light-5": { "$type": "color", "$value": "#adb5ff" },
+      "primary-light-3": { "$type": "color", "$value": "#8b96ff" },
+      "primary-dark-2": { "$type": "color", "$value": "#4653d9" },
+      "accent": { "$type": "color", "$value": "#2ed9a3", "$description": "薄荷青辅色。只做正向语义与图表次序列，不作为交互主色。" },
+      "accent-dark": { "$type": "color", "$value": "#1db385" },
+      "accent-light-9": { "$type": "color", "$value": "#e6faf3" }
+    },
+
+    "semantic": {
+      "success": { "$type": "color", "$value": "#2ed9a3" },
+      "success-text": { "$type": "color", "$value": "#12b98a", "$description": "浅底上的文字用深一档，保证 AA 对比度" },
+      "success-light-9": { "$type": "color", "$value": "#e6faf3" },
+      "warning": { "$type": "color", "$value": "#ff9f40" },
+      "warning-text": { "$type": "color", "$value": "#d98a1f" },
+      "warning-light-9": { "$type": "color", "$value": "#fff5eb" },
+      "danger": { "$type": "color", "$value": "#ff6b6b" },
+      "danger-text": { "$type": "color", "$value": "#ec4d63" },
+      "danger-light-9": { "$type": "color", "$value": "#fff0f0" },
+      "info": { "$type": "color", "$value": "#8a94b0" },
+      "info-light-9": { "$type": "color", "$value": "#f2f4f8" }
+    },
+
+    "neutral": {
+      "page-bg": { "$type": "color", "$value": "#f7f8fa", "$description": "内容画布底。与卡片白只差 8 阶——不要为了强调卡片而加深此值。" },
+      "card-bg": { "$type": "color", "$value": "#ffffff" },
+      "fill": { "$type": "color", "$value": "#f4f5fc", "$description": "只读块、图标底、表头（新版已改为透明）" },
+      "border": { "$type": "color", "$value": "#e3e6f2", "$description": "控件边框" },
+      "border-light": { "$type": "color", "$value": "#eef0f8", "$description": "分割线、表格横线" },
+      "text-1": { "$type": "color", "$value": "#1f2540", "$description": "标题、主数值" },
+      "text-2": { "$type": "color", "$value": "#4a5168", "$description": "正文、表格单元格" },
+      "text-3": { "$type": "color", "$value": "#8a94b0", "$description": "辅助、表头、标签名" },
+      "text-4": { "$type": "color", "$value": "#b3bad0", "$description": "占位符、极弱信息" },
+      "text-disabled": { "$type": "color", "$value": "#c3c9dd" }
+    },
+
+    "interactive": {
+      "hover-row": { "$type": "color", "$value": "#f2f4ff", "$description": "表格行 hover。与白底差 13 阶，清晰可辨。禁止使用 #fafbfd 这类接近白的值。" },
+      "hover-item": { "$type": "color", "$value": "#f5f6ff", "$description": "菜单项 / 列表项 hover（面积小，可更轻）" },
+      "selected": { "$type": "color", "$value": "#eff0ff" },
+      "pressed": { "$type": "color", "$value": "#e4e7ff" },
+      "disabled-bg": { "$type": "color", "$value": "#f4f5fa" },
+      "readonly-bg": { "$type": "color", "$value": "#f7f8fc" }
+    },
+
+    "sidebar": {
+      "bg": { "$type": "color", "$value": "#ffffff", "$description": "浅色。深色侧栏与无边框内容不成套，见禁用项。" },
+      "text": { "$type": "color", "$value": "#4a5168" },
+      "text-active": { "$type": "color", "$value": "#5b6cff" },
+      "active-bg": { "$type": "color", "$value": "#eff0ff" }
+    },
+
+    "business-state": {
+      "house-self": { "$type": "color", "$value": "#5b6cff", "$description": "房屋：自住" },
+      "house-rent": { "$type": "color", "$value": "#2ed9a3", "$description": "房屋：出租" },
+      "house-vacant": { "$type": "color", "$value": "#ff9f40", "$description": "房屋：空置" },
+      "house-decorating": { "$type": "color", "$value": "#8a94b0", "$description": "房屋：装修中" },
+      "house-locked": { "$type": "color", "$value": "#ff6b6b", "$description": "房屋：限制使用" },
+      "bill-paid": { "$type": "color", "$value": "#2ed9a3" },
+      "bill-unpaid": { "$type": "color", "$value": "#ff9f40" },
+      "bill-partial": { "$type": "color", "$value": "#5b6cff" },
+      "bill-overdue": { "$type": "color", "$value": "#ff6b6b" },
+      "bill-reduced": { "$type": "color", "$value": "#8a94b0" },
+      "bill-void": { "$type": "color", "$value": "#c3c9dd" },
+      "wo-waiting": { "$type": "color", "$value": "#ff6b6b", "$description": "工单：待派单" },
+      "wo-assigned": { "$type": "color", "$value": "#ff9f40", "$description": "工单：已派单" },
+      "wo-processing": { "$type": "color", "$value": "#5b6cff", "$description": "工单：处理中" },
+      "wo-confirming": { "$type": "color", "$value": "#8a63f2", "$description": "工单：待确认" },
+      "wo-done": { "$type": "color", "$value": "#2ed9a3", "$description": "工单：已完工" },
+      "wo-closed": { "$type": "color", "$value": "#8a94b0", "$description": "工单：已关闭" },
+      "wo-canceled": { "$type": "color", "$value": "#c3c9dd", "$description": "工单：已取消" },
+      "ins-todo": { "$type": "color", "$value": "#8a94b0", "$description": "巡检：待执行" },
+      "ins-doing": { "$type": "color", "$value": "#5b6cff", "$description": "巡检：执行中" },
+      "ins-done": { "$type": "color", "$value": "#2ed9a3", "$description": "巡检：已完成" },
+      "ins-overdue": { "$type": "color", "$value": "#ff6b6b", "$description": "巡检：逾期" },
+      "dev-online": { "$type": "color", "$value": "#2ed9a3" },
+      "dev-offline": { "$type": "color", "$value": "#c3c9dd" },
+      "dev-alarm": { "$type": "color", "$value": "#ff9f40" },
+      "dev-fault": { "$type": "color", "$value": "#ff6b6b" }
+    },
+
+    "chart": {
+      "c1": { "$type": "color", "$value": "#5b6cff" },
+      "c2": { "$type": "color", "$value": "#2ed9a3" },
+      "c3": { "$type": "color", "$value": "#8a63f2" },
+      "c4": { "$type": "color", "$value": "#ffb05c" },
+      "c5": { "$type": "color", "$value": "#4dc9ff" },
+      "c6": { "$type": "color", "$value": "#ff7da0" },
+      "c7": { "$type": "color", "$value": "#3edbc4" },
+      "c8": { "$type": "color", "$value": "#a0a8c8" }
+    }
+  },
+
+  "radius": {
+    "control": { "$type": "dimension", "$value": "8px", "$description": "输入框、下拉、按钮、分页页码、图标按钮" },
+    "tag": { "$type": "dimension", "$value": "6px" },
+    "card": { "$type": "dimension", "$value": "14px", "$description": "KPI 瓦片、区块白卡、表单分区、概要头" },
+    "panel": { "$type": "dimension", "$value": "12px", "$description": "筛选面板、弹层内容块" },
+    "small": { "$type": "dimension", "$value": "4px", "$description": "复选框" },
+    "pill": { "$type": "dimension", "$value": "999px", "$description": "胶囊按钮、芯片筛选、状态胶囊、涨跌胶囊" }
+  },
+
+  "space": {
+    "1": { "$type": "dimension", "$value": "4px", "$description": "半格：图标与文字" },
+    "2": { "$type": "dimension", "$value": "8px" },
+    "3": { "$type": "dimension", "$value": "12px", "$description": "卡片间距、瓦片 gap" },
+    "4": { "$type": "dimension", "$value": "16px" },
+    "5": { "$type": "dimension", "$value": "20px" },
+    "6": { "$type": "dimension", "$value": "24px", "$description": "页面左右内边距、模块间距" },
+    "8": { "$type": "dimension", "$value": "32px" },
+    "10": { "$type": "dimension", "$value": "40px" },
+    "12": { "$type": "dimension", "$value": "48px" }
+  },
+
+  "typography": {
+    "family": {
+      "base": { "$type": "fontFamily", "$value": "'DIN Pro', 'DIN Alternate', 'Bahnschrift', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif" },
+      "num": { "$type": "fontFamily", "$value": "'DIN Pro', 'DIN Alternate', 'Bahnschrift', system-ui, 'PingFang SC', sans-serif", "$description": "KPI 数值、金额。必须配 tabular-nums。" },
+      "mono": { "$type": "fontFamily", "$value": "'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace", "$description": "账单号、工单号" }
+    },
+    "size": {
+      "micro": { "$type": "dimension", "$value": "11px", "$description": "胶囊角标、极弱附注" },
+      "caption": { "$type": "dimension", "$value": "12px", "$description": "表头、KPI 标签、辅助说明" },
+      "body-s": { "$type": "dimension", "$value": "13px", "$description": "表格正文、工具条控件" },
+      "body": { "$type": "dimension", "$value": "14px", "$description": "表单标签、段落" },
+      "subtitle": { "$type": "dimension", "$value": "16px", "$description": "区块标题" },
+      "title": { "$type": "dimension", "$value": "17px", "$description": "页面标题（表单页页头）" },
+      "kpi": { "$type": "dimension", "$value": "26px", "$description": "KPI 数值" },
+      "display": { "$type": "dimension", "$value": "32px", "$description": "大屏看板数值，后台页面不用" }
+    },
+    "weight": {
+      "regular": { "$type": "number", "$value": 400, "$description": "表头、正文、表格" },
+      "medium": { "$type": "number", "$value": 500, "$description": "区块标题、激活项、当前页" },
+      "semibold": { "$type": "number", "$value": 600, "$description": "KPI 数值、页面标题" }
+    },
+    "lineHeight": {
+      "tight": { "$type": "number", "$value": 1.15, "$description": "双行列的第二行" },
+      "base": { "$type": "number", "$value": 1.3, "$description": "表格单元格" },
+      "relaxed": { "$type": "number", "$value": 1.8, "$description": "弹层说明文字" }
+    }
+  },
+
+  "size": {
+    "control": { "$type": "dimension", "$value": "40px", "$description": "输入框、下拉、按钮基线" },
+    "control-small": { "$type": "dimension", "$value": "32px", "$description": "工具条内控件、胶囊" },
+    "control-large": { "$type": "dimension", "$value": "44px" },
+    "table-row": { "$type": "dimension", "$value": "46px", "$description": "数据表行高。不是 48，也不是 56——56 会让首屏少 3 行。" },
+    "table-row-compact": { "$type": "dimension", "$value": "40px" },
+    "table-header": { "$type": "dimension", "$value": "38px" },
+    "toolbar": { "$type": "dimension", "$value": "40px", "$description": "列表页单行工具条高度" },
+    "icon": { "$type": "dimension", "$value": "16px", "$description": "默认图标。必须按角色显式定档，不能靠 em 继承。" },
+    "icon-btn": { "$type": "dimension", "$value": "14px" },
+    "icon-kpi": { "$type": "dimension", "$value": "20px", "$description": "KPI 图标（装在 28/30px 圆角方块内）" },
+    "checkbox": { "$type": "dimension", "$value": "16px" }
+  },
+
+  "layout": {
+    "sidebar-width": { "$type": "dimension", "$value": "220px" },
+    "sidebar-item-height": { "$type": "dimension", "$value": "38px" },
+    "header-height": { "$type": "dimension", "$value": "60px" },
+    "breadcrumb-height": { "$type": "dimension", "$value": "40px" },
+    "content-pad": { "$type": "dimension", "$value": "24px" },
+    "card-gap": { "$type": "dimension", "$value": "12px", "$description": "KPI 瓦片间距、区块间距" },
+    "min-width": { "$type": "dimension", "$value": "1280px", "$description": "低于此宽度横向滚动，不做移动端适配" },
+    "drawer-width": { "$type": "dimension", "$value": "720px" },
+    "dialog-width-base": { "$type": "dimension", "$value": "640px" }
+  },
+
+  "shadow": {
+    "card": { "$type": "shadow", "$value": "0 2px 8px rgba(31, 37, 64, 0.05)", "$description": "极少使用。分层靠底色，不靠投影。" },
+    "float": { "$type": "shadow", "$value": "0 8px 28px rgba(31, 37, 64, 0.14)" },
+    "primary-btn": { "$type": "shadow", "$value": "0 4px 12px rgba(91, 108, 255, 0.28)", "$description": "只给每屏唯一的实心主按钮" },
+    "dropdown": { "$type": "shadow", "$value": "0 8px 24px rgba(31, 37, 64, 0.12)" },
+    "footer-bar": { "$type": "shadow", "$value": "0 -6px 18px rgba(31, 37, 64, 0.05)", "$description": "表单吸底操作栏" },
+    "focus-ring": { "$type": "shadow", "$value": "0 0 0 3px rgba(91, 108, 255, 0.14)" }
+  },
+
+  "motion": {
+    "duration": { "$type": "duration", "$value": "200ms" },
+    "duration-fast": { "$type": "duration", "$value": "150ms" },
+    "easing": { "$type": "cubicBezier", "$value": [0.4, 0, 0.2, 1] }
+  }
+}

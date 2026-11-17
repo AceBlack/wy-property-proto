@@ -1,0 +1,285 @@
+/* ============================================================
+   智慧物业 V2 · 后台主题文件（正式前端可直接使用）
+   版本 1.0.0 · 2026-11-18 · 与《交付-UI规范.md》同步
+
+   【使用方式】
+   import 'element-plus/dist/index.css'   // 必须先
+   import './theme.css'                   // 再引本文件，否则变量被 EP 默认值覆盖
+
+   【与原型的关系】
+   本文件是从原型 03-原型/src/styles/tokens.css 提取的「纯主题层」，
+   不含任何布局、业务类或页面级样式。原型里的 app.css 属于实现细节，
+   不要搬到正式工程——正式前端应按自己的组件结构重新组织布局。
+   ============================================================ */
+
+:root {
+  /* ---------- 主色 ---------- */
+  --el-color-primary: #5b6cff;
+  --el-color-primary-light-3: #8b96ff;
+  --el-color-primary-light-5: #adb5ff;
+  --el-color-primary-light-7: #ced3ff;
+  --el-color-primary-light-8: #dfe2ff;
+  --el-color-primary-light-9: #eff0ff;
+  --el-color-primary-dark-2: #4653d9;
+  --brand-primary-hover: #4d5ef7;
+  --brand-primary-active: #3f4ee0;
+
+  /* ---------- 辅色（正向语义 / 图表次序列，不做交互主色） ---------- */
+  --brand-accent: #2ed9a3;
+  --brand-accent-dark: #1db385;
+
+  /* ---------- 语义色 ---------- */
+  --el-color-success: #2ed9a3;
+  --el-color-success-light-3: #6ee6bf;
+  --el-color-success-light-5: #96edcf;
+  --el-color-success-light-7: #bff4e0;
+  --el-color-success-light-8: #d5f8ea;
+  --el-color-success-light-9: #e6faf3;
+  --el-color-success-dark-2: #1db385;
+
+  --el-color-warning: #ff9f40;
+  --el-color-warning-light-3: #ffbb73;
+  --el-color-warning-light-5: #ffcf9b;
+  --el-color-warning-light-7: #ffe2c2;
+  --el-color-warning-light-8: #ffece0;
+  --el-color-warning-light-9: #fff5eb;
+  --el-color-warning-dark-2: #d97f26;
+
+  --el-color-danger: #ff6b6b;
+  --el-color-danger-light-3: #ff9494;
+  --el-color-danger-light-5: #ffb3b3;
+  --el-color-danger-light-7: #ffd1d1;
+  --el-color-danger-light-8: #ffe0e0;
+  --el-color-danger-light-9: #fff0f0;
+  --el-color-danger-dark-2: #e04f4f;
+  --el-color-error: #ff6b6b;
+  --el-color-error-light-9: #fff0f0;
+
+  --el-color-info: #8a94b0;
+  --el-color-info-light-3: #a7b0c6;
+  --el-color-info-light-5: #bfc7d8;
+  --el-color-info-light-7: #d9dde8;
+  --el-color-info-light-8: #e6e9f0;
+  --el-color-info-light-9: #f2f4f8;
+  --el-color-info-dark-2: #6e7791;
+
+  /* ---------- 中性 / 背景 / 文字 ---------- */
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f7f8fa;
+  --el-text-color-primary: #1f2540;
+  --el-text-color-regular: #4a5168;
+  --el-text-color-secondary: #8a94b0;
+  --el-text-color-placeholder: #b3bad0;
+  --el-text-color-disabled: #c3c9dd;
+  --el-border-color: #e3e6f2;
+  --el-border-color-light: #e9ebf5;
+  --el-border-color-lighter: #f0f2f9;
+  --el-fill-color-light: #f4f5fc;
+
+  /* ---------- 业务语义别名（业务代码只用这一层） ---------- */
+  --bg-page: #f7f8fa;
+  --bg-card: #ffffff;
+  --bg-fill: #f4f5fc;
+  --border-base: #e3e6f2;
+  --border-light: #eef0f8;
+  --text-1: #1f2540;
+  --text-2: #4a5168;
+  --text-3: #8a94b0;
+  --text-4: #b3bad0;
+  --success-text: #12b98a;
+  --warning-text: #d98a1f;
+  --danger-text: #ec4d63;
+
+  /* ---------- 交互态（全站共用一组，禁止各组件自写） ---------- */
+  --state-hover-row: #f2f4ff;     /* 表格行：与白底差 13 阶，清晰可辨 */
+  --state-hover-item: #f5f6ff;    /* 菜单项 / 列表项：面积小，可更轻 */
+  --state-selected: #eff0ff;
+  --state-pressed: #e4e7ff;
+  --state-disabled-bg: #f4f5fa;
+  --state-disabled-border: #e9ebf5;
+  --state-disabled-text: #c3c9dd;
+  --state-readonly-bg: #f7f8fc;
+  --focus-ring: 0 0 0 3px rgba(91, 108, 255, .14);
+  --focus-ring-danger: 0 0 0 3px rgba(255, 107, 107, .14);
+
+  /* ---------- 侧栏（浅色） ---------- */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #f0f2f6;
+  --sidebar-text: #4a5168;
+  --sidebar-text-active: #5b6cff;
+  --sidebar-active-bg: #eff0ff;
+
+  /* ---------- 圆角 ---------- */
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 999px;
+  --radius-control: 8px;
+  --radius-card: 14px;
+  --radius-panel: 12px;
+  --radius-tag: 6px;
+  --radius-pill: 999px;
+
+  /* ---------- 字体 ---------- */
+  --el-font-family: 'DIN Pro', 'DIN Alternate', 'Bahnschrift', -apple-system,
+    BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-font-size-extra-large: 20px;
+  --el-font-size-large: 18px;
+  --el-font-size-medium: 16px;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 12px;
+  --font-num: 'DIN Pro', 'DIN Alternate', 'Bahnschrift', system-ui, 'PingFang SC', sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* ---------- 间距（8pt 栅格 + 4pt 半格） ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---------- 控件尺寸 ---------- */
+  --el-component-size: 40px;
+  --el-component-size-small: 32px;
+  --el-component-size-large: 44px;
+  --control-px: 12px;
+  --btn-px: 20px;
+  --icon-size: 16px;
+  --icon-btn: 14px;
+  --icon-kpi: 20px;
+  --checkbox-size: 16px;
+
+  /* ---------- 表格 ---------- */
+  --table-row-h: 46px;
+  --table-row-h-compact: 40px;
+  --table-header-h: 38px;
+  --table-border-color: #eef0f8;
+
+  /* ---------- 布局 ---------- */
+  --layout-sidebar-w: 220px;
+  --layout-sidebar-item-h: 38px;
+  --layout-header-h: 60px;
+  --layout-content-pad: 24px;
+  --layout-card-gap: 12px;
+  --layout-min-w: 1280px;
+  --drawer-w: 720px;
+
+  /* ---------- 阴影 ---------- */
+  --shadow-card: 0 2px 8px rgba(31, 37, 64, .05);
+  --shadow-float: 0 8px 28px rgba(31, 37, 64, .14);
+  --shadow-primary: 0 4px 12px rgba(91, 108, 255, .28);
+  --shadow-dropdown: 0 8px 24px rgba(31, 37, 64, .12);
+  --shadow-footer: 0 -6px 18px rgba(31, 37, 64, .05);
+
+  /* ---------- 动效（上限 200ms，不做大动效） ---------- */
+  --el-transition-duration: .2s;
+  --el-transition-duration-fast: .15s;
+
+  /* ---------- 浮层 ---------- */
+  --el-box-shadow-light: 0 8px 24px rgba(31, 37, 64, .12);
+  --el-popover-border-radius: 8px;
+}
+
+/* ============================================================
+   以下为「组件作用域覆盖」——必须保留，不要合并进 :root
+   EP 把 table / pagination / checkbox / select 的变量定义在组件自身
+   作用域里，写在 :root 上不生效。这是接入时最容易踩的坑。
+   ============================================================ */
+
+.el-table {
+  --el-table-header-bg-color: transparent;   /* 表头无底色 */
+  --el-table-header-text-color: #8a94b0;
+  --el-table-row-hover-bg-color: #f2f4ff;
+  --el-table-current-row-bg-color: #eff0ff;
+  --el-table-border-color: #eef0f8;
+  --el-table-text-color: #4a5168;
+  font-size: 13px;
+}
+.el-table th.el-table__cell {
+  background: transparent;
+  color: var(--el-table-header-text-color);
+  font-size: 12px;
+  font-weight: 400;
+  height: var(--table-header-h);
+  padding: 0;
+}
+.el-table td.el-table__cell {
+  height: var(--table-row-h);
+  padding: 0;
+  border-right: none;                        /* 不出现竖线 */
+  border-bottom: 1px solid #f6f7fa;
+}
+.el-table .cell { line-height: 20px; }
+.el-table__row--striped td.el-table__cell { background: transparent; }  /* 不用斑马纹 */
+.el-table__inner-wrapper::before { display: none; }
+
+.el-pagination {
+  --el-pagination-border-radius: 8px;
+  --el-pagination-button-width: 28px;
+  --el-pagination-button-height: 28px;
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-font-size: 12.5px;
+  --el-pagination-item-gap: 8px;
+}
+.el-pagination .el-pager li,
+.el-pagination .btn-prev,
+.el-pagination .btn-next {
+  border: 0;
+  min-width: 28px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12.5px;
+  color: #4a5168;
+}
+.el-pagination .el-pager li:hover,
+.el-pagination .btn-prev:hover,
+.el-pagination .btn-next:hover { background: #f1f2f6; color: #1f2540; }
+.el-pagination .el-pager li.is-active {
+  background: #eff0ff;                       /* 浅底 + 主色字，不用主色实底 */
+  color: #5b6cff;
+  font-weight: 500;
+}
+.el-pagination .el-pager li.is-active:hover { background: #e4e7ff; }
+
+.el-checkbox {
+  --el-checkbox-input-width: 16px;
+  --el-checkbox-input-height: 16px;
+  --el-checkbox-border-radius: 4px;
+}
+
+/* EP 把 select 的 min-height 写死成 32px，不吃 --el-component-size */
+.el-select__wrapper { min-height: var(--el-component-size); border-radius: 8px; }
+.el-select--small .el-select__wrapper { min-height: var(--el-component-size-small); }
+.el-input__wrapper,
+.el-textarea__inner { border-radius: 8px; }
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus { box-shadow: 0 0 0 1px #5b6cff inset, var(--focus-ring); }
+.el-form-item.is-error .el-input__wrapper {
+  box-shadow: 0 0 0 1px #ff6b6b inset, var(--focus-ring-danger);
+}
+
+.el-button:not(.is-link):not(.is-text) {
+  height: var(--el-component-size);
+  padding: 0 var(--btn-px);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.el-button--small:not(.is-link):not(.is-text) { height: var(--el-component-size-small); }
+/* 只给实心主按钮上底色，必须排除 plain / link / text，否则会出现「蓝底蓝字」 */
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+  background: #5b6cff;
+  box-shadow: var(--shadow-primary);
+}
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover { background: #4d5ef7; }
+.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):active { background: #3f4ee0; }
+
+/* 图标按角色定档：EP 的 el-icon 默认 1em，会跟着父级字号漂移 */
+.el-button .el-icon { font-size: 14px; }
+.side-item .el-icon,
+.app-top .el-icon { font-size: 16px; }

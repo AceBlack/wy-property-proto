@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>账单查询 · 布局范式对比（B 工作台式 / C 分栏式）</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pri:#5B6CFF; --pri-weak:#EEF0FF; --pri-hover:#4D5EF7;
+  --t1:#16181D; --t2:#5A6274; --t3:#8A90A0; --t4:#B4BAC6;
+  --bg:#F4F5F9; --sur:#fff; --bd:#E8EAF0; --dv:#F1F3F7;
+  --ok:#12B98A; --warn:#D98A1F; --dan:#EC4D63;
+  --r:8px; --r-lg:12px; --h-row:44px; --h-ctl:32px;
+  --fs-xs:12px; --fs-sm:13px; --fs:14px; --fs-lg:16px; --fs-xl:20px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+html,body{height:100%}
+body{
+  background:#F7F8FA;color:#16181D;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:var(--fs);line-height:1.5;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- 演示条 ---------- */
+.bar{
+  flex:0 0 auto;background:#fff;border-bottom:1px solid #E8EAF0;
+  display:flex;align-items:center;gap:16px;padding:10px 24px;color:#5A6274;
+}
+.bar h1{font-size:13.5px;font-weight:500;color:#16181D;letter-spacing:.01em}
+.bar .sub{font-size:12px;color:#8A90A0}
+.seg{display:flex;gap:2px;background:#F1F2F6;border:0;border-radius:999px;padding:3px;margin-left:auto}
+.seg button{
+  appearance:none;border:0;background:transparent;color:#6B7280;font:inherit;font-size:12.5px;
+  padding:6px 15px;border-radius:999px;cursor:pointer;white-space:nowrap;font-family:inherit;
+}
+.seg button.on{background:#fff;color:#16181D;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+
+/* ---------- 视口 ---------- */
+.viewwrap{flex:1;min-height:0;display:none;overflow:hidden}
+.viewwrap.on{display:flex}
+
+/* ---------- 应用外壳 ---------- */
+.app{flex:1;display:flex;min-width:0;background:var(--bg)}
+
+/* 图标栏 */
+.rail{
+  flex:0 0 56px;background:#fff;border-right:1px solid #F0F2F6;display:flex;flex-direction:column;align-items:center;
+  padding:12px 0;gap:6px;color:#98A0B0;
+}
+.rail .logo{width:30px;height:30px;border-radius:8px;background:var(--pri);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:600;margin-bottom:10px}
+.rail i{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;font-style:normal;font-size:15px;cursor:pointer}
+.rail i.on{background:#EEF0FF;color:#5B6CFF}
+.rail i:hover:not(.on){background:#F5F6F9;color:#5A6274}
+
+/* 空间树 */
+.tree{
+  flex:0 0 264px;background:var(--sur);border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;min-width:0;
+}
+.tree-hd{padding:14px 14px 10px;border-bottom:1px solid var(--dv)}
+.proj{display:flex;align-items:center;gap:8px;cursor:pointer}
+.proj .nm{font-size:var(--fs-sm);font-weight:500;color:var(--t1)}
+.proj .cnt{margin-left:auto;font-size:var(--fs-xs);color:var(--t3)}
+.proj .cv{color:var(--t4);font-size:11px}
+.tsearch{
+  margin-top:10px;height:var(--h-ctl);border-radius:var(--r);background:#F7F8FB;
+  display:flex;align-items:center;gap:6px;padding:0 10px;color:var(--t3);font-size:var(--fs-sm);
+}
+.tree-body{flex:1;overflow:auto;padding:8px 8px 16px}
+.ti{
+  display:flex;align-items:center;gap:7px;height:32px;padding:0 8px;border-radius:6px;
+  font-size:var(--fs-sm);color:var(--t2);cursor:pointer;white-space:nowrap;
+}
+.ti:hover{background:#F7F8FB}
+.ti.on{background:var(--pri-weak);color:var(--pri);font-weight:500}
+.ti .arw{font-size:9px;color:var(--t4);width:9px}
+.ti .nm{overflow:hidden;text-overflow:ellipsis}
+.ti .amt{margin-left:auto;font-size:11.5px;color:var(--dan)}
+.ti.l2{padding-left:22px}
+.ti.l3{padding-left:36px}
+.ti.leaf{font-size:12.5px}
+
+/* 右侧内容 */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* 工具条 */
+.toolbar{
+  flex:0 0 auto;background:var(--sur);border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:8px;padding:10px 18px;
+}
+.search{
+  width:280px;height:var(--h-ctl);border-radius:var(--r);background:#F7F8FB;
+  display:flex;align-items:center;gap:6px;padding:0 10px;color:var(--t3);font-size:var(--fs-sm);
+}
+.sel{
+  height:var(--h-ctl);border-radius:var(--r);border:1px solid var(--bd);background:var(--sur);
+  display:flex;align-items:center;gap:8px;padding:0 10px;font-size:var(--fs-sm);color:var(--t2);cursor:pointer;
+}
+.sel b{color:var(--t1);font-weight:500}
+.sel .cv{font-size:9px;color:var(--t4)}
+.segsm{display:flex;background:#F4F5F9;border-radius:var(--r);padding:3px;height:var(--h-ctl)}
+.segsm span{
+  display:flex;align-items:center;padding:0 11px;border-radius:6px;font-size:12.5px;
+  color:var(--t2);cursor:pointer;white-space:nowrap;
+}
+.segsm span.on{background:var(--sur);color:var(--t1);font-weight:500;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.ghost{
+  height:var(--h-ctl);padding:0 10px;border-radius:var(--r);display:flex;align-items:center;gap:5px;
+  font-size:var(--fs-sm);color:var(--pri);cursor:pointer;
+}
+.ghost:hover{background:var(--pri-weak)}
+.spacer{flex:1}
+.btn{
+  height:var(--h-ctl);padding:0 14px;border-radius:var(--r);font-size:var(--fs-sm);
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid var(--bd);
+  background:var(--sur);color:var(--t1);font-family:inherit;
+}
+.btn:hover{border-color:#D7DBE4}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--pri-hover);border-color:var(--pri-hover)}
+
+/* 数据条 */
+.strip{
+  flex:0 0 auto;display:flex;align-items:center;gap:0;padding:0 18px;height:48px;
+  background:var(--sur);border-bottom:1px solid var(--bd);overflow:hidden;
+}
+.st{display:flex;align-items:baseline;gap:7px;padding-right:22px;margin-right:22px;border-right:1px solid var(--dv)}
+.st:last-child{border-right:0}
+.st .k{font-size:var(--fs-xs);color:var(--t3)}
+.st .v{font-size:var(--fs-lg);font-weight:500;color:var(--t1)}
+.st .v.dan{color:var(--dan)}
+.st .s{font-size:11.5px;color:var(--t3)}
+
+/* 表格区 */
+.tblwrap{flex:1;min-height:0;background:var(--sur);display:flex;flex-direction:column;overflow:hidden}
+.thead,.trow{display:grid;grid-template-columns:132px minmax(170px,1fr) 104px 128px 96px 106px 106px 106px 92px;column-gap:14px;align-items:center}
+.thead{
+  height:40px;padding:0 18px;font-size:var(--fs-xs);color:var(--t3);font-weight:400;
+  border-bottom:1px solid var(--dv);flex:0 0 auto;
+}
+.thead .r,.trow .r{text-align:right}
+.tbody{flex:1;overflow:auto;min-height:0}
+.trow{height:var(--h-row);padding:0 18px;font-size:var(--fs-sm);color:var(--t2);border-bottom:1px solid #F6F7FA;cursor:pointer}
+.trow:hover{background:#FAFBFD}
+.trow .id{color:var(--t3);font-family:var(--mono);font-size:12px}
+.trow .addr{color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .nm{color:var(--t2)}
+.trow .subj{color:var(--t3);font-size:12.5px}
+.trow .m{color:var(--t1);text-align:right}
+.trow .m.dan{color:var(--dan);font-weight:500}
+.trow .m.zero{color:var(--t4)}
+.stt{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.stt i{width:6px;height:6px;border-radius:50%;flex:0 0 6px}
+.stt.ok{color:#0E9E76}.stt.ok i{background:var(--ok)}
+.stt.part{color:var(--warn)}.stt.part i{background:var(--warn)}
+.stt.uns{color:#7A8290}.stt.uns i{background:#C3C9D4}
+.stt.over{color:var(--dan)}.stt.over i{background:var(--dan)}
+
+/* 底栏 */
+.tfoot{
+  flex:0 0 auto;height:48px;display:flex;align-items:center;gap:12px;padding:0 18px;
+  border-top:1px solid var(--dv);font-size:var(--fs-sm);color:var(--t3);
+}
+.pager{display:flex;gap:4px;margin-left:auto}
+.pager span{
+  min-width:28px;height:28px;border-radius:6px;display:grid;place-items:center;
+  font-size:12.5px;color:var(--t2);cursor:pointer;
+}
+.pager span.on{background:var(--pri-weak);color:var(--pri);font-weight:500}
+.pager span:hover:not(.on){background:#F4F5F9}
+
+/* ---------- C 范式：分栏 ---------- */
+.clist{flex:0 0 380px;background:var(--sur);border-right:1px solid var(--bd);display:flex;flex-direction:column;min-width:0}
+.clist-hd{padding:14px 16px 10px;border-bottom:1px solid var(--dv)}
+.clist-hd h2{font-size:var(--fs-lg);font-weight:500}
+.clist-hd .meta{font-size:var(--fs-xs);color:var(--t3);margin-top:3px}
+.cfilter{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--dv);flex-wrap:wrap}
+.chip{
+  height:26px;padding:0 10px;border-radius:999px;font-size:12px;display:flex;align-items:center;
+  background:#F4F5F9;color:var(--t2);cursor:pointer;white-space:nowrap;
+}
+.chip.on{background:var(--pri);color:#fff}
+.citems{flex:1;overflow:auto;min-height:0}
+.ci{padding:12px 16px;border-bottom:1px solid #F6F7FA;cursor:pointer;display:flex;flex-direction:column;gap:5px}
+.ci:hover{background:#FAFBFD}
+.ci.on{background:var(--pri-weak);border-left:2px solid var(--pri);padding-left:14px}
+.ci .l1{display:flex;align-items:center;gap:8px}
+.ci .addr{font-size:var(--fs-sm);font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ci .m{margin-left:auto;font-size:var(--fs-sm);font-weight:500;color:var(--dan);white-space:nowrap}
+.ci .m.zero{color:var(--t4);font-weight:400}
+.ci .l2{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);color:var(--t3)}
+.ci .l2 .stt{margin-left:auto}
+
+.cdetail{flex:1;min-width:0;background:var(--bg);display:flex;flex-direction:column;overflow:auto}
+.dhd{background:var(--sur);padding:18px 24px 16px;border-bottom:1px solid var(--bd)}
+.dhd .top{display:flex;align-items:flex-start;gap:12px}
+.dhd h3{font-size:var(--fs-xl);font-weight:500;letter-spacing:-.01em}
+.dhd .sub{font-size:var(--fs-sm);color:var(--t3);margin-top:4px}
+.dhd .acts{margin-left:auto;display:flex;gap:8px}
+.dbody{padding:20px 24px 28px;display:flex;flex-direction:column;gap:16px}
+.dsec{background:var(--sur);border-radius:var(--r-lg);padding:18px 20px}
+.dsec h4{font-size:var(--fs-sm);font-weight:500;color:var(--t1);margin-bottom:14px}
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px}
+.kv .cell .k{font-size:var(--fs-xs);color:var(--t3)}
+.kv .cell .v{font-size:var(--fs);color:var(--t1);margin-top:3px}
+.money3{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-radius:var(--r-lg);padding:18px 20px}
+.mcard{padding:0 20px;border-right:1px solid var(--dv)}
+.mcard:first-child{padding-left:0}
+.mcard:last-child{border-right:0}
+.mcard .k{font-size:var(--fs-xs);color:var(--t3)}
+.mcard .v{font-size:var(--fs-xl);font-weight:500;margin-top:4px}
+.mcard .v.dan{color:var(--dan)}
+.mcard .v.gray{color:var(--t4)}
+.tl{display:flex;flex-direction:column;gap:0}
+.tli{display:flex;gap:12px;padding-bottom:16px;position:relative}
+.tli:last-child{padding-bottom:0}
+.tli::before{content:"";position:absolute;left:5px;top:14px;bottom:0;width:1px;background:var(--dv)}
+.tli:last-child::before{display:none}
+.tli i{width:11px;height:11px;border-radius:50%;background:var(--sur);border:2px solid var(--pri);flex:0 0 11px;margin-top:3px;z-index:1}
+.tli.done i{border-color:var(--ok)}
+.tli .tx{min-width:0}
+.tli .tt{font-size:var(--fs-sm);color:var(--t1)}
+.tli .tm{font-size:var(--fs-xs);color:var(--t3);margin-top:2px}
+.tli .am{font-size:var(--fs-sm);color:var(--t1);margin-left:auto;white-space:nowrap}
+
+/* ================= B2 精修版（参考作品语言） ================= */
+#v-b2 .app{background:#F7F8FA}
+#v-b2 .rail{background:#0E1220;border-right:0}
+#v-b2 .tree{background:#fff;border-right:1px solid #F0F2F6}
+#v-b2 .tree-hd{border-bottom:0;padding:16px 16px 6px}
+#v-b2 .tsearch{background:#F5F6F9;border:0;border-radius:999px;height:32px}
+#v-b2 .tree-body{padding:6px 10px 16px}
+#v-b2 .ti{height:34px;border-radius:999px;font-size:12.5px}
+#v-b2 .ti.on{background:#EEF0FF;color:#5B6CFF;font-weight:500}
+#v-b2 .ti:hover{background:#F7F8FB}
+
+/* 工具条：灰底无边框 */
+#v-b2 .tbv{display:flex;align-items:center;gap:10px;padding:12px 24px 10px;background:#F7F8FA}
+#v-b2 .s2{flex:0 0 306px;height:34px;border-radius:999px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;color:#9AA1B0;font-size:13px}
+#v-b2 .s2 kbd{margin-left:auto;font-size:11px;color:#A9AFBC;border:1px solid #E8EAF0;border-radius:5px;padding:1px 5px;background:#FBFBFD;font-family:inherit}
+#v-b2 .pl{height:34px;border-radius:999px;background:#fff;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:13px;color:#5A6274}
+#v-b2 .pl b{color:#16181D;font-weight:500}
+#v-b2 .chips{display:flex;align-items:center;gap:2px;background:transparent}
+#v-b2 .cp{height:34px;padding:0 13px;display:flex;align-items:center;border-radius:999px;font-size:13px;color:#6B7280;cursor:pointer}
+#v-b2 .cp.on{background:#fff;color:#16181D;font-weight:500;box-shadow:0 1px 2px rgba(16,24,40,.07)}
+#v-b2 .b2{height:34px;padding:0 16px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:6px;border:0;background:#fff;color:#16181D;cursor:pointer;font-family:inherit}
+#v-b2 .b2.pri{background:#5B6CFF;color:#fff;box-shadow:0 3px 10px rgba(91,108,255,.30)}
+
+/* 单行说明条 */
+#v-b2 .bn{margin:0 24px;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:#EEF4FF;color:#3D5AD6;font-size:12.5px}
+#v-b2 .bn i{width:6px;height:6px;border-radius:50%;background:#5B6CFF;flex:0 0 6px}
+
+/* KPI 瓦片 */
+#v-b2 .k2{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 24px 0}
+#v-b2 .kt{background:#fff;border-radius:14px;padding:16px 18px 14px}
+#v-b2 .kt .ic{width:30px;height:30px;border-radius:9px;background:#F4F5F9;display:grid;place-items:center;font-size:13px;color:#616A7D}
+#v-b2 .kt .vr{display:flex;align-items:center;gap:8px;margin-top:10px}
+#v-b2 .kt .v{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#16181D}
+#v-b2 .kt .v.dan{color:#EC4D63}
+#v-b2 .kt .d{font-size:11.5px;padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums}
+#v-b2 .kt .d.up{background:#E9F8F1;color:#0E9E76}
+#v-b2 .kt .d.dn{background:#FDECEF;color:#DC3A54}
+#v-b2 .kt .l{font-size:12px;color:#8A90A0;margin-top:7px}
+
+/* 表格：整页白底，无外层卡片 */
+#v-b2 .tblv{flex:1;min-height:0;display:flex;flex-direction:column;padding:14px 24px 0;position:relative}
+#v-b2 .thead2,#v-b2 .trow2{display:grid;
+  grid-template-columns:30px 112px minmax(130px,1fr) 84px 96px 80px 94px 94px 94px 96px 30px;
+  column-gap:12px;align-items:center}
+#v-b2 .thead2{height:38px;padding:0 8px;font-size:12px;color:#8A90A0;flex:0 0 auto}
+#v-b2 .thead2 .r,#v-b2 .trow2 .r{text-align:right}
+#v-b2 .tbody2{flex:1;overflow:auto;min-height:0;padding:0 0 8px}
+#v-b2 .trow2{height:46px;padding:0 8px;font-size:13px;color:#5A6274;border-bottom:1px solid #F4F5F9;cursor:pointer}
+#v-b2 .trow2:hover{background:#FAFBFD}
+#v-b2 .ck{width:15px;height:15px;border:1.5px solid #D5DAE2;border-radius:4px}
+#v-b2 .trow2 .id{font-family:var(--mono);font-size:12px;color:#8A90A0}
+#v-b2 .trow2 .addr{color:#16181D;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#v-b2 .trow2 .subj{color:#9AA1B0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#v-b2 .trow2 .m{color:#16181D;text-align:right;font-variant-numeric:tabular-nums}
+#v-b2 .trow2 .m.dan{color:#EC4D63;font-weight:500}
+#v-b2 .trow2 .m.zero{color:#C3C9D4}
+#v-b2 .plus{width:24px;height:24px;border-radius:50%;background:#F1F2F6;color:#8A90A0;display:grid;place-items:center;font-size:13px;line-height:1;opacity:.6}
+#v-b2 .trow2:hover .plus{opacity:1;background:#E8EAF2}
+#v-b2 .tfoot2{flex:0 0 auto;height:46px;display:flex;align-items:center;gap:12px;font-size:13px;color:#8A90A0;padding:0 8px}
+
+/* 浅色侧栏开关 */
+#v-b2 .app{background:#F7F8FA}
+#v-b2 .rail{background:#fff;border-right:1px solid #F0F2F6}
+.app.dk .rail{background:#0E1220;border-right:0;color:#6E7A93}
+.app.dk .rail i.on{background:rgba(91,108,255,.18);color:#A8B4FF}
+.app.dk .rail i:hover:not(.on){background:rgba(255,255,255,.05);color:#C9D2E4}
+.tgl{appearance:none;border:1px solid #E8EAF0;background:#fff;color:#5A6274;font:inherit;font-size:12.5px;
+  padding:6px 13px;border-radius:999px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.tgl.on{background:#EEF0FF;color:#4D5EF7;border-color:#DDE2FF}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <h1>账单查询 · 布局范式对比</h1>
+  <span class="sub">同一份业务内容 · 只换导航模型</span>
+  <button class="tgl" id="lt">深色侧栏</button>
+  <div class="seg">
+    <button data-v="b">B 工作台式</button>
+    <button class="on" data-v="b2">B2 精修版</button><button data-v="c">C 分栏式</button>
+  </div>
+</div>
+
+<!-- ============ B 工作台式 ============ -->
+<div class="viewwrap" id="v-b">
+<div class="app">
+  <div class="rail">
+    <div class="logo">物</div>
+    <i class="on">▦</i><i>⌂</i><i>▤</i><i>◫</i><i>✦</i><i>⚙</i>
+  </div>
+
+  <aside class="tree">
+    <div class="tree-hd">
+      <div class="proj"><span class="nm">阳光花园</span><span class="cv">▾</span><span class="cnt">1,284 单</span></div>
+      <div class="tsearch">搜索楼栋 / 房号</div>
+    </div>
+    <div class="tree-body">
+      <div class="ti on"><span class="arw">▾</span><span class="nm">全部房屋</span><span class="amt">48.2万</span></div>
+      <div class="ti l2"><span class="arw">▾</span><span class="nm">1 号楼</span><span class="amt">18.6万</span></div>
+      <div class="ti l3"><span class="arw">▾</span><span class="nm">1 单元</span><span class="amt">9.4万</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1001 张伟民</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1002 李淑芬</span><span class="amt">486</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1003 周慧</span></div>
+      <div class="ti l3"><span class="arw">▸</span><span class="nm">2 单元</span><span class="amt">9.2万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">2 号楼</span><span class="amt">14.1万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">3 号楼</span><span class="amt">12.3万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">地下车位</span><span class="amt">3.2万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">商铺</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="toolbar">
+      <div class="search">搜索账单号 / 业主 / 房号</div>
+      <div class="sel">账期 <b>2026-11</b> <span class="cv">▾</span></div>
+      <div class="segsm"><span class="on">全部</span><span>未缴</span><span>逾期</span><span>已缴清</span></div>
+      <div class="ghost">更多筛选 ▾</div>
+      <div class="spacer"></div>
+      <button class="btn">导出</button>
+      <button class="btn pri">批量催缴</button>
+    </div>
+
+    <div class="strip">
+      <div class="st"><span class="k">总单</span><span class="v num">1,284</span></div>
+      <div class="st"><span class="k">应收</span><span class="v num">322.39万</span></div>
+      <div class="st"><span class="k">已收</span><span class="v num">274.12万</span></div>
+      <div class="st"><span class="k">欠费</span><span class="v num dan">48.27万</span><span class="s">占 15.0%</span></div>
+      <div class="st"><span class="k">逾期</span><span class="v num dan">42</span><span class="s">单</span></div>
+      <div class="st"><span class="k">收缴率</span><span class="v num">85.0%</span></div>
+    </div>
+
+    <div class="tblwrap">
+      <div class="thead">
+        <div>账单号</div><div>房屋</div><div>业主</div><div>科目</div><div>账期</div>
+        <div class="r">应收</div><div class="r">已收</div><div class="r">欠费</div><div>状态</div>
+      </div>
+      <div class="tbody">
+        <div class="trow"><div class="id">BL-001284</div><div class="addr">1-1-1001</div><div class="subj">住宅物业费</div><div class="nm">张伟民</div><div>2026-11</div><div class="m num">1,283.50</div><div class="m num">1,283.50</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+        <div class="trow"><div class="id">BL-001283</div><div class="addr">1-1-1002</div><div class="subj">住宅物业费</div><div class="nm">李淑芬</div><div>2026-11</div><div class="m num">986.00</div><div class="m num">500.00</div><div class="m num dan">486.00</div><div><span class="stt part"><i></i>部分缴</span></div></div>
+        <div class="trow"><div class="id">BL-001282</div><div class="addr">1-2-802</div><div class="subj">住宅物业费</div><div class="nm">王建国</div><div>2026-11</div><div class="m num">1,540.20</div><div class="m num zero">0.00</div><div class="m num dan">1,540.20</div><div><span class="stt over"><i></i>已逾期</span></div></div>
+        <div class="trow"><div class="id">BL-001281</div><div class="addr">2-1-301</div><div class="subj">住宅物业费</div><div class="nm">陈美玲</div><div>2026-11</div><div class="m num">872.40</div><div class="m num zero">0.00</div><div class="m num dan">872.40</div><div><span class="stt uns"><i></i>未缴</span></div></div>
+        <div class="trow"><div class="id">BL-001280</div><div class="addr">2-1-302</div><div class="subj">住宅物业费</div><div class="nm">刘志强</div><div>2026-11</div><div class="m num">1,116.80</div><div class="m num">1,116.80</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+        <div class="trow"><div class="id">BL-001279</div><div class="addr">3-3-1601</div><div class="subj">住宅物业费</div><div class="nm">赵雅芳</div><div>2026-11</div><div class="m num">2,304.00</div><div class="m num">1,000.00</div><div class="m num dan">1,304.00</div><div><span class="stt part"><i></i>部分缴</span></div></div>
+        <div class="trow"><div class="id">BL-001278</div><div class="addr">3-3-1602</div><div class="subj">住宅物业费</div><div class="nm">孙立</div><div>2026-10</div><div class="m num">963.60</div><div class="m num zero">0.00</div><div class="m num dan">963.60</div><div><span class="stt over"><i></i>已逾期</span></div></div>
+        <div class="trow"><div class="id">BL-001277</div><div class="addr">车位 B-042</div><div class="subj">车位租金</div><div class="nm">吴海涛</div><div>2026-11</div><div class="m num">380.00</div><div class="m num">380.00</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+        <div class="trow"><div class="id">BL-001276</div><div class="addr">1-2-803</div><div class="subj">住宅物业费</div><div class="nm">郑秀兰</div><div>2026-11</div><div class="m num">1,540.20</div><div class="m num zero">0.00</div><div class="m num dan">1,540.20</div><div><span class="stt uns"><i></i>未缴</span></div></div>
+        <div class="trow"><div class="id">BL-001275</div><div class="addr">2-2-501</div><div class="subj">住宅物业费</div><div class="nm">黄志明</div><div>2026-11</div><div class="m num">1,024.60</div><div class="m num">1,024.60</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+        <div class="trow"><div class="id">BL-001274</div><div class="addr">商铺 1-03</div><div class="subj">商铺物业费</div><div class="nm">李记便利店</div><div>2026-11</div><div class="m num">4,860.00</div><div class="m num">2,000.00</div><div class="m num dan">2,860.00</div><div><span class="stt part"><i></i>部分缴</span></div></div>
+        <div class="trow"><div class="id">BL-001273</div><div class="addr">3-1-601</div><div class="subj">住宅物业费</div><div class="nm">马晓东</div><div>2026-11</div><div class="m num">1,116.80</div><div class="m num zero">0.00</div><div class="m num dan">1,116.80</div><div><span class="stt uns"><i></i>未缴</span></div></div>
+        <div class="trow"><div class="id">BL-001272</div><div class="addr">1-1-1003</div><div class="subj">住宅物业费</div><div class="nm">周慧</div><div>2026-11</div><div class="m num">986.00</div><div class="m num">986.00</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+        <div class="trow"><div class="id">BL-001271</div><div class="addr">车位 A-118</div><div class="subj">车位租金</div><div class="nm">徐国平</div><div>2026-11</div><div class="m num">380.00</div><div class="m num zero">0.00</div><div class="m num dan">380.00</div><div><span class="stt over"><i></i>已逾期</span></div></div>
+        <div class="trow"><div class="id">BL-001270</div><div class="addr">2-1-303</div><div class="subj">住宅物业费</div><div class="nm">何美华</div><div>2026-11</div><div class="m num">872.40</div><div class="m num">872.40</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div></div>
+      </div>
+      <div class="tfoot">
+        <span>共 1,284 条 · 已选 0 条</span>
+        <div class="pager"><span>‹</span><span class="on">1</span><span>2</span><span>3</span><span>…</span><span>86</span><span>›</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ C 分栏式 ============ -->
+<div class="viewwrap" id="v-c">
+<div class="app">
+  <div class="rail">
+    <div class="logo">物</div>
+    <i class="on">▦</i><i>⌂</i><i>▤</i><i>◫</i><i>✦</i><i>⚙</i>
+  </div>
+
+  <aside class="clist">
+    <div class="clist-hd">
+      <h2>账单查询</h2>
+      <div class="meta">阳光花园 · 2026-11 · 1,284 条</div>
+      <div class="tsearch" style="margin-top:10px">搜索房号 / 业主 / 账单号</div>
+    </div>
+    <div class="cfilter">
+      <span class="chip on">全部</span><span class="chip">未缴 486</span><span class="chip">逾期 42</span><span class="chip">已缴清 756</span>
+    </div>
+    <div class="citems">
+      <div class="ci"><div class="l1"><span class="addr">1-1-1001 张伟民</span><span class="m zero">0.00</span></div><div class="l2"><span>BL-001284</span><span class="stt ok"><i></i>已缴清</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">1-1-1002 李淑芬</span><span class="m">486.00</span></div><div class="l2"><span>BL-001283</span><span class="stt part"><i></i>部分缴</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">1-2-802 王建国</span><span class="m">1,540.20</span></div><div class="l2"><span>BL-001282</span><span class="stt over"><i></i>已逾期 12 天</span></div></div>
+      <div class="ci on"><div class="l1"><span class="addr">2-1-301 陈美玲</span><span class="m">872.40</span></div><div class="l2"><span>BL-001281</span><span class="stt uns"><i></i>未缴</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">2-1-302 刘志强</span><span class="m zero">0.00</span></div><div class="l2"><span>BL-001280</span><span class="stt ok"><i></i>已缴清</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">3-3-1601 赵雅芳</span><span class="m">1,304.00</span></div><div class="l2"><span>BL-001279</span><span class="stt part"><i></i>部分缴</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">3-3-1602 孙立</span><span class="m">963.60</span></div><div class="l2"><span>BL-001278</span><span class="stt over"><i></i>已逾期 43 天</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">车位 B-042 吴海涛</span><span class="m zero">0.00</span></div><div class="l2"><span>BL-001277</span><span class="stt ok"><i></i>已缴清</span></div></div>
+      <div class="ci"><div class="l1"><span class="addr">1-2-803 郑秀兰</span><span class="m">1,540.20</span></div><div class="l2"><span>BL-001276</span><span class="stt uns"><i></i>未缴</span></div></div>
+    </div>
+  </aside>
+
+  <section class="cdetail">
+    <div class="dhd">
+      <div class="top">
+        <div>
+          <h3>2-1-301 陈美玲</h3>
+          <div class="sub">BL-001281 · 账期 2026-11 · 住宅物业费</div>
+        </div>
+        <div class="acts">
+          <button class="btn">开票</button>
+          <button class="btn">登记收款</button>
+          <button class="btn pri">发送催缴</button>
+        </div>
+      </div>
+    </div>
+    <div class="dbody">
+      <div class="money3">
+        <div class="mcard"><div class="k">应收</div><div class="v num">872.40</div></div>
+        <div class="mcard"><div class="k">已收</div><div class="v num gray">0.00</div></div>
+        <div class="mcard"><div class="k">欠费</div><div class="v num dan">872.40</div></div>
+      </div>
+
+      <div class="dsec">
+        <h4>账单信息</h4>
+        <div class="kv">
+          <div class="cell"><div class="k">房屋</div><div class="v">阳光花园 2 号楼 1 单元 301</div></div>
+          <div class="cell"><div class="k">建筑面积</div><div class="v">89.36 ㎡</div></div>
+          <div class="cell"><div class="k">收费科目</div><div class="v">住宅物业费 · 2.30 元/㎡</div></div>
+          <div class="cell"><div class="k">应缴日期</div><div class="v">2026-11-10</div></div>
+          <div class="cell"><div class="k">计费周期</div><div class="v">2026-11-01 ~ 2026-11-30</div></div>
+          <div class="cell"><div class="k">滞纳金</div><div class="v">0.00（宽限期内）</div></div>
+        </div>
+      </div>
+
+      <div class="dsec">
+        <h4>处理记录</h4>
+        <div class="tl">
+          <div class="tli"><i></i><div class="tx"><div class="tt">账单生成</div><div class="tm">2026-11-01 00:05 · 系统</div></div></div>
+          <div class="tli"><i></i><div class="tx"><div class="tt">发送催缴短信</div><div class="tm">2026-11-11 09:22 · 张敏</div></div></div>
+          <div class="tli done"><i></i><div class="tx"><div class="tt">业主回复：本周五转账</div><div class="tm">2026-11-15 18:40 · 业主端</div></div></div>
+        </div>
+      </div>
+
+      <div class="dsec">
+        <h4>历史账期</h4>
+        <div class="kv" style="grid-template-columns:repeat(4,1fr)">
+          <div class="cell"><div class="k">2026-10</div><div class="v">已缴清 · 848.20</div></div>
+          <div class="cell"><div class="k">2026-09</div><div class="v">已缴清 · 848.20</div></div>
+          <div class="cell"><div class="k">2026-08</div><div class="v">已缴清 · 848.20</div></div>
+          <div class="cell"><div class="k">近 12 月累计</div><div class="v">8,946.90</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+
+
+<!-- ============ B2 精修版 ============ -->
+<div class="viewwrap on" id="v-b2">
+<div class="app">
+  <div class="rail">
+    <div class="logo">物</div>
+    <i class="on">▦</i><i>⌂</i><i>▤</i><i>◫</i><i>✦</i><i>⚙</i>
+  </div>
+
+  <aside class="tree">
+    <div class="tree-hd">
+      <div class="proj"><span class="nm">阳光花园</span><span class="cv">▾</span><span class="cnt">1,284 单</span></div>
+      <div class="tsearch">搜索楼栋 / 房号</div>
+    </div>
+    <div class="tree-body">
+      <div class="ti on"><span class="arw">▾</span><span class="nm">全部房屋</span><span class="amt">48.2万</span></div>
+      <div class="ti l2"><span class="arw">▾</span><span class="nm">1 号楼</span><span class="amt">18.6万</span></div>
+      <div class="ti l3"><span class="arw">▾</span><span class="nm">1 单元</span><span class="amt">9.4万</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1001 张伟民</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1002 李淑芬</span><span class="amt">486</span></div>
+      <div class="ti l3 leaf" style="padding-left:52px"><span class="nm">1003 周慧</span></div>
+      <div class="ti l3"><span class="arw">▸</span><span class="nm">2 单元</span><span class="amt">9.2万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">2 号楼</span><span class="amt">14.1万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">3 号楼</span><span class="amt">12.3万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">地下车位</span><span class="amt">3.2万</span></div>
+      <div class="ti l2"><span class="arw">▸</span><span class="nm">商铺</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="tbv">
+      <div class="s2">搜索账单号 / 业主 / 房号<kbd>⌘F</kbd></div>
+      <div class="pl">账期 <b>2026-11</b> <span style="font-size:9px;color:#B4BAC6">▾</span></div>
+      <div class="chips"><div class="cp on">全部</div><div class="cp">未缴</div><div class="cp">逾期</div><div class="cp">已缴清</div></div>
+      <div class="cp" style="color:#5B6CFF">更多筛选 ▾</div>
+      <div class="spacer"></div>
+      <button class="b2">导出</button>
+      <button class="b2 pri">＋ 新建账单</button>
+    </div>
+
+    <div class="bn"><i></i>口径说明：应收按合同单价 × 建筑面积计算；宽限期内不计滞纳金，逾期 30 天起按日 0.05% 计收。</div>
+
+    <div class="k2">
+      <div class="kt"><div class="ic">▤</div><div class="vr"><span class="v num">1,284</span><span class="d up">+24</span></div><div class="l">本月账单总数</div></div>
+      <div class="kt"><div class="ic">¥</div><div class="vr"><span class="v num">322.39万</span><span class="d up">+12.4%</span></div><div class="l">应收合计</div></div>
+      <div class="kt"><div class="ic">✓</div><div class="vr"><span class="v num">274.12万</span><span class="d up">+8.2%</span></div><div class="l">已收合计</div></div>
+      <div class="kt"><div class="ic">!</div><div class="vr"><span class="v num dan">48.27万</span><span class="d dn">+15.0%</span></div><div class="l">欠费合计 · 占 15.0%</div></div>
+    </div>
+
+    <div class="tblv">
+      <div class="thead2">
+        <div><span class="ck"></span></div><div>账单号</div><div>房屋</div><div>业主</div><div>科目</div><div>账期</div>
+        <div class="r">应收</div><div class="r">已收</div><div class="r">欠费</div><div>状态</div><div></div>
+      </div>
+      <div class="tbody2">
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001284</div><div class="addr">1-1-1001</div><div>张伟民</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,283.50</div><div class="m num">1,283.50</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001283</div><div class="addr">1-1-1002</div><div>李淑芬</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">986.00</div><div class="m num">500.00</div><div class="m num dan">486.00</div><div><span class="stt part"><i></i>部分缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001282</div><div class="addr">1-2-802</div><div>王建国</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,540.20</div><div class="m num zero">0.00</div><div class="m num dan">1,540.20</div><div><span class="stt over"><i></i>已逾期</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001281</div><div class="addr">2-1-301</div><div>陈美玲</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">872.40</div><div class="m num zero">0.00</div><div class="m num dan">872.40</div><div><span class="stt uns"><i></i>未缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001280</div><div class="addr">2-1-302</div><div>刘志强</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,116.80</div><div class="m num">1,116.80</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001279</div><div class="addr">3-3-1601</div><div>赵雅芳</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">2,304.00</div><div class="m num">1,000.00</div><div class="m num dan">1,304.00</div><div><span class="stt part"><i></i>部分缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001278</div><div class="addr">3-3-1602</div><div>孙立</div><div class="subj">住宅物业费</div><div>2026-10</div><div class="m num">963.60</div><div class="m num zero">0.00</div><div class="m num dan">963.60</div><div><span class="stt over"><i></i>已逾期</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001277</div><div class="addr">车位 B-042</div><div>吴海涛</div><div class="subj">车位租金</div><div>2026-11</div><div class="m num">380.00</div><div class="m num">380.00</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001276</div><div class="addr">1-2-803</div><div>郑秀兰</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,540.20</div><div class="m num zero">0.00</div><div class="m num dan">1,540.20</div><div><span class="stt uns"><i></i>未缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001275</div><div class="addr">2-2-501</div><div>黄志明</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,024.60</div><div class="m num">1,024.60</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001274</div><div class="addr">商铺 1-03</div><div>李记便利店</div><div class="subj">商铺物业费</div><div>2026-11</div><div class="m num">4,860.00</div><div class="m num">2,000.00</div><div class="m num dan">2,860.00</div><div><span class="stt part"><i></i>部分缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001273</div><div class="addr">3-1-601</div><div>马晓东</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">1,116.80</div><div class="m num zero">0.00</div><div class="m num dan">1,116.80</div><div><span class="stt uns"><i></i>未缴</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001272</div><div class="addr">1-1-1003</div><div>周慧</div><div class="subj">住宅物业费</div><div>2026-11</div><div class="m num">986.00</div><div class="m num">986.00</div><div class="m num zero">0.00</div><div><span class="stt ok"><i></i>已缴清</span></div><div class="plus">＋</div></div>
+        <div class="trow2"><div><span class="ck"></span></div><div class="id">BL-001271</div><div class="addr">车位 A-118</div><div>徐国平</div><div class="subj">车位租金</div><div>2026-11</div><div class="m num">380.00</div><div class="m num zero">0.00</div><div class="m num dan">380.00</div><div><span class="stt over"><i></i>已逾期</span></div><div class="plus">＋</div></div>
+      </div>
+      <div class="tfoot2">
+        <span>共 1,284 条 · 已选 0 条</span>
+        <div class="pager"><span>‹</span><span class="on">1</span><span>2</span><span>3</span><span>…</span><span>86</span><span>›</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  var btns = document.querySelectorAll('.seg button');
+  var views = { b: document.getElementById('v-b'), b2: document.getElementById('v-b2'), c: document.getElementById('v-c') };
+  function show(v){
+    btns.forEach(function(x){ x.classList.toggle('on', x.dataset.v === v); });
+    Object.keys(views).forEach(function(k){ views[k].classList.toggle('on', k === v); });
+  }
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){ show(b.dataset.v); });
+  });
+  var ltBtn = document.getElementById('lt');
+  var apps = document.querySelectorAll('.app');
+  ltBtn.addEventListener('click', function(){
+    var on = !ltBtn.classList.contains('on');
+    apps.forEach(function(a){ a.classList.toggle('dk', on); });
+    ltBtn.classList.toggle('on', on);
+  });
+  var h = (location.hash || '').replace('#','');
+  if (h === 'b2l') { show('b2'); b2app.classList.add('lt'); ltBtn.classList.add('on'); }
+  show(['b','b2','b2l','c'].indexOf(h) > -1 ? (h==='b2l'?'b2':h) : 'b2');
+})();
+</script>
+</body>
+</html>
