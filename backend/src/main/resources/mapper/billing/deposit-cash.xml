@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.deposit.DepositCashFlowMapper">
+
+    <!--
+      押金现金流（交班口径）：
+        ① 只取 I 收 / O 退。D 扣是负债转收入，不涉及现金，混进来会让抽屉对不上。
+        ② 按 occurred_at 分营业日（Asia/Shanghai），与 payment.paid_at 同口径，两表可并排。
+        ③ 现金 = method='现金'，其余（银行代扣/微信/POS）只备查。
+    -->
+    <select id="selectCashFlow" resultType="com.wy.property.billing.deposit.DepositCashRow">
+        SELECT (t.occurred_at AT TIME ZONE 'Asia/Shanghai')::date AS biz_date,
+               coalesce(t.pay_point, '(未指定)')                  AS pay_point,
+               (t.method = '现金')                                AS cash,
+               count(*)                                           AS txn_count,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'I'), 0) AS in_amount,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'O'), 0) AS out_amount
+        FROM deposit_txn t
+        WHERE t.direction IN ('I', 'O')
+          AND t.occurred_at &gt;= #{fromTs}
+          AND t.occurred_at &lt;  #{toTs}
+        <if test="communityId != null and communityId != ''">
+          AND EXISTS (SELECT 1 FROM deposit d
+                      WHERE d.id = t.deposit_id AND d.community_id = #{communityId})
+        </if>
+        GROUP BY 1, 2, 3
+        ORDER BY 1, 2, 3
+    </select>
+
+</mapper>

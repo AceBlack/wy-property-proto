@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.daily.DailyRevenueMapper">
+
+    <!--
+      收入段：钱按**科目**分。金额取分摊额（a.amount），不是收款单金额——
+      一笔收款可能同时冲多个科目，按收款单算会把整笔算到一个科目上。
+      押金类科目（direction='deposit'）不进收入段，走往来款。
+    -->
+    <select id="selectIncome" resultType="com.wy.property.billing.daily.DailyIncomeRow">
+        SELECT f.category                                        AS category,
+               (p.paid_at AT TIME ZONE 'Asia/Shanghai')::date     AS day,
+               coalesce(sum(a.amount), 0)                        AS amount
+        FROM payment_allocation a
+        JOIN payment p ON p.id = a.payment_id
+                      AND p.status = '正常'
+                      AND p.paid_at &gt;= #{fromTs}
+                      AND p.paid_at &lt;  #{toTs}
+        JOIN fee_item f ON f.id = a.item_id
+        WHERE f.direction &lt;&gt; 'deposit'
+        <if test="communityId != null and communityId != ''">
+          AND p.community_id = #{communityId}
+        </if>
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+    </select>
+
+    <!-- 往来款（I 收取）/ 退款（O 退还）：按押金类型。D 向是扣转收入，不产生现金流，不进日报。 -->
+    <select id="selectDeposits" resultType="com.wy.property.billing.daily.DailyDepositRow">
+        SELECT d.type_id                                          AS type,
+               t.direction                                        AS direction,
+               (t.occurred_at AT TIME ZONE 'Asia/Shanghai')::date  AS day,
+               coalesce(sum(t.amount), 0)                         AS amount
+        FROM deposit_txn t
+        JOIN deposit d ON d.id = t.deposit_id
+        WHERE t.direction IN ('I', 'O')
+          AND t.occurred_at &gt;= #{fromTs}
+          AND t.occurred_at &lt;  #{toTs}
+        <if test="communityId != null and communityId != ''">
+          AND d.community_id = #{communityId}
+        </if>
+        GROUP BY 1, 2, 3
+        ORDER BY 1, 2, 3
+    </select>
+
+    <!--
+      收款点：七个固定位（现金 / 车辆现金 / POS刷卡 / 车辆POS / 转账 / 车辆云平台 / 线上支付）。
+
+      为什么按"收款点 × 方式"联合判断：前台收现金和停车场收现金不是一个抽屉，
+      交班要分开点；微信在停车场走的是第三方停车平台，也单列。
+
+      预存抵扣单独一格：它不是新收到的钱，但账单确实销了。
+      把它并到任一格都会让差额永远不为 0（契约枚举里没有这一格，属契约缺口）。
+    -->
+    <select id="selectPayPoints" resultType="com.wy.property.billing.daily.DailyPayPointRow">
+        SELECT day, slot, source, sum(amount) AS amount
+        FROM (
+            SELECT (p.paid_at AT TIME ZONE 'Asia/Shanghai')::date AS day,
+                   CASE
+                       WHEN p.method = '预存抵扣' THEN '预存抵扣'
+                       WHEN p.method = '现金' AND p.pay_point = '停车场' THEN '车辆现金'
+                       WHEN p.method = '现金' THEN '现金'
+                       WHEN p.method = 'POS' AND p.pay_point = '停车场' THEN '车辆POS'
+                       WHEN p.method = 'POS' THEN 'POS刷卡'
+                       WHEN p.method IN ('银行代扣', '转账', '银行转账') THEN '转账'
+                       WHEN p.method IN ('微信', '支付宝') AND p.pay_point = '停车场' THEN '车辆云平台'
+                       ELSE '线上支付'
+                   END                                            AS slot,
+                   'payment'                                      AS source,
+                   p.amount                                       AS amount
+            FROM payment p
+            WHERE p.status = '正常'
+              AND p.paid_at &gt;= #{fromTs}
+              AND p.paid_at &lt;  #{toTs}
+            <if test="communityId != null and communityId != ''">
+              AND p.community_id = #{communityId}
+            </if>
+            UNION ALL
+            SELECT (t.occurred_at AT TIME ZONE 'Asia/Shanghai')::date AS day,
+                   CASE WHEN t.method = '现金' THEN '现金' ELSE '转账' END AS slot,
+                   'deposit'                                        AS source,
+                   CASE t.direction WHEN 'I' THEN t.amount ELSE -t.amount END AS amount
+            FROM deposit_txn t
+            JOIN deposit d ON d.id = t.deposit_id
+            WHERE t.direction IN ('I', 'O')
+              AND t.occurred_at &gt;= #{fromTs}
+              AND t.occurred_at &lt;  #{toTs}
+            <if test="communityId != null and communityId != ''">
+              AND d.community_id = #{communityId}
+            </if>
+        ) x
+        GROUP BY day, slot, source
+        ORDER BY day, slot
+    </select>
+
+</mapper>

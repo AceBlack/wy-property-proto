@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.collection.CollectionRateMapper">
+
+    <!--
+      三率口径（全系统唯一）：
+        payable      = 应缴「原价」= amount + late_fee，减免不冲减
+        net_payable  = payable − waive_amount
+        收缴率        = Σpaid_amount ÷ Σnet_payable
+      排除已作废与逻辑删除。
+      聚合下推到 SQL，不在应用层扫行——报表口径能被 psql 直接复核。
+    -->
+    <select id="selectByCommunity" resultType="com.wy.property.billing.collection.CollectionRateRow">
+        SELECT b.community_id                        AS community_id,
+               max(c.name)                           AS community_name,
+               coalesce(sum(b.payable), 0)           AS payable,
+               coalesce(sum(b.waive_amount), 0)      AS waive_amount,
+               coalesce(sum(b.paid_amount), 0)       AS paid_amount,
+               count(*)                              AS bill_count
+        FROM bill b
+        LEFT JOIN community c
+               ON c.tenant_id = b.tenant_id
+              AND c.community_id = b.community_id
+        WHERE b.deleted_at IS NULL
+          AND b.status &lt;&gt; '已作废'
+          AND b.period &gt;= #{fromPeriod}
+          AND b.period &lt;= #{toPeriod}
+        <if test="communityId != null and communityId != ''">
+          AND b.community_id = #{communityId}
+        </if>
+        GROUP BY b.community_id
+        ORDER BY b.community_id
+    </select>
+
+</mapper>

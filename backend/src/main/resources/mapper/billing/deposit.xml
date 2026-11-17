@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.deposit.DepositFlowMapper">
+
+    <!--
+      押金三向流水：I 收 / O 退 / D 扣。
+      calculated = ΣI − ΣO − ΣD，必须等于 deposit.balance。
+      LEFT JOIN 保留零流水押金（待收状态），否则"一笔没收却有余额"的脏数据会被过滤掉、永远查不出来。
+    -->
+    <select id="selectFlows" resultType="com.wy.property.billing.deposit.DepositFlowRow">
+        SELECT d.id                                        AS deposit_id,
+               d.deposit_no                                AS deposit_no,
+               d.community_id                              AS community_id,
+               d.status                                    AS status,
+               d.balance                                   AS balance,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'I'), 0) AS in_amount,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'O'), 0) AS out_amount,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'D'), 0) AS deduct_amount,
+               coalesce(sum(CASE t.direction
+                                 WHEN 'I' THEN t.amount
+                                 WHEN 'O' THEN -t.amount
+                                 WHEN 'D' THEN -t.amount
+                            END), 0)                       AS calculated
+        FROM deposit d
+        LEFT JOIN deposit_txn t
+               ON t.deposit_id = d.id
+              AND t.tenant_id = d.tenant_id
+        <!-- deposit 表没有 deleted_at：押金是负债台账，靠 status（已结清/已退还）收口，不做软删 -->
+        <where>
+            <if test="communityId != null and communityId != ''">
+                d.community_id = #{communityId}
+            </if>
+        </where>
+        GROUP BY d.id, d.deposit_no, d.community_id, d.status, d.balance
+        ORDER BY d.id
+    </select>
+
+</mapper>

@@ -127,5 +127,31 @@ HAVING SUM(r.amount) <> (
     AND e.level = 'company' AND e.status = '已付款'
 );
 
+\echo '=== 13. 押金走了现金（应为 0 行；政策 2026-11-18 起禁止收/退现金押金）==='
+-- 只看政策生效日之后：2026-06-05~10-20 有 31 笔历史现金押金（1,800 收 / 590 退），
+-- 那是政策前的数据，不追溯改，也不该每天当事故报。历史清单见
+-- 08-开发设计/06-押金现金与日结口径建议.md §一
+SELECT t.id, d.deposit_no, t.direction, t.amount, t.method, t.occurred_at
+FROM deposit_txn t
+JOIN deposit d ON d.id = t.deposit_id
+WHERE t.method = '现金'
+  AND t.direction IN ('I','O')
+  AND t.occurred_at >= TIMESTAMPTZ '2026-11-18 00:00:00+08';
+
+\echo '=== 14. 押金退款没原路（应为 0 行；退款方式必须落在该押金的收款方式里）==='
+WITH m AS (
+  SELECT deposit_id,
+         string_agg(DISTINCT method, ',') FILTER (WHERE direction = 'I' AND method IS NOT NULL) AS im,
+         string_agg(DISTINCT method, ',') FILTER (WHERE direction = 'O' AND method IS NOT NULL) AS om
+  FROM deposit_txn
+  GROUP BY deposit_id
+)
+SELECT m.deposit_id, d.deposit_no, m.im AS collect_methods, m.om AS refund_methods
+FROM m
+JOIN deposit d ON d.id = m.deposit_id
+WHERE m.om IS NOT NULL
+  AND m.im IS NOT NULL
+  AND NOT (string_to_array(m.om, ',') <@ string_to_array(m.im, ','));
+
 \echo ''
 \echo '=== 自检完成：以上每段都应显示 0 行 ==='

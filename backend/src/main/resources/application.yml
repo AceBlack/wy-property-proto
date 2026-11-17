@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: wy-property-backend
+
+  datasource:
+    # 业务连接只用 wy_app（NOSUPERUSER NOBYPASSRLS）。
+    # search_path=wy,public：wy_app 默认 search_path 里没有业务 schema，不设会报 relation does not exist。
+    # TimeZone=Asia/Shanghai：paid_at 是 timestamptz，日结分日必须钉死营业日时区。
+    url: ${WY_DB_URL:jdbc:postgresql://127.0.0.1:5432/wy_property?options=-c%20search_path%3Dwy%2Cpublic%20-c%20TimeZone%3DAsia%2FShanghai}
+    username: ${WY_DB_USER:wy_app}
+    password: ${WY_DB_PASSWORD:wy_app_pass}
+    hikari:
+      pool-name: wy-pool
+      maximum-pool-size: 10
+      # 必须关自动提交：autoCommit=true 时 SET LOCAL 立即失效，RLS 拿不到 app.tenant_id
+      auto-commit: false
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-statement-timeout: 30
+
+wy:
+  db:
+    # 启动自检：连的是超级用户就拒绝启动（超级用户永远绕过 RLS，且静默）
+    require-non-superuser: true
+    required-schema: wy
+    business-timezone: Asia/Shanghai
+  auth:
+    # 生产必须用密钥管理注入，不要用这个默认值
+    secret: ${WY_JWT_SECRET:wy-dev-only-secret-key-please-change-32bytes}
+    issuer: wy-property
+
+logging:
+  level:
+    com.wy.property: INFO

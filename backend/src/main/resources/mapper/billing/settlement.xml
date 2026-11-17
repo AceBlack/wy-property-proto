@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.settlement.SettlementMapper">
+
+    <!--
+      日结口径：
+        ① 分日按 paid_at（钱到账），按 Asia/Shanghai 营业日切日，不用 payment.period
+        ② 只算 status='正常'（已冲红不计），区间左闭右开，避免跨日重复
+        ③ 现金收入 method='现金'，与各收款点金额一起交班
+    -->
+    <select id="selectDaily" resultType="com.wy.property.billing.settlement.DailySummaryRow">
+        SELECT (p.paid_at AT TIME ZONE 'Asia/Shanghai')::date AS biz_date,
+               count(*)                                      AS txn_count,
+               coalesce(sum(p.amount), 0)                    AS total_amount,
+               coalesce(sum(p.amount) FILTER (WHERE p.method = '现金'), 0) AS cash_amount,
+               count(*) FILTER (WHERE p.pay_point IS NULL OR btrim(p.pay_point) = '') AS no_point_count,
+               coalesce(sum(p.amount) FILTER (WHERE p.pay_point IS NULL OR btrim(p.pay_point) = ''), 0)
+                                                             AS no_point_amount
+        FROM payment p
+        WHERE p.status = '正常'
+          AND p.paid_at &gt;= #{fromTs}
+          AND p.paid_at &lt;  #{toTs}
+        <if test="communityId != null and communityId != ''">
+          AND p.community_id = #{communityId}
+        </if>
+        GROUP BY 1
+        ORDER BY 1
+    </select>
+
+    <!--
+      按收款点拆分。刻意只取"收款点非空"的行：
+      差额 = 当日总额 − Σ各收款点，如果这里有遗漏，差额就不为 0，交班时能立刻发现。
+      如果把 NULL 归成一个"(未收款点)"伪点，差额永远为 0，这条自检就废了。
+    -->
+    <select id="selectByPayPoint" resultType="com.wy.property.billing.settlement.PayPointRow">
+        SELECT (p.paid_at AT TIME ZONE 'Asia/Shanghai')::date AS biz_date,
+               p.pay_point                                   AS pay_point,
+               count(*)                                      AS txn_count,
+               coalesce(sum(p.amount), 0)                    AS amount
+        FROM payment p
+        WHERE p.status = '正常'
+          AND p.pay_point IS NOT NULL
+          AND btrim(p.pay_point) &lt;&gt; ''
+          AND p.paid_at &gt;= #{fromTs}
+          AND p.paid_at &lt;  #{toTs}
+        <if test="communityId != null and communityId != ''">
+          AND p.community_id = #{communityId}
+        </if>
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+    </select>
+
+</mapper>

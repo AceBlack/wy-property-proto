@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.deposit.DepositPolicyAuditMapper">
+
+    <!--
+      现金押金：政策（2026-11-18）禁止。这里只做历史体检，不改数据。
+      D 向本来就没有 method，天然不会命中。
+    -->
+    <select id="selectCashViolations" resultType="com.wy.property.billing.deposit.DepositCashViolationRow">
+        SELECT t.deposit_id                                         AS deposit_id,
+               d.deposit_no                                         AS deposit_no,
+               t.direction                                          AS direction,
+               t.amount                                             AS amount,
+               t.method                                             AS method,
+               (t.occurred_at AT TIME ZONE 'Asia/Shanghai')::date   AS occurred_at
+        FROM deposit_txn t
+        JOIN deposit d ON d.id = t.deposit_id
+        WHERE t.method = '现金'
+          AND t.direction IN ('I', 'O')
+        ORDER BY t.occurred_at, t.deposit_id
+    </select>
+
+    <!--
+      退款是否原路：退款方式必须全部落在该押金的收款方式集合里。
+      用 string_agg 而不是 array_agg，避免依赖 PG 数组到 List 的类型映射。
+    -->
+    <select id="selectMethodMismatches" resultType="com.wy.property.billing.deposit.DepositMethodMismatchRow">
+        WITH m AS (
+            SELECT t.deposit_id,
+                   string_agg(DISTINCT t.method, ',') FILTER (WHERE t.direction = 'I' AND t.method IS NOT NULL) AS im,
+                   string_agg(DISTINCT t.method, ',') FILTER (WHERE t.direction = 'O' AND t.method IS NOT NULL) AS om
+            FROM deposit_txn t
+            GROUP BY t.deposit_id
+        )
+        SELECT m.deposit_id    AS deposit_id,
+               d.deposit_no    AS deposit_no,
+               m.im            AS collect_methods,
+               m.om            AS refund_methods
+        FROM m
+        JOIN deposit d ON d.id = m.deposit_id
+        WHERE m.om IS NOT NULL
+          AND m.im IS NOT NULL
+          AND NOT (string_to_array(m.om, ',') &lt;@ string_to_array(m.im, ','))
+        ORDER BY m.deposit_id
+    </select>
+
+</mapper>

@@ -99,7 +99,7 @@ FROM deposit d WHERE d.tenant_id = 1 AND d.deposit_no = 'DP000001'
   AND NOT EXISTS (SELECT 1 FROM deposit_txn t WHERE t.deposit_id = d.id AND t.direction = 'I');
 
 INSERT INTO deposit_txn (tenant_id, deposit_id, direction, amount, method, pay_point, occurred_at, reason)
-SELECT 1, d.id, 'O', 500.00, '转账', '前台', '2026-10-20 14:00:00+08', '装修验收退还部分'
+SELECT 1, d.id, 'O', 500.00, '现金', '前台'   -- 退款必须原路（daily-check 第 14 段）, '2026-10-20 14:00:00+08', '装修验收退还部分'
 FROM deposit d WHERE d.tenant_id = 1 AND d.deposit_no = 'DP000001'
   AND NOT EXISTS (SELECT 1 FROM deposit_txn t WHERE t.deposit_id = d.id AND t.direction = 'O');
 

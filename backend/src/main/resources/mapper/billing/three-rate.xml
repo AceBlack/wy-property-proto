@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.collection.ThreeRateMapper">
+
+    <select id="selectItem" resultType="com.wy.property.billing.collection.ThreeRateItemRow">
+        SELECT id AS id, name AS name, calc_type AS calc_type, cycle AS cycle
+        FROM fee_item
+        WHERE item_code = #{itemCode}
+    </select>
+
+    <!--
+      理论应收（契约口径）：按账期铺，不看有没有开单。
+
+        按面积 → 房屋建筑面积 × 单价
+        按户   → 1 × 单价
+        按车位 → 1 × 单价（摊到每个车位）
+        其他（按用量 / 按次 / 固定）→ 不产生月度应收，直接返回空
+
+      价目按"生效期覆盖当月"取最近一条，改价不回溯。
+      取不到价目的对象不猜价，计入 gaps —— 缺价和欠费是两件事，混在一起就查不出原因。
+    -->
+    <select id="selectTheoretical" resultType="com.wy.property.billing.collection.ThreeRateTheoreticalRow">
+        WITH months AS (
+            SELECT d::date AS ms, to_char(d, 'YYYY-MM') AS period
+            FROM generate_series(#{fromMonth}::date, #{toMonth}::date, interval '1 month') AS d
+        ),
+        units AS (
+            <choose>
+                <when test="&quot;按车位&quot;.equals(calcType)">
+                    SELECT p.tenant_id, p.community_id, p.parking_id AS unit_id,
+                           coalesce(p.usage_type, '未知') AS usage_type,
+                           1::numeric AS quantity
+                    FROM parking p
+                    WHERE p.deleted_at IS NULL
+                </when>
+                <when test="&quot;按户&quot;.equals(calcType)">
+                    SELECT h.tenant_id, h.community_id, h.house_id AS unit_id,
+                           coalesce(h.usage_type, '未知') AS usage_type,
+                           1::numeric AS quantity
+                    FROM house h
+                    WHERE h.deleted_at IS NULL
+                </when>
+                <when test="&quot;按用量&quot;.equals(calcType) or &quot;按次&quot;.equals(calcType) or &quot;固定&quot;.equals(calcType)">
+                    SELECT NULL::bigint AS tenant_id, NULL::varchar AS community_id,
+                           NULL::varchar AS unit_id, NULL::varchar AS usage_type,
+                           NULL::numeric AS quantity
+                    WHERE 1 = 0
+                </when>
+                <otherwise>
+                    SELECT h.tenant_id, h.community_id, h.house_id AS unit_id,
+                           coalesce(h.usage_type, '未知') AS usage_type,
+                           h.build_area AS quantity
+                    FROM house h
+                    WHERE h.deleted_at IS NULL
+                </otherwise>
+            </choose>
+        )
+        SELECT m.period                                          AS period,
+               u.usage_type                                      AS usage,
+               count(DISTINCT u.unit_id)                         AS houses,
+               count(*) FILTER (WHERE pr.price IS NULL)          AS gaps,
+               coalesce(sum(round(u.quantity * pr.price, 2))
+                        FILTER (WHERE pr.price IS NOT NULL), 0)  AS receivable
+        FROM units u
+        CROSS JOIN months m
+        LEFT JOIN LATERAL (
+            SELECT p.price
+            FROM fee_item_price p
+            WHERE p.tenant_id = u.tenant_id
+              AND p.community_id = u.community_id
+              AND p.item_id = #{itemId}
+              AND p.biz_type = u.usage_type
+              AND p.effective_from &lt;= m.ms
+              AND (p.effective_to IS NULL OR p.effective_to &gt;= m.ms)
+            ORDER BY p.effective_from DESC
+            LIMIT 1
+        ) pr ON true
+        <where>
+            u.unit_id IS NOT NULL
+            <if test="communityId != null and communityId != ''">
+                AND u.community_id = #{communityId}
+            </if>
+        </where>
+        GROUP BY m.period, u.usage_type
+        ORDER BY m.period, u.usage_type
+    </select>
+
+    <!-- 已开单口径的实际数：账期 × 用途。车位账单没有 house_id，归"未知"。 -->
+    <select id="selectActuals" resultType="com.wy.property.billing.collection.ThreeRateActualRow">
+        SELECT btrim(b.period)                        AS period,
+               coalesce(h.usage_type, '未知')          AS usage,
+               coalesce(sum(b.payable), 0)             AS billed,
+               coalesce(sum(b.paid_amount), 0)         AS received,
+               coalesce(sum(b.waive_amount), 0)        AS waived
+        FROM bill b
+        JOIN fee_item f ON f.id = b.item_id
+        LEFT JOIN house h
+               ON h.tenant_id = b.tenant_id
+              AND h.house_id = b.house_id
+        WHERE b.deleted_at IS NULL
+          AND b.status &lt;&gt; '已作废'
+          AND b.period &gt;= #{fromPeriod}
+          AND b.period &lt;= #{toPeriod}
+          AND f.item_code = #{itemCode}
+        <if test="communityId != null and communityId != ''">
+          AND b.community_id = #{communityId}
+        </if>
+        GROUP BY btrim(b.period), coalesce(h.usage_type, '未知')
+        ORDER BY 1, 2
+    </select>
+
+    <select id="countOverpaid" resultType="long">
+        SELECT count(*)
+        FROM bill b
+        JOIN fee_item f ON f.id = b.item_id
+        WHERE b.deleted_at IS NULL
+          AND b.status &lt;&gt; '已作废'
+          AND b.period &gt;= #{fromPeriod}
+          AND b.period &lt;= #{toPeriod}
+          AND f.item_code = #{itemCode}
+          AND b.payable - b.waive_amount - b.paid_amount &lt; 0
+        <if test="communityId != null and communityId != ''">
+          AND b.community_id = #{communityId}
+        </if>
+    </select>
+
+    <select id="selectCashIncome" resultType="java.math.BigDecimal">
+        SELECT coalesce(sum(p.amount), 0)
+        FROM payment p
+        WHERE p.status = '正常'
+          AND p.method &lt;&gt; '预存抵扣'
+          AND p.paid_at &gt;= #{fromTs}
+          AND p.paid_at &lt;  #{toTs}
+          AND EXISTS (
+              SELECT 1 FROM payment_allocation a
+              JOIN fee_item f ON f.id = a.item_id
+              WHERE a.payment_id = p.id AND f.item_code = #{itemCode}
+          )
+        <if test="communityId != null and communityId != ''">
+          AND p.community_id = #{communityId}
+        </if>
+    </select>
+
+    <select id="selectCashAttribution" resultType="com.wy.property.billing.collection.ThreeRateCashRow">
+        SELECT coalesce(sum(a.amount) FILTER (
+                   WHERE btrim(b.period) &gt;= #{fromPeriod} AND btrim(b.period) &lt;= #{toPeriod}), 0) AS current,
+               coalesce(sum(a.amount) FILTER (WHERE btrim(b.period) &lt; #{fromPeriod}), 0)               AS clearing,
+               coalesce(sum(a.amount) FILTER (WHERE btrim(b.period) &gt; #{toPeriod}), 0)                AS prepaid,
+               coalesce(sum(a.amount) FILTER (WHERE b.period IS NULL), 0)                                AS no_period,
+               coalesce(sum(a.amount), 0)                                                                AS total
+        FROM payment_allocation a
+        JOIN payment p ON p.id = a.payment_id
+                      AND p.status = '正常'
+                      AND p.method &lt;&gt; '预存抵扣'
+                      AND p.paid_at &gt;= #{fromTs}
+                      AND p.paid_at &lt;  #{toTs}
+        LEFT JOIN bill b ON b.id = a.bill_id
+        JOIN fee_item f ON f.id = a.item_id
+        WHERE f.item_code = #{itemCode}
+        <if test="communityId != null and communityId != ''">
+          AND p.community_id = #{communityId}
+        </if>
+    </select>
+
+</mapper>

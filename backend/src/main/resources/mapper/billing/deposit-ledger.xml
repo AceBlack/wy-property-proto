@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.deposit.DepositLedgerMapper">
+
+    <!--
+      押金台账（契约 /reports/deposit-ledger）：
+        received / refunded / deducted  期间发生额（occurred_at 落在 [from, to+1)）
+        balance                         截至 to 的累计余额（I − O − D，含 from 之前的历史）
+      两个口径刻意分开写：把期间发生额当余额，会让"月底在账"少掉所有历史押金。
+      deposit.type_id 里存的就是中文类型名（装修押金/门禁卡押金…），直接当 type 用。
+    -->
+    <select id="selectByType" resultType="com.wy.property.billing.deposit.DepositLedgerTypeRow">
+        SELECT d.type_id                                    AS type,
+               count(DISTINCT d.id)                         AS deposit_count,
+               coalesce(sum(t.amount) FILTER (
+                   WHERE t.direction = 'I'
+                     AND t.occurred_at &gt;= #{fromTs} AND t.occurred_at &lt; #{toTs}), 0) AS received,
+               coalesce(sum(t.amount) FILTER (
+                   WHERE t.direction = 'O'
+                     AND t.occurred_at &gt;= #{fromTs} AND t.occurred_at &lt; #{toTs}), 0) AS refunded,
+               coalesce(sum(t.amount) FILTER (
+                   WHERE t.direction = 'D'
+                     AND t.occurred_at &gt;= #{fromTs} AND t.occurred_at &lt; #{toTs}), 0) AS deducted,
+               coalesce(sum(CASE t.direction
+                                 WHEN 'I' THEN t.amount
+                                 WHEN 'O' THEN -t.amount
+                                 WHEN 'D' THEN -t.amount
+                            END) FILTER (WHERE t.occurred_at &lt; #{toTs}), 0) AS balance
+        FROM deposit d
+        LEFT JOIN deposit_txn t
+               ON t.deposit_id = d.id
+              AND t.tenant_id = d.tenant_id
+        <where>
+            <if test="communityId != null and communityId != ''">
+                d.community_id = #{communityId}
+            </if>
+        </where>
+        GROUP BY d.type_id
+        ORDER BY d.type_id
+    </select>
+
+    <!--
+      全量恒等式：收 = 退 + 扣 + 在账。
+      这里刻意不加日期条件——恒等式是台账层的事，按期间截断就不成立了。
+    -->
+    <select id="selectIdentity" resultType="com.wy.property.billing.deposit.DepositIdentityRow">
+        SELECT coalesce(sum(t.amount) FILTER (WHERE t.direction = 'I'), 0) AS received,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'O'), 0) AS refunded,
+               coalesce(sum(t.amount) FILTER (WHERE t.direction = 'D'), 0) AS deducted,
+               (SELECT coalesce(sum(d.balance), 0)
+                FROM deposit d
+                <where>
+                    <if test="communityId != null and communityId != ''">
+                        d.community_id = #{communityId}
+                    </if>
+                </where>)                                                  AS balance
+        FROM deposit_txn t
+        <where>
+            <if test="communityId != null and communityId != ''">
+                EXISTS (SELECT 1 FROM deposit d2
+                        WHERE d2.id = t.deposit_id AND d2.community_id = #{communityId})
+            </if>
+        </where>
+    </select>
+
+</mapper>

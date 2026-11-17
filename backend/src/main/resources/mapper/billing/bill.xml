@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wy.property.billing.bill.BillQueryMapper">
+
+    <sql id="billListFrom">
+        FROM bill b
+        JOIN fee_item f ON f.id = b.item_id
+        LEFT JOIN house h
+               ON h.tenant_id = b.tenant_id
+              AND h.house_id = b.house_id
+        LEFT JOIN owner o
+               ON o.tenant_id = b.tenant_id
+              AND o.owner_id = b.owner_id
+    </sql>
+
+    <!--
+      筛选条件写在同一个片段里，count 与分页共用。
+      两条 SQL 各写一份 WHERE 是分页总数对不上的经典原因：
+      改了列表忘了改 count，翻到最后一页会多出一页空白。
+    -->
+    <sql id="billListWhere">
+        WHERE b.deleted_at IS NULL
+        <if test="q.communityId != null">
+            AND b.community_id = #{q.communityId}
+        </if>
+        <if test="q.buildingId != null">
+            AND h.building_id = #{q.buildingId}
+        </if>
+        <if test="q.unitId != null">
+            AND h.unit_id = #{q.unitId}
+        </if>
+        <if test="q.period != null">
+            AND btrim(b.period) = #{q.period}
+        </if>
+        <if test="q.status != null">
+            AND b.status = #{q.status}
+        </if>
+        <if test="q.itemCode != null">
+            AND f.item_code = #{q.itemCode}
+        </if>
+        <if test="&quot;house&quot;.equals(q.subjectType)">
+            AND b.house_id IS NOT NULL
+        </if>
+        <if test="&quot;park&quot;.equals(q.subjectType)">
+            AND b.parking_id IS NOT NULL
+        </if>
+        <if test="q.kw != null">
+            AND (b.bill_no ILIKE '%' || #{q.kw} || '%'
+                 OR h.full_name ILIKE '%' || #{q.kw} || '%'
+                 OR o.name ILIKE '%' || #{q.kw} || '%')
+        </if>
+        <!-- 快捷视图：debt 欠费 / overdue 逾期 / unpaid 未缴 / part 部分缴 -->
+        <if test="&quot;debt&quot;.equals(q.vf)">
+            AND b.status IN ('待缴', '部分缴')
+        </if>
+        <if test="&quot;overdue&quot;.equals(q.vf)">
+            AND b.status IN ('待缴', '部分缴')
+            AND b.due_date &lt; CURRENT_DATE
+        </if>
+        <if test="&quot;unpaid&quot;.equals(q.vf)">
+            AND b.status = '待缴'
+        </if>
+        <if test="&quot;part&quot;.equals(q.vf)">
+            AND b.status = '部分缴'
+        </if>
+    </sql>
+
+    <select id="count" resultType="long">
+        SELECT count(*)
+        <include refid="billListFrom"/>
+        <include refid="billListWhere"/>
+    </select>
+
+    <!--
+      列表字段全部来自快照（bill 上存了 item_name / price / unit），不 join 价目表：
+      客户三月调价，一月的账单不能跟着变。
+      车位账单没有 house_id，houseName / 业主 为空是正常的。
+    -->
+    <select id="selectPage" resultType="com.wy.property.billing.bill.BillListRow">
+        SELECT b.bill_no                                     AS bill_id,
+               b.community_id                                AS community_id,
+               h.building_id                                 AS building_id,
+               h.unit_id                                     AS unit_id,
+               b.house_id                                    AS house_id,
+               h.full_name                                   AS house_name,
+               b.owner_id                                    AS owner_id,
+               o.name                                        AS owner_name,
+               btrim(b.period)                               AS period,
+               b.status                                      AS status,
+               f.item_code                                   AS item_id,
+               b.item_name                                   AS item_name,
+               b.unit                                        AS unit,
+               b.quantity                                    AS quantity,
+               b.price                                       AS price,
+               b.amount                                      AS amount,
+               b.waive_amount                                AS discount,
+               b.late_fee                                    AS late_fee,
+               b.payable                                     AS payable,
+               b.paid_amount                                 AS paid_amount,
+               (b.payable - b.waive_amount - b.paid_amount)  AS unpaid,
+               CASE WHEN b.payable - b.waive_amount - b.paid_amount &gt; 0
+                         AND b.due_date &lt; CURRENT_DATE
+                    THEN CURRENT_DATE - b.due_date
+               END                                           AS overdue_days,
+               b.due_date                                    AS due_date,
+               (SELECT max(p.paid_at)
+                FROM payment_allocation a
+                JOIN payment p ON p.id = a.payment_id AND p.status = '正常'
+                WHERE a.bill_id = b.id)                      AS pay_time,
+               b.created_at                                  AS create_time,
+               CASE WHEN b.parking_id IS NOT NULL THEN 'park' ELSE 'house' END AS subject_type,
+               b.version                                     AS version
+        <include refid="billListFrom"/>
+        <include refid="billListWhere"/>
+        ORDER BY b.period DESC, b.id DESC
+        LIMIT #{q.size} OFFSET #{q.offset}
+    </select>
+
+</mapper>
